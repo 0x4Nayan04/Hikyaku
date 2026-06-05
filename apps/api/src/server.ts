@@ -5,6 +5,7 @@ import { env } from './config.js'
 import { AppError } from './lib/errors.js'
 import { logger } from './lib/logger.js'
 import { requestIdMiddleware } from './lib/requestId.js'
+import { adminRouter } from './routes/admin.js'
 import { healthRouter } from './routes/health.js'
 
 export function createApp(): Application {
@@ -32,6 +33,7 @@ export function createApp(): Application {
   app.use(express.json({ limit: '256kb' }))
 
   app.use('/v1', healthRouter)
+  app.use('/v1/admin', adminRouter)
 
   app.use((_req, res) => {
     res.status(404).json({

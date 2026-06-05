@@ -1,15 +1,25 @@
+import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
+import * as schema from '@webhook/shared/schema'
 import pg from 'pg'
 import { env } from '../config.js'
 
 const { Pool } = pg
 
 let pool: pg.Pool | undefined
+let db: NodePgDatabase<typeof schema> | undefined
 
 export function getPool(): pg.Pool {
   if (!pool) {
     pool = new Pool({ connectionString: env.DATABASE_URL })
   }
   return pool
+}
+
+export function getDb(): NodePgDatabase<typeof schema> {
+  if (!db) {
+    db = drizzle({ client: getPool(), schema })
+  }
+  return db
 }
 
 export async function checkPostgres(): Promise<boolean> {
@@ -25,5 +35,6 @@ export async function closePool(): Promise<void> {
   if (pool) {
     await pool.end()
     pool = undefined
+    db = undefined
   }
 }
