@@ -13,7 +13,8 @@
   "dependencies": {
     "@webhook/shared": "workspace:*",
     "bullmq": "^5.34.5",
-    "ioredis": "^5.4.2"
+    "dotenv": "^16.4.7",
+    "pino": "^9.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
