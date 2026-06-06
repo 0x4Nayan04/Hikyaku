@@ -7,6 +7,7 @@ import { logger } from './lib/logger.js'
 import { readRequestId, requestIdMiddleware } from './lib/requestId.js'
 import { adminRouter } from './routes/admin.js'
 import { endpointsRouter } from './routes/endpoints/index.js'
+import { eventsRouter } from './routes/events/index.js'
 import { healthRouter } from './routes/health.js'
 import { statsRouter } from './routes/stats.js'
 
@@ -30,6 +31,7 @@ export function createApp(): Application {
   app.use('/v1', healthRouter)
   app.use('/v1', statsRouter)
   app.use('/v1', endpointsRouter)
+  app.use('/v1', eventsRouter)
   app.use('/v1/admin', adminRouter)
 
   app.use((_req, res) => {

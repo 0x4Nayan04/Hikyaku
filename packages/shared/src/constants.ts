@@ -1,6 +1,8 @@
 export const QUEUE_NAME = 'webhook-deliveries'
 export const JOB_NAME = 'deliver'
 
+export const MAX_INGEST_BODY_BYTES = 256 * 1024
+
 export const MAX_DELIVERY_ATTEMPTS = 5
 export const BULLMQ_JOB_ATTEMPTS = 10
 export const DELIVERY_TIMEOUT_MS = 30_000

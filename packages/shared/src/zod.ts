@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ENDPOINT_STATUSES } from './constants.js'
+import { ENDPOINT_STATUSES, MAX_INGEST_BODY_BYTES } from './constants.js'
 
 export const createEndpointSchema = z.object({
   url: z.string().url().max(2048),
@@ -15,5 +15,22 @@ export const patchEndpointSchema = z
     message: 'At least one field required',
   })
 
+export const ingestEventSchema = z
+  .object({
+    idempotency_key: z
+      .string({ required_error: 'idempotency_key is required' })
+      .min(1, { message: 'idempotency_key is required' })
+      .max(256),
+    type: z
+      .string({ required_error: 'type is required' })
+      .min(1, { message: 'type is required' })
+      .max(128),
+    payload: z.custom<unknown>((val) => val !== undefined, { message: 'payload is required' }),
+  })
+  .refine((data) => JSON.stringify(data).length <= MAX_INGEST_BODY_BYTES, {
+    message: 'Request body must be 256 KiB or less',
+  })
+
 export type CreateEndpointInput = z.infer<typeof createEndpointSchema>
 export type PatchEndpointInput = z.infer<typeof patchEndpointSchema>
+export type IngestEventInput = z.infer<typeof ingestEventSchema>

@@ -4,6 +4,7 @@ import { env } from './config.js'
 import { logger } from './lib/logger.js'
 import { getRedisConnectionOptions } from './lib/redis.js'
 import { processor } from './processor.js'
+import { startSweeper, stopSweeper } from './sweeper.js'
 
 const SHUTDOWN_TIMEOUT_MS = 25_000
 
@@ -11,6 +12,8 @@ const worker = new Worker(QUEUE_NAME, processor, {
   connection: getRedisConnectionOptions(),
   concurrency: env.WORKER_CONCURRENCY,
 })
+
+startSweeper()
 
 worker.on('ready', () => {
   logger.info({ queue: QUEUE_NAME, concurrency: env.WORKER_CONCURRENCY }, 'worker_started')
@@ -22,6 +25,8 @@ worker.on('error', (err) => {
 
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'shutting_down')
+
+  stopSweeper()
 
   await Promise.race([
     (async () => {
