@@ -1,11 +1,17 @@
 import { createHash, randomBytes } from 'node:crypto'
 
 const API_KEY_PREFIX = 'whk_'
+const ENDPOINT_SECRET_PREFIX = 'whsec_'
 const API_KEY_RANDOM_BYTES = 16
+const ENDPOINT_SECRET_RANDOM_BYTES = 16
 const API_KEY_PREFIX_LENGTH = 8
 
 export function generateApiKey(): string {
   return `${API_KEY_PREFIX}${randomBytes(API_KEY_RANDOM_BYTES).toString('hex')}`
+}
+
+export function generateEndpointSecret(): string {
+  return `${ENDPOINT_SECRET_PREFIX}${randomBytes(ENDPOINT_SECRET_RANDOM_BYTES).toString('hex')}`
 }
 
 export function hashApiKey(apiKey: string): string {

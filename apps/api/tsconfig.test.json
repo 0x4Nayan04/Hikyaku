@@ -1,9 +1,13 @@
 {
-  "extends": "../../tsconfig.base.json",
+  // Do not add src/**/*.ts here — app source belongs only in tsconfig.json (avoids TS6307).
+  "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
     "rootDir": "."
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"],
-  "references": [{ "path": "../../packages/shared" }]
+  "include": ["src/types/**/*.d.ts", "test/**/*.ts"],
+  "references": [{ "path": "./tsconfig.json" }, { "path": "../../packages/shared" }]
 }

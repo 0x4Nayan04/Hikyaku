@@ -5,7 +5,7 @@ import { getDb } from '../db/client.js'
 import { logger } from '../lib/logger.js'
 
 function touchLastUsedAt(keyHash: string): void {
-  getDb()
+  void getDb()
     .update(apiKeys)
     .set({ lastUsedAt: new Date() })
     .where(eq(apiKeys.keyHash, keyHash))

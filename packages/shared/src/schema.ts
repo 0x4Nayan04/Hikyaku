@@ -21,3 +21,19 @@ export const apiKeys = pgTable(
   },
   (t) => [index('api_keys_tenant_id_idx').on(t.tenantId)],
 )
+
+export const endpoints = pgTable(
+  'endpoints',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    url: text('url').notNull(),
+    secret: text('secret').notNull(),
+    description: text('description'),
+    status: text('status').notNull().default('active'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('endpoints_tenant_id_idx').on(t.tenantId)],
+)
