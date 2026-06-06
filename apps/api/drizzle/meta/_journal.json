@@ -15,6 +15,13 @@
       "when": 1780689117759,
       "tag": "0002_tenants_api_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780736336522,
+      "tag": "0002_bitter_menace",
+      "breakpoints": true
     }
   ]
 }
