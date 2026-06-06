@@ -1,12 +1,13 @@
-import cors from 'cors'
 import express, { type Application, type NextFunction, type Request, type Response } from 'express'
 import { pinoHttp } from 'pino-http'
 import { env } from './config.js'
+import { createCorsMiddleware } from './lib/cors.js'
 import { AppError } from './lib/errors.js'
 import { logger } from './lib/logger.js'
-import { requestIdMiddleware } from './lib/requestId.js'
+import { readRequestId, requestIdMiddleware } from './lib/requestId.js'
 import { adminRouter } from './routes/admin.js'
 import { healthRouter } from './routes/health.js'
+import { statsRouter } from './routes/stats.js'
 
 export function createApp(): Application {
   const app = express()
@@ -17,22 +18,16 @@ export function createApp(): Application {
 
   app.use(requestIdMiddleware)
   app.use(
-    pinoHttp({
+    pinoHttp<Request, Response>({
       logger,
-      genReqId: (req) => (req as Request).requestId,
+      genReqId: (req) => readRequestId(req),
     }),
   )
-  app.use(
-    cors({
-      origin: env.CORS_ORIGIN.split(',').map((origin) => origin.trim()),
-      methods: ['GET', 'POST', 'PATCH'],
-      allowedHeaders: ['Authorization', 'Content-Type', 'X-Admin-Secret'],
-      credentials: false,
-    }),
-  )
+  app.use(createCorsMiddleware())
   app.use(express.json({ limit: '256kb' }))
 
   app.use('/v1', healthRouter)
+  app.use('/v1', statsRouter)
   app.use('/v1/admin', adminRouter)
 
   app.use((_req, res) => {

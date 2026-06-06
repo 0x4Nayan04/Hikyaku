@@ -4,5 +4,8 @@ export default defineConfig({
   test: {
     include: ['test/integration/**/*.test.ts'],
     fileParallelism: false,
+    typecheck: {
+      tsconfig: './tsconfig.test.json',
+    },
   },
 })

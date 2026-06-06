@@ -10,7 +10,7 @@
     "test:unit": "vitest run --config vitest.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "db:seed": "tsx src/scripts/seed.ts",
-    "typecheck": "tsc --build"
+    "typecheck": "tsc --build && tsc -p tsconfig.test.json"
   },
   "dependencies": {
     "@webhook/shared": "workspace:*",
