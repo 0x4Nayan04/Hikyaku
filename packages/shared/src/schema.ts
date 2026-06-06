@@ -92,3 +92,26 @@ export const deliveries = pgTable(
     index('deliveries_status_idx').on(t.status),
   ],
 )
+
+export const deliveryAttempts = pgTable(
+  'delivery_attempts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    deliveryId: uuid('delivery_id')
+      .notNull()
+      .references(() => deliveries.id, { onDelete: 'cascade' }),
+    attemptNumber: integer('attempt_number').notNull(),
+    httpStatus: integer('http_status'),
+    responseBody: text('response_body'),
+    error: text('error'),
+    durationMs: integer('duration_ms'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('delivery_attempts_delivery_id_attempt_number_idx').on(
+      t.deliveryId,
+      t.attemptNumber,
+    ),
+    index('delivery_attempts_delivery_id_idx').on(t.deliveryId),
+  ],
+)
