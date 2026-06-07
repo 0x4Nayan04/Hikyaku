@@ -10,7 +10,7 @@
     "build": "pnpm -r build",
     "test": "pnpm test:unit && pnpm test:integration",
     "test:unit": "pnpm -r test:unit",
-    "test:integration": "pnpm --filter @webhook/api test:integration",
+    "test:integration": "pnpm --filter @webhook/api test:integration && pnpm --filter @webhook/worker test:integration",
     "typecheck": "tsc --build && pnpm --filter @webhook/api exec tsc -p tsconfig.test.json",
     "lint": "eslint .",
     "format": "prettier --write .",

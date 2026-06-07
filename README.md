@@ -107,6 +107,69 @@ curl -X PATCH "http://localhost:3000/v1/endpoints/<id>" \
 
 Cross-tenant access by endpoint id returns `404 not_found`.
 
+## Manual smoke test (webhook.site)
+
+Use [webhook.site](https://webhook.site) to confirm signed deliveries end-to-end with a real HTTP subscriber. Requires the API and worker running (`pnpm dev` or both processes started separately).
+
+1. Open webhook.site and copy your unique URL (`https://webhook.site/<uuid>`).
+2. Seed a tenant and copy an API key:
+
+```bash
+pnpm db:seed
+```
+
+3. Create an endpoint with that URL. Save the `secret` from the response — it is shown only once.
+
+```bash
+curl -X POST http://localhost:3000/v1/endpoints \
+  -H "Authorization: Bearer whk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://webhook.site/<your-uuid>","description":"smoke test"}'
+```
+
+4. Ingest an event:
+
+```bash
+curl -X POST http://localhost:3000/v1/events \
+  -H "Authorization: Bearer whk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"idempotency_key":"smoke-1","type":"order.created","payload":{"order_id":"ord_123"}}'
+```
+
+5. On webhook.site, confirm the request within a few seconds:
+   - **Body:** `{ "id", "type", "created_at", "data" }` where `id` is the event UUID and `data` matches your payload.
+   - **Headers:** `Content-Type: application/json`, `X-Webhook-Id` (delivery UUID), `X-Webhook-Timestamp` (Unix seconds), `X-Webhook-Signature` (`sha256=<hex>`), `User-Agent: WebhookDelivery/1.0`.
+6. Verify the signature using the endpoint secret and the **raw request body** (exact bytes, before JSON parsing):
+
+```bash
+node --input-type=module -e "
+import { verifyPayload } from '@webhook/shared/crypto';
+const secret = 'whsec_...'; // from step 3
+const timestamp = 1717654321; // from X-Webhook-Timestamp
+const rawBody = '{\"id\":\"...\",\"type\":\"order.created\",\"created_at\":\"...\",\"data\":{\"order_id\":\"ord_123\"}}'; // copy from webhook.site
+const signature = 'sha256=...'; // from X-Webhook-Signature
+console.log(verifyPayload(secret, timestamp, rawBody, signature));
+"
+```
+
+Expected: `true`.
+
+7. Disable the endpoint, ingest another event, and confirm the delivery fails with `endpoint_disabled` (no new request on webhook.site):
+
+```bash
+curl -X PATCH "http://localhost:3000/v1/endpoints/<id>" \
+  -H "Authorization: Bearer whk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"status":"disabled"}'
+
+curl -X POST http://localhost:3000/v1/events \
+  -H "Authorization: Bearer whk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"idempotency_key":"smoke-2","type":"order.created","payload":{"order_id":"ord_456"}}'
+```
+
+The signing algorithm is HMAC-SHA256 over `` `${timestamp}.${rawBody}` `` using the endpoint secret as the key.
+
 ## Scripts
 
 | Command                 | Description                             |
@@ -116,7 +179,7 @@ Cross-tenant access by endpoint id returns `404 not_found`.
 | `pnpm typecheck`        | TypeScript project references build     |
 | `pnpm lint`             | ESLint                                  |
 | `pnpm test`             | Unit + integration tests                |
-| `pnpm test:integration` | API integration tests                   |
+| `pnpm test:integration` | API and worker integration tests        |
 | `pnpm docker:up`        | Start Postgres and Redis                |
 | `pnpm docker:down`      | Stop Docker services                    |
 | `pnpm db:migrate`       | Apply database migrations               |
