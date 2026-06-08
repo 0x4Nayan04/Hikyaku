@@ -36,6 +36,13 @@
       "when": 1780748925818,
       "tag": "0005_delivery_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780935397614,
+      "tag": "0006_users_sessions",
+      "breakpoints": true
     }
   ]
 }

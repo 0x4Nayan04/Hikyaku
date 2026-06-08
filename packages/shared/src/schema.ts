@@ -1,12 +1,16 @@
+import { sql } from 'drizzle-orm'
 import {
+  boolean,
   index,
   integer,
+  json,
   jsonb,
   pgTable,
   text,
   timestamp,
   uniqueIndex,
   uuid,
+  varchar,
 } from 'drizzle-orm/pg-core'
 
 export const tenants = pgTable('tenants', {
@@ -14,6 +18,24 @@ export const tenants = pgTable('tenants', {
   name: text('name').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
+    email: text('email').notNull().unique(),
+    passwordHash: text('password_hash').notNull(),
+    name: text('name').notNull(),
+    isSuperAdmin: boolean('is_super_admin').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('users_tenant_id_idx')
+      .on(t.tenantId)
+      .where(sql`${t.tenantId} IS NOT NULL`),
+  ],
+)
 
 export const apiKeys = pgTable(
   'api_keys',
@@ -114,4 +136,14 @@ export const deliveryAttempts = pgTable(
     ),
     index('delivery_attempts_delivery_id_idx').on(t.deliveryId),
   ],
+)
+
+export const sessions = pgTable(
+  'sessions',
+  {
+    sid: varchar('sid').primaryKey(),
+    sess: json('sess').notNull(),
+    expire: timestamp('expire', { withTimezone: true, precision: 6 }).notNull(),
+  },
+  (t) => [index('sessions_expire_idx').on(t.expire)],
 )
