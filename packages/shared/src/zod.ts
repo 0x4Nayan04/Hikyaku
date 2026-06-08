@@ -1,6 +1,10 @@
 import { z } from 'zod'
 import { ENDPOINT_STATUSES, MAX_INGEST_BODY_BYTES } from './constants.js'
 
+const emailSchema = z.string().email().max(320)
+const userNameSchema = z.string().trim().min(1).max(256)
+const newPasswordSchema = z.string().min(12).max(128)
+
 export const createEndpointSchema = z.object({
   url: z.string().url().max(2048),
   description: z.string().max(512).optional(),
@@ -31,6 +35,40 @@ export const ingestEventSchema = z
     message: 'Request body must be 256 KiB or less',
   })
 
+export const loginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1),
+})
+
+export const bootstrapSchema = z.object({
+  email: emailSchema,
+  password: newPasswordSchema,
+  name: userNameSchema,
+})
+
+export const changePasswordSchema = z.object({
+  current_password: z.string().min(1),
+  new_password: newPasswordSchema,
+})
+
+export const adminCreateTenantSchema = z.object({
+  tenant_name: userNameSchema,
+  owner_email: emailSchema,
+  owner_password: newPasswordSchema,
+  owner_name: userNameSchema,
+})
+
+export const adminCreateUserSchema = z.object({
+  email: emailSchema,
+  password: newPasswordSchema,
+  name: userNameSchema,
+})
+
 export type CreateEndpointInput = z.infer<typeof createEndpointSchema>
 export type PatchEndpointInput = z.infer<typeof patchEndpointSchema>
 export type IngestEventInput = z.infer<typeof ingestEventSchema>
+export type LoginInput = z.infer<typeof loginSchema>
+export type BootstrapInput = z.infer<typeof bootstrapSchema>
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>
+export type AdminCreateTenantInput = z.infer<typeof adminCreateTenantSchema>
+export type AdminCreateUserInput = z.infer<typeof adminCreateUserSchema>

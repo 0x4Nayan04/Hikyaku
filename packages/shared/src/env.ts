@@ -10,6 +10,8 @@ const baseSchema = z.object({
 export const apiEnvSchema = baseSchema.extend({
   PORT: z.coerce.number().default(3000),
   ADMIN_BOOTSTRAP_SECRET: z.string().min(8),
+  SESSION_SECRET: z.string().min(32),
+  SESSION_COOKIE_MAX_AGE: z.coerce.number().default(604_800_000),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
 })
 

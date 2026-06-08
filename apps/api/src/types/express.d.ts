@@ -6,6 +6,8 @@ declare global {
       requestId: string
       log: Logger
       tenantId?: string
+      userId?: string
+      isSuperAdmin?: boolean
     }
   }
 }

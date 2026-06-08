@@ -846,6 +846,77 @@ describe('processor', () => {
     await mock.close()
   })
 
+  it('processes a replayed delivery after attempt_count and status reset', async () => {
+    const db = getDb()
+    let responseStatus = 400
+
+    const mock = await startMockServer((_req, res) => {
+      res.writeHead(responseStatus)
+      res.end(responseStatus === 200 ? 'ok' : 'error')
+    })
+
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor Replay' }).returning()
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: `http://127.0.0.1:${mock.port}/hook`,
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-replay-1',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({
+        tenantId: tenant.id,
+        eventId: event.id,
+        endpointId: endpoint.id,
+      })
+      .returning()
+
+    await processor(makeJob(delivery.id))
+
+    const [failed] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    expect(failed.status).toBe('failed')
+    expect(failed.attemptCount).toBe(1)
+
+    responseStatus = 200
+    await db
+      .update(deliveries)
+      .set({
+        status: 'pending',
+        attemptCount: 0,
+        lastError: null,
+        nextRetryAt: null,
+      })
+      .where(eq(deliveries.id, delivery.id))
+
+    await processor(makeJob(delivery.id))
+
+    const [succeeded] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    const attempts = await db
+      .select()
+      .from(deliveryAttempts)
+      .where(eq(deliveryAttempts.deliveryId, delivery.id))
+
+    expect(succeeded.status).toBe('succeeded')
+    expect(succeeded.attemptCount).toBe(1)
+    expect(attempts).toHaveLength(2)
+    expect(attempts[1]?.attemptNumber).toBe(2)
+    expect(attempts[1]?.httpStatus).toBe(200)
+
+    await mock.close()
+  })
+
   it('defers delivery when rate limit denied without incrementing attempt_count', async () => {
     const db = getDb()
     vi.spyOn(rateLimit, 'takeRateLimitToken').mockResolvedValue(false)

@@ -1,11 +1,14 @@
 import express, { type Application, type NextFunction, type Request, type Response } from 'express'
 import { pinoHttp } from 'pino-http'
 import { env } from './config.js'
+import { createSessionMiddleware } from './auth/session.js'
 import { createCorsMiddleware } from './lib/cors.js'
 import { AppError } from './lib/errors.js'
 import { logger } from './lib/logger.js'
 import { readRequestId, requestIdMiddleware } from './lib/requestId.js'
-import { adminRouter } from './routes/admin.js'
+import { adminRouter } from './routes/admin/index.js'
+import { apiKeysRouter } from './routes/api-keys/index.js'
+import { authRouter } from './routes/auth/index.js'
 import { deliveriesRouter } from './routes/deliveries/index.js'
 import { endpointsRouter } from './routes/endpoints/index.js'
 import { eventsRouter } from './routes/events/index.js'
@@ -27,10 +30,13 @@ export function createApp(): Application {
     }),
   )
   app.use(createCorsMiddleware())
+  app.use(createSessionMiddleware())
   app.use(express.json({ limit: '256kb' }))
 
   app.use('/v1', healthRouter)
+  app.use('/v1', authRouter)
   app.use('/v1', statsRouter)
+  app.use('/v1', apiKeysRouter)
   app.use('/v1', endpointsRouter)
   app.use('/v1', eventsRouter)
   app.use('/v1', deliveriesRouter)

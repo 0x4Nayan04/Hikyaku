@@ -2,11 +2,14 @@ import { generateApiKey, hashApiKey, prefixOf } from '@webhook/shared/crypto'
 import { apiKeys, tenants } from '@webhook/shared/schema'
 import '../config.js'
 import { closePool, getDb } from '../db/client.js'
+import { maybeSeedSuperAdmin } from './seedSuperAdmin.js'
 
 const SEED_TENANTS = [{ name: 'Acme' }, { name: 'Globex' }] as const
 
 async function seed(): Promise<void> {
   const db = getDb()
+
+  await maybeSeedSuperAdmin(db)
 
   for (const { name } of SEED_TENANTS) {
     const apiKey = generateApiKey()

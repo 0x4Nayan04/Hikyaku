@@ -1,75 +1,134 @@
 import type { NextFunction, Request, Response } from 'express'
 import { afterAll, describe, expect, it } from 'vitest'
 import '../../../src/config.js'
-import { requireAuth } from '../../../src/auth/middleware.js'
+import { requireTenantAuth } from '../../../src/auth/middleware.js'
 import { closePool } from '../../../src/db/client.js'
 import { AppError } from '../../../src/lib/errors.js'
 import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
+import { createUser, deleteUser } from '../../helpers/user.js'
 
-function createRequest(authorization?: string): Request {
+function createRequest(options?: {
+  authorization?: string
+  session?: { userId?: string }
+}): Request {
   return {
     get(name: string) {
       if (name.toLowerCase() === 'authorization') {
-        return authorization
+        return options?.authorization
       }
       return undefined
     },
+    session: options?.session ?? {},
   } as Request
 }
 
-async function runRequireAuth(req: Request): Promise<{ error?: unknown; tenantId?: string }> {
+async function runRequireTenantAuth(
+  req: Request,
+): Promise<{ error?: unknown; tenantId?: string; userId?: string }> {
   return new Promise((resolve) => {
     const next: NextFunction = (err?: unknown) => {
       if (err) {
         resolve({ error: err })
         return
       }
-      resolve({ tenantId: req.tenantId })
+      resolve({ tenantId: req.tenantId, userId: req.userId })
     }
 
-    requireAuth(req, {} as Response, next)
+    requireTenantAuth(req, {} as Response, next)
   })
 }
 
-describe('requireAuth', () => {
+describe('requireTenantAuth', () => {
   afterAll(async () => {
     await closePool()
   })
 
-  it('returns 401 when Authorization header is missing', async () => {
-    const result = await runRequireAuth(createRequest())
+  it('returns 401 when neither Bearer nor session is present', async () => {
+    const result = await runRequireTenantAuth(createRequest())
 
     expect(result.error).toBeInstanceOf(AppError)
-    expect((result.error as AppError).statusCode).toBe(401)
-    expect((result.error as AppError).code).toBe('unauthorized')
+    expect(result.error).toMatchObject({
+      statusCode: 401,
+      code: 'unauthorized',
+      message: 'Missing or invalid Bearer token or session',
+    })
   })
 
-  it('returns 401 for a malformed Bearer token', async () => {
-    const result = await runRequireAuth(createRequest('Token oops'))
+  it('returns 401 for a malformed Bearer token without session', async () => {
+    const result = await runRequireTenantAuth(createRequest({ authorization: 'Token oops' }))
 
     expect(result.error).toBeInstanceOf(AppError)
-    expect((result.error as AppError).statusCode).toBe(401)
+    expect(result.error).toMatchObject({ statusCode: 401, code: 'unauthorized' })
   })
 
   it('returns 401 for a revoked api key', async () => {
     const { tenantId, apiKey } = await createTenantWithKey({ revoked: true })
 
-    const result = await runRequireAuth(createRequest(`Bearer ${apiKey}`))
+    const result = await runRequireTenantAuth(createRequest({ authorization: `Bearer ${apiKey}` }))
 
     expect(result.error).toBeInstanceOf(AppError)
-    expect((result.error as AppError).statusCode).toBe(401)
+    expect(result.error).toMatchObject({ statusCode: 401, code: 'unauthorized' })
 
     await deleteTenant(tenantId)
   })
 
-  it('sets req.tenantId and calls next for a valid api key', async () => {
+  it('sets req.tenantId for a valid api key', async () => {
     const { tenantId, apiKey } = await createTenantWithKey()
 
-    const result = await runRequireAuth(createRequest(`Bearer ${apiKey}`))
+    const result = await runRequireTenantAuth(createRequest({ authorization: `Bearer ${apiKey}` }))
 
     expect(result.error).toBeUndefined()
     expect(result.tenantId).toBe(tenantId)
 
     await deleteTenant(tenantId)
+  })
+
+  it('prefers Bearer auth when both Bearer and session are present', async () => {
+    const { tenantId: bearerTenantId, apiKey } = await createTenantWithKey()
+    const { tenantId: sessionTenantId } = await createTenantWithKey()
+    const { userId } = await createUser({ tenantId: sessionTenantId })
+
+    const result = await runRequireTenantAuth(
+      createRequest({
+        authorization: `Bearer ${apiKey}`,
+        session: { userId },
+      }),
+    )
+
+    expect(result.error).toBeUndefined()
+    expect(result.tenantId).toBe(bearerTenantId)
+
+    await deleteUser(userId)
+    await deleteTenant(bearerTenantId)
+    await deleteTenant(sessionTenantId)
+  })
+
+  it('sets req.tenantId for a valid tenant user session', async () => {
+    const { tenantId } = await createTenantWithKey()
+    const { userId } = await createUser({ tenantId })
+
+    const result = await runRequireTenantAuth(createRequest({ session: { userId } }))
+
+    expect(result.error).toBeUndefined()
+    expect(result.tenantId).toBe(tenantId)
+    expect(result.userId).toBe(userId)
+
+    await deleteUser(userId)
+    await deleteTenant(tenantId)
+  })
+
+  it('returns 401 for a super-admin session', async () => {
+    const { userId } = await createUser({ tenantId: null, isSuperAdmin: true })
+
+    const result = await runRequireTenantAuth(createRequest({ session: { userId } }))
+
+    expect(result.error).toBeInstanceOf(AppError)
+    expect(result.error).toMatchObject({
+      statusCode: 401,
+      code: 'unauthorized',
+      message: 'Missing or invalid Bearer token or session',
+    })
+
+    await deleteUser(userId)
   })
 })

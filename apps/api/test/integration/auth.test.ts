@@ -49,7 +49,10 @@ describe('auth', () => {
 
     expect(res.status).toBe(401)
     expect(res.body).toEqual({
-      error: { code: 'unauthorized', message: 'Missing or invalid Bearer token' },
+      error: {
+        code: 'unauthorized',
+        message: 'Missing or invalid Bearer token or session',
+      },
     })
   })
 

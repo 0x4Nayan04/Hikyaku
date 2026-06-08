@@ -1,20 +1,12 @@
 import { generateApiKey, hashApiKey, prefixOf } from '@webhook/shared/crypto'
 import { apiKeys, tenants } from '@webhook/shared/schema'
-import { Router, type IRouter, type NextFunction, type Request, type Response } from 'express'
-import { env } from '../config.js'
-import { getDb } from '../db/client.js'
-import { AppError } from '../lib/errors.js'
+import type { NextFunction, Request, Response } from 'express'
+import { getDb } from '../../db/client.js'
+import { AppError } from '../../lib/errors.js'
+import { logger } from '../../lib/logger.js'
+import { requireAdminSecret } from '../auth/validation.js'
 
-export const adminRouter: IRouter = Router()
-
-function requireAdminSecret(req: Request): void {
-  const secret = req.get('x-admin-secret')
-  if (secret !== env.ADMIN_BOOTSTRAP_SECRET) {
-    throw new AppError(401, 'invalid_admin_secret', 'Wrong or missing X-Admin-Secret')
-  }
-}
-
-function parseTenantName(body: unknown): string {
+function parseLegacyTenantName(body: unknown): string {
   if (
     typeof body !== 'object' ||
     body === null ||
@@ -31,10 +23,10 @@ function parseTenantName(body: unknown): string {
   return name
 }
 
-adminRouter.post('/tenants', async (req, res: Response, next: NextFunction) => {
+export async function createTenantLegacy(req: Request, res: Response, next: NextFunction) {
   try {
     requireAdminSecret(req)
-    const name = parseTenantName(req.body)
+    const name = parseLegacyTenantName(req.body)
 
     const apiKey = generateApiKey()
     const db = getDb()
@@ -51,6 +43,10 @@ adminRouter.post('/tenants', async (req, res: Response, next: NextFunction) => {
       prefix: prefixOf(apiKey),
     })
 
+    res.setHeader('Deprecation', 'true')
+    res.setHeader('Link', '</v1/admin/tenants>; rel="successor-version"')
+    logger.warn({ tenant_id: tenant.id }, 'legacy_admin_tenant_created')
+
     res.status(201).json({
       tenant: {
         id: tenant.id,
@@ -62,4 +58,4 @@ adminRouter.post('/tenants', async (req, res: Response, next: NextFunction) => {
   } catch (err) {
     next(err)
   }
-})
+}

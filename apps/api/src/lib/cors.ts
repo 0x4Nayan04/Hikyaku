@@ -14,6 +14,6 @@ export function createCorsMiddleware(): RequestHandler {
     origin: parseCorsOrigins(env.CORS_ORIGIN),
     methods: ['GET', 'POST', 'PATCH'],
     allowedHeaders: ['Authorization', 'Content-Type', 'X-Admin-Secret'],
-    credentials: false,
+    credentials: true,
   })
 }

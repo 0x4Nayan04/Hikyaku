@@ -19,3 +19,12 @@ export async function enqueueDelivery(deliveryId: string): Promise<void> {
     ...DELIVERY_JOB_OPTIONS,
   })
 }
+
+export async function reEnqueueDelivery(deliveryId: string): Promise<void> {
+  const existing = await queue.getJob(deliveryId)
+  if (existing) {
+    await existing.remove()
+  }
+
+  await enqueueDelivery(deliveryId)
+}

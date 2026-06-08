@@ -27,6 +27,10 @@
     "./zod": {
       "types": "./dist/zod.d.ts",
       "default": "./dist/zod.js"
+    },
+    "./password": {
+      "types": "./dist/password.d.ts",
+      "default": "./dist/password.js"
     }
   },
   "scripts": {
@@ -35,10 +39,12 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "drizzle-orm": "^0.38.3",
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

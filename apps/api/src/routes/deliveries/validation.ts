@@ -11,6 +11,12 @@ export function parseDeliveryId(id: string): void {
   }
 }
 
+export function assertReplayableStatus(status: string): void {
+  if (status !== 'failed') {
+    throw new AppError(400, 'invalid_state', 'Only failed deliveries can be replayed')
+  }
+}
+
 export function parseListQuery(query: {
   status?: string | string[]
 }): { status?: DeliveryStatus } {

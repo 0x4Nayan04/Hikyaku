@@ -107,6 +107,50 @@ curl -X PATCH "http://localhost:3000/v1/endpoints/<id>" \
 
 Cross-tenant access by endpoint id returns `404 not_found`.
 
+## Tenant and admin setup
+
+| Method                            | When                                 | Auth                                    |
+| --------------------------------- | ------------------------------------ | --------------------------------------- |
+| `pnpm db:seed`                    | Local dev / CI                       | — (prints API keys for Acme and Globex) |
+| `POST /v1/auth/bootstrap`         | First deploy, before any users exist | `X-Admin-Secret` header                 |
+| `POST /v1/admin/tenants`          | Production tenant onboarding         | Super-admin session cookie              |
+| `POST /v1/admin/tenants` (legacy) | Scripts and automation only          | `X-Admin-Secret` header                 |
+
+### Bootstrap super-admin (once)
+
+```bash
+curl -X POST http://localhost:3000/v1/auth/bootstrap \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Secret: $ADMIN_BOOTSTRAP_SECRET" \
+  -d '{"email":"admin@example.com","password":"temporary-password-12","name":"Admin"}'
+```
+
+Disabled after the first user exists. `ADMIN_BOOTSTRAP_SECRET` is for bootstrap and the legacy CLI path only — not for routine dashboard operations.
+
+### Create tenant + owner (preferred)
+
+Log in as super-admin, then:
+
+```bash
+curl -X POST http://localhost:3000/v1/admin/tenants \
+  -H "Content-Type: application/json" \
+  -b "sid=<session-cookie>" \
+  -d '{"tenant_name":"Acme","owner_email":"owner@acme.com","owner_password":"temporary-password-12","owner_name":"Acme Owner"}'
+```
+
+Returns `{ tenant, user }`. The owner creates API keys from Settings after logging in.
+
+### Legacy CLI tenant + API key (deprecated)
+
+`POST /v1/admin/tenants` with `X-Admin-Secret` still creates a tenant and prints an API key once for scripts. Responses include a `Deprecation: true` header. Prefer the session-based flow above for production onboarding.
+
+```bash
+curl -X POST http://localhost:3000/v1/admin/tenants \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Secret: $ADMIN_BOOTSTRAP_SECRET" \
+  -d '{"name":"Script Tenant"}'
+```
+
 ## Manual smoke test (webhook.site)
 
 Use [webhook.site](https://webhook.site) to confirm signed deliveries end-to-end with a real HTTP subscriber. Requires the API and worker running (`pnpm dev` or both processes started separately).
@@ -252,8 +296,8 @@ Set `DATABASE_URL` and `REDIS_URL` in `.env` (see `.env.example`). Do not run in
 | Command                 | Scope                                              |
 | ----------------------- | -------------------------------------------------- |
 | `pnpm test`             | Unit tests, then integration tests                 |
-| `pnpm test:unit`        | All packages (`apps/api`, `apps/worker`, `shared`)  |
-| `pnpm test:integration` | API integration tests, then worker integration |
+| `pnpm test:unit`        | All packages (`apps/api`, `apps/worker`, `shared`) |
+| `pnpm test:integration` | API integration tests, then worker integration     |
 
 CI (`.github/workflows/ci.yml`) runs `lint` → `typecheck` → `test:unit` → `db:migrate` → `test:integration` with Postgres 16 and Redis 7 service containers.
 
@@ -272,7 +316,7 @@ apps/worker/test/
 packages/shared/test/unit/   # crypto, env parsing
 ```
 
-**API integration** (`apps/api/test/integration/`): health, auth, endpoints, events, deliveries, stats, pagination, tenant isolation.
+**API integration** (`apps/api/test/integration/`): health, auth, endpoints, events, deliveries, delivery replay, delivery SSE stream, API keys (rotate), stats, pagination, tenant isolation, admin tenants.
 
 **Worker integration** (`apps/worker/test/integration/`): retry, rate-limit, e2e pipeline. Worker tests import the API app for ingest and use `processor` directly or a short-lived BullMQ `Worker` where needed.
 
@@ -282,13 +326,13 @@ Each integration file manages its own setup/teardown (tenant seeding, queue obli
 
 These five behaviors must pass in CI before merge to `main`:
 
-| # | Behavior              | File                                              |
-| - | --------------------- | ------------------------------------------------- |
-| 1 | Ingest idempotency    | `apps/api/test/integration/events.test.ts`        |
-| 2 | Transient failure retry | `apps/worker/test/integration/retry.test.ts`    |
-| 3 | Fail-fast (HTTP 4xx)  | `apps/worker/test/integration/retry.test.ts`      |
-| 4 | Tenant isolation      | `apps/api/test/integration/tenant-isolation.test.ts` |
-| 5 | E2E pipeline + HMAC   | `apps/worker/test/integration/e2e-pipeline.test.ts` |
+| #   | Behavior                | File                                                 |
+| --- | ----------------------- | ---------------------------------------------------- |
+| 1   | Ingest idempotency      | `apps/api/test/integration/events.test.ts`           |
+| 2   | Transient failure retry | `apps/worker/test/integration/retry.test.ts`         |
+| 3   | Fail-fast (HTTP 4xx)    | `apps/worker/test/integration/retry.test.ts`         |
+| 4   | Tenant isolation        | `apps/api/test/integration/tenant-isolation.test.ts` |
+| 5   | E2E pipeline + HMAC     | `apps/worker/test/integration/e2e-pipeline.test.ts`  |
 
 Additional integration coverage includes endpoint tenant checks (`endpoints-tenant.test.ts`) and rate limiting (`rate-limit.test.ts`).
 
