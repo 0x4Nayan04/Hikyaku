@@ -115,6 +115,170 @@ describe('processor', () => {
     await mock.close()
   })
 
+  it('throws for retryable 5xx status to trigger BullMQ backoff', async () => {
+    const db = getDb()
+    let requestCount = 0
+
+    const mock = await startMockServer((_req, res) => {
+      requestCount += 1
+      res.writeHead(503)
+      res.end('Service Unavailable')
+    })
+
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor Retry' }).returning()
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: `http://127.0.0.1:${mock.port}/hook`,
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-retry-1',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({
+        tenantId: tenant.id,
+        eventId: event.id,
+        endpointId: endpoint.id,
+      })
+      .returning()
+
+    await expect(processor(makeJob(delivery.id))).rejects.toThrow()
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    const attempts = await db
+      .select()
+      .from(deliveryAttempts)
+      .where(eq(deliveryAttempts.deliveryId, delivery.id))
+
+    expect(requestCount).toBe(1)
+    expect(updated.status).toBe('pending')
+    expect(updated.attemptCount).toBe(1)
+    expect(updated.lastError).toBe('http_503')
+    expect(attempts).toHaveLength(1)
+    expect(attempts[0]?.httpStatus).toBe(503)
+
+    await mock.close()
+  })
+
+  it('fails fast on non-retryable 4xx without throwing', async () => {
+    const db = getDb()
+    let requestCount = 0
+
+    const mock = await startMockServer((_req, res) => {
+      requestCount += 1
+      res.writeHead(400)
+      res.end('Bad Request')
+    })
+
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor FailFast' }).returning()
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: `http://127.0.0.1:${mock.port}/hook`,
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-failfast-1',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({
+        tenantId: tenant.id,
+        eventId: event.id,
+        endpointId: endpoint.id,
+      })
+      .returning()
+
+    await processor(makeJob(delivery.id))
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    const attempts = await db
+      .select()
+      .from(deliveryAttempts)
+      .where(eq(deliveryAttempts.deliveryId, delivery.id))
+
+    expect(requestCount).toBe(1)
+    expect(updated.status).toBe('failed')
+    expect(updated.lastError).toBe('http_400')
+    expect(attempts).toHaveLength(1)
+    expect(attempts[0]?.httpStatus).toBe(400)
+
+    await mock.close()
+  })
+
+  it('dead letters after max retry attempts', async () => {
+    const db = getDb()
+
+    const mock = await startMockServer((_req, res) => {
+      res.writeHead(503)
+      res.end('Service Unavailable')
+    })
+
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor DeadLetter' }).returning()
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: `http://127.0.0.1:${mock.port}/hook`,
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-dead-1',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({
+        tenantId: tenant.id,
+        eventId: event.id,
+        endpointId: endpoint.id,
+        attemptCount: 4,
+      })
+      .returning()
+
+    await expect(processor(makeJob(delivery.id))).rejects.toThrow()
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    expect(updated.attemptCount).toBe(5)
+
+    // Second call — now at max
+    await processor(makeJob(delivery.id))
+
+    const [final] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    expect(final.status).toBe('failed')
+    expect(final.lastError).toBe('max_attempts')
+    expect(final.attemptCount).toBe(5)
+
+    await mock.close()
+  })
+
   it('fails immediately when endpoint is disabled without HTTP call', async () => {
     const db = getDb()
     let requestCount = 0

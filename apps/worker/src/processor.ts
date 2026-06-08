@@ -110,6 +110,7 @@ async function recordHttpAttempt(
 ): Promise<void> {
   const db = getDb()
   const attemptNumber = await nextAttemptNumber(deliveryId)
+  const lastError = error ?? (httpStatus ? `http_${httpStatus}` : null)
 
   await db.transaction(async (tx) => {
     await tx.insert(deliveryAttempts).values({
@@ -124,9 +125,29 @@ async function recordHttpAttempt(
       .update(deliveries)
       .set({
         attemptCount: attemptCount + 1,
+        lastError,
         updatedAt: new Date(),
       })
       .where(eq(deliveries.id, deliveryId))
+  })
+}
+
+async function markFailed(
+  deliveryId: string,
+  eventId: string,
+  lastError: string,
+): Promise<void> {
+  const db = getDb()
+  await db.transaction(async (tx) => {
+    await tx
+      .update(deliveries)
+      .set({
+        status: 'failed',
+        lastError,
+        updatedAt: new Date(),
+      })
+      .where(eq(deliveries.id, deliveryId))
+    await reevaluateEventStatus(eventId, tx)
   })
 }
 
@@ -178,27 +199,47 @@ export async function processor(job: Job<DeliveryJobData>): Promise<void> {
     'User-Agent': 'WebhookDelivery/1.0',
   }
 
+  const start = Date.now()
+  let httpStatus: number | null = null
+  let responseBody: string | null = null
+  let error: string | null = null
+  let retryable = false
+
   try {
     const result = await postWithTimeout(row.url, body, headers, env.DELIVERY_TIMEOUT_MS)
-    await recordHttpAttempt(
-      row.id,
-      row.attemptCount,
-      result.status,
-      result.body,
-      null,
-      result.durationMs,
-    )
+    httpStatus = result.status
+    responseBody = result.body
 
-    if (result.status >= 200 && result.status < 300) {
+    if (httpStatus >= 200 && httpStatus < 300) {
+      await recordHttpAttempt(row.id, row.attemptCount, httpStatus, responseBody, null, Date.now() - start)
       await markSucceeded(row.id, row.eventId)
-      log.info({ http_status: result.status }, 'delivery_succeeded')
+      log.info({ http_status: httpStatus }, 'delivery_succeeded')
       return
     }
 
-    log.info({ http_status: result.status }, 'delivery_http_failure')
+    await recordHttpAttempt(row.id, row.attemptCount, httpStatus, responseBody, null, Date.now() - start)
+    log.info({ http_status: httpStatus }, 'delivery_http_failure')
+
+    retryable = httpStatus === 408 || httpStatus === 429 || httpStatus >= 500
   } catch (err) {
-    const error = err instanceof Error && err.name === 'AbortError' ? 'timeout' : 'network_error'
-    await recordHttpAttempt(row.id, row.attemptCount, null, null, error, 0)
+    error = err instanceof Error && err.name === 'AbortError' ? 'timeout' : 'network_error'
+    await recordHttpAttempt(row.id, row.attemptCount, null, null, error, Date.now() - start)
     log.info({ error }, 'delivery_network_failure')
+    retryable = true
   }
+
+  if (!retryable) {
+    await markFailed(row.id, row.eventId, error ?? `http_${httpStatus}`)
+    log.info({ last_error: error ?? `http_${httpStatus}` }, 'delivery_failed_fast')
+    return
+  }
+
+  if (row.attemptCount + 1 >= env.MAX_DELIVERY_ATTEMPTS) {
+    await markFailed(row.id, row.eventId, 'max_attempts')
+    log.info({ attempt_count: row.attemptCount + 1 }, 'delivery_dead_letter')
+    return
+  }
+
+  log.info({ last_error: error ?? `http_${httpStatus}`, attempt_count: row.attemptCount + 1 }, 'delivery_retrying')
+  throw new Error(error ?? `http_${httpStatus}`)
 }
