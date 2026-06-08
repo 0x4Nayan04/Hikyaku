@@ -38,4 +38,13 @@ describe('workerEnvSchema', () => {
     expect(env.RATE_LIMIT_PER_MINUTE).toBe(100)
     expect(env.WORKER_CONCURRENCY).toBe(5)
   })
+
+  it('coerces custom RATE_LIMIT_PER_MINUTE from env', () => {
+    const env = workerEnvSchema.parse({
+      ...baseEnv,
+      RATE_LIMIT_PER_MINUTE: '250',
+    })
+
+    expect(env.RATE_LIMIT_PER_MINUTE).toBe(250)
+  })
 })

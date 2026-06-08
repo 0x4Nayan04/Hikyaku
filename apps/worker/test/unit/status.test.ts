@@ -85,6 +85,18 @@ describe('reevaluateEventStatus', () => {
     expect(await getEventStatus(eventId)).toBe('pending')
   })
 
+  it('keeps pending when the only delivery is deferred', async () => {
+    const { eventId } = await seedEventWithDeliveries(['deferred'])
+    await reevaluateEventStatus(eventId)
+    expect(await getEventStatus(eventId)).toBe('pending')
+  })
+
+  it('keeps pending when one delivery is in_progress', async () => {
+    const { eventId } = await seedEventWithDeliveries(['succeeded', 'in_progress'])
+    await reevaluateEventStatus(eventId)
+    expect(await getEventStatus(eventId)).toBe('pending')
+  })
+
   it('sets completed when there are zero deliveries', async () => {
     const db = getDb()
     const [tenant] = await db.insert(tenants).values({ name: 'Status Zero' }).returning()

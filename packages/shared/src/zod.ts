@@ -25,7 +25,7 @@ export const ingestEventSchema = z
       .string({ required_error: 'type is required' })
       .min(1, { message: 'type is required' })
       .max(128),
-    payload: z.custom<unknown>((val) => val !== undefined, { message: 'payload is required' }),
+    payload: z.record(z.string(), z.unknown()),
   })
   .refine((data) => JSON.stringify(data).length <= MAX_INGEST_BODY_BYTES, {
     message: 'Request body must be 256 KiB or less',

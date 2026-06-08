@@ -10,8 +10,11 @@ export function parsePagination(query: {
   const limitRaw = Array.isArray(query.limit) ? query.limit[0] : query.limit
   const offsetRaw = Array.isArray(query.offset) ? query.offset[0] : query.offset
 
-  const limit = Math.min(Math.max(parseInt(limitRaw ?? '50', 10) || 50, 1), 100)
-  const offset = Math.max(parseInt(offsetRaw ?? '0', 10) || 0, 0)
+  const limitParsed = parseInt(limitRaw ?? '50', 10)
+  const offsetParsed = parseInt(offsetRaw ?? '0', 10)
+
+  const limit = Math.min(Math.max(Number.isNaN(limitParsed) ? 50 : limitParsed, 1), 100)
+  const offset = Math.max(Number.isNaN(offsetParsed) ? 0 : offsetParsed, 0)
 
   return { limit, offset }
 }

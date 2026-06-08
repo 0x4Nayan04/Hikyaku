@@ -87,7 +87,7 @@ describe('parseIngestBody', () => {
   it('rejects a missing payload', () => {
     expectValidationError(
       () => parseIngestBody({ idempotency_key: 'order-123', type: 'order.paid' }),
-      'payload is required',
+      'Required',
     )
   })
 
