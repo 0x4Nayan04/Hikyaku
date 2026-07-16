@@ -1,0 +1,84 @@
+/* Pruned — Shortly URL-shortener dashboard blocks removed; keep shared loading primitives. */
+/* Recent Activity styles live in console-bridge.css */
+
+@layer utilities {
+  .sm-spinner,
+  .auth-branded-spinner {
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    border: 2px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: sm-spinner-spin 0.85s linear infinite;
+  }
+  .sm-spinner--sm {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  .sm-spinner--lg {
+    width: 3rem;
+    height: 3rem;
+  }
+  @keyframes sm-spinner-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sm-spinner,
+    .auth-branded-spinner {
+      animation: none;
+      border-top-color: var(--color-primary);
+      border-right-color: var(--color-primary);
+      opacity: 0.85;
+    }
+  }
+
+  .sm-skeleton {
+    border: 1px solid color-mix(in srgb, var(--color-ink) 6%, transparent);
+    background-color: var(--color-surface-muted);
+    border-radius: 0;
+  }
+  .sm-skeleton--shimmer,
+  .auth-form-skeleton__line--shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface-muted) 25%,
+      var(--color-border) 50%,
+      var(--color-surface-muted) 75%
+    );
+    background-size: 200% 100%;
+    animation: sm-skeleton-shimmer 1.5s ease-in-out infinite;
+  }
+  @keyframes sm-skeleton-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sm-skeleton--shimmer,
+    .auth-form-skeleton__line--shimmer {
+      animation: none;
+      background: var(--color-surface-muted);
+    }
+  }
+
+  .page-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .page-loader__caption {
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-muted-strong);
+  }
+}
