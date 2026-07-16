@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { ApiError, patchAdminTenant } from '@/api/client'
 import type { AdminTenant } from '@/api/types'
@@ -31,6 +31,10 @@ export function AdminRenameTenantDialog({
   const [name, setName] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  useEffect(() => {
+    if (open && tenant) setName(tenant.name)
+  }, [open, tenant])
+
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen && !submitting) {
       setName('')
@@ -59,12 +63,7 @@ export function AdminRenameTenantDialog({
   return (
     <CatalogDialog
       open={open}
-      onOpenChange={(next) => {
-        if (next && tenant) {
-          setName(tenant.name)
-        }
-        handleOpenChange(next)
-      }}
+      onOpenChange={handleOpenChange}
     >
       <CatalogDialogContent className="sm:max-w-md">
         <CatalogDialogHeader>

@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   ClipboardList,
   Link2,
-  ListFilter,
   Pencil,
   Plus,
   Search,
@@ -458,7 +457,6 @@ export function Admin() {
         <AdminPlatformMetrics
           total={state.total}
           pendingCount={pendingCount}
-          shownCount={filteredTenants.length}
           loading={state.loading}
           signupLoading={state.signupLoading}
         />
@@ -522,18 +520,16 @@ export function Admin() {
   )
 }
 
-type MetricTone = 'info' | 'warning' | 'neutral'
+type MetricTone = 'info' | 'warning'
 
 const metricIconClass: Record<MetricTone, string> = {
   info: 'dashboard-activity-row__icon--event',
   warning: 'dashboard-activity-row__icon--warning',
-  neutral: 'dashboard-activity-row__icon--neutral',
 }
 
 type AdminPlatformMetricsProps = {
   total: number
   pendingCount: number
-  shownCount: number
   loading: boolean
   signupLoading: boolean
 }
@@ -541,7 +537,6 @@ type AdminPlatformMetricsProps = {
 function AdminPlatformMetrics({
   total,
   pendingCount,
-  shownCount,
   loading,
   signupLoading,
 }: AdminPlatformMetricsProps) {
@@ -567,16 +562,6 @@ function AdminPlatformMetrics({
       value: signupLoading && pendingCount === 0 ? '—' : pendingCount.toLocaleString(),
       icon: UserPlus,
       tone: 'warning',
-    },
-    {
-      label: 'Shown',
-      hint:
-        loading && total === 0
-          ? 'Loading…'
-          : `of ${total.toLocaleString()} tenant${total === 1 ? '' : 's'}`,
-      value: loading && total === 0 ? '—' : shownCount.toLocaleString(),
-      icon: ListFilter,
-      tone: 'neutral',
     },
   ]
 

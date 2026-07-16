@@ -8,7 +8,7 @@
   --color-accent: #0562ef;
   --color-ink: #0b1015; /* --color-text-1 */
   --color-muted: #888e94; /* --color-text-3 / --color-neutral-100 */
-  --color-muted-strong: #6b7480; /* --color-neutral-300 — WCAG AA small text on white */
+  --color-muted-strong: #5c6570; /* higher-contrast subtitles and helper text */
   --color-muted-accessible: #5c6570; /* darker small UI text when strong is still marginal */
   --color-border: #c5dbf2;
   --color-surface: #ffffff; /* --color-neutral-50 */

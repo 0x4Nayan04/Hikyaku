@@ -38,7 +38,11 @@ export function Settings() {
     <ConsolePage
       marker="Workspace"
       title="Settings"
-      description="Manage tenant access credentials, browser-stored endpoint secrets, and workspace identity."
+      description={
+        isSuperAdmin
+          ? 'Manage your account, password, and platform administration access.'
+          : 'Manage tenant access credentials, endpoint secrets, and workspace identity.'
+      }
     >
       <CatalogTabs value={tab} onValueChange={setTab}>
         <CatalogTabsList>

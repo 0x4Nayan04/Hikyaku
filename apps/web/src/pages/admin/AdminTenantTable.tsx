@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Pencil, Trash2, Users } from 'lucide-react'
 import { ApiError, deleteAdminTenant } from '@/api/client'
@@ -14,6 +14,7 @@ import {
 import { DataPanel } from '@/components/console/DataPanel'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
+import { SettingsCopyAction } from '@/components/console/SettingsCatalog'
 import { StatusBadge } from '@/components/console/StatusBadge'
 import { CatalogButton } from '@/components/catalog/CatalogButton'
 import {
@@ -24,6 +25,8 @@ import {
   CatalogDialogHeader,
   CatalogDialogTitle,
 } from '@/components/catalog/CatalogDialog'
+import { CatalogInput } from '@/components/catalog/CatalogInput'
+import { Label } from '@/components/ui/label'
 import { formatDateTime } from '@/lib/format'
 import { toast } from '@/lib/toast'
 import { AdminRenameTenantDialog } from '@/pages/admin/AdminRenameTenantDialog'
@@ -40,18 +43,6 @@ type AdminTenantTableProps = {
   searchQuery?: string
 }
 
-function TenantStatusBadge({ created_at }: { created_at: string }) {
-  const daysSinceCreation = Math.floor(
-    (Date.now() - new Date(created_at).getTime()) / (1000 * 60 * 60 * 24),
-  )
-
-  if (daysSinceCreation <= 7) {
-    return <StatusBadge kind="label" label="New" tone="success" />
-  }
-
-  return <StatusBadge kind="label" label="Active" tone="info" />
-}
-
 export function AdminTenantTable({
   tenants,
   total,
@@ -63,7 +54,9 @@ export function AdminTenantTable({
 }: AdminTenantTableProps) {
   const [renameTarget, setRenameTarget] = useState<AdminTenant | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AdminTenant | null>(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null)
   const pageStart = total === 0 ? 0 : offset + 1
   const pageEnd = Math.min(offset + tenants.length, total)
   const canGoBack = offset > 0
@@ -113,11 +106,16 @@ export function AdminTenantTable({
             {tenants.map((tenant) => (
               <DataTableRow key={tenant.id}>
                 <DataTableCell className="font-medium text-foreground">{tenant.name}</DataTableCell>
-                <DataTableCell className="hidden max-w-48 truncate font-mono text-xs text-muted-foreground md:table-cell">
-                  {tenant.id}
+                <DataTableCell className="hidden md:table-cell">
+                  <div className="flex items-center gap-1 whitespace-nowrap">
+                    <code className="font-mono text-xs text-muted-strong" title={tenant.id}>
+                      {tenant.id.slice(0, 8)}…{tenant.id.slice(-4)}
+                    </code>
+                    <SettingsCopyAction value={tenant.id} copyLabel="Tenant ID" />
+                  </div>
                 </DataTableCell>
                 <DataTableCell>
-                  <TenantStatusBadge created_at={tenant.created_at} />
+                  <StatusBadge kind="label" label="Active" tone="success" />
                 </DataTableCell>
                 <DataTableCell className="whitespace-nowrap text-sm text-muted-foreground">
                   {formatDateTime(tenant.created_at)}
@@ -141,7 +139,10 @@ export function AdminTenantTable({
                     <CatalogButton
                       variant="secondary"
                       className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem] text-status-danger hover:text-status-danger"
-                      onClick={() => setDeleteTarget(tenant)}
+                      onClick={() => {
+                        setDeleteConfirmation('')
+                        setDeleteTarget(tenant)
+                      }}
                     >
                       <Trash2 className="mr-1 size-3" />
                       Delete
@@ -166,10 +167,19 @@ export function AdminTenantTable({
       <CatalogDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {
-          if (!open && deletingId === null) setDeleteTarget(null)
+          if (!open && deletingId === null) {
+            setDeleteTarget(null)
+            setDeleteConfirmation('')
+          }
         }}
       >
-        <CatalogDialogContent className="sm:max-w-md">
+        <CatalogDialogContent
+          className="sm:max-w-md"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault()
+            cancelDeleteRef.current?.focus()
+          }}
+        >
           <CatalogDialogHeader>
             <CatalogDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="size-5 text-status-danger" />
@@ -181,10 +191,26 @@ export function AdminTenantTable({
               delivery history. This cannot be undone.
             </CatalogDialogDescription>
           </CatalogDialogHeader>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="delete-tenant-confirmation">
+              Type <strong>{deleteTarget?.name}</strong> to confirm
+            </Label>
+            <CatalogInput
+              id="delete-tenant-confirmation"
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              disabled={deletingId !== null}
+              autoComplete="off"
+            />
+          </div>
           <CatalogDialogFooter>
             <CatalogButton
+              ref={cancelDeleteRef}
               variant="secondary"
-              onClick={() => setDeleteTarget(null)}
+              onClick={() => {
+                setDeleteTarget(null)
+                setDeleteConfirmation('')
+              }}
               disabled={deletingId !== null}
               className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
@@ -192,14 +218,19 @@ export function AdminTenantTable({
             </CatalogButton>
             <CatalogButton
               className="bg-status-danger text-white hover:bg-status-danger/90 h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
-              disabled={deletingId !== null}
+              disabled={
+                deletingId !== null ||
+                deleteTarget === null ||
+                deleteConfirmation !== deleteTarget.name
+              }
               onClick={async () => {
-                if (!deleteTarget) return
+                if (!deleteTarget || deleteConfirmation !== deleteTarget.name) return
                 setDeletingId(deleteTarget.id)
                 try {
                   await deleteAdminTenant(deleteTarget.id)
                   toast.success('Tenant deleted')
                   setDeleteTarget(null)
+                  setDeleteConfirmation('')
                   onRefresh()
                 } catch (err) {
                   toast.error(err instanceof ApiError ? err.message : 'Failed to delete tenant')
