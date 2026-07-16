@@ -1,0 +1,18 @@
+/**
+ * Shortly design system — domain-split CSS.
+ *
+ * Edit files under ./domains/ (tokens, layout, auth, dashboard, nav, landing,
+ * components, mobile). @theme and :root live in domains/tokens.css.
+ *
+ * Source of truth for color primitives: Design/supermemory-ai-design-tokens.json
+ * Run `npm run css:check` to verify the split files assemble cleanly.
+ */
+@import './domains/tokens.css';
+@import './domains/layout.css';
+@import './domains/auth.css';
+@import './domains/dashboard.css';
+@import './domains/nav.css';
+@import './domains/landing.css';
+@import './domains/components.css';
+@import './domains/mobile.css';
+@import './console-bridge.css';

@@ -1,0 +1,94 @@
+/* Shortly design tokens — synced with Design/supermemory-ai-variables.css */
+/* Web fonts load from index.html (preconnect + non-blocking link). */
+
+/* @theme — primary/ink/border values match supermemory-ai-variables.css */
+@theme {
+  --color-primary: #0562ef;
+  --color-secondary: #7cb7ff;
+  --color-accent: #0562ef;
+  --color-ink: #0b1015; /* --color-text-1 */
+  --color-muted: #888e94; /* --color-text-3 / --color-neutral-100 */
+  --color-muted-strong: #6b7480; /* --color-neutral-300 — WCAG AA small text on white */
+  --color-muted-accessible: #5c6570; /* darker small UI text when strong is still marginal */
+  --color-border: #c5dbf2;
+  --color-surface: #ffffff; /* --color-neutral-50 */
+  --color-surface-muted: #fafafa; /* --color-bg-4 / --color-paper */
+  --color-background: #f5f9ff; /* --color-bg */
+  --color-background-alt: #e9f2ff; /* --color-bg-1 */
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, monospace;
+
+  /* Error specific colors */
+  --color-error: #ef4444; /* A vibrant red for errors */
+}
+
+:root {
+  --grad-dot: radial-gradient(circle, rgba(124, 183, 255, 0.35) 1px, rgba(0, 0, 0, 0) 1.4px);
+  --frame-max: 72rem;
+  --frame-px: 3rem;
+  --row-h: 4rem;
+  --btn-h: 2.5625rem;
+  --btn-h-lg: 3.5625rem;
+  --form-h: 3.25rem; /* 52px — app / dashboard hero-cli-bar */
+  --hero-cli-h: 2.75rem; /* 44px — landing hero row (touch-friendly) */
+  --shadow-focus: rgba(5, 98, 239, 0.1) 0px 0px 0px 4px;
+  --shadow-elevated: 0 8px 24px rgba(11, 16, 21, 0.08), 0 2px 6px rgba(11, 16, 21, 0.04);
+  --color-primary-hover: #3782f2; /* --color-blue-hover */
+  --color-primary-active: #0263ef; /* --color-bg-11 */
+  --color-blue-tint: #eaf2ff; /* --color-bg-10 */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-press: cubic-bezier(0.23, 1, 0.32, 1);
+  --duration-interaction: 150ms;
+  --duration-press: 120ms;
+  --nav-height: 4rem;
+  --section-bar-height: 0px;
+  --color-frame-divider: color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+
+  --color-success: #22c55e;
+  --color-info: #3b82f6;
+  --color-warning: #f59e0b;
+
+  /* Error specific colors — light tint and border shade */
+  --color-error-tint: color-mix(in srgb, var(--color-error) 10%, var(--color-surface));
+  --color-error-border: color-mix(in srgb, var(--color-error) 50%, var(--color-border));
+
+  /* supermemory spacing scale (28 · 32 · 40 · 48 · 56 · 64 · 80px) */
+  --space-s1: 1.75rem;
+  --space-s2: 2rem;
+  --space-s3: 2.5rem;
+  --space-s4: 2.75rem;
+  --space-s5: 3rem;
+  --space-s7: 3.5rem;
+  --space-s10: 5rem;
+  /* Landing rhythm — one compact scale (32 · 40 · 48px section pads) */
+  --landing-pad-y: clamp(var(--space-s2), 3vw, var(--space-s3));
+  --landing-gap-lg: var(--space-s2);
+  --landing-gap-md: var(--space-s1);
+  --landing-gap-sm: 1rem;
+  --landing-gap-xs: 0.75rem;
+  --section-pad-y: var(--landing-pad-y);
+  --section-title-gap: var(--landing-gap-sm);
+  --hero-pad-y: var(--landing-pad-y);
+  --hero-pad-bottom: var(--space-s2);
+  --hero-stack-gap: var(--landing-gap-md);
+  --faq-trigger-pad-y: 1.125rem;
+  --faq-panel-pad-bottom: var(--landing-gap-xs);
+  /* Dashboard overview — tighter than default py-8 frame inner */
+}
+
+.landing-page {
+  --form-h: var(--hero-cli-h);
+}
+
+@layer base {
+  :is(.landing-page, .app-page) {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--color-ink);
+    background-color: var(--color-background);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+}

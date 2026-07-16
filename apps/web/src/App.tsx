@@ -1,122 +1,58 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { RequireGuest } from '@/components/layout/RequireGuest'
+import { RequireSession } from '@/components/layout/RequireSession'
+import { RequireSuperAdmin } from '@/components/layout/RequireSuperAdmin'
+import { RequireTenantUser } from '@/components/layout/RequireTenantUser'
+import { AppLayout } from '@/layouts/AppLayout'
+import { AcceptInvite } from '@/pages/AcceptInvite'
+import { Bootstrap } from '@/pages/Bootstrap'
+import { Dashboard } from '@/pages/Dashboard'
+import { Deliveries } from '@/pages/Deliveries'
+import { DeliveryDetail } from '@/pages/DeliveryDetail'
+import { Endpoints } from '@/pages/Endpoints'
+import { EventDetail } from '@/pages/EventDetail'
+import { Events } from '@/pages/Events'
+import { Docs } from '@/pages/Docs'
+import { Landing } from '@/pages/Landing'
+import { Login } from '@/pages/Login'
+import { NotFound } from '@/pages/NotFound'
+import { Signup } from '@/pages/Signup'
+import { Admin } from '@/pages/Admin'
+import { SendEvent } from '@/pages/SendEvent'
+import { Settings } from '@/pages/Settings'
+import { TenantAdmin } from '@/pages/TenantAdmin'
 
-function App() {
-  const [count, setCount] = useState(0)
-
+export default function App() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <Routes>
+      <Route path="/docs" element={<Docs />} />
+      <Route element={<RequireGuest />}>
+        <Route path="/" element={<Landing />} />
+      </Route>
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/bootstrap" element={<Bootstrap />} />
+      <Route path="/accept-invite" element={<AcceptInvite />} />
+      <Route element={<AppLayout />}>
+        <Route element={<RequireSession />}>
+          <Route element={<RequireTenantUser />}>
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="endpoints" element={<Endpoints />} />
+            <Route path="events" element={<Events />} />
+            <Route path="events/send" element={<SendEvent />} />
+            <Route path="events/:id" element={<EventDetail />} />
+            <Route path="deliveries" element={<Deliveries />} />
+            <Route path="deliveries/:id" element={<DeliveryDetail />} />
+          </Route>
+          <Route path="settings" element={<Settings />} />
+          <Route path="settings/profile" element={<Navigate to="/settings?tab=profile" replace />} />
+          <Route element={<RequireSuperAdmin />}>
+            <Route path="admin" element={<Admin />} />
+            <Route path="admin/tenants/:id" element={<TenantAdmin />} />
+          </Route>
+        </Route>
+      </Route>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   )
 }
-
-export default App

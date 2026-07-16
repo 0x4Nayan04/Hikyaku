@@ -1,13 +1,45 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" suppressHydrationWarning>
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>web</title>
+    <meta
+      name="description"
+      content="Webhook Delivery — multi-tenant webhook platform with signed deliveries, retries, and live observability."
+    />
+    <meta property="og:title" content="Webhook Delivery" />
+    <meta property="og:description" content="Multi-tenant webhook platform with signed deliveries, retries, and live observability." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://webhook-delivery.app" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <title>Webhook Delivery</title>
+    <style>
+      html {
+        background-color: #f5f9ff;
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        background-color: #f5f9ff;
+      }
+      #root {
+        min-height: 100svh;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <script type="module">
+      if (import.meta.env.DEV) {
+        import("react-grab");
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
