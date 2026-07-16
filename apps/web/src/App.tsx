@@ -12,7 +12,7 @@ import { DeliveryDetail } from '@/pages/DeliveryDetail'
 import { Endpoints } from '@/pages/Endpoints'
 import { EventDetail } from '@/pages/EventDetail'
 import { Events } from '@/pages/Events'
-import { Docs } from '@/pages/Docs'
+import { DocsRoutes } from '@/pages/docs'
 import { Landing } from '@/pages/Landing'
 import { Login } from '@/pages/Login'
 import { NotFound } from '@/pages/NotFound'
@@ -25,7 +25,7 @@ import { TenantAdmin } from '@/pages/TenantAdmin'
 export default function App() {
   return (
     <Routes>
-      <Route path="/docs" element={<Docs />} />
+      <Route path="/docs/*" element={<DocsRoutes />} />
       <Route element={<RequireGuest />}>
         <Route path="/" element={<Landing />} />
       </Route>
