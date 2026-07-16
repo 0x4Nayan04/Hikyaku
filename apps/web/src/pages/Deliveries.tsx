@@ -42,6 +42,7 @@ function matchesSearch(delivery: Delivery, query: string): boolean {
   return (
     delivery.event_id.toLowerCase().includes(normalized) ||
     delivery.endpoint_id.toLowerCase().includes(normalized) ||
+    delivery.endpoint_url.toLowerCase().includes(normalized) ||
     delivery.id.toLowerCase().includes(normalized)
   )
 }
@@ -172,8 +173,6 @@ export function Deliveries() {
   const hasSearch = searchQuery.trim().length > 0
   const showEmpty = !isInitial && filteredDeliveries.length === 0
   const isDatasetEmpty = showEmpty && !hasSearch && statusFilter === 'all' && total === 0
-  const showToolbar = !isDatasetEmpty
-
   const emptyState = useMemo(() => {
     if (hasSearch) {
       return (
@@ -181,7 +180,7 @@ export function Deliveries() {
           variant="inline"
           icon={Search}
           title="No matches on this page"
-          description="Try a different event, endpoint, or delivery ID."
+          description="Try a different event, endpoint URL, or delivery ID."
         />
       )
     }
@@ -220,49 +219,49 @@ export function Deliveries() {
   const canGoForward = offset + PAGE_SIZE < total
   const showFooter = !isInitial && total > 0
 
-  const deliveryPanelChrome = (
-    <div className="log-panel-toolbar" role="search" aria-label="Filter deliveries">
-      <div className="log-panel-toolbar__search">
-        <Search className="log-panel-toolbar__search-icon" aria-hidden="true" />
+  const deliveryPanelActions = (
+    <div className="log-panel-actions" role="search" aria-label="Filter deliveries">
+      <div className="log-panel-search">
+        <Search
+          className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-strong"
+          aria-hidden="true"
+        />
         <CatalogInput
           type="search"
-          placeholder="Filter this page by event, endpoint, or delivery ID…"
+          placeholder="Filter this page…"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
-          className="log-panel-toolbar__search-input"
+          className="log-panel-search__input"
           aria-label="Filter deliveries on this page"
         />
       </div>
-
-      <div className="log-panel-toolbar__filters" role="group" aria-label="Delivery filters">
-        <CatalogSelect
-          value={statusFilter}
-          onValueChange={(value) =>
-            dispatch({
-              type: 'set_status_filter',
-              statusFilter: value as 'all' | DeliveryStatus,
-            })
-          }
-        >
-          <CatalogSelectTrigger className="log-panel-toolbar__filter">
-            <CatalogSelectValue placeholder="Status" />
-          </CatalogSelectTrigger>
-          <CatalogSelectContent>
-            {STATUS_OPTIONS.map((option) => (
-              <CatalogSelectItem key={option.value} value={option.value}>
-                {option.label}
-              </CatalogSelectItem>
-            ))}
-          </CatalogSelectContent>
-        </CatalogSelect>
-      </div>
+      <CatalogSelect
+        value={statusFilter}
+        onValueChange={(value) =>
+          dispatch({
+            type: 'set_status_filter',
+            statusFilter: value as 'all' | DeliveryStatus,
+          })
+        }
+      >
+        <CatalogSelectTrigger className="log-panel-toolbar__filter" aria-label="Filter by status">
+          <CatalogSelectValue placeholder="Status" />
+        </CatalogSelectTrigger>
+        <CatalogSelectContent>
+          {STATUS_OPTIONS.map((option) => (
+            <CatalogSelectItem key={option.value} value={option.value}>
+              {option.label}
+            </CatalogSelectItem>
+          ))}
+        </CatalogSelectContent>
+      </CatalogSelect>
     </div>
   )
 
   return (
     <ConsolePage
       title="Deliveries"
-      description="Outbound webhook attempts per endpoint."
+      description="Browse outbound webhook attempts. Open a row to inspect request and response details."
       actions={<LiveConnectionPill mode={mode} />}
     >
       {error ? (
@@ -273,7 +272,9 @@ export function Deliveries() {
         <PageLoading variant="table" />
       ) : (
         <DataPanel
+          title={isDatasetEmpty ? undefined : 'Delivery log'}
           loading={isRefreshing}
+          actions={isDatasetEmpty ? undefined : deliveryPanelActions}
           footer={
             showFooter ? (
               <div className="pagination-bar-footer">
@@ -298,7 +299,6 @@ export function Deliveries() {
             ) : undefined
           }
         >
-          {showToolbar ? deliveryPanelChrome : null}
           {filteredDeliveries.length > 0 ? (
             <DeliveryCatalogList deliveries={filteredDeliveries} />
           ) : showEmpty ? (

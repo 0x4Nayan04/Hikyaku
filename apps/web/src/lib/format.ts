@@ -83,7 +83,7 @@ export function formatEndpointUrlForDisplay(url: string, maxLen = 56): string {
 
     if (path && path !== '/') {
       const segments = path.split('/').filter(Boolean)
-      const tail = segments.length > 1 ? `.../${segments.at(-1)}` : segments[0] ?? ''
+      const tail = segments.length > 1 ? `.../${segments.at(-1)}` : (segments[0] ?? '')
       const compact = `${origin}/${tail}`
       if (compact.length <= maxLen) {
         return compact

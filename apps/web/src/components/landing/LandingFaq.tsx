@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
-import { ChevronRight, ExternalLink } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, ExternalLink } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { PRODUCT_LINKS } from '@/lib/app-meta'
@@ -62,7 +62,7 @@ const FAQ_ITEMS = [
   },
 ]
 
-const CATEGORIES = ['All', 'Getting started', 'Reliability', 'Security', 'Pricing']
+const CATEGORIES = ['Getting started', 'Reliability', 'Security', 'Pricing']
 
 const CATEGORY_ITEM_COUNTS: Record<string, number> = {}
 for (const item of FAQ_ITEMS) {
@@ -131,31 +131,17 @@ function FaqAnswerBody({ item }: { item: (typeof FAQ_ITEMS)[number] }) {
 
 export function LandingFaq() {
   const [selectedId, setSelectedId] = useState('what-does')
-  const [activeCategory, setActiveCategory] = useState('All')
-  const answerRef = useRef<HTMLDivElement>(null)
+  const [activeCategory, setActiveCategory] = useState('Getting started')
 
-  const filtered =
-    activeCategory === 'All'
-      ? FAQ_ITEMS
-      : FAQ_ITEMS.filter((i) => i.category === activeCategory)
-
-  useEffect(() => {
-    const items =
-      activeCategory === 'All'
-        ? FAQ_ITEMS
-        : FAQ_ITEMS.filter((i) => i.category === activeCategory)
-    if (items.length > 0 && !items.some((i) => i.id === selectedId)) {
-      setSelectedId(items[0].id)
-    }
-  }, [activeCategory, selectedId])
-
-  const selected = FAQ_ITEMS.find((i) => i.id === selectedId) ?? FAQ_ITEMS[0]
+  const filtered = FAQ_ITEMS.filter((item) => item.category === activeCategory)
 
   const handleSelect = (id: string) => {
-    setSelectedId(id)
-    if (window.innerWidth < 1024 && answerRef.current) {
-      answerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
+    setSelectedId((current) => (current === id ? '' : id))
+  }
+
+  const handleCategorySelect = (category: string) => {
+    setActiveCategory(category)
+    setSelectedId(FAQ_ITEMS.find((item) => item.category === category)?.id ?? '')
   }
 
   return (
@@ -165,72 +151,67 @@ export function LandingFaq() {
       aria-labelledby="faq-heading"
     >
       <LandingFrameInner className="faq-container">
-        <header className="faq-header">
-          <p className="landing-section-kicker">Support</p>
-          <h2 id="faq-heading" className="landing-section-title text-ink">
-            Frequently asked questions
-          </h2>
-        </header>
-
-        <div className="faq-filters">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              className={cn('faq-filter', activeCategory === cat && 'faq-filter--active')}
-              onClick={() => setActiveCategory(cat)}
-            >
-              {cat}
-              {cat !== 'All' && (
-                <span className="faq-filter-count">{CATEGORY_ITEM_COUNTS[cat]}</span>
-              )}
-            </button>
-          ))}
+        <div className="faq-intro">
+          <header className="faq-header">
+            <p className="landing-section-kicker">Support</p>
+            <h2 id="faq-heading" className="landing-section-title text-ink">
+              Questions, answered.
+            </h2>
+            <p className="faq-lead">
+              The essentials for setting up, securing, and operating your webhook delivery
+              workflow.
+            </p>
+          </header>
+          <a href={PRODUCT_LINKS.docs} className="faq-docs-link">
+            Explore documentation <ExternalLink className="size-3" aria-hidden="true" />
+          </a>
         </div>
 
-        <div className="faq-split">
-          <div className="faq-question-list" role="tablist" aria-label="Questions">
-            {filtered.map((item) => (
+        <div className="faq-content">
+          <div className="faq-filters" role="tablist" aria-label="FAQ topics">
+            {CATEGORIES.map((category) => (
               <button
-                key={item.id}
+                key={category}
                 type="button"
                 role="tab"
-                aria-selected={selectedId === item.id}
+                aria-selected={activeCategory === category}
                 className={cn(
-                  'faq-question-row',
-                  selectedId === item.id && 'faq-question-row--active',
+                  'faq-filter',
+                  activeCategory === category && 'faq-filter--active',
                 )}
-                onClick={() => handleSelect(item.id)}
+                onClick={() => handleCategorySelect(category)}
               >
-                <div className="faq-question-row-body">
-                  <span className="faq-question-row-text">{item.q}</span>
-                  <span className="faq-question-row-cat">{item.category}</span>
-                </div>
-                <ChevronRight
-                  className={cn(
-                    'faq-question-row-arrow',
-                    selectedId === item.id && 'faq-question-row-arrow--active',
-                  )}
-                />
+                {category}
+                <span className="faq-filter-count">{CATEGORY_ITEM_COUNTS[category]}</span>
               </button>
             ))}
           </div>
 
-          <div className="faq-answer-panel" ref={answerRef} aria-live="polite">
-            <div className="faq-answer-card" key={selected.id}>
-              <h3 className="faq-answer-heading">{selected.q}</h3>
-              <div className="faq-answer-body">
-                <FaqAnswerBody item={selected} />
+          <div className="faq-question-list">
+            {filtered.map((item) => (
+              <div
+                key={item.id}
+                className={cn('faq-item', selectedId === item.id && 'faq-item--open')}
+              >
+                <button
+                  type="button"
+                  className="faq-question-row"
+                  aria-expanded={selectedId === item.id}
+                  aria-controls={`faq-answer-${item.id}`}
+                  onClick={() => handleSelect(item.id)}
+                >
+                  <span className="faq-question-row-text">{item.q}</span>
+                  <ChevronDown className="faq-question-row-arrow" aria-hidden="true" />
+                </button>
+                {selectedId === item.id && (
+                  <div id={`faq-answer-${item.id}`} className="faq-answer" role="region">
+                    <FaqAnswerBody item={item} />
+                  </div>
+                )}
               </div>
-              <div className="faq-answer-docs">
-                <a href={PRODUCT_LINKS.docs} className="faq-answer-docs-link">
-                  Read the docs <ExternalLink className="size-3" aria-hidden="true" />
-                </a>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
-
       </LandingFrameInner>
     </section>
   )

@@ -149,25 +149,29 @@ export function TenantAdmin() {
             <>
               <CatalogButton
                 variant="primary"
-                className="console-btn"
+                className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
                 onClick={() => dispatch({ type: 'set_create_open', open: true })}
               >
                 Create user
-                <ArrowRight className="size-4" />
+                <ArrowRight className="size-3.5" aria-hidden="true" />
               </CatalogButton>
               <CatalogButton
                 variant="secondary"
-                className="console-btn"
+                className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
                 onClick={() => dispatch({ type: 'set_invite_open', open: true })}
               >
-                <Link2 className="size-4" />
+                <Link2 className="size-3.5" aria-hidden="true" />
                 Invite user
               </CatalogButton>
             </>
           ) : null}
-          <CatalogButton variant="secondary" className="console-btn" asChild>
+          <CatalogButton
+            variant="secondary"
+            className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
+            asChild
+          >
             <Link to="/admin">
-              <ArrowLeft className="size-4" />
+              <ArrowLeft className="size-3.5" aria-hidden="true" />
               Back to admin
             </Link>
           </CatalogButton>

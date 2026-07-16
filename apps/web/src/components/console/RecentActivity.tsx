@@ -7,7 +7,6 @@ import {
   RefreshCw,
   Send,
 } from 'lucide-react'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
 import { DataPanel } from '@/components/console/DataPanel'
 import { cn } from '@/lib/utils'
 
@@ -110,15 +109,14 @@ function ActivityFooter({
 }) {
   return (
     <div className="dashboard-panel-footer">
-      <CatalogButton
+      <button
         type="button"
-        variant="secondary"
         onClick={onRefresh}
-        className="h-[1.75rem] min-h-0 shrink-0 px-2.5 text-[0.75rem]"
+        className="ra-refresh-btn"
       >
-        <RefreshCw className="size-3.5" strokeWidth={1.75} />
+        <RefreshCw className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
         Refresh
-      </CatalogButton>
+      </button>
       <p className="dashboard-panel-footer__meta">
         {isLive ? (
           <>
@@ -141,16 +139,10 @@ export function RecentActivity({ items, lastUpdated, isLive, onRefresh }: Recent
       title="Recent activity"
       description="Latest events and delivery attempts"
       actions={
-        <CatalogButton
-          variant="secondary"
-          asChild
-          className="h-[1.75rem] min-h-0 shrink-0 px-2.5 text-[0.75rem]"
-        >
-          <Link to="/events">
-            View all events
-            <ArrowRight className="size-3.5" aria-hidden="true" />
-          </Link>
-        </CatalogButton>
+        <Link to="/events" className="ra-cta-btn">
+          View all events
+          <ArrowRight className="size-3.5" aria-hidden="true" />
+        </Link>
       }
       empty={
         items.length === 0 ? (

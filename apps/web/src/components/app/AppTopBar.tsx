@@ -74,6 +74,8 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
     ? 'Platform admin'
     : (session?.tenant?.name ?? 'Workspace')
 
+  const roleLabel = isSuperAdmin ? 'Super admin' : 'Operator'
+
   return (
     <header className="app-topbar">
       <LandingFrameInner className="h-full">
@@ -125,9 +127,13 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
                 {dropdownOpen ? (
                   <div ref={dropdownTrapRef} className="nav-user-menu" role="menu">
                     <div className="nav-user-menu-identity">
-                      <div className="min-w-0">
+                      <span className="nav-user-menu-avatar" aria-hidden="true">
+                        {initials(session.user.name)}
+                      </span>
+                      <div className="nav-user-menu-identity-text">
                         <p className="nav-user-menu-name">{session.user.name}</p>
                         <p className="nav-user-menu-email">{session.user.email}</p>
+                        <span className="nav-user-menu-role">{roleLabel}</span>
                       </div>
                     </div>
 

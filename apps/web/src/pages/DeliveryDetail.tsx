@@ -3,13 +3,21 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { ApiError, getDelivery, replayDelivery } from '@/api/client'
 import type { DeliveryAttempt, DeliveryDetail as DeliveryDetailType } from '@/api/types'
+import { AttemptResponseBody } from '@/components/console/AttemptResponseBody'
 import { ConsolePage } from '@/components/console/ConsolePage'
+import { DataPanel } from '@/components/console/DataPanel'
 import { FormPanel } from '@/components/console/FormPanel'
 import { PageBanner } from '@/components/console/PageBanner'
 import { PageLoading } from '@/components/console/PageLoading'
+import {
+  SettingsCatalogList,
+  SettingsCatalogRow,
+  SettingsCopyAction,
+} from '@/components/console/SettingsCatalog'
 import { StatusBadge } from '@/components/console/StatusBadge'
 import { LiveConnectionPill } from '@/components/layout/LiveConnectionPill'
 import { CatalogButton } from '@/components/catalog/CatalogButton'
+import { CatalogChip, type CatalogChipTone } from '@/components/catalog/CatalogChip'
 import {
   CatalogDialog,
   CatalogDialogContent,
@@ -23,6 +31,13 @@ import { useDeliveryLiveUpdates } from '@/hooks/useDeliveryLiveUpdates'
 import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { toast } from '@/lib/toast'
+
+function httpStatusTone(status: number): CatalogChipTone {
+  if (status >= 500) return 'danger'
+  if (status >= 400) return 'warning'
+  if (status >= 200 && status < 300) return 'success'
+  return 'neutral'
+}
 
 function AttemptTimelineItem({ attempt }: { attempt: DeliveryAttempt }) {
   const isError = attempt.error || (attempt.http_status !== null && attempt.http_status >= 400)
@@ -39,10 +54,14 @@ function AttemptTimelineItem({ attempt }: { attempt: DeliveryAttempt }) {
           <p className="text-sm font-semibold text-foreground">Attempt {attempt.attempt_number}</p>
           <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(attempt.created_at)}</p>
         </div>
-        <div className="text-right text-sm">
-          <p className="font-medium text-foreground">
-            {attempt.http_status !== null ? `HTTP ${attempt.http_status}` : 'No response'}
-          </p>
+        <div className="flex flex-col items-end gap-1">
+          {attempt.http_status !== null ? (
+            <CatalogChip variant="status" tone={httpStatusTone(attempt.http_status)}>
+              HTTP {attempt.http_status}
+            </CatalogChip>
+          ) : (
+            <p className="text-sm font-medium text-muted-foreground">No response</p>
+          )}
           {attempt.duration_ms !== null ? (
             <p className="text-xs text-muted-foreground">{attempt.duration_ms} ms</p>
           ) : null}
@@ -51,11 +70,7 @@ function AttemptTimelineItem({ attempt }: { attempt: DeliveryAttempt }) {
 
       {attempt.error ? <p className="mt-3 text-sm text-destructive">{attempt.error}</p> : null}
 
-      {attempt.response_body ? (
-        <pre className="mt-3 max-h-40 overflow-auto rounded-md border border-border bg-muted/30 p-3 font-mono text-xs text-foreground">
-          {attempt.response_body}
-        </pre>
-      ) : null}
+      {attempt.response_body ? <AttemptResponseBody body={attempt.response_body} /> : null}
     </div>
   )
 }
@@ -243,52 +258,57 @@ export function DeliveryDetail() {
         <PageLoading variant="detail" />
       ) : delivery ? (
         <div className="flex flex-col gap-6">
-          <FormPanel title="Delivery overview">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <p className="text-xs font-medium text-muted-strong uppercase tracking-wider">Status</p>
-                <div className="mt-2">
-                  <StatusBadge kind="delivery" status={delivery.status} />
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-strong uppercase tracking-wider">Attempts</p>
-                <p className="mt-1 text-3xl font-semibold tracking-tight">
-                  {delivery.attempt_count}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-strong uppercase tracking-wider">Event</p>
+          <DataPanel title="Delivery overview">
+            <SettingsCatalogList className="settings-catalog-list--compact">
+              <SettingsCatalogRow label="Status">
+                <StatusBadge kind="delivery" status={delivery.status} />
+              </SettingsCatalogRow>
+              <SettingsCatalogRow label="Attempts">
+                <span className="text-sm text-ink">
+                  {delivery.attempt_count} attempt{delivery.attempt_count !== 1 ? 's' : ''}
+                </span>
+              </SettingsCatalogRow>
+              <SettingsCatalogRow
+                label="Event"
+                action={<SettingsCopyAction value={delivery.event_id} copyLabel="Event ID" />}
+              >
                 <Link
                   to={`/events/${delivery.event_id}`}
-                  className="mt-1 block break-all font-mono text-xs text-primary hover:underline"
+                  className="min-w-0 truncate font-mono text-xs text-primary hover:underline"
+                  title={delivery.event_id}
                 >
                   {delivery.event_id}
                 </Link>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-strong uppercase tracking-wider">Endpoint</p>
-                <p className="mt-1 break-all font-mono text-xs text-foreground">
-                  {delivery.endpoint_id}
-                </p>
-              </div>
-            </div>
+              </SettingsCatalogRow>
+              <SettingsCatalogRow
+                label="Endpoint"
+                action={<SettingsCopyAction value={delivery.endpoint_url} copyLabel="Endpoint URL" />}
+              >
+                <code
+                  className="min-w-0 truncate font-mono text-xs text-ink"
+                  title={`${delivery.endpoint_url} (${delivery.endpoint_id})`}
+                >
+                  {delivery.endpoint_url}
+                </code>
+              </SettingsCatalogRow>
+            </SettingsCatalogList>
 
             {delivery.last_error ? (
-              <PageBanner
-                variant="error"
-                title="Last error"
-                description={delivery.last_error}
-                className="mt-5"
-              />
+              <div className="border-t border-border/60 px-4 py-3 md:px-5">
+                <PageBanner
+                  variant="error"
+                  title="Last error"
+                  description={delivery.last_error}
+                />
+              </div>
             ) : null}
 
             {delivery.next_retry_at ? (
-              <p className="mt-4 text-sm text-muted-strong">
+              <p className="border-t border-border/60 px-4 py-3 text-sm text-muted-strong md:px-5">
                 Next retry scheduled for {formatDateTime(delivery.next_retry_at)}
               </p>
             ) : null}
-          </FormPanel>
+          </DataPanel>
 
           <div>
             <p className="console-section-marker">Attempt timeline</p>

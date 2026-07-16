@@ -194,6 +194,7 @@ export type Delivery = {
   id: string
   event_id: string
   endpoint_id: string
+  endpoint_url: string
   status: DeliveryStatus
   attempt_count: number
   next_retry_at: string | null

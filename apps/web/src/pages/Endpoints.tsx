@@ -858,7 +858,6 @@ export function Endpoints() {
                     value={editTarget.url}
                     readOnly
                     disabled
-                    className="font-mono text-xs"
                   />
                 </SendEventField>
                 <SendEventField
