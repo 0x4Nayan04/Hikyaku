@@ -1,4 +1,4 @@
-import { deliveries, deliveryAttempts } from '@webhook/shared/schema'
+import { deliveries, deliveryAttempts, endpoints } from '@webhook/shared/schema'
 import { and, asc, count, desc, eq, sql } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
@@ -10,10 +10,11 @@ import { getTenantId } from '../../lib/tenant.js'
 import { toDeliveryDetailJson, toDeliveryListJson } from './serialize.js'
 import { assertReplayableStatus, parseDeliveryId, parseListQuery } from './validation.js'
 
-const deliveryColumns = {
+const deliverySelect = {
   id: deliveries.id,
   eventId: deliveries.eventId,
   endpointId: deliveries.endpointId,
+  endpointUrl: endpoints.url,
   status: deliveries.status,
   attemptCount: deliveries.attemptCount,
   nextRetryAt: deliveries.nextRetryAt,
@@ -48,8 +49,9 @@ export async function listDeliveries(req: Request, res: Response, next: NextFunc
     const total = countRow?.value ?? 0
 
     const rows = await db
-      .select(deliveryColumns)
+      .select(deliverySelect)
       .from(deliveries)
+      .innerJoin(endpoints, eq(deliveries.endpointId, endpoints.id))
       .where(where)
       .orderBy(desc(deliveries.createdAt))
       .limit(limit)
@@ -74,8 +76,9 @@ export async function getDelivery(req: Request, res: Response, next: NextFunctio
     const tenantId = getTenantId(req)
     const db = getDb()
     const [row] = await db
-      .select(deliveryColumns)
+      .select(deliverySelect)
       .from(deliveries)
+      .innerJoin(endpoints, eq(deliveries.endpointId, endpoints.id))
       .where(and(eq(deliveries.id, id), eq(deliveries.tenantId, tenantId)))
       .limit(1)
 

@@ -2,6 +2,7 @@ export type DeliveryRow = {
   id: string
   eventId: string
   endpointId: string
+  endpointUrl: string
   status: string
   attemptCount: number
   nextRetryAt: Date | null
@@ -24,6 +25,7 @@ export function toDeliveryListJson(row: DeliveryRow) {
     id: row.id,
     event_id: row.eventId,
     endpoint_id: row.endpointId,
+    endpoint_url: row.endpointUrl,
     status: row.status,
     attempt_count: row.attemptCount,
     next_retry_at: row.nextRetryAt?.toISOString() ?? null,

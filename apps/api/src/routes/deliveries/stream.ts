@@ -1,35 +1,24 @@
-import { deliveries } from '@webhook/shared/schema'
+import { deliveries, endpoints } from '@webhook/shared/schema'
 import { eq } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
 import { getTenantId } from '../../lib/tenant.js'
-import { toDeliveryListJson } from './serialize.js'
+import { type DeliveryRow, toDeliveryListJson } from './serialize.js'
 
 const SSE_POLL_INTERVAL_MS = process.env.VITEST === 'true' ? 100 : 1_000
 const SSE_HEARTBEAT_INTERVAL_MS = 15_000
 
-const deliveryColumns = {
+const deliverySelect = {
   id: deliveries.id,
   eventId: deliveries.eventId,
   endpointId: deliveries.endpointId,
+  endpointUrl: endpoints.url,
   status: deliveries.status,
   attemptCount: deliveries.attemptCount,
   nextRetryAt: deliveries.nextRetryAt,
   lastError: deliveries.lastError,
   createdAt: deliveries.createdAt,
   updatedAt: deliveries.updatedAt,
-}
-
-type DeliveryRow = {
-  id: string
-  eventId: string
-  endpointId: string
-  status: string
-  attemptCount: number
-  nextRetryAt: Date | null
-  lastError: string | null
-  createdAt: Date
-  updatedAt: Date
 }
 
 export function deliveryFingerprint(row: DeliveryRow): string {
@@ -48,7 +37,11 @@ export function writeSseEvent(res: Response, event: string, data: unknown): void
 
 async function loadTenantDeliveries(tenantId: string): Promise<DeliveryRow[]> {
   const db = getDb()
-  return db.select(deliveryColumns).from(deliveries).where(eq(deliveries.tenantId, tenantId))
+  return db
+    .select(deliverySelect)
+    .from(deliveries)
+    .innerJoin(endpoints, eq(deliveries.endpointId, endpoints.id))
+    .where(eq(deliveries.tenantId, tenantId))
 }
 
 export async function streamDeliveries(req: Request, res: Response, next: NextFunction) {
