@@ -5,7 +5,7 @@ import { getDb } from '../../db/client.js'
 import { getTenantId } from '../../lib/tenant.js'
 import { toDeliveryListJson } from './serialize.js'
 
-const SSE_POLL_INTERVAL_MS = 1_000
+const SSE_POLL_INTERVAL_MS = process.env.VITEST === 'true' ? 100 : 1_000
 const SSE_HEARTBEAT_INTERVAL_MS = 15_000
 
 const deliveryColumns = {

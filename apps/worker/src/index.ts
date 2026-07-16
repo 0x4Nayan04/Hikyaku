@@ -8,6 +8,7 @@ import { processor } from './processor.js'
 import { startSweeper, stopSweeper } from './sweeper.js'
 
 const SHUTDOWN_TIMEOUT_MS = 25_000
+let shuttingDown = false
 
 const worker = new Worker(QUEUE_NAME, processor, {
   connection: getRedisConnectionOptions(),
@@ -26,6 +27,9 @@ worker.on('error', (err) => {
 })
 
 async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) return
+  shuttingDown = true
+
   logger.info({ signal }, 'shutting_down')
 
   stopSweeper()

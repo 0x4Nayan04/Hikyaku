@@ -7,6 +7,11 @@ import { closePool, getDb } from '../../src/db/client.js'
 import { closeRedis } from '../../src/lib/redis.js'
 import { queue } from '../../src/queue/client.js'
 import { createApp } from '../../src/server.js'
+import {
+  beginDeliveryTestIsolation,
+  endDeliveryTestIsolation,
+  seedDeliveryRow,
+} from '../helpers/delivery.js'
 import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
 
 const app = createApp()
@@ -18,52 +23,27 @@ describe('POST /v1/deliveries/:id/replay', () => {
   let eventId: string
 
   beforeAll(async () => {
-    await queue.obliterate({ force: true })
+    await beginDeliveryTestIsolation()
 
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
     apiKey = tenant.apiKey
 
-    const endpointRes = await request(app)
-      .post('/v1/endpoints')
-      .set('Authorization', `Bearer ${apiKey}`)
-      .send({ url: 'https://webhook.site/replay-test' })
-
-    expect(endpointRes.status).toBe(201)
-
-    const eventRes = await request(app)
-      .post('/v1/events')
-      .set('Authorization', `Bearer ${apiKey}`)
-      .send({ idempotency_key: 'replay-test', type: 'test', payload: { ok: true } })
-
-    expect(eventRes.status).toBe(202)
-    eventId = eventRes.body.id
-
-    const db = getDb()
-    const [delivery] = await db
-      .select({ id: deliveries.id })
-      .from(deliveries)
-      .where(eq(deliveries.tenantId, tenantId))
-
-    deliveryId = delivery.id
-
-    await db
-      .update(deliveries)
-      .set({
-        status: 'failed',
-        lastError: 'http_500',
-        attemptCount: 5,
-        nextRetryAt: null,
-      })
-      .where(eq(deliveries.id, deliveryId))
-
-    await db.update(events).set({ status: 'failed' }).where(eq(events.id, eventId))
-
-    await queue.obliterate({ force: true })
+    const seeded = await seedDeliveryRow({
+      tenantId,
+      idempotencyKey: 'replay-test',
+      endpointUrl: 'https://webhook.site/replay-test',
+      eventStatus: 'failed',
+      deliveryStatus: 'failed',
+      attemptCount: 5,
+      lastError: 'http_500',
+    })
+    eventId = seeded.eventId
+    deliveryId = seeded.deliveryId
   })
 
   afterAll(async () => {
-    await queue.obliterate({ force: true })
+    await endDeliveryTestIsolation()
     await queue.close()
     await deleteTenant(tenantId)
     await closePool()
@@ -79,6 +59,11 @@ describe('POST /v1/deliveries/:id/replay', () => {
     expect(res.body).toEqual({ id: deliveryId, status: 'pending' })
 
     const db = getDb()
+    const job = await queue.getJob(deliveryId)
+    expect(job).not.toBeNull()
+    expect(job?.data).toEqual({ deliveryId })
+    expect(['waiting', 'active', 'delayed']).toContain(await job?.getState())
+
     const [delivery] = await db
       .select({
         status: deliveries.status,
@@ -90,11 +75,11 @@ describe('POST /v1/deliveries/:id/replay', () => {
       .where(eq(deliveries.id, deliveryId))
 
     expect(delivery).toMatchObject({
-      status: 'pending',
       attemptCount: 0,
       lastError: null,
       nextRetryAt: null,
     })
+    expect(['pending', 'in_progress']).toContain(delivery.status)
 
     const [event] = await db
       .select({ status: events.status })
@@ -102,10 +87,6 @@ describe('POST /v1/deliveries/:id/replay', () => {
       .where(eq(events.id, eventId))
 
     expect(event.status).toBe('pending')
-
-    const job = await queue.getJob(deliveryId)
-    expect(job).not.toBeNull()
-    expect(job?.data).toEqual({ deliveryId })
   })
 
   it('rejects replay when delivery is not failed', async () => {

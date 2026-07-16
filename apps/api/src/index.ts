@@ -6,6 +6,7 @@ import { closeRedis } from './lib/redis.js'
 import { createApp } from './server.js'
 
 const SHUTDOWN_TIMEOUT_MS = 25_000
+let shuttingDown = false
 
 function closeServer(server: Server): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -20,6 +21,9 @@ function closeServer(server: Server): Promise<void> {
 }
 
 async function shutdown(server: Server, signal: string): Promise<void> {
+  if (shuttingDown) return
+  shuttingDown = true
+
   logger.info({ signal }, 'shutting_down')
 
   await Promise.race([

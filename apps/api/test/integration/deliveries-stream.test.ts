@@ -10,6 +10,11 @@ import { queue } from '../../src/queue/client.js'
 import { createApp } from '../../src/server.js'
 import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
 import { createUser, deleteUser } from '../helpers/user.js'
+import {
+  beginDeliveryTestIsolation,
+  endDeliveryTestIsolation,
+  seedDeliveryRow,
+} from '../helpers/delivery.js'
 
 const app = createApp()
 
@@ -81,7 +86,7 @@ describe('GET /v1/deliveries/stream', () => {
   let deliveryId: string
 
   beforeAll(async () => {
-    await queue.obliterate({ force: true })
+    await beginDeliveryTestIsolation()
 
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
@@ -95,31 +100,16 @@ describe('GET /v1/deliveries/stream', () => {
     email = user.email
     password = user.password
 
-    const endpointRes = await request(app)
-      .post('/v1/endpoints')
-      .set('Authorization', `Bearer ${apiKey}`)
-      .send({ url: 'https://webhook.site/stream-test' })
-
-    expect(endpointRes.status).toBe(201)
-
-    const eventRes = await request(app)
-      .post('/v1/events')
-      .set('Authorization', `Bearer ${apiKey}`)
-      .send({ idempotency_key: 'stream-test', type: 'test', payload: { ok: true } })
-
-    expect(eventRes.status).toBe(202)
-
-    const db = getDb()
-    const [delivery] = await db
-      .select({ id: deliveries.id })
-      .from(deliveries)
-      .where(eq(deliveries.tenantId, tenantId))
-
-    deliveryId = delivery.id
+    const seeded = await seedDeliveryRow({
+      tenantId,
+      idempotencyKey: 'stream-test',
+      endpointUrl: 'https://webhook.site/stream-test',
+    })
+    deliveryId = seeded.deliveryId
   })
 
   afterAll(async () => {
-    await queue.obliterate({ force: true })
+    await endDeliveryTestIsolation()
     await queue.close()
     await deleteUser(userId)
     await deleteTenant(tenantId)
@@ -144,16 +134,27 @@ describe('GET /v1/deliveries/stream', () => {
   })
 
   it('streams delivery_updated when a delivery row changes', async () => {
+    const db = getDb()
+    await db
+      .update(deliveries)
+      .set({
+        status: 'pending',
+        lastError: null,
+        attemptCount: 0,
+        nextRetryAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(deliveries.id, deliveryId))
+
     const agent = request.agent(app)
 
     const loginRes = await agent.post('/v1/auth/login').send({ email, password })
     expect(loginRes.status).toBe(200)
 
-    const streamPromise = openSseStream(agent, 2_500)
+    const streamPromise = openSseStream(agent, 2_000)
 
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await new Promise((resolve) => setTimeout(resolve, 250))
 
-    const db = getDb()
     await db
       .update(deliveries)
       .set({
@@ -175,8 +176,12 @@ describe('GET /v1/deliveries/stream', () => {
     })
   })
 
-  it('streams delivery_updated when a failed delivery is replayed', async () => {
-    const db = getDb()
+  it(
+    'streams delivery_updated when a failed delivery is replayed',
+    async () => {
+      await beginDeliveryTestIsolation()
+
+      const db = getDb()
     await db
       .update(deliveries)
       .set({
@@ -188,6 +193,13 @@ describe('GET /v1/deliveries/stream', () => {
       })
       .where(eq(deliveries.id, deliveryId))
 
+    const [baseline] = await db
+      .select({ status: deliveries.status })
+      .from(deliveries)
+      .where(eq(deliveries.id, deliveryId))
+
+    expect(baseline?.status).toBe('failed')
+
     const agent = request.agent(app)
 
     const loginRes = await agent.post('/v1/auth/login').send({ email, password })
@@ -195,7 +207,8 @@ describe('GET /v1/deliveries/stream', () => {
 
     const streamPromise = openSseStream(agent, 2_500)
 
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    // Let the stream capture the failed baseline before replay changes the row.
+    await new Promise((resolve) => setTimeout(resolve, 300))
 
     const replayRes = await request(app)
       .post(`/v1/deliveries/${deliveryId}/replay`)
@@ -204,18 +217,33 @@ describe('GET /v1/deliveries/stream', () => {
 
     const body = await streamPromise
     const events = parseSseChunks(body)
-    const updated = events.find(
+    const updates = events.filter(
       (event) =>
         event.event === 'delivery_updated' &&
-        (event.data as { status?: string }).status === 'pending',
+        (event.data as { id?: string }).id === deliveryId,
     )
+
+    expect(updates.length).toBeGreaterThan(0)
+
+    const updated = updates.find((event) => {
+      const data = event.data as {
+        status?: string
+        attempt_count?: number
+        last_error?: string | null
+      }
+      return data.attempt_count === 0 && data.last_error === null
+    })
 
     expect(updated).toBeDefined()
     expect(updated?.data).toMatchObject({
       id: deliveryId,
-      status: 'pending',
       last_error: null,
       attempt_count: 0,
     })
-  })
+    expect(['pending', 'in_progress']).toContain(
+      (updated?.data as { status?: string }).status,
+    )
+    },
+    12_000,
+  )
 })

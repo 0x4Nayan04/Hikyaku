@@ -12,7 +12,7 @@ export function parseCorsOrigins(corsOrigin: string): string[] {
 export function createCorsMiddleware(): RequestHandler {
   return cors({
     origin: parseCorsOrigins(env.CORS_ORIGIN),
-    methods: ['GET', 'POST', 'PATCH'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     allowedHeaders: ['Authorization', 'Content-Type', 'X-Admin-Secret'],
     credentials: true,
   })

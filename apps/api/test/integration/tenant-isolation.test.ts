@@ -17,12 +17,7 @@ describe('tenant isolation (#4)', () => {
   let acmeDeliveryId: string
 
   beforeAll(async () => {
-    await queue.pause()
-    try {
-      await queue.obliterate({ force: true })
-    } finally {
-      await queue.resume()
-    }
+    await queue.obliterate({ force: true })
 
     acme = await createTenantWithKey()
     globex = await createTenantWithKey()
@@ -62,12 +57,7 @@ describe('tenant isolation (#4)', () => {
   })
 
   afterAll(async () => {
-    await queue.pause()
-    try {
-      await queue.obliterate({ force: true })
-    } finally {
-      await queue.resume()
-    }
+    await queue.obliterate({ force: true })
     await queue.close()
     await deleteTenant(acme.tenantId)
     await deleteTenant(globex.tenantId)

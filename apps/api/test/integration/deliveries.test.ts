@@ -1,12 +1,17 @@
 import request from 'supertest'
 import { eq } from 'drizzle-orm'
-import { deliveries, deliveryAttempts } from '@webhook/shared/schema'
+import { deliveryAttempts } from '@webhook/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
 import { closeRedis } from '../../src/lib/redis.js'
 import { queue } from '../../src/queue/client.js'
 import { createApp } from '../../src/server.js'
+import {
+  beginDeliveryTestIsolation,
+  endDeliveryTestIsolation,
+  seedDeliveryRow,
+} from '../helpers/delivery.js'
 import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
 
 const app = createApp()
@@ -19,36 +24,21 @@ describe('GET /v1/deliveries', () => {
   let endpointId: string
 
   beforeAll(async () => {
-    await queue.obliterate({ force: true })
+    await beginDeliveryTestIsolation()
 
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
     apiKey = tenant.apiKey
 
-    const endpointRes = await request(app)
-      .post('/v1/endpoints')
-      .set('Authorization', `Bearer ${apiKey}`)
-      .send({ url: 'https://webhook.site/test' })
-
-    expect(endpointRes.status).toBe(201)
-    endpointId = endpointRes.body.id
-
-    const eventRes = await request(app)
-      .post('/v1/events')
-      .set('Authorization', `Bearer ${apiKey}`)
-      .send({ idempotency_key: 'delivery-list-test', type: 'test', payload: { ok: true } })
-
-    expect(eventRes.status).toBe(202)
-    eventId = eventRes.body.id
+    const seeded = await seedDeliveryRow({
+      tenantId,
+      idempotencyKey: 'delivery-list-test',
+    })
+    endpointId = seeded.endpointId
+    eventId = seeded.eventId
+    deliveryId = seeded.deliveryId
 
     const db = getDb()
-    const [delivery] = await db
-      .select({ id: deliveries.id })
-      .from(deliveries)
-      .where(eq(deliveries.tenantId, tenantId))
-
-    deliveryId = delivery.id
-
     await db.insert(deliveryAttempts).values({
       deliveryId,
       attemptNumber: 1,
@@ -60,7 +50,7 @@ describe('GET /v1/deliveries', () => {
   })
 
   afterAll(async () => {
-    await queue.obliterate({ force: true })
+    await endDeliveryTestIsolation()
     await queue.close()
     await deleteTenant(tenantId)
     await closePool()

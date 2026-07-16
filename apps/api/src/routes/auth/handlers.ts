@@ -91,6 +91,8 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       .limit(1)
 
     const user = rows[0]
+    // Same error for missing user, wrong password, and pending signup —
+    // never reveal account state or verify signup_requests.password_hash here.
     if (!user || !(await verifyPassword(body.password, user.passwordHash))) {
       throw new AppError(401, 'unauthorized', 'Invalid email or password')
     }
