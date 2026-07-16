@@ -1,6 +1,8 @@
 # Webhook Delivery
 
-Multi-tenant webhook delivery platform with async job queues, signed outbound HTTP deliveries, retries, and per-tenant rate limiting.
+Multi-tenant webhook delivery platform with async job queues, signed outbound HTTP deliveries, retries, per-tenant rate limiting, and an operator console.
+
+**Documentation:** [http://localhost:5173/docs](http://localhost:5173/docs) (after `pnpm dev`) · **Dashboard guide:** [docs/dashboard-guide.md](docs/dashboard-guide.md)
 
 ## Prerequisites
 
@@ -26,6 +28,7 @@ This starts:
 | ------------- | ------------------------------------ |
 | API           | http://localhost:3000                |
 | Web dashboard | http://localhost:5173                |
+| Docs          | http://localhost:5173/docs           |
 | Worker        | background process (BullMQ consumer) |
 
 Run services individually:
@@ -36,6 +39,57 @@ pnpm --filter @webhook/worker dev
 pnpm --filter @webhook/web dev
 ```
 
+## First-time setup
+
+Pick one path to create your first operator account.
+
+### Option A — Bootstrap (recommended for local UI)
+
+1. Open http://localhost:5173/bootstrap
+2. Enter the `ADMIN_BOOTSTRAP_SECRET` from `.env`
+3. Create the super-admin account → sign in at `/login`
+4. On **Admin**, approve a signup at `/signup` or **Invite tenant**
+5. Sign in as the tenant owner → land on **Dashboard** (`/dashboard`)
+
+### Option B — Dev seed (API-only smoke tests)
+
+Seeds demo tenants with API keys (and optionally a super-admin via env):
+
+```bash
+pnpm db:seed
+# Copy one of the printed API keys (whk_...)
+```
+
+Optional super-admin seed (only when no users exist):
+
+```bash
+# In .env:
+# SEED_SUPER_ADMIN_EMAIL=admin@localhost
+# SEED_SUPER_ADMIN_PASSWORD=dev-password-min-12-chars
+```
+
+## Console overview
+
+| Page            | Route              | Who                    |
+| --------------- | ------------------ | ---------------------- |
+| Landing         | `/`                | Public                 |
+| Docs            | `/docs`            | Public                 |
+| Login / Signup  | `/login`, `/signup`| Public                 |
+| Bootstrap       | `/bootstrap`       | First deploy only      |
+| Accept invite   | `/accept-invite`   | Invite recipients      |
+| Dashboard       | `/dashboard`       | Tenant users           |
+| Endpoints       | `/endpoints`       | Tenant users           |
+| Events          | `/events`          | Tenant users           |
+| Send event      | `/events/send`     | Tenant users           |
+| Deliveries      | `/deliveries`      | Tenant users (live SSE)|
+| Settings        | `/settings`        | Tenant users           |
+| Admin           | `/admin`           | Super-admin only       |
+| Tenant admin    | `/admin/tenants/:id` | Super-admin only     |
+
+**Roles:** Super-admins manage tenants (approve signups, invite owners, audit log). Tenant users manage endpoints, events, deliveries, and API keys. Super-admins are not tenant-scoped and cannot open tenant dashboard pages.
+
+See [docs/dashboard-guide.md](docs/dashboard-guide.md) for a full browser walkthrough.
+
 ## Health checks
 
 ```bash
@@ -45,16 +99,41 @@ curl http://localhost:3000/v1/ready
 
 `/v1/health` confirms the API process is running. `/v1/ready` checks Postgres and Redis connectivity.
 
-## Endpoints API
+## Authentication
 
-Subscriber endpoints are scoped to the tenant resolved from your API key. All routes require `Authorization: Bearer <api_key>`.
+Two auth modes resolve to the same tenant scope for tenant users:
 
-Get a key from the seed script:
+| Mode              | Use case                          | How                                      |
+| ----------------- | --------------------------------- | ---------------------------------------- |
+| **API key**       | Scripts, backends, `curl`         | `Authorization: Bearer whk_...`        |
+| **Session cookie**| Browser console (Send Event, etc.)| Login at `/login` → httpOnly session     |
+
+API keys are created in **Settings → API keys** (or via `POST /v1/api-keys`). Keys are shown once on create/rotate; only a SHA-256 hash is stored server-side.
+
+## Events API
+
+Ingest events with a tenant API key or session cookie. Returns `202 Accepted`.
 
 ```bash
-pnpm db:seed
-# Copy one of the printed API keys (whk_...)
+curl -X POST http://localhost:3000/v1/events \
+  -H "Authorization: Bearer whk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"idempotency_key":"order-123","type":"order.created","payload":{"order_id":"ord_123"}}'
 ```
+
+| Field             | Rules                                      |
+| ----------------- | ------------------------------------------ |
+| `idempotency_key` | Required, unique per tenant                |
+| `type`            | Required event type string                 |
+| `payload`         | Required JSON object                       |
+
+Duplicate `idempotency_key` returns the existing event with `202` — no duplicate fan-out.
+
+List and inspect events: `GET /v1/events`, `GET /v1/events/:id`.
+
+## Endpoints API
+
+Subscriber endpoints are scoped to the tenant resolved from your API key or session.
 
 ### Create an endpoint
 
@@ -67,19 +146,6 @@ curl -X POST http://localhost:3000/v1/endpoints \
   -d '{"url":"https://webhook.site/test","description":"test"}'
 ```
 
-Example response:
-
-```json
-{
-  "id": "660e8400-e29b-41d4-a716-446655440001",
-  "url": "https://webhook.site/test",
-  "secret": "whsec_f1e2d3c4b5a6978012345678abcdef02",
-  "status": "active",
-  "description": "test",
-  "created_at": "2026-06-05T12:00:00.000Z"
-}
-```
-
 | Field         | Rules                                    |
 | ------------- | ---------------------------------------- |
 | `url`         | Required, valid URL, max 2048 characters |
@@ -88,11 +154,6 @@ Example response:
 ### List endpoints
 
 Paginated with `?limit=` (1–100, default 50) and `?offset=` (default 0). The `secret` field is never returned.
-
-```bash
-curl http://localhost:3000/v1/endpoints \
-  -H "Authorization: Bearer whk_..."
-```
 
 ### Disable an endpoint
 
@@ -107,71 +168,48 @@ curl -X PATCH "http://localhost:3000/v1/endpoints/<id>" \
 
 Cross-tenant access by endpoint id returns `404 not_found`.
 
-## Tenant and admin setup
+## Deliveries API
 
-| Method                            | When                                 | Auth                                    |
-| --------------------------------- | ------------------------------------ | --------------------------------------- |
-| `pnpm db:seed`                    | Local dev / CI                       | — (prints API keys for Acme and Globex) |
-| `POST /v1/auth/bootstrap`         | First deploy, before any users exist | `X-Admin-Secret` header                 |
-| `POST /v1/admin/tenants`          | Production tenant onboarding         | Super-admin session cookie              |
-| `POST /v1/admin/tenants` (legacy) | Scripts and automation only          | `X-Admin-Secret` header                 |
+| Route                          | Purpose                                      |
+| ------------------------------ | -------------------------------------------- |
+| `GET /v1/deliveries`           | Paginated delivery log (`?status=` filter)   |
+| `GET /v1/deliveries/:id`       | Delivery detail + attempt timeline           |
+| `POST /v1/deliveries/:id/replay` | Re-queue a **failed** delivery (`202`)     |
+| `GET /v1/deliveries/stream`    | SSE live updates (session cookie only)       |
 
-### Bootstrap super-admin (once)
+Outbound POST body shape: `{ id, type, created_at, data }` where `data` is your ingested payload.
 
-```bash
-curl -X POST http://localhost:3000/v1/auth/bootstrap \
-  -H "Content-Type: application/json" \
-  -H "X-Admin-Secret: $ADMIN_BOOTSTRAP_SECRET" \
-  -d '{"email":"admin@example.com","password":"temporary-password-12","name":"Admin"}'
-```
+Headers: `Content-Type`, `X-Webhook-Id`, `X-Webhook-Timestamp`, `X-Webhook-Signature` (`sha256=<hex>`), `User-Agent: WebhookDelivery/1.0`.
 
-Disabled after the first user exists. `ADMIN_BOOTSTRAP_SECRET` is for bootstrap and the legacy CLI path only — not for routine dashboard operations.
+## API keys
 
-### Create tenant + owner (preferred)
+| Route                            | Purpose                    |
+| -------------------------------- | -------------------------- |
+| `GET /v1/api-keys`               | List keys (prefix only)    |
+| `POST /v1/api-keys`              | Create key (shown once)    |
+| `POST /v1/api-keys/:id/revoke`   | Revoke a key               |
+| `POST /v1/api-keys/:id/rotate`   | Rotate (new key shown once)|
 
-Log in as super-admin, then:
+## Retries and rate limits
 
-```bash
-curl -X POST http://localhost:3000/v1/admin/tenants \
-  -H "Content-Type: application/json" \
-  -b "sid=<session-cookie>" \
-  -d '{"tenant_name":"Acme","owner_email":"owner@acme.com","owner_password":"temporary-password-12","owner_name":"Acme Owner"}'
-```
+| Setting          | Value                                              |
+| ---------------- | -------------------------------------------------- |
+| Max attempts     | 5 per delivery                                     |
+| Backoff          | Exponential + jitter (~1m → 2m → 4m → 8m, cap 1h) |
+| Success          | HTTP 2xx within 30s                                |
+| Retryable        | Network error, timeout, 408, 429, 5xx              |
+| Fail-fast        | 4xx (except 408, 429)                              |
+| Rate limit       | 100 HTTP delivery attempts / minute / tenant       |
 
-Returns `{ tenant, user }`. The owner creates API keys from Settings after logging in.
-
-### Legacy CLI tenant + API key (deprecated)
-
-`POST /v1/admin/tenants` with `X-Admin-Secret` still creates a tenant and prints an API key once for scripts. Responses include a `Deprecation: true` header. Prefer the session-based flow above for production onboarding.
-
-```bash
-curl -X POST http://localhost:3000/v1/admin/tenants \
-  -H "Content-Type: application/json" \
-  -H "X-Admin-Secret: $ADMIN_BOOTSTRAP_SECRET" \
-  -d '{"name":"Script Tenant"}'
-```
+Rate-limited jobs defer for 60s without counting toward the 5-attempt cap.
 
 ## Manual smoke test (webhook.site)
 
-Use [webhook.site](https://webhook.site) to confirm signed deliveries end-to-end with a real HTTP subscriber. Requires the API and worker running (`pnpm dev` or both processes started separately).
+Use [webhook.site](https://webhook.site) to confirm signed deliveries end-to-end. Requires API, worker, and a tenant API key (`pnpm db:seed` or create one in Settings).
 
-1. Open webhook.site and copy your unique URL (`https://webhook.site/<uuid>`).
-2. Seed a tenant and copy an API key:
-
-```bash
-pnpm db:seed
-```
-
-3. Create an endpoint with that URL. Save the `secret` from the response — it is shown only once.
-
-```bash
-curl -X POST http://localhost:3000/v1/endpoints \
-  -H "Authorization: Bearer whk_..." \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://webhook.site/<your-uuid>","description":"smoke test"}'
-```
-
-4. Ingest an event:
+1. Open webhook.site and copy your unique URL.
+2. Create an endpoint with that URL. Save the `secret` from the response.
+3. Ingest an event:
 
 ```bash
 curl -X POST http://localhost:3000/v1/events \
@@ -180,161 +218,39 @@ curl -X POST http://localhost:3000/v1/events \
   -d '{"idempotency_key":"smoke-1","type":"order.created","payload":{"order_id":"ord_123"}}'
 ```
 
-5. On webhook.site, confirm the request within a few seconds:
-   - **Body:** `{ "id", "type", "created_at", "data" }` where `id` is the event UUID and `data` matches your payload.
-   - **Headers:** `Content-Type: application/json`, `X-Webhook-Id` (delivery UUID), `X-Webhook-Timestamp` (Unix seconds), `X-Webhook-Signature` (`sha256=<hex>`), `User-Agent: WebhookDelivery/1.0`.
-6. Verify the signature using the endpoint secret and the **raw request body** (exact bytes, before JSON parsing):
+4. On webhook.site, confirm within a few seconds:
+   - **Body:** `{ "id", "type", "created_at", "data" }`
+   - **Headers:** signature, delivery id, timestamp
+5. Verify the signature (HMAC-SHA256 over `` `${timestamp}.${rawBody}` ``):
 
 ```bash
 node --input-type=module -e "
 import { verifyPayload } from '@webhook/shared/crypto';
-const secret = 'whsec_...'; // from step 3
-const timestamp = 1717654321; // from X-Webhook-Timestamp
-const rawBody = '{\"id\":\"...\",\"type\":\"order.created\",\"created_at\":\"...\",\"data\":{\"order_id\":\"ord_123\"}}'; // copy from webhook.site
-const signature = 'sha256=...'; // from X-Webhook-Signature
+const secret = 'whsec_...';
+const timestamp = 1717654321;
+const rawBody = '{\"id\":\"...\",\"type\":\"order.created\",\"created_at\":\"...\",\"data\":{\"order_id\":\"ord_123\"}}';
+const signature = 'sha256=...';
 console.log(verifyPayload(secret, timestamp, rawBody, signature));
 "
 ```
 
 Expected: `true`.
 
-7. Disable the endpoint, ingest another event, and confirm the delivery fails with `endpoint_disabled` (no new request on webhook.site):
+## Environment variables
 
-```bash
-curl -X PATCH "http://localhost:3000/v1/endpoints/<id>" \
-  -H "Authorization: Bearer whk_..." \
-  -H "Content-Type: application/json" \
-  -d '{"status":"disabled"}'
+Key settings in `.env`:
 
-curl -X POST http://localhost:3000/v1/events \
-  -H "Authorization: Bearer whk_..." \
-  -H "Content-Type: application/json" \
-  -d '{"idempotency_key":"smoke-2","type":"order.created","payload":{"order_id":"ord_456"}}'
-```
+| Variable                  | Purpose                                      |
+| ------------------------- | -------------------------------------------- |
+| `DATABASE_URL`            | Postgres connection                          |
+| `REDIS_URL`               | Redis / BullMQ                               |
+| `ADMIN_BOOTSTRAP_SECRET`  | One-time super-admin bootstrap               |
+| `SESSION_SECRET`          | Session cookie signing (min 32 chars)        |
+| `WEB_APP_URL`             | Invite link base URL                         |
+| `CORS_ORIGIN`             | Allowed browser origins                      |
+| `VITE_API_URL`            | API base URL for the web app (build-time)    |
 
-The signing algorithm is HMAC-SHA256 over `` `${timestamp}.${rawBody}` `` using the endpoint secret as the key.
-
-## Delivery failure modes
-
-When the worker delivers an event to a subscriber URL, outcomes are classified as follows. `attempt_count` on a delivery counts **HTTP POST round-trips only** (not audit-only short-circuits). Each HTTP attempt is recorded in `delivery_attempts` with an incrementing `attempt_number`.
-
-| Outcome               | Retries?                    | `attempt_count`++ | Delivery status         | Notes                                                           |
-| --------------------- | --------------------------- | ----------------- | ----------------------- | --------------------------------------------------------------- |
-| HTTP 2xx              | —                           | Yes               | `succeeded`             | Event rolls up to `completed` when all deliveries finish        |
-| Network error         | Yes (up to 5 HTTP attempts) | Yes               | `pending` between tries | BullMQ exponential backoff; see schedule below                  |
-| Timeout (30s)         | Yes                         | Yes               | `pending` between tries | Recorded as `timeout` in `delivery_attempts.error`              |
-| HTTP 408, 429, 5xx    | Yes                         | Yes               | `pending` between tries | Subscriber may recover; worker rethrows for BullMQ backoff      |
-| HTTP 4xx (other)      | No                          | Yes               | `failed`                | Fail-fast — no further attempts (e.g. `400`, `404`)             |
-| Endpoint disabled     | No                          | No                | `failed`                | No HTTP call; `last_error=endpoint_disabled`                    |
-| Max HTTP attempts (5) | No                          | No\*              | `failed`                | Dead letter; `last_error=max_attempts`; worker does not rethrow |
-| Rate limit exceeded   | Yes (after ~60s defer)      | No                | `deferred`              | No HTTP call; `delivery_attempts.error=rate_limited`            |
-
-\*Short-circuit paths record a `delivery_attempt` row with an `error` but do not increment `attempt_count`.
-
-### Retry backoff
-
-BullMQ uses exponential backoff with a 60-second base (approximately 2× per failed attempt). The worker sets `next_retry_at` on the delivery row for operator visibility.
-
-| HTTP attempt # | Approximate delay before next try |
-| -------------- | --------------------------------- |
-| 1 (first try)  | Immediate                         |
-| 2              | ~60s                              |
-| 3              | ~120s                             |
-| 4              | ~240s                             |
-| 5              | ~480s (dead letter if this fails) |
-
-While a delivery is actively posting, its status is `in_progress`. Between retryable failures it returns to `pending` until the next attempt.
-
-### Per-tenant rate limiting
-
-The worker enforces a **token bucket** in Redis before each outbound HTTP POST. The limit applies to **delivery HTTP attempts per tenant**, not event ingest — bursts of events are accepted and shaped at dispatch time.
-
-| Setting           | Default | Env var                 |
-| ----------------- | ------- | ----------------------- |
-| Capacity / refill | 100/min | `RATE_LIMIT_PER_MINUTE` |
-| Defer duration    | 60s     | (fixed in v1)           |
-| Redis key         | —       | `ratelimit:tenant:<id>` |
-
-When the bucket is empty, the worker records a `delivery_attempt` with `error=rate_limited`, sets the delivery to `deferred` with `next_retry_at` about 60 seconds ahead, and reschedules the BullMQ job — **without** incrementing `attempt_count` and **without** counting toward the five HTTP retry cap.
-
-| Aspect               | Rate-limit defer | HTTP retry                  |
-| -------------------- | ---------------- | --------------------------- |
-| HTTP attempted?      | No               | Yes                         |
-| `attempt_count`++    | No               | Yes                         |
-| BullMQ behavior      | Job delayed ~60s | Throw + exponential backoff |
-| Status while waiting | `deferred`       | `pending`                   |
-
-The bucket is shared across all worker replicas for a tenant. Tokens refill continuously (100 per minute). A burst of up to the configured limit is allowed; additional jobs wait until tokens are available. Events stay `pending` while any delivery is `deferred`.
-
-Configure the cap in `.env`:
-
-```bash
-RATE_LIMIT_PER_MINUTE=100
-```
-
-### Manual checks
-
-- **Transient failure:** Point an endpoint at a local mock that returns `503` three times then `200`. Expect four `delivery_attempts` rows and a final `succeeded` delivery.
-- **Fail-fast:** Return `400` on the first request. Expect one attempt and `failed` with no further retries.
-- **Rate limit:** Ingest more than `RATE_LIMIT_PER_MINUTE` events rapidly for one tenant. Expect the first N deliveries to reach subscribers (HTTP attempted) and the remainder to show `deferred` with `rate_limited` in the attempt log and unchanged `attempt_count`. After the bucket refills (~60s), deferred jobs should deliver.
-
-## Testing
-
-### Prerequisites
-
-Integration tests use the same Postgres and Redis as local development:
-
-```bash
-pnpm docker:up
-pnpm db:migrate
-```
-
-Set `DATABASE_URL` and `REDIS_URL` in `.env` (see `.env.example`). Do not run integration tests against production.
-
-### Commands
-
-| Command                 | Scope                                              |
-| ----------------------- | -------------------------------------------------- |
-| `pnpm test`             | Unit tests, then integration tests                 |
-| `pnpm test:unit`        | All packages (`apps/api`, `apps/worker`, `shared`) |
-| `pnpm test:integration` | API integration tests, then worker integration     |
-
-CI (`.github/workflows/ci.yml`) runs `lint` → `typecheck` → `test:unit` → `db:migrate` → `test:integration` with Postgres 16 and Redis 7 service containers.
-
-### Layout
-
-```
-apps/api/test/
-  helpers/tenant.ts          # createTenantWithKey, deleteTenant
-  unit/                      # validation, auth, pagination (no Docker)
-  integration/               # Supertest against Express app + real DB/Redis
-
-apps/worker/test/
-  unit/                      # processor, rate limit, backoff, status, sweeper
-  integration/               # mock HTTP servers + real DB/Redis + processor
-
-packages/shared/test/unit/   # crypto, env parsing
-```
-
-**API integration** (`apps/api/test/integration/`): health, auth, endpoints, events, deliveries, delivery replay, delivery SSE stream, API keys (rotate), stats, pagination, tenant isolation, admin tenants.
-
-**Worker integration** (`apps/worker/test/integration/`): retry, rate-limit, e2e pipeline. Worker tests import the API app for ingest and use `processor` directly or a short-lived BullMQ `Worker` where needed.
-
-Each integration file manages its own setup/teardown (tenant seeding, queue obliterate, pool/redis close). There is no shared global setup file.
-
-### Priority integration tests (release gate)
-
-These five behaviors must pass in CI before merge to `main`:
-
-| #   | Behavior                | File                                                 |
-| --- | ----------------------- | ---------------------------------------------------- |
-| 1   | Ingest idempotency      | `apps/api/test/integration/events.test.ts`           |
-| 2   | Transient failure retry | `apps/worker/test/integration/retry.test.ts`         |
-| 3   | Fail-fast (HTTP 4xx)    | `apps/worker/test/integration/retry.test.ts`         |
-| 4   | Tenant isolation        | `apps/api/test/integration/tenant-isolation.test.ts` |
-| 5   | E2E pipeline + HMAC     | `apps/worker/test/integration/e2e-pipeline.test.ts`  |
-
-Additional integration coverage includes endpoint tenant checks (`endpoints-tenant.test.ts`) and rate limiting (`rate-limit.test.ts`).
+See `.env.example` for worker tuning (`DELIVERY_TIMEOUT_MS`, `MAX_DELIVERY_ATTEMPTS`, `RATE_LIMIT_PER_MINUTE`, etc.).
 
 ## Scripts
 
@@ -344,19 +260,23 @@ Additional integration coverage includes endpoint tenant checks (`endpoints-tena
 | `pnpm build`            | Build all packages                      |
 | `pnpm typecheck`        | TypeScript project references build     |
 | `pnpm lint`             | ESLint                                  |
+| `pnpm format`           | Prettier                                |
 | `pnpm test`             | Unit + integration tests                |
-| `pnpm test:unit`        | Unit tests only (all packages)          |
 | `pnpm test:integration` | API and worker integration tests        |
+| `pnpm test:smoke`       | Playwright smoke / visual tests         |
 | `pnpm docker:up`        | Start Postgres and Redis                |
 | `pnpm docker:down`      | Stop Docker services                    |
 | `pnpm db:migrate`       | Apply database migrations               |
-| `pnpm db:seed`          | Seed demo data                          |
+| `pnpm db:seed`          | Seed demo tenants + API keys            |
+| `pnpm db:generate`      | Generate Drizzle migrations             |
 
 ## Project layout
 
 ```
-apps/api      REST API (Express)
-apps/worker   Delivery worker (BullMQ)
-apps/web      Operator dashboard (Vite + React)
-packages/shared  Shared types, env parsing, constants
+apps/api       REST API (Express) — auth, ingest, deliveries, admin
+apps/worker    Delivery worker (BullMQ)
+apps/web       Operator dashboard + docs (Vite + React)
+packages/shared  Shared types, schema, env parsing, crypto
+docs/          Dashboard guide, PRD
+e2e/           Playwright smoke and visual tests
 ```

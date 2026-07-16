@@ -23,6 +23,8 @@ describe('apiEnvSchema', () => {
     expect(env.PORT).toBe(3000)
     expect(env.CORS_ORIGIN).toBe('http://localhost:5173')
     expect(env.SESSION_COOKIE_MAX_AGE).toBe(604_800_000)
+    expect(env.WEB_APP_URL).toBe('http://localhost:5173')
+    expect(env.INVITE_TTL_MS).toBe(7 * 24 * 60 * 60 * 1000)
   })
 
   it('coerces SESSION_COOKIE_MAX_AGE from env', () => {

@@ -147,3 +147,64 @@ export const sessions = pgTable(
   },
   (t) => [index('sessions_expire_idx').on(t.expire)],
 )
+
+export const invites = pgTable(
+  'invites',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tokenHash: text('token_hash').notNull().unique(),
+    kind: text('kind').notNull(),
+    email: text('email').notNull(),
+    tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
+    tenantName: text('tenant_name'),
+    invitedName: text('invited_name'),
+    createdByUserId: uuid('created_by_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('invites_email_idx').on(t.email)],
+)
+
+export const auditLog = pgTable('audit_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  action: text('action').notNull(),
+  actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+},
+  (t) => [
+    index('audit_log_actor_id_idx').on(t.actorId),
+    index('audit_log_tenant_id_idx').on(t.tenantId),
+    index('audit_log_action_created_at_idx').on(t.action, t.createdAt),
+  ],
+)
+
+export const signupRequests = pgTable(
+  'signup_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantName: text('tenant_name').notNull(),
+    email: text('email').notNull(),
+    name: text('name').notNull(),
+    passwordHash: text('password_hash').notNull(),
+    status: text('status').notNull().default('pending'),
+    reviewedByUserId: uuid('reviewed_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'set null' }),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('signup_requests_email_idx').on(t.email),
+    index('signup_requests_status_created_at_idx').on(t.status, t.createdAt),
+    uniqueIndex('signup_requests_email_pending_uidx')
+      .on(t.email)
+      .where(sql`${t.status} = 'pending'`),
+  ],
+)

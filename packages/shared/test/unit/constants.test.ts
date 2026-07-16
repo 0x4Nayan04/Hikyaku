@@ -4,6 +4,7 @@ import {
   ENDPOINT_STATUSES,
   EVENT_STATUSES,
   QUEUE_NAME,
+  SIGNUP_REQUEST_STATUSES,
 } from '../../src/constants.js'
 
 describe('constants', () => {
@@ -15,5 +16,6 @@ describe('constants', () => {
     expect(EVENT_STATUSES).toContain('pending')
     expect(DELIVERY_STATUSES).toContain('deferred')
     expect(ENDPOINT_STATUSES).toContain('active')
+    expect(SIGNUP_REQUEST_STATUSES).toEqual(['pending', 'approved', 'rejected'])
   })
 })

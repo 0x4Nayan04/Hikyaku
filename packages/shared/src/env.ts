@@ -13,6 +13,8 @@ export const apiEnvSchema = baseSchema.extend({
   SESSION_SECRET: z.string().min(32),
   SESSION_COOKIE_MAX_AGE: z.coerce.number().default(604_800_000),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  WEB_APP_URL: z.string().url().default('http://localhost:5173'),
+  INVITE_TTL_MS: z.coerce.number().default(7 * 24 * 60 * 60 * 1000),
 })
 
 export const workerEnvSchema = baseSchema.extend({

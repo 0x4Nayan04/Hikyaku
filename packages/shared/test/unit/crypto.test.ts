@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { generateApiKey, hashApiKey, signPayload, verifyPayload } from '../../src/crypto.js'
+import {
+  generateApiKey,
+  generateInviteToken,
+  hashApiKey,
+  hashInviteToken,
+  signPayload,
+  verifyPayload,
+} from '../../src/crypto.js'
 
 describe('signPayload / verifyPayload', () => {
   const secret = 'whsec_f1e2d3c4b5a6978012345678abcdef02'
@@ -42,5 +49,21 @@ describe('hashApiKey', () => {
   it('returns the same SHA-256 hex for the same input', () => {
     const apiKey = 'whk_0123456789abcdef0123456789abcdef'
     expect(hashApiKey(apiKey)).toBe(hashApiKey(apiKey))
+  })
+})
+
+describe('generateInviteToken / hashInviteToken', () => {
+  it('generates opaque base64url tokens', () => {
+    const token = generateInviteToken()
+    expect(token).toMatch(/^[A-Za-z0-9_-]+$/)
+    expect(token.length).toBeGreaterThanOrEqual(40)
+  })
+
+  it('hashes the same token consistently and differs across tokens', () => {
+    const a = generateInviteToken()
+    const b = generateInviteToken()
+    expect(hashInviteToken(a)).toBe(hashInviteToken(a))
+    expect(hashInviteToken(a)).not.toBe(hashInviteToken(b))
+    expect(hashInviteToken(a)).toMatch(/^[a-f0-9]{64}$/)
   })
 })

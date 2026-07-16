@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "signup_requests_email_pending_uidx" ON "signup_requests" USING btree ("email") WHERE "signup_requests"."status" = 'pending';

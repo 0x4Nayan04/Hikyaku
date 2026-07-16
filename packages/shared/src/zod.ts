@@ -58,10 +58,48 @@ export const adminCreateTenantSchema = z.object({
   owner_name: userNameSchema,
 })
 
+export const adminPatchTenantSchema = z.object({
+  tenant_name: userNameSchema,
+})
+
 export const adminCreateUserSchema = z.object({
   email: emailSchema,
   password: newPasswordSchema,
   name: userNameSchema,
+})
+
+const optionalInviteNameSchema = userNameSchema.optional()
+
+export const adminCreateTenantOwnerInviteSchema = z.object({
+  kind: z.literal('tenant_owner'),
+  tenant_name: userNameSchema,
+  owner_email: emailSchema,
+  owner_name: optionalInviteNameSchema,
+})
+
+export const adminCreateTenantUserInviteSchema = z.object({
+  kind: z.literal('tenant_user'),
+  tenant_id: z.string().uuid(),
+  email: emailSchema,
+  name: optionalInviteNameSchema,
+})
+
+export const adminCreateInviteSchema = z.discriminatedUnion('kind', [
+  adminCreateTenantOwnerInviteSchema,
+  adminCreateTenantUserInviteSchema,
+])
+
+export const acceptInviteSchema = z.object({
+  token: z.string().min(1),
+  name: userNameSchema,
+  password: newPasswordSchema,
+})
+
+export const signupRequestSchema = z.object({
+  tenant_name: userNameSchema,
+  email: emailSchema,
+  name: userNameSchema,
+  password: newPasswordSchema,
 })
 
 export type CreateEndpointInput = z.infer<typeof createEndpointSchema>
@@ -72,3 +110,6 @@ export type BootstrapInput = z.infer<typeof bootstrapSchema>
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>
 export type AdminCreateTenantInput = z.infer<typeof adminCreateTenantSchema>
 export type AdminCreateUserInput = z.infer<typeof adminCreateUserSchema>
+export type AdminCreateInviteInput = z.infer<typeof adminCreateInviteSchema>
+export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>
+export type SignupRequestInput = z.infer<typeof signupRequestSchema>

@@ -18,6 +18,16 @@ export function hashApiKey(apiKey: string): string {
   return createHash('sha256').update(apiKey, 'utf8').digest('hex')
 }
 
+const INVITE_TOKEN_BYTES = 32
+
+export function generateInviteToken(): string {
+  return randomBytes(INVITE_TOKEN_BYTES).toString('base64url')
+}
+
+export function hashInviteToken(token: string): string {
+  return createHash('sha256').update(token, 'utf8').digest('hex')
+}
+
 export function prefixOf(apiKey: string): string {
   return apiKey.slice(API_KEY_PREFIX.length, API_KEY_PREFIX.length + API_KEY_PREFIX_LENGTH)
 }
