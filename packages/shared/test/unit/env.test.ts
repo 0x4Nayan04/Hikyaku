@@ -47,6 +47,50 @@ describe('apiEnvSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  it('allows default admin secret outside production', () => {
+    const result = apiEnvSchema.safeParse({
+      ...baseEnv,
+      NODE_ENV: 'development',
+      ...apiSecrets,
+      ADMIN_BOOTSTRAP_SECRET: 'change-me-in-production',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects default admin secret in production', () => {
+    const result = apiEnvSchema.safeParse({
+      ...baseEnv,
+      NODE_ENV: 'production',
+      ...apiSecrets,
+      ADMIN_BOOTSTRAP_SECRET: 'change-me-in-production',
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects short admin secret in production even if not default', () => {
+    const result = apiEnvSchema.safeParse({
+      ...baseEnv,
+      NODE_ENV: 'production',
+      ...apiSecrets,
+      ADMIN_BOOTSTRAP_SECRET: 'only-sixteen-chars',
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts a strong admin secret in production', () => {
+    const result = apiEnvSchema.safeParse({
+      ...baseEnv,
+      NODE_ENV: 'production',
+      ...apiSecrets,
+      ADMIN_BOOTSTRAP_SECRET: 'a'.repeat(32),
+    })
+
+    expect(result.success).toBe(true)
+  })
+
   it('rejects short session secret', () => {
     const result = apiEnvSchema.safeParse({
       ...baseEnv,

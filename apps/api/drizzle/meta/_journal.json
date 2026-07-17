@@ -71,6 +71,27 @@
       "when": 1784141820000,
       "tag": "0010_square_deadpool",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784246400000,
+      "tag": "0011_audit_log_tenant_set_null",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784246500000,
+      "tag": "0012_tenant_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1784246600000,
+      "tag": "0013_invites_created_by_set_null",
+      "breakpoints": true
     }
   ]
 }

@@ -12,10 +12,12 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
+import type { TenantStatus } from './constants.js'
 
 export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
+  status: text('status').$type<TenantStatus>().notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -158,9 +160,9 @@ export const invites = pgTable(
     tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
     tenantName: text('tenant_name'),
     invitedName: text('invited_name'),
-    createdByUserId: uuid('created_by_user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     acceptedAt: timestamp('accepted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -168,14 +170,16 @@ export const invites = pgTable(
   (t) => [index('invites_email_idx').on(t.email)],
 )
 
-export const auditLog = pgTable('audit_log', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  action: text('action').notNull(),
-  actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
-  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
-  metadata: jsonb('metadata'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-},
+export const auditLog = pgTable(
+  'audit_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    action: text('action').notNull(),
+    actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
+    tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'set null' }),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
   (t) => [
     index('audit_log_actor_id_idx').on(t.actorId),
     index('audit_log_tenant_id_idx').on(t.tenantId),

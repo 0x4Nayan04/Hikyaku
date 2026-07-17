@@ -33,5 +33,8 @@ export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number]
 export const ENDPOINT_STATUSES = ['active', 'disabled'] as const
 export type EndpointStatus = (typeof ENDPOINT_STATUSES)[number]
 
+export const TENANT_STATUSES = ['active', 'suspended'] as const
+export type TenantStatus = (typeof TENANT_STATUSES)[number]
+
 export const SIGNUP_REQUEST_STATUSES = ['pending', 'approved', 'rejected'] as const
 export type SignupRequestStatus = (typeof SIGNUP_REQUEST_STATUSES)[number]
