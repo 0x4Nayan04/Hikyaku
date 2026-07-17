@@ -6,20 +6,30 @@ import * as schema from '@webhook/shared/schema'
 import { auditLog } from '@webhook/shared/schema'
 
 type Db = NodePgDatabase<typeof schema>
-type Tx = PgTransaction<NodePgQueryResultHKT, typeof schema, ExtractTablesWithRelations<typeof schema>>
+type Tx = PgTransaction<
+  NodePgQueryResultHKT,
+  typeof schema,
+  ExtractTablesWithRelations<typeof schema>
+>
 type DbExecutor = Db | Tx
 
 type AuditAction =
   | 'tenant.created'
   | 'tenant.deleted'
   | 'tenant.renamed'
+  | 'tenant.suspended'
+  | 'tenant.unsuspended'
   | 'signup.approved'
   | 'signup.rejected'
+  | 'user.deleted'
+  | 'user.password_reset'
+  | 'operator.invited'
+  | 'operator.removed'
 
 export async function recordAudit(
   db: DbExecutor,
   action: AuditAction,
-  actorId: string,
+  actorId: string | null,
   tenantId: string | null,
   metadata?: Record<string, unknown>,
 ): Promise<void> {

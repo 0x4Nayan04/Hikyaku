@@ -10,7 +10,10 @@ import { parsePagination } from '../../lib/pagination.js'
 import { toUserJson } from '../auth/serialize.js'
 import { toSignupRequestJson } from '../auth/signup-serialize.js'
 import { toAdminTenantJson } from './serialize.js'
-import { parseSignupRequestId, parseSignupRequestStatusFilter } from './signup-request-validation.js'
+import {
+  parseSignupRequestId,
+  parseSignupRequestStatusFilter,
+} from './signup-request-validation.js'
 
 const signupRequestListColumns = {
   id: signupRequests.id,
@@ -24,6 +27,7 @@ const signupRequestListColumns = {
 const tenantColumns = {
   id: tenants.id,
   name: tenants.name,
+  status: tenants.status,
   createdAt: tenants.createdAt,
 }
 
@@ -42,10 +46,7 @@ export async function listSignupRequests(req: Request, res: Response, next: Next
 
     const whereClause = status ? eq(signupRequests.status, status) : undefined
 
-    const [countRow] = await db
-      .select({ value: count() })
-      .from(signupRequests)
-      .where(whereClause)
+    const [countRow] = await db.select({ value: count() }).from(signupRequests).where(whereClause)
 
     const total = countRow?.value ?? 0
 

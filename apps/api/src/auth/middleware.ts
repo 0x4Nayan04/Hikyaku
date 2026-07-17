@@ -17,6 +17,12 @@ function parseBearerToken(header: string | undefined): string | null {
 
 const SESSION_UNAUTHORIZED_MESSAGE = 'Missing or invalid session'
 
+function assertTenantActive(req: Request): void {
+  if (req.tenantStatus === 'suspended') {
+    throw new AppError(403, 'tenant_suspended', 'Tenant is suspended')
+  }
+}
+
 export function requireTenantSession(req: Request, _res: Response, next: NextFunction): void {
   void (async () => {
     try {
@@ -26,6 +32,7 @@ export function requireTenantSession(req: Request, _res: Response, next: NextFun
         throw new AppError(401, 'unauthorized', SESSION_UNAUTHORIZED_MESSAGE)
       }
 
+      assertTenantActive(req)
       next()
     } catch (err) {
       if (err instanceof AppError && err.statusCode === 401) {
@@ -65,6 +72,7 @@ export function requireTenantAuth(req: Request, _res: Response, next: NextFuncti
         throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
       }
 
+      assertTenantActive(req)
       next()
     } catch (err) {
       next(err)

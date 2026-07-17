@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { env } from '../../config.js'
 import { getDb } from '../../db/client.js'
+import { recordAudit } from '../../lib/audit.js'
 import { AppError } from '../../lib/errors.js'
 import { assertEmailAvailable, assertNoPendingInvite } from '../../lib/invites.js'
 import { assertNoPendingSignupRequest } from '../../lib/signup-requests.js'
@@ -36,7 +37,7 @@ export async function createInvite(req: Request, res: Response, next: NextFuncti
         createdByUserId,
         expiresAt,
       })
-    } else {
+    } else if (body.kind === 'tenant_user') {
       await assertEmailAvailable(body.email)
       await assertNoPendingInvite(body.email)
       await assertNoPendingSignupRequest(body.email)
@@ -60,6 +61,23 @@ export async function createInvite(req: Request, res: Response, next: NextFuncti
         createdByUserId,
         expiresAt,
       })
+    } else if (body.kind === 'platform_admin') {
+      await assertEmailAvailable(body.email)
+      await assertNoPendingInvite(body.email)
+      await assertNoPendingSignupRequest(body.email)
+
+      await db.insert(invites).values({
+        tokenHash,
+        kind: body.kind,
+        email: body.email,
+        invitedName: body.name ?? null,
+        createdByUserId,
+        expiresAt,
+      })
+      await recordAudit(db, 'operator.invited', createdByUserId, null, { email: body.email })
+    } else {
+      const _exhaustive: never = body
+      throw new AppError(500, 'internal_error', `Unknown invite kind: ${String(_exhaustive)}`)
     }
 
     const inviteUrl = `${env.WEB_APP_URL}/accept-invite?token=${encodeURIComponent(rawToken)}`

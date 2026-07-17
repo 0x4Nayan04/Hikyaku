@@ -2,8 +2,21 @@ import { Router, type IRouter, type NextFunction, type Request, type Response } 
 import { requireSuperAdmin } from '../../auth/requireSuperAdmin.js'
 import { createInvite } from '../invites/handlers.js'
 import { listAuditLog } from './audit-handlers.js'
-import { createTenantUser, createTenantWithOwner, deleteTenant, getTenant, listTenantUsers, listTenants, patchTenant } from './handlers.js'
+import {
+  createTenantUser,
+  createTenantWithOwner,
+  deleteTenant,
+  deleteTenantUser,
+  getTenant,
+  listTenantUsers,
+  listTenants,
+  patchTenant,
+  resetTenantUserPassword,
+  suspendTenant,
+  unsuspendTenant,
+} from './handlers.js'
 import { createTenantLegacy } from './legacy.js'
+import { deleteOperator, inviteOperator, listOperators } from './operator-handlers.js'
 import {
   approveSignupRequest,
   listSignupRequests,
@@ -32,9 +45,20 @@ adminRouter.post('/tenants', (req: Request, res: Response, next: NextFunction) =
 })
 
 adminRouter.patch('/tenants/:id', requireSuperAdmin, patchTenant)
+adminRouter.post('/tenants/:id/suspend', requireSuperAdmin, suspendTenant)
+adminRouter.post('/tenants/:id/unsuspend', requireSuperAdmin, unsuspendTenant)
 adminRouter.delete('/tenants/:id', requireSuperAdmin, deleteTenant)
 adminRouter.post('/tenants/:id/users', requireSuperAdmin, createTenantUser)
+adminRouter.delete('/tenants/:id/users/:userId', requireSuperAdmin, deleteTenantUser)
+adminRouter.post(
+  '/tenants/:id/users/:userId/reset-password',
+  requireSuperAdmin,
+  resetTenantUserPassword,
+)
 adminRouter.post('/invites', requireSuperAdmin, createInvite)
+adminRouter.get('/operators', requireSuperAdmin, listOperators)
+adminRouter.post('/operators/invites', requireSuperAdmin, inviteOperator)
+adminRouter.delete('/operators/:id', requireSuperAdmin, deleteOperator)
 adminRouter.get('/signup-requests', requireSuperAdmin, listSignupRequests)
 adminRouter.post('/signup-requests/:id/approve', requireSuperAdmin, approveSignupRequest)
 adminRouter.post('/signup-requests/:id/reject', requireSuperAdmin, rejectSignupRequest)

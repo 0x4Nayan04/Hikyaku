@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
-import { users } from '@webhook/shared/schema'
+import { tenants, users } from '@webhook/shared/schema'
 import { getDb } from '../db/client.js'
 import { AppError } from '../lib/errors.js'
 
@@ -14,9 +14,11 @@ export async function attachSessionUser(req: Request): Promise<void> {
     .select({
       id: users.id,
       tenantId: users.tenantId,
+      tenantStatus: tenants.status,
       isSuperAdmin: users.isSuperAdmin,
     })
     .from(users)
+    .leftJoin(tenants, eq(users.tenantId, tenants.id))
     .where(eq(users.id, userId))
     .limit(1)
 
@@ -27,6 +29,7 @@ export async function attachSessionUser(req: Request): Promise<void> {
 
   req.userId = user.id
   req.tenantId = user.tenantId ?? undefined
+  req.tenantStatus = user.tenantStatus ?? undefined
   req.isSuperAdmin = user.isSuperAdmin
 }
 

@@ -1,7 +1,9 @@
 import { generateApiKey, hashApiKey, prefixOf } from '@webhook/shared/crypto'
 import { apiKeys, tenants } from '@webhook/shared/schema'
 import type { NextFunction, Request, Response } from 'express'
+import { env } from '../../config.js'
 import { getDb } from '../../db/client.js'
+import { recordAudit } from '../../lib/audit.js'
 import { AppError } from '../../lib/errors.js'
 import { logger } from '../../lib/logger.js'
 import { requireAdminSecret } from '../auth/validation.js'
@@ -23,8 +25,19 @@ function parseLegacyTenantName(body: unknown): string {
   return name
 }
 
+export function assertLegacyTenantCreationAllowed(nodeEnv: string): void {
+  if (nodeEnv === 'production') {
+    throw new AppError(
+      410,
+      'gone',
+      'Legacy admin tenant creation is disabled in production. Use session-authenticated POST /v1/admin/tenants instead.',
+    )
+  }
+}
+
 export async function createTenantLegacy(req: Request, res: Response, next: NextFunction) {
   try {
+    assertLegacyTenantCreationAllowed(env.NODE_ENV)
     requireAdminSecret(req)
     const name = parseLegacyTenantName(req.body)
 
@@ -41,6 +54,10 @@ export async function createTenantLegacy(req: Request, res: Response, next: Next
       tenantId: tenant.id,
       keyHash: hashApiKey(apiKey),
       prefix: prefixOf(apiKey),
+    })
+    await recordAudit(db, 'tenant.created', null, tenant.id, {
+      tenantName: name,
+      source: 'legacy_admin_secret',
     })
 
     res.setHeader('Deprecation', 'true')

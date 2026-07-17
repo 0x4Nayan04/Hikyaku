@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import request from 'supertest'
-import { eq } from 'drizzle-orm'
-import { tenants } from '@webhook/shared/schema'
+import { and, eq, isNull } from 'drizzle-orm'
+import { auditLog, tenants } from '@webhook/shared/schema'
 import { afterAll, describe, expect, it } from 'vitest'
 import { env } from '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
@@ -30,6 +30,22 @@ describe('POST /v1/admin/tenants legacy CLI', () => {
     expect(res.body.api_key).toMatch(/^whk_[0-9a-f]{32}$/)
 
     const db = getDb()
+    const [audit] = await db
+      .select({ action: auditLog.action, actorId: auditLog.actorId, metadata: auditLog.metadata })
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.tenantId, res.body.tenant.id),
+          eq(auditLog.action, 'tenant.created'),
+          isNull(auditLog.actorId),
+        ),
+      )
+    expect(audit).toMatchObject({
+      action: 'tenant.created',
+      actorId: null,
+      metadata: { tenantName: name, source: 'legacy_admin_secret' },
+    })
+
     await db.delete(tenants).where(eq(tenants.id, res.body.tenant.id))
   })
 

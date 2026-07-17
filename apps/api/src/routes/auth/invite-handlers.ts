@@ -105,6 +105,17 @@ export async function acceptInvite(req: Request, res: Response, next: NextFuncti
             isSuperAdmin: false,
           })
           .returning(userColumns)
+      } else if (invite.kind === 'platform_admin') {
+        ;[createdUser] = await tx
+          .insert(users)
+          .values({
+            tenantId: null,
+            email: invite.email,
+            passwordHash,
+            name: body.name,
+            isSuperAdmin: true,
+          })
+          .returning(userColumns)
       } else {
         throw new AppError(500, 'internal_error', 'Unknown invite kind')
       }
