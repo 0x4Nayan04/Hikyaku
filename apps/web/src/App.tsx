@@ -21,6 +21,8 @@ import { Admin } from '@/pages/Admin'
 import { SendEvent } from '@/pages/SendEvent'
 import { Settings } from '@/pages/Settings'
 import { TenantAdmin } from '@/pages/TenantAdmin'
+import { AdminAuditLog } from '@/pages/admin/AdminAuditLog'
+import { AdminOperators } from '@/pages/admin/AdminOperators'
 
 export default function App() {
   return (
@@ -45,9 +47,14 @@ export default function App() {
             <Route path="deliveries/:id" element={<DeliveryDetail />} />
           </Route>
           <Route path="settings" element={<Settings />} />
-          <Route path="settings/profile" element={<Navigate to="/settings?tab=profile" replace />} />
+          <Route
+            path="settings/profile"
+            element={<Navigate to="/settings?tab=profile" replace />}
+          />
           <Route element={<RequireSuperAdmin />}>
             <Route path="admin" element={<Admin />} />
+            <Route path="admin/audit" element={<AdminAuditLog />} />
+            <Route path="admin/operators" element={<AdminOperators />} />
             <Route path="admin/tenants/:id" element={<TenantAdmin />} />
           </Route>
         </Route>

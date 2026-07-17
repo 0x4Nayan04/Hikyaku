@@ -3,6 +3,7 @@ import type {
   AdminCreateInviteInput,
   AdminCreateTenantInput,
   AdminCreateUserInput,
+  AdminResetUserPasswordInput,
   AuditLogEntry,
   CreateInviteResponse,
   AdminTenant,
@@ -25,6 +26,7 @@ import type {
   Paginated,
   PaginationParams,
   PatchEndpointInput,
+  PlatformOperator,
   ReplayDeliveryResponse,
   SignupRequest,
   SignupRequestInput,
@@ -218,7 +220,9 @@ export function rotateApiKey(id: string): Promise<ApiKeyWithSecret> {
   return apiFetch(`/v1/api-keys/${id}/rotate`, { method: 'POST' })
 }
 
-export function listAdminTenants(params: PaginationParams & { search?: string } = {}): Promise<Paginated<AdminTenant>> {
+export function listAdminTenants(
+  params: PaginationParams & { search?: string } = {},
+): Promise<Paginated<AdminTenant>> {
   const { search, ...rest } = params
   return apiFetch(`/v1/admin/tenants${buildQuery({ ...rest, search })}`)
 }
@@ -231,10 +235,15 @@ export function deleteAdminTenant(id: string): Promise<void> {
   return apiFetch(`/v1/admin/tenants/${id}`, { method: 'DELETE' })
 }
 
-export function patchAdminTenant(
-  id: string,
-  body: { tenant_name: string },
-): Promise<AdminTenant> {
+export function suspendAdminTenant(id: string): Promise<AdminTenant> {
+  return apiFetch(`/v1/admin/tenants/${id}/suspend`, { method: 'POST' })
+}
+
+export function unsuspendAdminTenant(id: string): Promise<AdminTenant> {
+  return apiFetch(`/v1/admin/tenants/${id}/unsuspend`, { method: 'POST' })
+}
+
+export function patchAdminTenant(id: string, body: { tenant_name: string }): Promise<AdminTenant> {
   return apiFetch(`/v1/admin/tenants/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
@@ -267,11 +276,46 @@ export function createAdminTenantUser(
   })
 }
 
+export function deleteAdminTenantUser(tenantId: string, userId: string): Promise<void> {
+  return apiFetch(`/v1/admin/tenants/${tenantId}/users/${userId}`, { method: 'DELETE' })
+}
+
+export function resetAdminTenantUserPassword(
+  tenantId: string,
+  userId: string,
+  body: AdminResetUserPasswordInput,
+): Promise<void> {
+  return apiFetch(`/v1/admin/tenants/${tenantId}/users/${userId}/reset-password`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
 export function createAdminInvite(body: AdminCreateInviteInput): Promise<CreateInviteResponse> {
   return apiFetch('/v1/admin/invites', {
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+export function listOperators(
+  params: PaginationParams = {},
+): Promise<Paginated<PlatformOperator>> {
+  return apiFetch(`/v1/admin/operators${buildQuery(params)}`)
+}
+
+export function inviteOperator(body: {
+  email: string
+  name?: string
+}): Promise<CreateInviteResponse> {
+  return apiFetch('/v1/admin/operators/invites', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export function deleteOperator(id: string): Promise<void> {
+  return apiFetch(`/v1/admin/operators/${id}`, { method: 'DELETE' })
 }
 
 export function validateInvite(token: string): Promise<ValidateInviteResponse> {

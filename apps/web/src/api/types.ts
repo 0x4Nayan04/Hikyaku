@@ -63,6 +63,10 @@ export type AdminCreateUserInput = {
   name: string
 }
 
+export type AdminResetUserPasswordInput = {
+  password: string
+}
+
 export type AdminCreateTenantOwnerInviteInput = {
   kind: 'tenant_owner'
   tenant_name: string
@@ -77,9 +81,16 @@ export type AdminCreateTenantUserInviteInput = {
   name?: string
 }
 
+export type AdminCreatePlatformAdminInviteInput = {
+  kind: 'platform_admin'
+  email: string
+  name?: string
+}
+
 export type AdminCreateInviteInput =
   | AdminCreateTenantOwnerInviteInput
   | AdminCreateTenantUserInviteInput
+  | AdminCreatePlatformAdminInviteInput
 
 export type CreateInviteResponse = {
   invite_url: string
@@ -87,11 +98,18 @@ export type CreateInviteResponse = {
 }
 
 export type ValidateInviteResponse = {
-  kind: 'tenant_owner' | 'tenant_user'
+  kind: 'tenant_owner' | 'tenant_user' | 'platform_admin'
   email: string
   tenant_name: string | null
   invited_name: string | null
   expires_at: string
+}
+
+export type PlatformOperator = {
+  id: string
+  email: string
+  name: string
+  created_at: string
 }
 
 export type AcceptInviteInput = {
@@ -121,6 +139,7 @@ export type SignupRequest = {
 export type AdminTenant = {
   id: string
   name: string
+  status: 'active' | 'suspended'
   created_at: string
 }
 
@@ -246,6 +265,7 @@ export type AuditLogEntry = {
   id: string
   action: string
   actor_id: string | null
+  actor_email: string | null
   tenant_id: string | null
   metadata: Record<string, unknown> | null
   created_at: string

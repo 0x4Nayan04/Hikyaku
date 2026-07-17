@@ -9,14 +9,23 @@ import {
 } from '@/components/console/DataTable'
 import { DataPanel } from '@/components/console/DataPanel'
 import { FormPanel } from '@/components/console/FormPanel'
+import { TenantAdminUserActions } from '@/pages/tenant-admin/TenantAdminUserActions'
+import { useSession } from '@/providers/session-context'
 
 type TenantAdminDetailsProps = {
   tenant: AdminTenant
   existingUsers: User[]
   createdUsers: User[]
+  onUserDeleted: (userId: string) => void
 }
 
-export function TenantAdminDetails({ tenant, existingUsers, createdUsers }: TenantAdminDetailsProps) {
+export function TenantAdminDetails({
+  tenant,
+  existingUsers,
+  createdUsers,
+  onUserDeleted,
+}: TenantAdminDetailsProps) {
+  const { session } = useSession()
   // Merge existing API users with session-created users (deduped by id)
   const existingIds = new Set(existingUsers.map((u) => u.id))
   const sessionOnly = createdUsers.filter((u) => !existingIds.has(u.id))
@@ -51,20 +60,28 @@ export function TenantAdminDetails({ tenant, existingUsers, createdUsers }: Tena
                 <DataTableHead>Name</DataTableHead>
                 <DataTableHead>Email</DataTableHead>
                 <DataTableHead className="hidden md:table-cell">User ID</DataTableHead>
+                <DataTableHead className="text-right">Actions</DataTableHead>
               </DataTableRow>
             </DataTableHeader>
             <DataTableBody>
               {allUsers.map((user) => (
                 <DataTableRow key={user.id}>
                   <DataTableCell className="font-medium text-ink">{user.name}</DataTableCell>
-                  <DataTableCell className="text-sm text-muted-strong">
-                    {user.email}
-                  </DataTableCell>
+                  <DataTableCell className="text-sm text-muted-strong">{user.email}</DataTableCell>
                   <DataTableCell
                     className="hidden max-w-48 truncate font-mono text-xs text-muted-strong md:table-cell"
                     title={user.id}
                   >
                     {user.id}
+                  </DataTableCell>
+                  <DataTableCell>
+                    <TenantAdminUserActions
+                      tenantId={tenant.id}
+                      user={user}
+                      userCount={allUsers.length}
+                      currentUserId={session?.user.id}
+                      onDeleted={onUserDeleted}
+                    />
                   </DataTableCell>
                 </DataTableRow>
               ))}

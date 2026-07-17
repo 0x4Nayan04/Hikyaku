@@ -68,7 +68,7 @@ type DataTableCellProps = {
 
 export function DataTableCell({ children, className, ...props }: DataTableCellProps & React.ComponentProps<'td'>) {
   return (
-    <TableCell className={cn('border-t border-border/60 px-5 py-3 whitespace-normal text-sm', className)} {...props}>
+    <TableCell className={cn('border-t border-border/60 px-5 py-3 text-sm', className)} {...props}>
       {children}
     </TableCell>
   )

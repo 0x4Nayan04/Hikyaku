@@ -1,5 +1,15 @@
 import type { LucideIcon } from 'lucide-react'
-import { LayoutDashboard, List, Package, Send, Settings, Shield, Webhook } from 'lucide-react'
+import {
+  ClipboardList,
+  LayoutDashboard,
+  List,
+  Package,
+  Send,
+  Settings,
+  Shield,
+  Users,
+  Webhook,
+} from 'lucide-react'
 
 export type AppNavItem = {
   title: string
@@ -42,7 +52,11 @@ export function getNavEndPaths(items: AppNavItem[]): ReadonlySet<string> {
 }
 
 /** Whether a nav item should appear active for the current pathname. */
-export function isNavItemActive(pathname: string, item: AppNavItem, allItems: AppNavItem[]): boolean {
+export function isNavItemActive(
+  pathname: string,
+  item: AppNavItem,
+  allItems: AppNavItem[],
+): boolean {
   const matchesSelf = pathname === item.to || pathname.startsWith(`${item.to}/`)
   if (!matchesSelf) return false
 
@@ -113,6 +127,20 @@ const appNavSections: AppNavSection[] = [
         to: '/admin',
         icon: Shield,
         description: 'Tenants and signups',
+        superAdminOnly: true,
+      },
+      {
+        title: 'Operators',
+        to: '/admin/operators',
+        icon: Users,
+        description: 'Platform administrators',
+        superAdminOnly: true,
+      },
+      {
+        title: 'Audit log',
+        to: '/admin/audit',
+        icon: ClipboardList,
+        description: 'Platform activity',
         superAdminOnly: true,
       },
     ],

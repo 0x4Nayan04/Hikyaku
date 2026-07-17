@@ -154,12 +154,16 @@ export function AcceptInvite() {
   const title =
     invite?.kind === 'tenant_owner'
       ? `Join ${invite.tenant_name ?? 'your organization'}`
-      : 'Accept your invite'
+      : invite?.kind === 'platform_admin'
+        ? 'Join as platform operator'
+        : 'Accept your invite'
 
   const description =
     invite?.kind === 'tenant_owner'
       ? 'Set your name and password to create your tenant owner account.'
-      : 'Set your name and password to join your team.'
+      : invite?.kind === 'platform_admin'
+        ? 'Set your name and password to create your platform operator account.'
+        : 'Set your name and password to join your team.'
 
   return (
     <AuthLayout

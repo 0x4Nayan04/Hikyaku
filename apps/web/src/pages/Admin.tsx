@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
+  AlertTriangle,
   Building2,
   CheckCircle2,
   ClipboardList,
@@ -161,7 +163,7 @@ function adminPageReducer(state: AdminPageState, action: AdminPageAction): Admin
 
 type ActivityItem = {
   id: string
-  type: 'approved' | 'created' | 'signup' | 'deleted' | 'renamed'
+  type: 'approved' | 'created' | 'signup' | 'deleted' | 'renamed' | 'suspended' | 'unsuspended'
   entity: string
   action: string
   time: string
@@ -189,6 +191,15 @@ export function Admin() {
   const loadSignupRequests = useCallback(async () => {
     const result = await listAdminSignupRequests({ status: 'pending', limit: 50, offset: 0 })
     dispatch({ type: 'signup_load_success', requests: result.data })
+  }, [])
+
+  const loadAuditEntries = useCallback(async () => {
+    try {
+      const result = await listAuditLog({ limit: 10 })
+      dispatch({ type: 'audit_load_success', entries: result.data })
+    } catch {
+      dispatch({ type: 'audit_load_error' })
+    }
   }, [])
 
   useEffect(() => {
@@ -238,8 +249,7 @@ export function Admin() {
     try {
       const result = await approveAdminSignupRequest(id)
       dispatch({ type: 'signup_approved', id, result })
-      await loadTenants(0, searchQuery)
-      await loadSignupRequests()
+      await Promise.all([loadTenants(0, searchQuery), loadSignupRequests(), loadAuditEntries()])
     } catch (err) {
       dispatch({
         type: 'signup_load_error',
@@ -255,6 +265,7 @@ export function Admin() {
     try {
       await rejectAdminSignupRequest(id)
       dispatch({ type: 'signup_rejected', id })
+      await loadAuditEntries()
     } catch (err) {
       dispatch({
         type: 'signup_load_error',
@@ -267,66 +278,27 @@ export function Admin() {
   const pendingCount = state.signupRequests.length
 
   useEffect(() => {
-    let cancelled = false
-
-    listAuditLog({ limit: 10 })
-      .then((result) => {
-        if (!cancelled) {
-          dispatch({ type: 'audit_load_success', entries: result.data })
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          dispatch({ type: 'audit_load_error' })
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const filteredTenants = useMemo(() => {
-    if (!searchQuery.trim()) return state.tenants
-    const q = searchQuery.trim().toLowerCase()
-    return state.tenants.filter(
-      (t) => t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q),
-    )
-  }, [state.tenants, searchQuery])
+    void loadAuditEntries()
+  }, [loadAuditEntries])
 
   const activityItems = useMemo((): ActivityItem[] => {
     const items: ActivityItem[] = []
-
-    if (state.approvedResult) {
-      items.push({
-        id: `approved-${state.approvedResult.tenant.id}`,
-        type: 'approved',
-        entity: state.approvedResult.tenant.name,
-        action: 'Approved',
-        time: 'Just now',
-      })
-    }
-    if (state.createdResult) {
-      items.push({
-        id: `created-${state.createdResult.tenant.id}`,
-        type: 'created',
-        entity: state.createdResult.tenant.name,
-        action: 'Provisioned',
-        time: 'Just now',
-      })
-    }
 
     function auditEntity(entry: AuditLogEntry): string {
       const meta: Record<string, unknown> = entry.metadata ?? {}
       switch (entry.action) {
         case 'tenant.created':
         case 'tenant.deleted':
+        case 'tenant.suspended':
+        case 'tenant.unsuspended':
           return (meta.tenantName as string | undefined) ?? 'Tenant'
         case 'tenant.renamed':
           return (meta.oldName as string | undefined) ?? 'Tenant'
         case 'signup.approved':
         case 'signup.rejected':
-          return (meta.email as string | undefined) ?? 'Signup'
+        case 'operator.invited':
+        case 'operator.removed':
+          return (meta.email as string | undefined) ?? 'Operator'
         default:
           return entry.action
       }
@@ -341,10 +313,18 @@ export function Admin() {
           return 'Deleted'
         case 'tenant.renamed':
           return `Renamed → ${(meta.newName as string | undefined) ?? ''}`
+        case 'tenant.suspended':
+          return 'Suspended'
+        case 'tenant.unsuspended':
+          return 'Reactivated'
         case 'signup.approved':
           return 'Approved'
         case 'signup.rejected':
           return 'Rejected'
+        case 'operator.invited':
+          return 'Operator invited'
+        case 'operator.removed':
+          return 'Operator removed'
         default:
           return entry.action
       }
@@ -352,12 +332,24 @@ export function Admin() {
 
     function auditType(entry: AuditLogEntry): ActivityItem['type'] {
       switch (entry.action) {
-        case 'tenant.created': return 'created'
-        case 'tenant.deleted': return 'deleted'
-        case 'tenant.renamed': return 'renamed'
-        case 'signup.approved': return 'approved'
-        case 'signup.rejected': return 'signup'
-        default: return 'signup'
+        case 'tenant.created':
+        case 'operator.invited':
+          return 'created'
+        case 'tenant.deleted':
+        case 'operator.removed':
+          return 'deleted'
+        case 'tenant.renamed':
+          return 'renamed'
+        case 'tenant.suspended':
+          return 'suspended'
+        case 'tenant.unsuspended':
+          return 'unsuspended'
+        case 'signup.approved':
+          return 'approved'
+        case 'signup.rejected':
+          return 'signup'
+        default:
+          return 'signup'
       }
     }
 
@@ -372,7 +364,7 @@ export function Admin() {
     }
 
     return items.slice(0, 10)
-  }, [state.approvedResult, state.createdResult, state.auditEntries])
+  }, [state.auditEntries])
 
   const activityToneClass: Record<ActivityItem['type'], string> = {
     approved: 'text-status-success',
@@ -380,15 +372,20 @@ export function Admin() {
     signup: 'text-status-warning',
     deleted: 'text-status-danger',
     renamed: 'text-status-info',
+    suspended: 'text-status-warning',
+    unsuspended: 'text-status-success',
   }
 
-  const activityBadgeTone: Record<ActivityItem['type'], 'success' | 'info' | 'warning' | 'danger'> = {
-    approved: 'success',
-    created: 'info',
-    signup: 'warning',
-    deleted: 'danger',
-    renamed: 'info',
-  }
+  const activityBadgeTone: Record<ActivityItem['type'], 'success' | 'info' | 'warning' | 'danger'> =
+    {
+      approved: 'success',
+      created: 'info',
+      signup: 'warning',
+      deleted: 'danger',
+      renamed: 'info',
+      suspended: 'warning',
+      unsuspended: 'success',
+    }
 
   return (
     <ConsolePage
@@ -472,12 +469,15 @@ export function Admin() {
         ) : null}
 
         <AdminTenantTable
-          tenants={filteredTenants}
+          tenants={state.tenants}
           total={state.total}
           offset={state.offset}
           loading={state.loading}
           onOffsetChange={(offset) => dispatch({ type: 'set_offset', offset })}
-          onRefresh={() => dispatch({ type: 'force_refresh' })}
+          onRefresh={() => {
+            dispatch({ type: 'force_refresh' })
+            void loadAuditEntries()
+          }}
           searchQuery={searchQuery}
         />
 
@@ -513,7 +513,7 @@ export function Admin() {
         onOpenChange={(open) => dispatch({ type: 'set_create_open', open })}
         onCreated={(result) => {
           dispatch({ type: 'tenant_created', result })
-          void loadTenants(0)
+          void Promise.all([loadTenants(0, searchQuery), loadAuditEntries()])
         }}
       />
     </ConsolePage>
@@ -605,6 +605,8 @@ const activityIconClass: Record<ActivityItem['type'], string> = {
   signup: 'dashboard-activity-row__icon--warning',
   deleted: 'dashboard-activity-row__icon--danger',
   renamed: 'dashboard-activity-row__icon--event',
+  suspended: 'dashboard-activity-row__icon--warning',
+  unsuspended: 'dashboard-activity-row__icon--success',
 }
 
 const activityIcons: Record<ActivityItem['type'], LucideIcon> = {
@@ -613,6 +615,8 @@ const activityIcons: Record<ActivityItem['type'], LucideIcon> = {
   signup: ClipboardList,
   deleted: Trash2,
   renamed: Pencil,
+  suspended: AlertTriangle,
+  unsuspended: CheckCircle2,
 }
 
 type AdminRecentActivityProps = {
@@ -636,6 +640,11 @@ function AdminRecentActivity({
     <DataPanel
       title="Recent activity"
       description="Latest provisioning and signup actions"
+      actions={
+        <Link className="text-xs font-medium text-primary hover:underline" to="/admin/audit">
+          View all
+        </Link>
+      }
       empty={
         items.length === 0 ? (
           <div className="dashboard-activity-empty">
@@ -643,8 +652,8 @@ function AdminRecentActivity({
               <ClipboardList className="size-5" strokeWidth={1.75} />
             </span>
             <p>
-              No recent provisioning activity. Approve a signup or create a tenant to populate
-              this feed.
+              No recent provisioning activity. Approve a signup or create a tenant to populate this
+              feed.
             </p>
           </div>
         ) : undefined

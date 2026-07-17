@@ -53,6 +53,8 @@ describe('filterNavSections', () => {
     const paths = sections.flatMap((section) => section.items.map((item) => item.to))
 
     expect(paths).toContain('/admin')
+    expect(paths).toContain('/admin/operators')
+    expect(paths).toContain('/admin/audit')
     expect(paths).toContain('/settings')
     expect(paths).not.toContain('/dashboard')
     expect(paths).not.toContain('/endpoints')
@@ -65,6 +67,7 @@ describe('filterNavSections', () => {
     expect(paths).toContain('/dashboard')
     expect(paths).toContain('/settings')
     expect(paths).not.toContain('/admin')
+    expect(paths).not.toContain('/admin/operators')
   })
 
   it('omits empty sections after filtering', () => {

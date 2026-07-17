@@ -1118,6 +1118,7 @@
 
   .docs-v2-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 0.875rem;
   }
@@ -1128,6 +1129,7 @@
     text-align: left;
     border-bottom: 1px solid color-mix(in srgb, var(--color-border) 75%, transparent);
     vertical-align: top;
+    min-width: 0;
   }
 
   .docs-v2-table th {
@@ -1162,6 +1164,10 @@
     color: var(--color-ink);
     background: color-mix(in srgb, var(--color-ink) 5%, var(--color-surface));
     padding: 0.1em 0.35em;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 

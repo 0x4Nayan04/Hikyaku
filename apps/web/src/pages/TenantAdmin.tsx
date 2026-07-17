@@ -53,6 +53,7 @@ type TenantAdminPageAction =
   | { type: 'set_create_open'; open: boolean }
   | { type: 'set_invite_open'; open: boolean }
   | { type: 'user_created'; user: User }
+  | { type: 'user_deleted'; userId: string }
 
 const initialTenantAdminPageState: TenantAdminPageState = {
   tenant: null,
@@ -85,6 +86,12 @@ function tenantAdminPageReducer(
       return { ...state, inviteOpen: action.open }
     case 'user_created':
       return { ...state, createdUsers: [action.user, ...state.createdUsers] }
+    case 'user_deleted':
+      return {
+        ...state,
+        createdUsers: state.createdUsers.filter((user) => user.id !== action.userId),
+        existingUsers: state.existingUsers.filter((user) => user.id !== action.userId),
+      }
   }
 }
 
@@ -98,10 +105,7 @@ export function TenantAdmin() {
       return
     }
 
-    const [match, existing] = await Promise.all([
-      findTenant(id),
-      fetchExistingUsers(id),
-    ])
+    const [match, existing] = await Promise.all([findTenant(id), fetchExistingUsers(id)])
 
     if (!match) {
       dispatch({ type: 'load_not_found' })
@@ -185,7 +189,12 @@ export function TenantAdmin() {
       {state.loading ? (
         <PageLoading variant="detail-metrics" />
       ) : state.tenant ? (
-        <TenantAdminDetails tenant={state.tenant} existingUsers={state.existingUsers} createdUsers={state.createdUsers} />
+        <TenantAdminDetails
+          tenant={state.tenant}
+          existingUsers={state.existingUsers}
+          createdUsers={state.createdUsers}
+          onUserDeleted={(userId) => dispatch({ type: 'user_deleted', userId })}
+        />
       ) : null}
 
       {state.tenant && id ? (
