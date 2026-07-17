@@ -1,5 +1,4 @@
 import request from 'supertest'
-import { eq } from 'drizzle-orm'
 import { deliveryAttempts } from '@webhook/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../src/config.js'

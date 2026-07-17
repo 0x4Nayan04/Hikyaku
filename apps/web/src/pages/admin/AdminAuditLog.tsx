@@ -21,6 +21,15 @@ import { ConsolePage } from '@/components/console/ConsolePage'
 import { PageBanner } from '@/components/console/PageBanner'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
+import { SettingsCopyAction } from '@/components/console/SettingsCatalog'
+import { StatusBadge } from '@/components/console/StatusBadge'
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { formatDateTime } from '@/lib/format'
 
 const PAGE_SIZE = 25
@@ -47,11 +56,76 @@ function metadataText(metadata: AuditLogEntry['metadata']): string {
 }
 
 function tenantText(entry: AuditLogEntry): string {
-  const name =
-    (entry.metadata?.tenantName as string | undefined) ??
-    (entry.metadata?.oldName as string | undefined)
+  const name = tenantName(entry)
   if (name && entry.tenant_id) return `${name} · ${entry.tenant_id}`
   return name ?? entry.tenant_id ?? (entry.metadata?.tenantId as string | undefined) ?? '—'
+}
+
+function tenantName(entry: AuditLogEntry): string | undefined {
+  return (
+    (entry.metadata?.tenantName as string | undefined) ??
+    (entry.metadata?.oldName as string | undefined)
+  )
+}
+
+function tenantId(entry: AuditLogEntry): string | undefined {
+  return entry.tenant_id ?? (entry.metadata?.tenantId as string | undefined)
+}
+
+function actionLabel(action: string): string {
+  return action.replace(/[._]/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase())
+}
+
+function actionTone(action: string): 'neutral' | 'success' | 'warning' | 'danger' | 'info' {
+  if (/(deleted|removed|rejected)$/.test(action)) return 'danger'
+  if (action.endsWith('suspended')) return 'warning'
+  if (/(created|approved|invited|unsuspended)$/.test(action)) return 'success'
+  if (action.endsWith('password_reset')) return 'info'
+  return 'neutral'
+}
+
+function AuditDetailsCell({ metadata }: { metadata: AuditLogEntry['metadata'] }) {
+  const text = metadataText(metadata)
+  if (!metadata || Object.keys(metadata).length === 0) {
+    return <span className="block truncate">—</span>
+  }
+
+  const entries = Object.entries(metadata)
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="block w-full min-w-0 cursor-pointer truncate text-left hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={`Show full details: ${text}`}
+        >
+          {text}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        side="top"
+        collisionPadding={12}
+        className="w-80 max-w-[min(20rem,calc(100vw-2rem))] gap-3 border border-border bg-background shadow-lg"
+      >
+        <PopoverHeader className="flex-row items-center justify-between gap-2">
+          <PopoverTitle className="font-mono text-xs font-semibold tracking-wider text-muted-strong uppercase">
+            Details
+          </PopoverTitle>
+          <SettingsCopyAction value={text} copyLabel="Details" />
+        </PopoverHeader>
+        <dl className="grid gap-2.5">
+          {entries.map(([key, value]) => (
+            <div key={key} className="min-w-0">
+              <dt className="font-mono text-[11px] text-muted-foreground">{key}</dt>
+              <dd className="break-all font-mono text-xs text-foreground">{String(value)}</dd>
+            </div>
+          ))}
+        </dl>
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 export function AdminAuditLog() {
@@ -139,42 +213,60 @@ export function AdminAuditLog() {
             ) : undefined
           }
         >
-          <DataTable>
+          <DataTable className="admin-audit-table">
             <DataTableHeader>
               <DataTableRow>
-                <DataTableHead>Time</DataTableHead>
-                <DataTableHead>Action</DataTableHead>
-                <DataTableHead>Actor</DataTableHead>
-                <DataTableHead>Tenant</DataTableHead>
-                <DataTableHead>Details</DataTableHead>
+                <DataTableHead className="admin-audit-table__col-time">Time</DataTableHead>
+                <DataTableHead className="admin-audit-table__col-action">Action</DataTableHead>
+                <DataTableHead className="admin-audit-table__col-actor">Actor</DataTableHead>
+                <DataTableHead className="admin-audit-table__col-tenant">Tenant</DataTableHead>
+                <DataTableHead className="admin-audit-table__col-details">Details</DataTableHead>
               </DataTableRow>
             </DataTableHeader>
             <DataTableBody>
               {entries.map((entry) => (
                 <DataTableRow key={entry.id}>
-                  <DataTableCell className="whitespace-nowrap text-muted-strong">
+                  <DataTableCell className="admin-audit-table__col-time whitespace-nowrap text-muted-strong">
                     {formatDateTime(entry.created_at)}
                   </DataTableCell>
-                  <DataTableCell className="font-mono text-xs text-ink">
-                    {entry.action}
+                  <DataTableCell className="admin-audit-table__col-action">
+                    <StatusBadge
+                      kind="label"
+                      label={actionLabel(entry.action)}
+                      tone={actionTone(entry.action)}
+                    />
                   </DataTableCell>
                   <DataTableCell
-                    className="max-w-44 truncate text-xs text-muted-strong"
+                    className="admin-audit-table__col-actor text-xs text-muted-strong"
                     title={entry.actor_email ?? entry.actor_id ?? undefined}
                   >
-                    {entry.actor_email ?? (entry.actor_id ? entry.actor_id.slice(0, 8) : 'System')}
+                    <span className="block truncate">
+                      {entry.actor_email ?? (entry.actor_id ? entry.actor_id.slice(0, 8) : 'System')}
+                    </span>
                   </DataTableCell>
                   <DataTableCell
-                    className="max-w-56 truncate text-muted-strong"
+                    className="admin-audit-table__col-tenant text-muted-strong"
                     title={tenantText(entry)}
                   >
-                    {tenantText(entry)}
+                    {tenantName(entry) ? (
+                      <>
+                        <span className="block truncate font-medium text-foreground">
+                          {tenantName(entry)}
+                        </span>
+                        {tenantId(entry) ? (
+                          <span className="block truncate font-mono text-[11px] text-muted-foreground">
+                            {tenantId(entry)}
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="block truncate font-mono text-xs">
+                        {tenantId(entry) ?? '—'}
+                      </span>
+                    )}
                   </DataTableCell>
-                  <DataTableCell
-                    className="max-w-80 truncate text-muted-strong"
-                    title={metadataText(entry.metadata)}
-                  >
-                    {metadataText(entry.metadata)}
+                  <DataTableCell className="admin-audit-table__col-details text-muted-strong">
+                    <AuditDetailsCell metadata={entry.metadata} />
                   </DataTableCell>
                 </DataTableRow>
               ))}

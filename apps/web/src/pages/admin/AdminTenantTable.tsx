@@ -112,7 +112,9 @@ export function AdminTenantTable({
               <DataTableHead className="admin-tenant-table__col-created hidden sm:table-cell">
                 Created
               </DataTableHead>
-              <DataTableHead className="admin-tenant-table__col-actions">Actions</DataTableHead>
+              <DataTableHead className="admin-tenant-table__col-actions text-left">
+                Actions
+              </DataTableHead>
             </DataTableRow>
           </DataTableHeader>
           <DataTableBody>
@@ -144,7 +146,7 @@ export function AdminTenantTable({
                 <DataTableCell className="admin-tenant-table__col-created hidden text-sm text-muted-foreground sm:table-cell">
                   {formatDateTime(tenant.created_at)}
                 </DataTableCell>
-                <DataTableCell className="admin-tenant-table__col-actions">
+                <DataTableCell className="admin-tenant-table__col-actions text-left">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <CatalogButton

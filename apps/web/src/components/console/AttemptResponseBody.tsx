@@ -68,7 +68,7 @@ function extractHtmlTitle(body: string): string | null {
 function highlightJson(text: string): ReactNode[] {
   const nodes: ReactNode[] = []
   const pattern =
-    /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}\[\],]|:/g
+    /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}[\],]|:/g
   let lastIndex = 0
   let match: RegExpExecArray | null
 
