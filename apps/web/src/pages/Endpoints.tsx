@@ -38,9 +38,6 @@ import {
 } from '@/components/catalog/CatalogDialog'
 import { saveEndpointSecret } from '@/lib/endpoint-vault'
 
-/** Set to `false` after previewing the endpoints UI. */
-const PREVIEW_ENDPOINTS = true
-
 const API_PAGE_SIZE = 25
 
 const ENVIRONMENT_OPTIONS = [
@@ -56,64 +53,6 @@ const SORT_OPTIONS = [
 ] as const
 type EnvironmentFilter = string
 type SortOption = (typeof SORT_OPTIONS)[number]['value']
-
-const previewEndpoints: Endpoint[] = [
-  {
-    id: 'wh_staging_9a2f',
-    url: 'https://staging.acme.com/hooks/inbound/events/v2/receive',
-    status: 'active',
-    description: 'Staging',
-    created_at: '2026-07-04T00:00:00.000Z',
-  },
-  {
-    id: 'wh_8f3a7b2e1c4d',
-    url: 'https://api.acme.com/webhooks/production',
-    status: 'active',
-    description: 'Production',
-    created_at: '2026-06-23T00:00:00.000Z',
-  },
-  {
-    id: 'wh_legacy_1c8e',
-    url: 'https://legacy.example.com/notify',
-    status: 'disabled',
-    description: null,
-    created_at: '2026-06-23T00:00:00.000Z',
-  },
-  {
-    id: 'wh_failed_7x1k',
-    url: 'https://hooks.acme.com/receive/billing',
-    status: 'active',
-    description: 'Production',
-    created_at: '2026-05-15T00:00:00.000Z',
-  },
-]
-
-const previewLastDeliveries: Record<string, EndpointRowLastDelivery | null> = {
-  wh_staging_9a2f: {
-    deliveryId: 'del_preview_2',
-    status: 'succeeded',
-    updatedAt: new Date(Date.now() - 21 * 60 * 1000).toISOString(),
-    error: null,
-  },
-  wh_8f3a7b2e1c4d: {
-    deliveryId: 'del_preview_1',
-    status: 'succeeded',
-    updatedAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    error: null,
-  },
-  wh_legacy_1c8e: {
-    deliveryId: 'del_preview_3',
-    status: 'failed',
-    updatedAt: '2026-05-20T00:00:00.000Z',
-    error: 'Timeout',
-  },
-  wh_failed_7x1k: {
-    deliveryId: 'del_preview_4',
-    status: 'failed',
-    updatedAt: '2026-05-20T00:00:00.000Z',
-    error: 'Connection refused',
-  },
-}
 
 function buildLastDeliveryMap(deliveries: Delivery[]): Record<string, EndpointRowLastDelivery> {
   const map: Record<string, EndpointRowLastDelivery> = {}
@@ -430,18 +369,6 @@ export function Endpoints() {
   const { secretEndpoint, saveToVault } = secretState
 
   const loadEndpoints = useCallback(async (nextOffset: number, background = false) => {
-    if (PREVIEW_ENDPOINTS) {
-      listDispatch({
-        type: 'load_success',
-        endpoints: previewEndpoints,
-        total: previewEndpoints.length,
-        offset: 0,
-        lastDeliveries: previewLastDeliveries,
-      })
-      listDispatch({ type: 'load_complete' })
-      return
-    }
-
     if (background) {
       listDispatch({ type: 'refresh_start' })
     }
@@ -474,13 +401,9 @@ export function Endpoints() {
     void loadEndpoints(offset, hasDataRef.current)
   }, [loadEndpoints, offset])
 
-  const sourceEndpoints = PREVIEW_ENDPOINTS ? previewEndpoints : endpoints
-  const sourceLastDeliveries = PREVIEW_ENDPOINTS ? previewLastDeliveries : lastDeliveries
-  const sourceTotal = PREVIEW_ENDPOINTS ? previewEndpoints.length : total
-
   const environmentOptions = useMemo(() => {
     const labels = new Set<string>()
-    for (const endpoint of sourceEndpoints) {
+    for (const endpoint of endpoints) {
       if (endpoint.description) {
         labels.add(endpoint.description)
       }
@@ -492,33 +415,33 @@ export function Endpoints() {
         label,
       })),
     ]
-  }, [sourceEndpoints])
+  }, [endpoints])
 
   const tabSourceEndpoints = useMemo(() => {
-    return sourceEndpoints.filter(
+    return endpoints.filter(
       (endpoint) =>
         matchesSearch(endpoint, searchQuery) && matchesEnvironment(endpoint, environmentFilter),
     )
-  }, [sourceEndpoints, searchQuery, environmentFilter])
+  }, [endpoints, searchQuery, environmentFilter])
 
   const tabCounts = useMemo(
-    () => countByTab(tabSourceEndpoints, sourceLastDeliveries),
-    [tabSourceEndpoints, sourceLastDeliveries],
+    () => countByTab(tabSourceEndpoints, lastDeliveries),
+    [tabSourceEndpoints, lastDeliveries],
   )
 
   const filteredEndpoints = useMemo(() => {
     const filtered = tabSourceEndpoints.filter((endpoint) =>
-      matchesTab(endpoint, statusTab, sourceLastDeliveries),
+      matchesTab(endpoint, statusTab, lastDeliveries),
     )
-    return sortEndpoints(filtered, sort, sourceLastDeliveries)
-  }, [tabSourceEndpoints, statusTab, sort, sourceLastDeliveries])
+    return sortEndpoints(filtered, sort, lastDeliveries)
+  }, [tabSourceEndpoints, statusTab, sort, lastDeliveries])
 
   const usesClientList =
-    PREVIEW_ENDPOINTS || searchQuery.trim().length > 0 || environmentFilter !== 'all' || statusTab !== 'all'
+    searchQuery.trim().length > 0 || environmentFilter !== 'all' || statusTab !== 'all'
 
   const visibleEndpoints = filteredEndpoints
 
-  const displayTotal = usesClientList ? filteredEndpoints.length : sourceTotal
+  const displayTotal = usesClientList ? filteredEndpoints.length : total
   const displayOffset = usesClientList ? 0 : offset
 
   const hasSearch = searchQuery.trim().length > 0
@@ -526,7 +449,7 @@ export function Endpoints() {
   const showEmpty = !isInitial && filteredEndpoints.length === 0
   const isDatasetEmpty = showEmpty && !hasSearch && !hasFilters
   const showPanelChrome = !isDatasetEmpty
-  const showLoading = isInitial && sourceEndpoints.length === 0
+  const showLoading = isInitial && endpoints.length === 0
 
   const emptyState = useMemo(() => {
     if (hasSearch || hasFilters) {
@@ -633,7 +556,7 @@ export function Endpoints() {
   const pageStart = displayTotal === 0 ? 0 : displayOffset + 1
   const pageEnd = usesClientList
     ? Math.min(displayOffset + visibleEndpoints.length, displayTotal)
-    : Math.min(displayOffset + sourceEndpoints.length, displayTotal)
+    : Math.min(displayOffset + endpoints.length, displayTotal)
   const canGoBack = !usesClientList && offset > 0
   const canGoForward = !usesClientList && offset + API_PAGE_SIZE < displayTotal
   const showFooter = !isInitial && displayTotal > 0
@@ -704,7 +627,7 @@ export function Endpoints() {
       title="Endpoints"
       description="Register receiver URLs. Signing secrets are shown once on create."
     >
-      {error && !PREVIEW_ENDPOINTS ? (
+      {error ? (
         <PageBanner variant="error" title="Could not load endpoints" description={error} />
       ) : null}
 
@@ -739,7 +662,7 @@ export function Endpoints() {
           {visibleEndpoints.length > 0 ? (
             <EndpointCatalogList
               endpoints={visibleEndpoints}
-              lastDeliveries={sourceLastDeliveries}
+              lastDeliveries={lastDeliveries}
               togglingId={togglingId}
               onEdit={(endpoint) => editDispatch({ type: 'open', endpoint })}
               onToggle={handleToggleStatus}
@@ -788,13 +711,13 @@ export function Endpoints() {
               </SendEventField>
               <SendEventField
                 id="endpoint-description"
-                label="Description"
+                label="Label"
                 hint="Optional label for your team (e.g. Production, Staging)."
                 variant="plain"
               >
                 <CatalogInput
                   id="endpoint-description"
-                  placeholder="Production"
+                  placeholder="e.g. Production"
                   value={description}
                   onChange={(event) =>
                     createDispatch({ type: 'set_description', value: event.target.value })
@@ -838,10 +761,10 @@ export function Endpoints() {
           <div className="catalog-dialog-secret px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))] pb-4">
             <CatalogDialogHeader className="gap-1.5 text-left">
               <CatalogDialogTitle className="catalog-dialog-secret__title">
-                Edit endpoint
+                Edit label
               </CatalogDialogTitle>
               <CatalogDialogDescription className="catalog-dialog-secret__desc">
-                Update the environment label. The receiver URL cannot be changed after creation.
+                Update the label. The receiver URL cannot be changed after creation.
               </CatalogDialogDescription>
             </CatalogDialogHeader>
 
@@ -851,24 +774,29 @@ export function Endpoints() {
                 className="mt-4 flex flex-col gap-4"
                 onSubmit={handleEdit}
               >
-                <SendEventField id="edit-endpoint-url" label="URL" variant="plain">
-                  <CatalogInput
+                <SendEventField
+                  id="edit-endpoint-url"
+                  label="URL"
+                  hint="Cannot be changed after creation."
+                  variant="plain"
+                >
+                  <p
                     id="edit-endpoint-url"
-                    type="url"
-                    value={editTarget.url}
-                    readOnly
-                    disabled
-                  />
+                    className="endpoint-locked-url"
+                    title={editTarget.url}
+                  >
+                    {editTarget.url}
+                  </p>
                 </SendEventField>
                 <SendEventField
                   id="edit-endpoint-description"
-                  label="Description"
-                  hint="Environment or team label shown in the endpoint list."
+                  label="Label"
+                  hint="Shown in the endpoint list (e.g. Production, Staging)."
                   variant="plain"
                 >
                   <CatalogInput
                     id="edit-endpoint-description"
-                    placeholder="Production"
+                    placeholder="e.g. Production"
                     value={editDescription}
                     onChange={(event) =>
                       editDispatch({ type: 'set_description', value: event.target.value })

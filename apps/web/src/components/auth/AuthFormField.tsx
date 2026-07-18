@@ -59,7 +59,6 @@ export function AuthFormField({
           className={cn(
             'sm-input w-full text-ink',
             Icon && 'pl-9',
-            readOnly && 'text-muted',
             isPassword && 'pr-9',
           )}
         />

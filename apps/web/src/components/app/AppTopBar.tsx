@@ -174,7 +174,7 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
                           }}
                         >
                           <Settings className="nav-user-menu-row-icon" aria-hidden="true" />
-                          <span className="nav-user-menu-row-label">Settings</span>
+                          <span className="nav-user-menu-row-label">Workspace settings</span>
                         </button>
                       )}
                     </div>

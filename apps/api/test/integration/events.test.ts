@@ -78,4 +78,30 @@ describe('POST /v1/events idempotency', () => {
     expect(job?.id).toBe(delivery.id)
     expect(job?.data).toEqual({ deliveryId: delivery.id })
   })
+
+  it('completes an event immediately when there are no active endpoints', async () => {
+    const tenantWithoutEndpoints = await createTenantWithKey()
+
+    try {
+      const created = await request(app)
+        .post('/v1/events')
+        .set('Authorization', `Bearer ${tenantWithoutEndpoints.apiKey}`)
+        .send({ idempotency_key: 'no-endpoints', type: 'test', payload: {} })
+
+      expect(created.status).toBe(202)
+      expect(created.body.status).toBe('completed')
+
+      const detail = await request(app)
+        .get(`/v1/events/${created.body.id}`)
+        .set('Authorization', `Bearer ${tenantWithoutEndpoints.apiKey}`)
+
+      expect(detail.status).toBe(200)
+      expect(detail.body).toMatchObject({
+        status: 'completed',
+        deliveries_summary: { total: 0 },
+      })
+    } finally {
+      await deleteTenant(tenantWithoutEndpoints.tenantId)
+    }
+  })
 })

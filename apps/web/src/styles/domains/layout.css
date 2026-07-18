@@ -743,6 +743,7 @@
   }
   .sm-btn-primary {
     background-color: var(--color-primary);
+    border: 1px solid transparent;
     color: #fff;
   }
   .sm-btn-primary:hover {

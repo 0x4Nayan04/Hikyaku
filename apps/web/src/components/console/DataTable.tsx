@@ -33,7 +33,10 @@ export function DataTableRow({
 }: DataTableProps & React.ComponentProps<'tr'>) {
   return (
     <TableRow
-      className={cn('transition-colors duration-150 hover:bg-muted/20', className)}
+      className={cn(
+        'group transition-colors duration-150 hover:bg-muted/20',
+        className,
+      )}
       {...props}
     >
       {children}

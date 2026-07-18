@@ -41,7 +41,7 @@ export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
                 title={delivery.endpoint_url}
               >
                 <span className="block truncate">
-                  {formatEndpointUrlForDisplay(delivery.endpoint_url, 52)}
+                  {formatEndpointUrlForDisplay(delivery.endpoint_url, 64)}
                 </span>
               </Link>
               {delivery.last_error ? (

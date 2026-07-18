@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Search, Send } from 'lucide-react'
 import { ApiError, listEvents } from '@/api/client'
 import type { EventSummary } from '@/api/types'
@@ -86,6 +86,7 @@ function eventsListReducer(state: EventsListState, action: EventsListAction): Ev
 }
 
 export function Events() {
+  const navigate = useNavigate()
   const [state, dispatch] = useReducer(eventsListReducer, initialEventsListState)
   const { events, total, offset, isInitial, isRefreshing, error } = state
   const hasDataRef = useRef(false)
@@ -143,7 +144,8 @@ export function Events() {
         title="No events yet"
         description={
           <>
-            Ingested events appear here after you send one.{' '}
+            Ingested events appear here after you send one.
+            <br />
             <Link to="/events/send" className="font-medium text-primary hover:underline">
               Send a test event
             </Link>
@@ -244,22 +246,38 @@ export function Events() {
               </DataTableHeader>
               <DataTableBody>
                 {filteredEvents.map((event) => (
-                  <DataTableRow key={event.id}>
+                  <DataTableRow
+                    key={event.id}
+                    className="cursor-pointer"
+                    tabIndex={0}
+                    role="link"
+                    aria-label={`Open event ${event.type}`}
+                    onClick={() => navigate(`/events/${event.id}`)}
+                    onKeyDown={(keyboardEvent) => {
+                      if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
+                        keyboardEvent.preventDefault()
+                        navigate(`/events/${event.id}`)
+                      }
+                    }}
+                  >
                     <DataTableCell>
-                      <Link
-                        to={`/events/${event.id}`}
-                        className="font-medium hover:text-primary hover:underline"
-                      >
+                      <span className="font-medium text-ink group-hover:text-primary">
                         {event.type}
-                      </Link>
+                      </span>
                     </DataTableCell>
                     <DataTableCell>
                       <StatusBadge kind="event" status={event.status} />
                     </DataTableCell>
-                    <DataTableCell className="hidden max-w-[11rem] truncate font-mono text-xs text-muted-strong md:table-cell">
+                    <DataTableCell
+                      className="hidden max-w-[14rem] truncate font-mono text-xs text-muted-strong md:table-cell"
+                      title={event.idempotency_key}
+                    >
                       {event.idempotency_key}
                     </DataTableCell>
-                    <DataTableCell className="hidden max-w-[11rem] truncate font-mono text-xs text-muted-strong lg:table-cell">
+                    <DataTableCell
+                      className="hidden max-w-[14rem] truncate font-mono text-xs text-muted-strong lg:table-cell"
+                      title={event.id}
+                    >
                       {event.id}
                     </DataTableCell>
                     <DataTableCell className="whitespace-nowrap text-sm text-muted-strong">

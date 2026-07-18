@@ -35,7 +35,7 @@ export async function loadTenantStats(tenantId: string) {
       .where(
         and(
           eq(deliveries.tenantId, tenantId),
-          inArray(deliveries.status, ['pending', 'in_progress', 'deferred']),
+          inArray(deliveries.status, ['pending', 'in_progress']),
         ),
       ),
     db

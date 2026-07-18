@@ -81,7 +81,7 @@ describe('GET /v1/stats', () => {
     expect(res.status).toBe(200)
     expect(res.body).toEqual({
       events_today: 1,
-      deliveries_active: 3,
+      deliveries_active: 2,
       deliveries_deferred: 1,
       deliveries_succeeded_24h: 1,
       deliveries_failed_24h: 1,

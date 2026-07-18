@@ -28,7 +28,7 @@ export function CatalogSecretReveal({
         <CatalogButton
           type="button"
           variant="secondary"
-          className="catalog-secret-reveal__copy"
+          className="catalog-secret-reveal__copy h-auto min-h-0"
           onClick={onCopy}
           aria-label={copyLabel}
         >

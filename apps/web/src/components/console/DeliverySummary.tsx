@@ -103,7 +103,9 @@ export function DeliverySummary({ summary }: DeliverySummaryProps) {
         <span className="dashboard-activity-empty__icon" aria-hidden="true">
           <Package className="size-4" strokeWidth={1.75} />
         </span>
-        <p className="m-0">No deliveries were created for this event.</p>
+        <p className="m-0">
+          No deliveries were created. Create or enable an endpoint before sending an event.
+        </p>
       </div>
     )
   }

@@ -140,7 +140,7 @@ function OutcomesPanel({ stats }: { stats: Stats }) {
     {
       label: 'Success rate',
       hint: 'Rolling 24-hour delivery success',
-      value: formatPercent(stats.success_rate_24h),
+      value: formatPercent(stats.success_rate_24h, 'No data yet'),
       primary: true,
     },
     {

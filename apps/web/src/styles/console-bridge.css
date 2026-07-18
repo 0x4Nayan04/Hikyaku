@@ -537,6 +537,14 @@
     }
   }
 
+  .endpoint-status-tabs__divider {
+    align-self: center;
+    width: 1px;
+    height: 1.25rem;
+    margin-inline: 0.25rem;
+    background-color: color-mix(in srgb, var(--color-border) 80%, transparent);
+  }
+
   .endpoint-status-tab {
     display: inline-flex;
     align-items: center;
@@ -2515,6 +2523,14 @@
     font-size: 0.75rem;
   }
 
+  /* Catalog dialog actions — beat .sm-btn / form-h so footer buttons stay compact */
+  [data-slot='dialog-footer'] [data-slot='catalog-button'].sm-btn {
+    height: 1.75rem;
+    min-height: 0;
+    padding-inline: 0.75rem;
+    font-size: 0.75rem;
+  }
+
   .settings-table-row--revoked {
     opacity: 0.55;
   }
@@ -2598,6 +2614,7 @@
     border-left: 1px solid var(--color-border) !important;
     border-radius: 0 !important;
     padding-inline: 1rem !important;
+    font-size: 0.8125rem !important;
     background-color: var(--color-surface) !important;
   }
 
@@ -2625,6 +2642,20 @@
     font-size: 0.8125rem;
     line-height: 1.5;
     color: var(--color-muted-strong);
+  }
+
+  .endpoint-locked-url {
+    margin: 0;
+    overflow-wrap: anywhere;
+    border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+    background-color: color-mix(in srgb, var(--color-muted) 10%, var(--color-surface));
+    padding: 0.625rem 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--color-muted-strong);
+    user-select: text;
+    cursor: default;
   }
 
   /* =========================================================

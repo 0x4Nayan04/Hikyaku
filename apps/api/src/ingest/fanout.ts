@@ -75,6 +75,20 @@ export async function ingestFanout(
       .from(endpoints)
       .where(and(eq(endpoints.tenantId, tenantId), eq(endpoints.status, 'active')))
 
+    if (activeEndpoints.length === 0) {
+      const [completed] = await tx
+        .update(events)
+        .set({ status: 'completed' })
+        .where(eq(events.id, inserted.id))
+        .returning(eventColumns)
+
+      if (!completed) {
+        throw new Error('event_status_update_missing_row')
+      }
+
+      return { event: completed, newDeliveryIds: [], isDuplicate: false }
+    }
+
     const newDeliveryIds: string[] = []
     for (const endpoint of activeEndpoints) {
       const [delivery] = await tx

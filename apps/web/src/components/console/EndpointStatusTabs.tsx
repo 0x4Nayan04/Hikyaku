@@ -8,20 +8,19 @@ type EndpointStatusTabsProps = {
   onChange: (tab: EndpointStatusTab) => void
 }
 
-const TAB_CONFIG: Array<{
-  id: EndpointStatusTab
+const LIFECYCLE_TABS: Array<{
+  id: Exclude<EndpointStatusTab, 'failed'>
   label: string
 }> = [
   { id: 'all', label: 'All' },
   { id: 'active', label: 'Active' },
   { id: 'disabled', label: 'Disabled' },
-  { id: 'failed', label: 'Failed' },
 ]
 
 export function EndpointStatusTabs({ activeTab, counts, onChange }: EndpointStatusTabsProps) {
   return (
     <div className="endpoint-status-tabs" role="tablist" aria-label="Endpoint status">
-      {TAB_CONFIG.map((tab) => {
+      {LIFECYCLE_TABS.map((tab) => {
         const selected = activeTab === tab.id
 
         return (
@@ -49,6 +48,31 @@ export function EndpointStatusTabs({ activeTab, counts, onChange }: EndpointStat
           </button>
         )
       })}
+
+      <span className="endpoint-status-tabs__divider" aria-hidden="true" />
+
+      <button
+        type="button"
+        role="tab"
+        aria-selected={activeTab === 'failed'}
+        title="Endpoints whose last delivery failed (any lifecycle status)"
+        className={cn(
+          'endpoint-status-tab',
+          activeTab === 'failed' && 'endpoint-status-tab--selected',
+          activeTab === 'failed' && 'endpoint-status-tab--failed',
+        )}
+        onClick={() => onChange('failed')}
+      >
+        <span className="endpoint-status-tab__label">Has failures</span>
+        <span
+          className={cn(
+            'endpoint-status-tab__count',
+            activeTab === 'failed' && 'endpoint-status-tab__count--failed',
+          )}
+        >
+          {counts.failed}
+        </span>
+      </button>
     </div>
   )
 }

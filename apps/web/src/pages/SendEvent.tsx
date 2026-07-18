@@ -173,7 +173,7 @@ export function SendEvent() {
       {result ? (
         <DataPanel
           title="Accepted event"
-          description="Deliveries are fanning out to active endpoints."
+          description="Open the event to see delivery fan-out and outcomes."
           footer={
             <div className="flex w-full flex-wrap items-center justify-end gap-3 px-4 py-3 md:px-5">
               <CatalogButton

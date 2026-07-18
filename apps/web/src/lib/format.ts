@@ -68,7 +68,7 @@ export function shortId(value: string, visible = 8): string {
   return `${value.slice(0, visible)}…`
 }
 
-/** Prefer hostname + trailing path segments when space is tight. */
+/** Prefer hostname + path start; truncate the end when space is tight. */
 export function formatEndpointUrlForDisplay(url: string, maxLen = 56): string {
   if (url.length <= maxLen) return url
 
@@ -76,22 +76,15 @@ export function formatEndpointUrlForDisplay(url: string, maxLen = 56): string {
     const parsed = new URL(url)
     const origin = `${parsed.protocol}//${parsed.host}`
     const path = `${parsed.pathname}${parsed.search}${parsed.hash}`
+    const full = `${origin}${path}`
 
-    if (`${origin}${path}`.length <= maxLen) {
-      return `${origin}${path}`
+    if (full.length <= maxLen) {
+      return full
     }
 
-    if (path && path !== '/') {
-      const segments = path.split('/').filter(Boolean)
-      const tail = segments.length > 1 ? `.../${segments.at(-1)}` : (segments[0] ?? '')
-      const compact = `${origin}/${tail}`
-      if (compact.length <= maxLen) {
-        return compact
-      }
-    }
-
-    if (origin.length + 4 <= maxLen) {
-      return `${origin}/...`
+    const budget = maxLen - origin.length - 1
+    if (budget >= 4) {
+      return `${origin}${path.slice(0, budget)}…`
     }
   } catch {
     // Fall through to prefix truncation for non-standard URLs.

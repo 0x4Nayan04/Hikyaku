@@ -1,11 +1,9 @@
 import type { ComponentProps } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  AlertTriangle,
   Ban,
   CheckCircle2,
   Circle,
-  Code2,
   Copy,
   Globe,
   MoreVertical,
@@ -45,26 +43,18 @@ export type EndpointRowLastDelivery = {
   error: string | null
 }
 
-type EndpointIconVariant = 'active' | 'code' | 'disabled' | 'failed'
+type EndpointIconVariant = 'active' | 'disabled'
 
-function getEndpointIconVariant(
-  endpoint: Endpoint,
-  lastDelivery: EndpointRowLastDelivery | null | undefined,
-): EndpointIconVariant {
-  if (endpoint.status === 'disabled') return 'disabled'
-  if (lastDelivery?.status === 'failed') return 'failed'
-  if (/\/webhooks?|\/hooks?|\/api\//i.test(endpoint.url)) return 'code'
-  return 'active'
+function getEndpointIconVariant(endpoint: Endpoint): EndpointIconVariant {
+  return endpoint.status === 'disabled' ? 'disabled' : 'active'
 }
 
 const endpointIconConfig: Record<
   EndpointIconVariant,
   { icon: LucideIcon; label: string }
 > = {
-  active: { icon: Globe, label: 'Active receiver' },
-  code: { icon: Code2, label: 'Webhook or API path' },
-  disabled: { icon: PowerOff, label: 'Endpoint disabled' },
-  failed: { icon: AlertTriangle, label: 'Last delivery failed' },
+  active: { icon: Globe, label: 'Active endpoint' },
+  disabled: { icon: PowerOff, label: 'Disabled endpoint' },
 }
 
 function TableActionButton({
@@ -207,7 +197,7 @@ function EndpointCatalogRow({
   onEdit,
   onToggle,
 }: EndpointCatalogRowProps) {
-  const iconVariant = getEndpointIconVariant(endpoint, lastDelivery)
+  const iconVariant = getEndpointIconVariant(endpoint)
   const { icon: Icon, label: iconLabel } = endpointIconConfig[iconVariant]
 
   return (
@@ -229,11 +219,11 @@ function EndpointCatalogRow({
 
       <div className="endpoint-catalog-row__main">
         <p className="endpoint-catalog-row__url" title={endpoint.url}>
-          {formatEndpointUrlForDisplay(endpoint.url, 52)}
+          {formatEndpointUrlForDisplay(endpoint.url, 64)}
         </p>
         <div className="endpoint-catalog-row__meta">
           <code className="endpoint-catalog-row__id" title={endpoint.id}>
-            {shortId(endpoint.id, 12)}
+            {shortId(endpoint.id, 16)}
           </code>
           {endpoint.description ? (
             <EnvironmentBadge label={endpoint.description} />

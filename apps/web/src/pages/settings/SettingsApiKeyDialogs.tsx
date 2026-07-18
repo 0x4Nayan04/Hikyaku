@@ -1,3 +1,4 @@
+import { KeyRound, ShieldCheck, TriangleAlert } from 'lucide-react'
 import type { ApiKey, ApiKeyWithSecret } from '@/api/types'
 import { CatalogButton } from '@/components/catalog/CatalogButton'
 import {
@@ -9,6 +10,7 @@ import {
   CatalogDialogTitle,
 } from '@/components/catalog/CatalogDialog'
 import { CatalogSecretReveal } from '@/components/catalog/CatalogSecretReveal'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { toast } from '@/lib/toast'
 
 async function copySecret(value: string, label: string) {
@@ -43,15 +45,20 @@ export function SettingsApiKeyDialogs({
           }
         }}
       >
-        <CatalogDialogContent className="gap-0 p-0 sm:max-w-md">
-          <div className="catalog-dialog-secret px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))]">
+        <CatalogDialogContent className="gap-0 overflow-hidden p-0 sm:max-w-lg">
+          <div className="flex gap-3 border-b border-border bg-surface-muted/40 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5 pr-12">
+            <div className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface text-primary">
+              <KeyRound className="size-4" aria-hidden="true" />
+            </div>
             <CatalogDialogHeader className="gap-1.5 text-left">
-              <CatalogDialogTitle className="catalog-dialog-secret__title">API key</CatalogDialogTitle>
-              <CatalogDialogDescription className="catalog-dialog-secret__desc">
-                Copy this key now. The server cannot show it again after you close this dialog.
+              <CatalogDialogTitle className="text-lg leading-tight">Your API key is ready</CatalogDialogTitle>
+              <CatalogDialogDescription className="text-muted-strong">
+                This is the only time the full key will be shown.
               </CatalogDialogDescription>
             </CatalogDialogHeader>
+          </div>
 
+          <div className="flex flex-col gap-4 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5">
             {secretKey ? (
               <CatalogSecretReveal
                 value={secretKey.api_key}
@@ -60,15 +67,18 @@ export function SettingsApiKeyDialogs({
                 copyLabel="Copy key"
               />
             ) : null}
+
+            <Alert>
+              <ShieldCheck aria-hidden="true" />
+              <AlertTitle>Store it somewhere secure</AlertTitle>
+              <AlertDescription>
+                Treat this key like a password. If it is exposed, revoke it and create a new one.
+              </AlertDescription>
+            </Alert>
           </div>
 
-          <CatalogDialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/[0.06] px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
-            <CatalogButton
-              onClick={() => onSecretKeyChange(null)}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
-            >
-              Done
-            </CatalogButton>
+          <CatalogDialogFooter className="mx-0 mb-0 mt-0">
+            <CatalogButton onClick={() => onSecretKeyChange(null)}>Done</CatalogButton>
           </CatalogDialogFooter>
         </CatalogDialogContent>
       </CatalogDialog>
@@ -81,28 +91,39 @@ export function SettingsApiKeyDialogs({
           }
         }}
       >
-        <CatalogDialogContent className="sm:max-w-md">
-          <CatalogDialogHeader>
-            <CatalogDialogTitle>Revoke API key</CatalogDialogTitle>
-            <CatalogDialogDescription className="text-muted-strong">
-              Requests using {revokeTarget?.prefix}… will start failing immediately. This cannot be
-              undone.
-            </CatalogDialogDescription>
-          </CatalogDialogHeader>
-          <CatalogDialogFooter>
+        <CatalogDialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+          <div className="flex gap-3 border-b border-border bg-surface-muted/40 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5 pr-12">
+            <div className="flex size-9 shrink-0 items-center justify-center border border-destructive/30 bg-destructive/10 text-destructive">
+              <TriangleAlert className="size-4" aria-hidden="true" />
+            </div>
+            <CatalogDialogHeader className="gap-1.5 text-left">
+              <CatalogDialogTitle className="text-lg leading-tight">Revoke API key?</CatalogDialogTitle>
+              <CatalogDialogDescription className="text-muted-strong">
+                Review the impact before you continue.
+              </CatalogDialogDescription>
+            </CatalogDialogHeader>
+          </div>
+
+          <div className="px-[clamp(1.25rem,4vw,var(--space-s2))] py-5">
+            <Alert variant="destructive">
+              <TriangleAlert aria-hidden="true" />
+              <AlertTitle>This action cannot be undone</AlertTitle>
+              <AlertDescription>
+                Requests using <code className="font-mono font-medium">{revokeTarget?.prefix}…</code>{' '}
+                will start failing immediately.
+              </AlertDescription>
+            </Alert>
+          </div>
+
+          <CatalogDialogFooter className="mx-0 mb-0 mt-0">
             <CatalogButton
               variant="secondary"
               onClick={() => onRevokeTargetChange(null)}
               disabled={revokingId !== null}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
               Cancel
             </CatalogButton>
-            <CatalogButton
-              onClick={onRevoke}
-              disabled={revokingId !== null}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
-            >
+            <CatalogButton onClick={onRevoke} disabled={revokingId !== null}>
               {revokingId ? 'Revoking…' : 'Revoke key'}
             </CatalogButton>
           </CatalogDialogFooter>

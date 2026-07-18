@@ -34,7 +34,10 @@ function CatalogDialogFooter({
   return (
     <DialogFooter
       className={cn(
+        // Bleed to dialog edges using the same clamp padding as CatalogDialogContent.
         '-mx-[clamp(1.25rem,4vw,var(--space-s2))] -mb-[clamp(1.25rem,4vw,var(--space-s2))] mt-2',
+        // Replace DialogFooter px-4/py-4 so horizontal padding matches catalog content.
+        'px-[clamp(1.25rem,4vw,var(--space-s2))] py-2.5',
         className,
       )}
       {...props}
