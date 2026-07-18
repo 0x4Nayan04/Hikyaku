@@ -109,7 +109,12 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
   }
 
   if (!res.ok) {
-    throw await parseErrorResponse(res)
+    const error = await parseErrorResponse(res)
+    // Remount so /auth/me picks up suspended status and ConsoleLayout can gate.
+    if (error.code === 'tenant_suspended' && !skipAuthRedirect) {
+      window.location.assign('/dashboard')
+    }
+    throw error
   }
 
   if (res.status === 204) {
@@ -122,6 +127,10 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
   }
 
   return JSON.parse(text) as T
+}
+
+export function getBootstrapStatus(): Promise<{ available: boolean }> {
+  return apiFetch('/v1/auth/bootstrap-status', { skipAuthRedirect: true })
 }
 
 export function bootstrap(

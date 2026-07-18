@@ -1,29 +1,42 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, Lock, Mail } from 'lucide-react'
-import { ApiError, login } from '@/api/client'
+import { ApiError, getBootstrapStatus, login } from '@/api/client'
 import { AuthFooterLink } from '@/components/auth/AuthFooterLink'
 import { AuthFormField } from '@/components/auth/AuthFormField'
 import { PageBanner } from '@/components/console/PageBanner'
 import { AuthLayout } from '@/layouts/AuthLayout'
+import {
+  LOGIN_PENDING_ACCESS_HINT,
+  resolveLoginBanner,
+  shouldShowBootstrapSetupLink,
+  type LoginBannerKind,
+} from '@/lib/auth-first-run'
 import { getPostLoginPath } from '@/lib/auth-redirect'
 import { APP_NAME } from '@/lib/app-meta'
 import { useSession } from '@/providers/session-context'
 
 type LoginLocationState = {
   message?: string
+  banner?: LoginBannerKind
 }
 
 export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const { session, loading, refresh } = useSession()
-  const successMessage = (location.state as LoginLocationState | null)?.message
+  const locationState = location.state as LoginLocationState | null
+  const banner =
+    locationState?.message != null
+      ? resolveLoginBanner(locationState.banner, locationState.message)
+      : null
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [showAccessHint, setShowAccessHint] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [showForgotHint, setShowForgotHint] = useState(false)
+  const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (!loading && session) {
@@ -31,9 +44,28 @@ export function Login() {
     }
   }, [loading, session, navigate, location])
 
+  useEffect(() => {
+    let cancelled = false
+    getBootstrapStatus()
+      .then((status) => {
+        if (!cancelled) {
+          setBootstrapAvailable(status.available)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBootstrapAvailable(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+    setShowAccessHint(false)
     setSubmitting(true)
 
     try {
@@ -42,19 +74,22 @@ export function Login() {
       navigate(getPostLoginPath(location.state, user), { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Unable to sign in. Try again.')
+      // Soft path hint only — does not confirm whether this email has a pending request.
+      setShowAccessHint(true)
     } finally {
       setSubmitting(false)
     }
   }
 
   const toggleForgotHint = useCallback(() => setShowForgotHint((v) => !v), [])
+  const showBootstrapLink = shouldShowBootstrapSetupLink(bootstrapAvailable)
 
   return (
     <AuthLayout
       variant="split"
       eyebrow="Sign in"
       title="Sign in"
-      description={`Access your ${APP_NAME} tenant workspace.`}
+      description={`Sign in to your ${APP_NAME} workspace or platform admin account.`}
       sidePanel={
         <div className="flex flex-col gap-6 h-full">
           <div className="flex flex-col gap-6 flex-1">
@@ -72,7 +107,7 @@ export function Login() {
                 'Delivery metrics and recent activity',
                 'Automatic retries with exponential backoff',
                 'Event payloads and attempt history',
-                'Tenant users and platform operators',
+                'API keys and workspace members',
               ] as const).map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
                   <Check className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />
@@ -84,16 +119,21 @@ export function Login() {
 
           <div className="space-y-3">
             <AuthFooterLink prompt="Need a workspace?" linkLabel="Request access" to="/signup" />
-            <AuthFooterLink prompt="First deploy?" linkLabel="Run one-time setup" to="/bootstrap" />
+            {showBootstrapLink ? (
+              <AuthFooterLink prompt="First deploy?" linkLabel="Run one-time setup" to="/bootstrap" />
+            ) : null}
           </div>
         </div>
       }
     >
       <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
-        {successMessage ? (
-          <PageBanner variant="success" title="Setup complete" description={successMessage} />
+        {banner ? (
+          <PageBanner variant={banner.variant} title={banner.title} description={banner.description} />
         ) : null}
         {error ? <PageBanner variant="error" title="Sign in failed" description={error} /> : null}
+        {showAccessHint ? (
+          <PageBanner variant="info" title="Need access?" description={LOGIN_PENDING_ACCESS_HINT} />
+        ) : null}
 
         <AuthFormField
           id="email"
@@ -125,7 +165,8 @@ export function Login() {
         </button>
         {showForgotHint ? (
           <p className="-mt-1 rounded-none border border-border bg-surface-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-            Contact your platform administrator to request a password reset.
+            Ask a workspace owner or your platform admin to reset your password from Admin → the
+            tenant → Users. Fellow tenant members cannot reset peers.
           </p>
         ) : null}
 

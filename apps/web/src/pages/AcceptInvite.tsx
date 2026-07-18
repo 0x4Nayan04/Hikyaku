@@ -8,6 +8,8 @@ import { AuthFormField } from '@/components/auth/AuthFormField'
 import { PageBanner } from '@/components/console/PageBanner'
 import { AuthCard } from '@/components/auth/AuthCard'
 import { AuthLayout } from '@/layouts/AuthLayout'
+import { getDefaultHomePath } from '@/lib/auth-redirect'
+import { useSession } from '@/providers/session-context'
 
 const MIN_PASSWORD_LENGTH = 12
 
@@ -71,20 +73,21 @@ function acceptInviteReducer(
 function resolveInviteLoadError(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.code === 'invite_expired') {
-      return 'This invite has expired. Ask your administrator for a new link.'
+      return 'This invite has expired. Ask the person who invited you to send a new link from Admin.'
     }
     if (err.code === 'invite_used') {
       return 'This invite has already been used. Sign in with your account instead.'
     }
     return err.message
   }
-  return 'Unable to load invite. Try again or request a new link.'
+  return 'Unable to load invite. Try again, or ask for a new invite link from your administrator.'
 }
 
 export function AcceptInvite() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') ?? ''
+  const { session, loading: sessionLoading } = useSession()
 
   const [state, dispatch] = useReducer(acceptInviteReducer, {
     invite: null,
@@ -101,7 +104,13 @@ export function AcceptInvite() {
     state
 
   useEffect(() => {
-    if (!token) {
+    if (!sessionLoading && session) {
+      navigate(getDefaultHomePath(session.user), { replace: true })
+    }
+  }, [sessionLoading, session, navigate])
+
+  useEffect(() => {
+    if (!token || session) {
       return
     }
 
@@ -122,7 +131,7 @@ export function AcceptInvite() {
     return () => {
       cancelled = true
     }
-  }, [token])
+  }, [token, session])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -139,7 +148,10 @@ export function AcceptInvite() {
       await acceptInvite({ token, name: name.trim(), password })
       navigate('/login', {
         replace: true,
-        state: { message: 'Account created. Sign in with your new password.' },
+        state: {
+          banner: 'invite_accepted',
+          message: 'Account created. Sign in with your new password.',
+        },
       })
     } catch (err) {
       dispatch({
@@ -155,14 +167,14 @@ export function AcceptInvite() {
     invite?.kind === 'tenant_owner'
       ? `Join ${invite.tenant_name ?? 'your organization'}`
       : invite?.kind === 'platform_admin'
-        ? 'Join as platform operator'
+        ? 'Join as platform admin'
         : 'Accept your invite'
 
   const description =
     invite?.kind === 'tenant_owner'
       ? 'Set your name and password to create your tenant owner account.'
       : invite?.kind === 'platform_admin'
-        ? 'Set your name and password to create your platform operator account.'
+        ? 'Set your name and password to create your platform admin account.'
         : 'Set your name and password to join your team.'
 
   return (
@@ -173,13 +185,17 @@ export function AcceptInvite() {
         loading
           ? 'Verifying your invite link.'
           : loadError
-            ? 'This link cannot be used.'
+            ? 'This link cannot be used. Request a new invite from the person who sent it, or sign in if you already have an account.'
             : description
       }
     >
       {loadError ? (
         <AuthCard>
           <PageBanner variant="error" title="Invite unavailable" description={loadError} />
+          <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+            <p>Need a new invite? Ask a workspace owner or platform admin to send another link.</p>
+            <AuthFooterLink prompt="Already have an account?" linkLabel="Sign in" to="/login" />
+          </div>
         </AuthCard>
       ) : loading ? (
         <AuthCard>
@@ -253,9 +269,11 @@ export function AcceptInvite() {
         </AuthCard>
       ) : null}
 
-      <div className="mt-6">
-        <AuthFooterLink prompt="Already have an account?" linkLabel="Sign in" to="/login" />
-      </div>
+      {!loadError ? (
+        <div className="mt-6">
+          <AuthFooterLink prompt="Already have an account?" linkLabel="Sign in" to="/login" />
+        </div>
+      ) : null}
     </AuthLayout>
   )
 }

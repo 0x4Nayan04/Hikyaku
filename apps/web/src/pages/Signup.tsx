@@ -18,6 +18,7 @@ type SignupState = {
   password: string
   error: string | null
   submitting: boolean
+  submitted: boolean
 }
 
 type SignupAction =
@@ -26,6 +27,7 @@ type SignupAction =
   | { type: 'set_email'; value: string }
   | { type: 'set_password'; value: string }
   | { type: 'submit_start' }
+  | { type: 'submit_success' }
   | { type: 'submit_failure'; error: string }
   | { type: 'submit_end' }
 
@@ -36,6 +38,7 @@ const initialSignupState: SignupState = {
   password: '',
   error: null,
   submitting: false,
+  submitted: false,
 }
 
 function signupReducer(state: SignupState, action: SignupAction): SignupState {
@@ -50,6 +53,8 @@ function signupReducer(state: SignupState, action: SignupAction): SignupState {
       return { ...state, password: action.value }
     case 'submit_start':
       return { ...state, error: null, submitting: true }
+    case 'submit_success':
+      return { ...state, error: null, submitted: true, submitting: false }
     case 'submit_failure':
       return { ...state, error: action.error, submitting: false }
     case 'submit_end':
@@ -93,13 +98,7 @@ export function Signup() {
         password: state.password,
       })
 
-      navigate('/login', {
-        replace: true,
-        state: {
-          message:
-            'Signup request submitted. A platform admin will review it. You can sign in after approval.',
-        },
-      })
+      dispatch({ type: 'submit_success' })
     } catch (err) {
       dispatch({
         type: 'submit_failure',
@@ -109,6 +108,60 @@ export function Signup() {
     } finally {
       dispatch({ type: 'submit_end' })
     }
+  }
+
+  if (state.submitted) {
+    return (
+      <AuthLayout
+        variant="split"
+        eyebrow="Request access"
+        title="Request received"
+        description="A platform admin must approve your request before you can sign in."
+        sidePanel={
+          <div className="flex flex-col gap-6 h-full">
+            <div className="flex flex-col gap-6 flex-1">
+              <div>
+                <h2 className="font-display text-xl font-medium tracking-tight text-ink">
+                  What happens next
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted-strong">
+                  Your request is pending review. Sign-in stays blocked until an admin approves it
+                  or sends you an invite.
+                </p>
+              </div>
+            </div>
+            <AuthFooterLink
+              prompt="Already approved?"
+              linkLabel="Sign in"
+              to="/login"
+              state={{
+                banner: 'request_received' as const,
+                message:
+                  'Sign-in stays blocked until an admin approves your request or sends you an invite.',
+              }}
+            />
+          </div>
+        }
+      >
+        <PageBanner
+          variant="info"
+          title="Waiting for approval"
+          description={`We received your request for ${state.tenantName.trim()}. You will be able to sign in after a platform admin approves it. Do not retry signup with the same email while it is pending.`}
+        />
+        <div className="mt-4">
+          <AuthFooterLink
+            prompt="Approved already?"
+            linkLabel="Go to sign in"
+            to="/login"
+            state={{
+              banner: 'request_received' as const,
+              message:
+                'Sign-in stays blocked until an admin approves your request or sends you an invite.',
+            }}
+          />
+        </div>
+      </AuthLayout>
+    )
   }
 
   return (
@@ -134,7 +187,7 @@ export function Signup() {
                 'Delivery metrics and recent activity',
                 'Automatic retries with exponential backoff',
                 'Event payloads and attempt history',
-                'Tenant users and platform operators',
+                'API keys and workspace members',
               ] as const).map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
                   <Check className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />

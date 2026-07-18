@@ -1,7 +1,7 @@
-import { useEffect, useReducer } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, KeyRound, Lock, Mail, Shield, User } from 'lucide-react'
-import { ApiError, bootstrap } from '@/api/client'
+import { ApiError, bootstrap, getBootstrapStatus } from '@/api/client'
 import { AuthFooterLink } from '@/components/auth/AuthFooterLink'
 import { AuthFormField } from '@/components/auth/AuthFormField'
 import { PageBanner } from '@/components/console/PageBanner'
@@ -67,10 +67,52 @@ export function Bootstrap() {
   const { session, loading } = useSession()
   const [state, dispatch] = useReducer(bootstrapReducer, initialBootstrapState)
   const { adminSecret, name, email, password, error, submitting } = state
+  const [checkingAvailability, setCheckingAvailability] = useState(true)
 
   useEffect(() => {
     if (!loading && session) {
       navigate(getDefaultHomePath(session.user), { replace: true })
+    }
+  }, [loading, session, navigate])
+
+  useEffect(() => {
+    if (loading || session) {
+      return
+    }
+
+    let cancelled = false
+
+    getBootstrapStatus()
+      .then((status) => {
+        if (cancelled) {
+          return
+        }
+        if (!status.available) {
+          navigate('/login', {
+            replace: true,
+            state: {
+              banner: 'already_set_up',
+              message: 'This deployment is already set up. Sign in with your account.',
+            },
+          })
+          return
+        }
+        setCheckingAvailability(false)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          navigate('/login', {
+            replace: true,
+            state: {
+              banner: 'already_set_up',
+              message: 'This deployment is already set up. Sign in with your account.',
+            },
+          })
+        }
+      })
+
+    return () => {
+      cancelled = true
     }
   }, [loading, session, navigate])
 
@@ -83,7 +125,10 @@ export function Bootstrap() {
       dispatch({ type: 'submit_success' })
       navigate('/login', {
         replace: true,
-        state: { message: 'Super-admin created. Sign in to continue.' },
+        state: {
+          banner: 'bootstrap_complete',
+          message: 'Super-admin created. Sign in to continue.',
+        },
       })
     } catch (err) {
       if (err instanceof ApiError) {
@@ -103,12 +148,25 @@ export function Bootstrap() {
     }
   }
 
+  if (checkingAvailability) {
+    return (
+      <AuthLayout
+        variant="split"
+        eyebrow="One-time setup"
+        title="Checking setup…"
+        description="Verifying whether first-deploy bootstrap is still available."
+      >
+        <p className="text-sm text-muted-foreground">Checking deployment status…</p>
+      </AuthLayout>
+    )
+  }
+
   return (
     <AuthLayout
       variant="split"
       eyebrow="One-time setup"
       title="Create the first super-admin"
-      description="Runs once per deployment to create the initial platform operator."
+      description="Runs once per deployment to create the initial platform admin."
       sidePanel={
         <div className="flex flex-col gap-6 h-full">
           <div className="flex flex-col gap-6 flex-1">
@@ -124,7 +182,7 @@ export function Bootstrap() {
             <ul className="space-y-3 text-sm">
               {([
                 'Approve signups and invite tenant owners',
-                'Invite platform operators',
+                'Invite platform admins',
                 'Inspect platform audit activity',
                 'Tenant consoles are separate from Admin',
               ] as const).map((item) => (

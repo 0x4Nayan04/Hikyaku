@@ -5,14 +5,16 @@ type AuthFooterLinkProps = {
   prompt: string
   linkLabel: string
   to: string
+  state?: unknown
 }
 
-export function AuthFooterLink({ prompt, linkLabel, to }: AuthFooterLinkProps) {
+export function AuthFooterLink({ prompt, linkLabel, to, state }: AuthFooterLinkProps) {
   return (
     <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
       <span>{prompt}</span>
       <Link
         to={to}
+        state={state}
         className="group inline-flex items-center gap-1.5 font-medium text-primary transition-colors hover:text-[var(--color-primary-hover)]"
       >
         {linkLabel}

@@ -27,6 +27,7 @@ export type User = {
 export type Tenant = {
   id: string
   name: string
+  status: 'active' | 'suspended'
 }
 
 export type MeResponse = {
@@ -145,12 +146,20 @@ export type AdminTenant = {
 
 export type EndpointStatus = 'active' | 'disabled'
 
+export type EndpointLastDelivery = {
+  id: string
+  status: DeliveryStatus
+  updated_at: string
+  last_error: string | null
+}
+
 export type Endpoint = {
   id: string
   url: string
   status: EndpointStatus
   description: string | null
   created_at: string
+  last_delivery?: EndpointLastDelivery | null
 }
 
 export type EndpointWithSecret = Endpoint & {
@@ -237,6 +246,7 @@ export type DeliveryDetail = Delivery & {
 
 export type ListDeliveriesParams = PaginationParams & {
   status?: DeliveryStatus
+  event_id?: string
 }
 
 export type ReplayDeliveryResponse = {
