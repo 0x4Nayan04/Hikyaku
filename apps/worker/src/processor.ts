@@ -300,7 +300,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     'X-Webhook-Id': row.id,
     'X-Webhook-Timestamp': String(timestamp),
     'X-Webhook-Signature': signature,
-    'User-Agent': 'WebhookDelivery/1.0',
+    'User-Agent': 'Hikyaku/1.0',
   }
 
   await markInProgress(row.id, row.eventId)

@@ -11,7 +11,7 @@ test.describe('visual regression', () => {
   test('landing hero @ 1440', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/')
-    await expect(page.getByRole('heading', { name: /Webhook Delivery,/ })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /Send a webhook once/ })).toBeVisible()
     await expect(page).toHaveScreenshot('landing-hero-1440.png', {
       maxDiffPixelRatio: 0.02,
     })
@@ -21,10 +21,10 @@ test.describe('visual regression', () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/login')
     await page.getByLabel('Email').fill(owner.email)
-    await page.getByLabel('Password').fill(owner.password)
+    await page.getByRole('textbox', { name: 'Password' }).fill(owner.password)
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page).toHaveURL('/dashboard')
-    await expect(page.getByRole('heading', { name: 'Delivery health' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
     await expect(page).toHaveScreenshot('dashboard-1440.png', {
       maxDiffPixelRatio: 0.02,
     })
