@@ -1,6 +1,7 @@
 {
-  "name": "webhook-delivery",
+  "name": "hikyaku",
   "private": true,
+  "description": "Self-hosted multi-tenant webhook delivery with HMAC-signed HTTP, retries, and an operator console.",
   "type": "module",
   "engines": {
     "node": ">=20"
