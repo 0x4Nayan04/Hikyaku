@@ -124,6 +124,7 @@
     @apply font-sans antialiased;
     text-rendering: optimizeLegibility;
     scroll-behavior: smooth;
+    scrollbar-gutter: stable;
     zoom: 1;
   }
 

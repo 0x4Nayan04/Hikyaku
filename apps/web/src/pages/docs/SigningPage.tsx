@@ -27,9 +27,10 @@ export function SigningPage() {
         Signing algorithm
       </DocsHeading>
       <p className="docs-v2-prose">
-        Sign the UTF-8 string <code>timestamp.raw_body</code> (a literal dot between the unix
-        timestamp and the raw request body) with the endpoint secret. Put the result in{' '}
-        <code>X-Webhook-Signature</code> as <code>sha256=&lt;hex&gt;</code>.
+        Send <code>X-Webhook-Timestamp</code> (unix seconds) and sign the UTF-8 string{' '}
+        <code>timestamp.raw_body</code> (a literal dot between that timestamp and the raw request
+        body) with the endpoint secret. Put the result in <code>X-Webhook-Signature</code> as{' '}
+        <code>sha256=&lt;hex&gt;</code>.
       </p>
       <DocsCallout variant="tip" label="Verify before parsing">
         <p>

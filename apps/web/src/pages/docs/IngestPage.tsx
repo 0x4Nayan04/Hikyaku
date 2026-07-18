@@ -77,7 +77,7 @@ export function IngestPage() {
         deliveries are terminal and at least one succeeded. List events with{' '}
         <DocsApiRoute method="GET" path="/v1/events" />, or open a single event with{' '}
         <DocsApiRoute method="GET" path="/v1/events/:id" />. The console <strong>Events</strong> and{' '}
-        <strong>Send event</strong> pages use the same APIs.
+        <strong>Test event</strong> pages use the same APIs.
       </p>
       <DocsCallout variant="info" label="Idempotency">
         <p>

@@ -72,12 +72,12 @@ export function LandingFooter() {
             </span>
             <div>
               <h2>Set up a tenant workspace</h2>
-              <p>Request access, register endpoints, send a test event.</p>
+              <p>Sign in with an invite, register endpoints, send a test event.</p>
             </div>
           </div>
           <div className="lp-final-cta__actions">
-            <Link to="/signup" className="lp-button lp-button--light focus-ring">
-              Request access →
+            <Link to="/login" className="lp-button lp-button--light focus-ring">
+              Sign in →
             </Link>
             <Link
               to={PRODUCT_LINKS.docs}

@@ -17,8 +17,9 @@ export function ConsoleGuidePage() {
       toc={TOC}
     >
       <p className="docs-v2-prose">
-        After you <Link to="/signup">request access</Link> (and a super-admin approves) — or accept
-        an invite — you land in a tenant workspace. Console data is scoped to that tenant.
+        Fresh deploys bootstrap a super-admin at <Link to="/bootstrap">/bootstrap</Link>. Tenant
+        users usually arrive via invite; <Link to="/signup">request access</Link> is secondary and
+        needs approval. Console data is scoped to the signed-in tenant.
       </p>
 
       <DocsHeading id="tenant-console" level={2}>
@@ -38,15 +39,17 @@ export function ConsoleGuidePage() {
           <strong>Events</strong> — browse ingested events and open one to see its deliveries.
         </li>
         <li>
-          <strong>Send event</strong> — POST a test payload from the UI.
+          <strong>Test event</strong> — POST a smoke-test payload from the UI (real traffic should
+          use <code>POST /v1/events</code>).
         </li>
         <li>
           <strong>Deliveries</strong> — filter by status, inspect attempt timelines, and replay
           failures.
         </li>
         <li>
-          <strong>Settings</strong> — API keys, browser-local endpoint secrets vault, and account
-          password.
+          <strong>Settings</strong> — API keys, an optional endpoint-secrets vault (session memory
+          only — not durable storage), and account password. Super-admins see profile/password only;
+          they have no API keys or vault tabs.
         </li>
       </ul>
 
@@ -54,10 +57,10 @@ export function ConsoleGuidePage() {
         Platform admin
       </DocsHeading>
       <p className="docs-v2-prose">
-        Super-admins use <strong>Admin</strong> for platform operations: bootstrap once at{' '}
-        <Link to="/bootstrap">/bootstrap</Link>, then manage tenants, users, invites, signup
-        approvals, and the audit log. Super-admins are not tenant-scoped — they cannot open tenant
-        dashboard pages.
+        Super-admins use <strong>Admin</strong> for platform operations: manage tenants, users,
+        invites, signup approvals, and the audit log. Prefer inviting a tenant owner over ad-hoc
+        signup requests. Super-admins are not tenant-scoped — they do not run tenant deliveries or
+        hold tenant API keys.
       </p>
     </DocsArticle>
   )

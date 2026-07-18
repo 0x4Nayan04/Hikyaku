@@ -4,13 +4,20 @@
     --docs-header-height: var(--nav-height);
   }
 
+  .docs-v2-shell .landing-frame-outer {
+    flex: 1;
+    min-height: 0;
+  }
+
   .docs-v2-shell .landing-frame-column {
-    min-height: 100vh;
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
   }
 
   .docs-v2-header {
-    position: sticky;
-    top: 0;
+    position: relative;
     z-index: 50;
     flex-shrink: 0;
     border-bottom: 1px solid var(--color-border);
@@ -120,13 +127,14 @@
     display: flex;
     flex: 1;
     width: 100%;
-    min-height: calc(100vh - var(--docs-header-height));
+    min-height: 0;
   }
 
   .docs-v2-sidebar {
     display: none;
-    width: 16.5rem;
+    width: 15rem;
     flex-shrink: 0;
+    flex-direction: column;
     align-self: stretch;
     border-right: 1px solid var(--color-border);
     background: color-mix(in srgb, var(--color-background) 55%, var(--color-surface));
@@ -134,13 +142,12 @@
 
   @media (min-width: 1024px) {
     .docs-v2-sidebar {
-      display: block;
+      display: flex;
     }
 
     .docs-v2-sidebar-scroll {
-      position: sticky;
-      top: var(--docs-header-height);
-      max-height: calc(100vh - var(--docs-header-height));
+      flex: 1;
+      min-height: 0;
       overflow-y: auto;
       overscroll-behavior: contain;
     }
@@ -333,6 +340,8 @@
   .docs-v2-main {
     flex: 1;
     min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
     padding: 2rem clamp(1.25rem, 4vw, var(--frame-px)) 4rem;
   }
 
@@ -984,9 +993,9 @@
     .docs-v2-onpage {
       display: block;
       position: sticky;
-      top: calc(var(--docs-header-height) + 1.5rem);
+      top: 1.5rem;
       align-self: start;
-      max-height: calc(100vh - var(--docs-header-height) - 2rem);
+      max-height: calc(100dvh - var(--docs-header-height) - 2rem);
       overflow-y: auto;
     }
   }

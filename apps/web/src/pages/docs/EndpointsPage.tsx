@@ -43,8 +43,9 @@ export function EndpointsPage() {
       </p>
       <DocsCallout variant="warning" label="Browser vault">
         <p>
-          Secrets saved in Settings stay in this browser only — useful for local checks, not a
-          durable backup. Copy the secret into your secret manager when the endpoint is created.
+          Secrets saved under Settings stay in memory for this browser session only — useful for
+          local checks, not a durable backup and not written to localStorage. Copy the secret into
+          your secret manager when the endpoint is created.
         </p>
       </DocsCallout>
     </DocsArticle>

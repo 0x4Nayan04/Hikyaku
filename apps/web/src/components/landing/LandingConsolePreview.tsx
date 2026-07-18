@@ -28,7 +28,7 @@ export function LandingConsolePreview() {
       <LandingFrameInner className="lp-section">
         <header className="lp-console__heading">
           <div className="lp-section-heading">
-            <p className="lp-kicker">Operator console</p>
+            <p className="lp-kicker">Delivery console</p>
             <h2 id="console-heading">Inspect deliveries when they fail</h2>
             <p>
               Browse events and deliveries, open an attempt for status and response body, then
@@ -38,10 +38,10 @@ export function LandingConsolePreview() {
           <div className="lp-console__actions">
             <button
               type="button"
-              onClick={() => navigate('/signup')}
+              onClick={() => navigate('/login')}
               className="lp-button lp-button--primary focus-ring"
             >
-              Request access <ArrowRight className="size-4" aria-hidden="true" />
+              Sign in <ArrowRight className="size-4" aria-hidden="true" />
             </button>
             <Link
               to={`${PRODUCT_LINKS.docs}/api-reference`}

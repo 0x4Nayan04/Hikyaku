@@ -9,7 +9,8 @@ export const APP_HOME_LABEL = `${APP_NAME} — home`
 /** In-app product links (always valid). */
 export const PRODUCT_LINKS = {
   docs: '/docs',
-  console: '/#console',
+  /** Real console entry (not the landing screenshot section). */
+  console: '/login',
   faq: '/#faq',
   howItWorks: '/#how-it-works',
   home: '/',

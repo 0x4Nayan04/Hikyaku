@@ -27,13 +27,13 @@ const FAQ_ITEMS = [
   {
     id: 'limits',
     q: 'Are there rate limits?',
-    a: 'Yes. Ingest and delivery are rate-limited per tenant. Limits come from the deployment configuration.',
+    a: 'Yes. Outbound delivery is limited to 100 HTTP attempts per minute per tenant (configurable via RATE_LIMIT_PER_MINUTE). Over the limit, deliveries pause as deferred and retry without burning an attempt.',
     category: 'Reliability',
   },
   {
     id: 'signing',
     q: 'How does HMAC signing work?',
-    a: 'Each delivery includes an X-Webhook-Signature header computed from the endpoint secret and request body. Receivers recompute the digest to verify the payload.',
+    a: 'Each delivery includes X-Webhook-Timestamp and X-Webhook-Signature. The signature is HMAC-SHA256 of timestamp.raw_body (literal dot) with the endpoint secret, sent as sha256=<hex>. Receivers verify against the raw body before parsing JSON.',
     category: 'Security',
   },
   {
@@ -69,21 +69,33 @@ function FaqAnswerBody({ item }: { item: (typeof FAQ_ITEMS)[number] }) {
     return (
       <div className="lp-faq__prose">
         <ol className="lp-faq__steps">
-          <li>Create a signup request and wait for admin approval</li>
           <li>
-            Register an endpoint in the{' '}
+            On a fresh deploy, create the first super-admin at{' '}
+            <Link to="/bootstrap" className="lp-faq__link">
+              /bootstrap
+            </Link>{' '}
+            (once)
+          </li>
+          <li>
+            Prefer an admin invite to a tenant owner; signup is a secondary path that waits for
+            approval
+          </li>
+          <li>
+            Sign in to the{' '}
             <Link to={PRODUCT_LINKS.console} className="lp-faq__link">
               console
             </Link>
+            , register an endpoint, then create an API key under Settings (tenant users only —
+            super-admins have no API keys tab)
           </li>
-          <li>Generate an API key in Settings</li>
-          <li>Send a test event from the Send event page</li>
+          <li>POST /v1/events with the key (or use Test event in the console), then watch Deliveries</li>
         </ol>
         <p>
           See{' '}
-          <Link to={PRODUCT_LINKS.docs} className="lp-faq__link">
-            curl examples and setup guide
-          </Link>
+          <Link to={`${PRODUCT_LINKS.docs}/quick-start`} className="lp-faq__link">
+            quick start
+          </Link>{' '}
+          for curl examples
         </p>
       </div>
     )
@@ -105,7 +117,10 @@ function FaqAnswerBody({ item }: { item: (typeof FAQ_ITEMS)[number] }) {
       <ul className="lp-faq__bullets">
         <li>Tenant data is isolated by workspace</li>
         <li>API keys are hashed; endpoint secrets are shown once at creation</li>
-        <li>The console uses session cookies — secrets are not stored in browser storage</li>
+        <li>
+          The console uses session cookies. An optional endpoint-secrets vault keeps values in
+          memory for this browser session only — not localStorage, and not a durable backup
+        </li>
         <li>Outbound deliveries use the endpoint URL you register (HTTPS recommended)</li>
       </ul>
     )

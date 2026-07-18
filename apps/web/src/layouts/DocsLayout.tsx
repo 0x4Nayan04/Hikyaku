@@ -44,6 +44,7 @@ function DocsMobileNav() {
 export function DocsLayout() {
   const location = useLocation()
   const navigate = useNavigate()
+  const mainRef = useRef<HTMLElement>(null)
   const isDocsHome = isDocsHomePath(location.pathname)
   const [readingProgress, setReadingProgress] = useState(0)
   const readingProgressRef = useRef(0)
@@ -65,6 +66,7 @@ export function DocsLayout() {
 
   useEffect(() => {
     const hash = window.location.hash.slice(1)
+    const main = mainRef.current
 
     const scrollToTarget = () => {
       if (hash) {
@@ -72,20 +74,22 @@ export function DocsLayout() {
         return
       }
 
-      window.scrollTo({ top: 0, behavior: 'instant' })
+      main?.scrollTo({ top: 0, behavior: 'instant' })
     }
 
     requestAnimationFrame(scrollToTarget)
   }, [location.pathname, location.hash])
 
   useEffect(() => {
+    const main = mainRef.current
+    if (!main) return
+
     let tick = 0
     const update = () => {
       cancelAnimationFrame(tick)
       tick = requestAnimationFrame(() => {
-        const scrollTop = window.scrollY
-        const docHeight = document.documentElement.scrollHeight - window.innerHeight
-        const nextProgress = docHeight > 0 ? Math.min(scrollTop / docHeight, 1) : 0
+        const docHeight = main.scrollHeight - main.clientHeight
+        const nextProgress = docHeight > 0 ? Math.min(main.scrollTop / docHeight, 1) : 0
         if (Math.abs(nextProgress - readingProgressRef.current) >= 0.002) {
           readingProgressRef.current = nextProgress
           setReadingProgress(nextProgress)
@@ -94,15 +98,15 @@ export function DocsLayout() {
     }
 
     update()
-    window.addEventListener('scroll', update, { passive: true })
+    main.addEventListener('scroll', update, { passive: true })
     return () => {
       cancelAnimationFrame(tick)
-      window.removeEventListener('scroll', update)
+      main.removeEventListener('scroll', update)
     }
   }, [location.pathname])
 
   return (
-    <div className="docs-v2-shell landing-page flex min-h-screen flex-col">
+    <div className="docs-v2-shell landing-page flex h-dvh flex-col overflow-hidden">
       <LandingFrame>
         <DocsHeader />
         {!isDocsHome ? (
@@ -125,7 +129,11 @@ export function DocsLayout() {
 
         <div className="docs-v2-body">
           <DocsSidebar />
-          <main id="main-content" className={cn('docs-v2-main', isDocsHome && 'docs-v2-main--home')}>
+          <main
+            id="main-content"
+            ref={mainRef}
+            className={cn('docs-v2-main', isDocsHome && 'docs-v2-main--home')}
+          >
             <DocsMobileNav />
             <Outlet />
           </main>

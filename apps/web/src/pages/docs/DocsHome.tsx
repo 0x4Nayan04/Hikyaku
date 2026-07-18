@@ -27,8 +27,8 @@ export function DocsHome() {
           </h1>
 
           <p className="docs-v2-home-lead">
-            API and console docs for ingesting events, HMAC-signed deliveries, retries, and
-            the operator console.
+            API and console docs for ingesting events, HMAC-signed deliveries, retries, and the
+            delivery console.
           </p>
 
           <div className="docs-v2-home-actions">

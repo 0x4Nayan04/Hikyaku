@@ -29,19 +29,24 @@ export function QuickStartPage() {
       </DocsHeading>
       <ol className="docs-v2-ordered-list">
         <li>
-          Bootstrap the first super-admin at <Link to="/bootstrap">/bootstrap</Link> (first deploy only).
+          Bootstrap the first super-admin at <Link to="/bootstrap">/bootstrap</Link> (first deploy
+          only).
         </li>
         <li>
-          Approve a signup or invite a tenant owner from <strong>Admin</strong>, then sign in as that tenant.
+          From <strong>Admin</strong>, invite a tenant owner (preferred). Approving a signup request
+          works too. Then sign in as that tenant — super-admins stay on platform ops and have no API
+          keys tab.
         </li>
         <li>
           Open <strong>Endpoints</strong> and register a receiver URL.
         </li>
         <li>
-          Optionally create an API key under <strong>Settings → API keys</strong> (required for backend ingest).
+          Create an API key under <strong>Settings → API keys</strong> (required for backend
+          ingest).
         </li>
         <li>
-          Use <strong>Send event</strong> to fire a test payload, or the curl example below.
+          Prefer <code>POST /v1/events</code> with the key (curl below). <strong>Test event</strong>{' '}
+          in the console is a smoke-test shortcut.
         </li>
         <li>
           Confirm the result under <strong>Deliveries</strong>.
