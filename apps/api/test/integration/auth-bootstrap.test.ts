@@ -33,6 +33,25 @@ describe('POST /v1/auth/bootstrap', () => {
     await closeRedis()
   })
 
+  it('GET /v1/auth/bootstrap-status reflects whether users exist', async () => {
+    const { userId } = await createUser({ tenantId: null, isSuperAdmin: true })
+
+    const unavailable = await request(app).get('/v1/auth/bootstrap-status')
+    expect(unavailable.status).toBe(200)
+    expect(unavailable.body).toEqual({ available: false })
+
+    await deleteUser(userId)
+
+    if (!usersExistAtStart) {
+      const [remaining] = await getDb().select({ value: count() }).from(users)
+      if ((remaining?.value ?? 0) === 0) {
+        const available = await request(app).get('/v1/auth/bootstrap-status')
+        expect(available.status).toBe(200)
+        expect(available.body).toEqual({ available: true })
+      }
+    }
+  })
+
   it('returns 401 for a wrong X-Admin-Secret', async () => {
     const res = await request(app)
       .post('/v1/auth/bootstrap')

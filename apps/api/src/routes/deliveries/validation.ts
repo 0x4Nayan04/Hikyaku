@@ -19,15 +19,26 @@ export function assertReplayableStatus(status: string): void {
 
 export function parseListQuery(query: {
   status?: string | string[]
-}): { status?: DeliveryStatus } {
+  event_id?: string | string[]
+}): { status?: DeliveryStatus; eventId?: string } {
   const statusRaw = Array.isArray(query.status) ? query.status[0] : query.status
-  if (statusRaw === undefined) {
-    return {}
+  const eventIdRaw = Array.isArray(query.event_id) ? query.event_id[0] : query.event_id
+
+  const result: { status?: DeliveryStatus; eventId?: string } = {}
+
+  if (statusRaw !== undefined) {
+    if (!DELIVERY_STATUS_SET.has(statusRaw)) {
+      throw new AppError(400, 'validation_error', 'Invalid status filter')
+    }
+    result.status = statusRaw as DeliveryStatus
   }
 
-  if (!DELIVERY_STATUS_SET.has(statusRaw)) {
-    throw new AppError(400, 'validation_error', 'Invalid status filter')
+  if (eventIdRaw !== undefined) {
+    if (!UUID_RE.test(eventIdRaw)) {
+      throw new AppError(400, 'validation_error', 'Invalid event_id filter')
+    }
+    result.eventId = eventIdRaw
   }
 
-  return { status: statusRaw as DeliveryStatus }
+  return result
 }

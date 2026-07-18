@@ -49,7 +49,7 @@ describe('assertReplayableStatus', () => {
 })
 
 describe('parseListQuery', () => {
-  it('returns no filter when status is omitted', () => {
+  it('returns no filter when status and event_id are omitted', () => {
     expect(parseListQuery({})).toEqual({})
   })
 
@@ -63,6 +63,37 @@ describe('parseListQuery', () => {
       parseListQuery({ status: 'paused' })
     } catch (err) {
       expect(err).toMatchObject({ statusCode: 400, code: 'validation_error' })
+    }
+  })
+
+  it('accepts a valid event_id filter', () => {
+    expect(
+      parseListQuery({ event_id: '550e8400-e29b-41d4-a716-446655440000' }),
+    ).toEqual({ eventId: '550e8400-e29b-41d4-a716-446655440000' })
+  })
+
+  it('accepts status and event_id together', () => {
+    expect(
+      parseListQuery({
+        status: 'failed',
+        event_id: '550e8400-e29b-41d4-a716-446655440000',
+      }),
+    ).toEqual({
+      status: 'failed',
+      eventId: '550e8400-e29b-41d4-a716-446655440000',
+    })
+  })
+
+  it('rejects an invalid event_id filter', () => {
+    expect(() => parseListQuery({ event_id: 'not-a-uuid' })).toThrow(AppError)
+    try {
+      parseListQuery({ event_id: 'not-a-uuid' })
+    } catch (err) {
+      expect(err).toMatchObject({
+        statusCode: 400,
+        code: 'validation_error',
+        message: 'Invalid event_id filter',
+      })
     }
   })
 })

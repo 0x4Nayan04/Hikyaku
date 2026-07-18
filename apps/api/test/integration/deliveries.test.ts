@@ -98,6 +98,36 @@ describe('GET /v1/deliveries', () => {
     expect(empty.body.total).toBe(0)
   })
 
+  it('filters deliveries by event_id', async () => {
+    const res = await request(app)
+      .get(`/v1/deliveries?event_id=${eventId}`)
+      .set('Authorization', `Bearer ${apiKey}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.data).toHaveLength(1)
+    expect(res.body.data[0].id).toBe(deliveryId)
+    expect(res.body.data[0].event_id).toBe(eventId)
+
+    const empty = await request(app)
+      .get('/v1/deliveries?event_id=880e8400-e29b-41d4-a716-446655440099')
+      .set('Authorization', `Bearer ${apiKey}`)
+
+    expect(empty.status).toBe(200)
+    expect(empty.body.data).toHaveLength(0)
+    expect(empty.body.total).toBe(0)
+  })
+
+  it('rejects an invalid event_id filter', async () => {
+    const res = await request(app)
+      .get('/v1/deliveries?event_id=not-a-uuid')
+      .set('Authorization', `Bearer ${apiKey}`)
+
+    expect(res.status).toBe(400)
+    expect(res.body).toEqual({
+      error: { code: 'validation_error', message: 'Invalid event_id filter' },
+    })
+  })
+
   it('returns delivery detail with attempt timeline', async () => {
     const res = await request(app)
       .get(`/v1/deliveries/${deliveryId}`)

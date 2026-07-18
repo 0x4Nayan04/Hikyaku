@@ -2,10 +2,11 @@ import { Router, type IRouter } from 'express'
 import { requireSession } from '../../auth/requireSession.js'
 import { acceptInvite, validateInvite } from './invite-handlers.js'
 import { createSignupRequest } from './signup-handlers.js'
-import { bootstrap, changePassword, login, logout, me } from './handlers.js'
+import { bootstrap, bootstrapStatus, changePassword, login, logout, me } from './handlers.js'
 
 export const authRouter: IRouter = Router()
 
+authRouter.get('/auth/bootstrap-status', bootstrapStatus)
 authRouter.post('/auth/bootstrap', bootstrap)
 authRouter.post('/auth/signup', createSignupRequest)
 authRouter.get('/auth/invites/validate', validateInvite)

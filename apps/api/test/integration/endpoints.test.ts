@@ -61,6 +61,7 @@ describe('endpoints', () => {
       url: 'https://webhook.site/test',
       status: 'active',
       description: 'test',
+      last_delivery: null,
     })
     expect(res.body.data[0].secret).toBeUndefined()
     expect(res.body.data[0]).not.toHaveProperty('secret')

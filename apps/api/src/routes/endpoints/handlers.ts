@@ -1,12 +1,12 @@
 import { generateEndpointSecret } from '@webhook/shared/crypto'
-import { endpoints } from '@webhook/shared/schema'
-import { and, count, desc, eq } from 'drizzle-orm'
+import { deliveries, endpoints } from '@webhook/shared/schema'
+import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { parsePagination } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
-import { toEndpointJson } from './serialize.js'
+import { toEndpointJson, type EndpointLastDeliveryRow } from './serialize.js'
 import { parseCreateBody, parseEndpointId, parsePatchBody } from './validation.js'
 
 const endpointColumns = {
@@ -15,6 +15,53 @@ const endpointColumns = {
   status: endpoints.status,
   description: endpoints.description,
   createdAt: endpoints.createdAt,
+}
+
+async function loadLastDeliveries(
+  tenantId: string,
+  endpointIds: string[],
+): Promise<Map<string, EndpointLastDeliveryRow>> {
+  const map = new Map<string, EndpointLastDeliveryRow>()
+  if (endpointIds.length === 0) return map
+
+  const db = getDb()
+  const ranked = db
+    .select({
+      endpointId: deliveries.endpointId,
+      id: deliveries.id,
+      status: deliveries.status,
+      updatedAt: deliveries.updatedAt,
+      lastError: deliveries.lastError,
+      rn: sql<number>`row_number() over (
+        partition by ${deliveries.endpointId}
+        order by ${deliveries.createdAt} desc
+      )`.as('rn'),
+    })
+    .from(deliveries)
+    .where(and(eq(deliveries.tenantId, tenantId), inArray(deliveries.endpointId, endpointIds)))
+    .as('ranked')
+
+  const rows = await db
+    .select({
+      endpointId: ranked.endpointId,
+      id: ranked.id,
+      status: ranked.status,
+      updatedAt: ranked.updatedAt,
+      lastError: ranked.lastError,
+    })
+    .from(ranked)
+    .where(eq(ranked.rn, 1))
+
+  for (const row of rows) {
+    map.set(row.endpointId, {
+      id: row.id,
+      status: row.status,
+      updatedAt: row.updatedAt,
+      lastError: row.lastError,
+    })
+  }
+
+  return map
 }
 
 export async function createEndpoint(req: Request, res: Response, next: NextFunction) {
@@ -57,8 +104,13 @@ export async function listEndpoints(req: Request, res: Response, next: NextFunct
       .limit(limit)
       .offset(offset)
 
+    const lastByEndpoint = await loadLastDeliveries(
+      tenantId,
+      rows.map((row) => row.id),
+    )
+
     res.json({
-      data: rows.map((row) => toEndpointJson(row)),
+      data: rows.map((row) => toEndpointJson(row, undefined, lastByEndpoint.get(row.id) ?? null)),
       total,
       limit,
       offset,

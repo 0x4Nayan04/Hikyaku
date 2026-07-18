@@ -1,5 +1,6 @@
 import { count, eq } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
+import type { TenantStatus } from '@webhook/shared/constants'
 import { tenants, users } from '@webhook/shared/schema'
 import { hashPassword, verifyPassword } from '../../auth/password.js'
 import { getDb } from '../../db/client.js'
@@ -43,14 +44,28 @@ function destroySession(req: Request): Promise<void> {
   })
 }
 
+async function isBootstrapAvailable(): Promise<boolean> {
+  const [countRow] = await getDb().select({ value: count() }).from(users)
+  return (countRow?.value ?? 0) === 0
+}
+
+/** Public: whether one-time bootstrap can still create the first user. No account data. */
+export async function bootstrapStatus(_req: Request, res: Response, next: NextFunction) {
+  try {
+    const available = await isBootstrapAvailable()
+    res.status(200).json({ available })
+  } catch (err) {
+    next(err)
+  }
+}
+
 export async function bootstrap(req: Request, res: Response, next: NextFunction) {
   try {
     requireAdminSecret(req)
     const body = parseBootstrapBody(req.body)
     const db = getDb()
 
-    const [countRow] = await db.select({ value: count() }).from(users)
-    if ((countRow?.value ?? 0) > 0) {
+    if (!(await isBootstrapAvailable())) {
       throw new AppError(403, 'forbidden', 'Bootstrap is disabled')
     }
 
@@ -147,10 +162,10 @@ export async function me(req: Request, res: Response, next: NextFunction) {
       throw new AppError(401, 'unauthorized', 'Missing or invalid session')
     }
 
-    let tenant: { id: string; name: string } | null = null
+    let tenant: { id: string; name: string; status: TenantStatus } | null = null
     if (user.tenantId) {
       const tenantRows = await db
-        .select({ id: tenants.id, name: tenants.name })
+        .select({ id: tenants.id, name: tenants.name, status: tenants.status })
         .from(tenants)
         .where(eq(tenants.id, user.tenantId))
         .limit(1)

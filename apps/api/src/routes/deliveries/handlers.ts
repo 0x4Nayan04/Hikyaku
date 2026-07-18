@@ -35,13 +35,16 @@ const attemptColumns = {
 export async function listDeliveries(req: Request, res: Response, next: NextFunction) {
   try {
     const { limit, offset } = parsePagination(req.query)
-    const { status } = parseListQuery(req.query)
+    const { status, eventId } = parseListQuery(req.query)
     const tenantId = getTenantId(req)
     const db = getDb()
 
     const conditions = [eq(deliveries.tenantId, tenantId)]
     if (status !== undefined) {
       conditions.push(eq(deliveries.status, status))
+    }
+    if (eventId !== undefined) {
+      conditions.push(eq(deliveries.eventId, eventId))
     }
     const where = and(...conditions)
 

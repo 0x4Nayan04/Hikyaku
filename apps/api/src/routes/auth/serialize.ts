@@ -1,3 +1,5 @@
+import type { TenantStatus } from '@webhook/shared/constants'
+
 export type UserRow = {
   id: string
   email: string
@@ -8,6 +10,7 @@ export type UserRow = {
 export type TenantRow = {
   id: string
   name: string
+  status: TenantStatus
 }
 
 export function toUserJson(row: UserRow) {
@@ -23,6 +26,7 @@ export function toTenantJson(row: TenantRow) {
   return {
     id: row.id,
     name: row.name,
+    status: row.status,
   }
 }
 
