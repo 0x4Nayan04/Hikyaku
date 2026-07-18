@@ -73,7 +73,7 @@ function TableActionButton({
   )
 }
 
-function EnvironmentBadge({ label }: { label: string }) {
+function LabelBadge({ label }: { label: string }) {
   return (
     <span className="endpoint-catalog-row__env-badge" title={label}>
       {label}
@@ -226,7 +226,7 @@ function EndpointCatalogRow({
             {shortId(endpoint.id, 16)}
           </code>
           {endpoint.description ? (
-            <EnvironmentBadge label={endpoint.description} />
+            <LabelBadge label={endpoint.description} />
           ) : (
             <button
               type="button"

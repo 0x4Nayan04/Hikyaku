@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Search, Send } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Search, Send, X } from 'lucide-react'
 import { ApiError, listDeliveries } from '@/api/client'
 import type { Delivery, DeliveryStatus } from '@/api/types'
 import {
@@ -121,19 +121,27 @@ function deliveriesListReducer(
 }
 
 export function Deliveries() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const eventIdFilter = searchParams.get('event_id') || undefined
   const [state, dispatch] = useReducer(deliveriesListReducer, initialDeliveriesListState)
   const { deliveries, total, offset, statusFilter, isInitial, isRefreshing, error } = state
   const hasDataRef = useRef(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   const loadDeliveries = useCallback(
-    async (nextOffset: number, nextStatus: 'all' | DeliveryStatus, background = false) => {
+    async (
+      nextOffset: number,
+      nextStatus: 'all' | DeliveryStatus,
+      nextEventId: string | undefined,
+      background = false,
+    ) => {
       if (background) dispatch({ type: 'refresh_start' })
       try {
         const result = await listDeliveries({
           limit: PAGE_SIZE,
           offset: nextOffset,
           status: nextStatus === 'all' ? undefined : nextStatus,
+          event_id: nextEventId,
         })
         dispatch({
           type: 'load_success',
@@ -155,15 +163,27 @@ export function Deliveries() {
   )
 
   useEffect(() => {
-    void loadDeliveries(offset, statusFilter, hasDataRef.current)
-  }, [loadDeliveries, offset, statusFilter])
+    void loadDeliveries(offset, statusFilter, eventIdFilter, hasDataRef.current)
+  }, [loadDeliveries, offset, statusFilter, eventIdFilter])
 
   const { mode } = useDeliveryLiveUpdates({
     onDeliveryUpdated: (updated) => {
+      if (eventIdFilter && updated.event_id !== eventIdFilter) return
       dispatch({ type: 'delivery_updated', delivery: updated })
     },
-    onPoll: () => void loadDeliveries(offset, statusFilter, true),
+    onPoll: () => void loadDeliveries(offset, statusFilter, eventIdFilter, true),
   })
+
+  // When the event scope changes, return to the first page once.
+  const prevEventIdRef = useRef(eventIdFilter)
+  useEffect(() => {
+    if (prevEventIdRef.current === eventIdFilter) return
+    prevEventIdRef.current = eventIdFilter
+    hasDataRef.current = false
+    if (offset !== 0) {
+      dispatch({ type: 'set_offset', offset: 0 })
+    }
+  }, [eventIdFilter, offset])
 
   const filteredDeliveries = useMemo(
     () => deliveries.filter((delivery) => matchesSearch(delivery, searchQuery)),
@@ -172,7 +192,8 @@ export function Deliveries() {
 
   const hasSearch = searchQuery.trim().length > 0
   const showEmpty = !isInitial && filteredDeliveries.length === 0
-  const isDatasetEmpty = showEmpty && !hasSearch && statusFilter === 'all' && total === 0
+  const isDatasetEmpty =
+    showEmpty && !hasSearch && statusFilter === 'all' && !eventIdFilter && total === 0
   const emptyState = useMemo(() => {
     if (hasSearch) {
       return (
@@ -180,7 +201,27 @@ export function Deliveries() {
           variant="inline"
           icon={Search}
           title="No matches on this page"
-          description="Try a different event, endpoint URL, or delivery ID."
+          description="Only this page of results is searched. Try another page, or a different event, endpoint, or delivery ID."
+        />
+      )
+    }
+
+    if (eventIdFilter) {
+      return (
+        <DataPanelEmpty
+          variant="inline"
+          icon={Search}
+          title="No deliveries for this event"
+          description={
+            <>
+              This event has no matching deliveries
+              {statusFilter !== 'all' ? ' for the selected status' : ''}.{' '}
+              <Link to="/deliveries" className="font-medium text-primary hover:underline">
+                View all deliveries
+              </Link>
+              .
+            </>
+          }
         />
       )
     }
@@ -211,13 +252,19 @@ export function Deliveries() {
         }
       />
     )
-  }, [hasSearch, statusFilter])
+  }, [hasSearch, statusFilter, eventIdFilter])
 
   const pageStart = total === 0 ? 0 : offset + 1
   const pageEnd = Math.min(offset + deliveries.length, total)
   const canGoBack = offset > 0
   const canGoForward = offset + PAGE_SIZE < total
   const showFooter = !isInitial && total > 0
+
+  function clearEventFilter() {
+    const next = new URLSearchParams(searchParams)
+    next.delete('event_id')
+    setSearchParams(next, { replace: true })
+  }
 
   const deliveryPanelActions = (
     <div className="log-panel-actions" role="search" aria-label="Filter deliveries">
@@ -266,6 +313,33 @@ export function Deliveries() {
     >
       {error ? (
         <PageBanner variant="error" title="Could not load deliveries" description={error} />
+      ) : null}
+
+      {eventIdFilter ? (
+        <PageBanner
+          variant="info"
+          title="Filtered by event"
+          description={
+            <>
+              Showing deliveries for{' '}
+              <Link
+                to={`/events/${eventIdFilter}`}
+                className="font-mono text-xs font-medium text-primary hover:underline"
+              >
+                {eventIdFilter}
+              </Link>
+              .{' '}
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                onClick={clearEventFilter}
+              >
+                <X className="size-3" aria-hidden="true" />
+                Clear filter
+              </button>
+            </>
+          }
+        />
       ) : null}
 
       {isInitial && deliveries.length === 0 ? (

@@ -148,8 +148,11 @@ export function EventDetail() {
             footer={
               event.deliveries_summary.total > 0 ? (
                 <div className="px-4 py-3 md:px-5">
-                  <Link to="/deliveries" className="text-xs font-medium text-primary hover:underline">
-                    View all deliveries
+                  <Link
+                    to={`/deliveries?event_id=${encodeURIComponent(event.id)}`}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    View deliveries for this event
                   </Link>
                 </div>
               ) : undefined

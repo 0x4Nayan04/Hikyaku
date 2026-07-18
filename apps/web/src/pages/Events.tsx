@@ -133,7 +133,7 @@ export function Events() {
           variant="inline"
           icon={Search}
           title="No matches on this page"
-          description="Try a different type, idempotency key, or event ID."
+          description="Only this page of results is searched. Try another page, or a different type, key, or ID."
         />
       )
     }
@@ -171,7 +171,7 @@ export function Events() {
       actions={
         <CatalogButton size="sm" className="sm-btn-split" asChild>
           <Link to="/events/send">
-            <span className="sm-btn-split-label">Send event</span>
+            <span className="sm-btn-split-label">Test event</span>
             <span className="sm-btn-split-icon">
               <Send className="size-3.5" aria-hidden="true" />
             </span>

@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { AlertCircle, CheckCircle2, Info } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
@@ -6,7 +7,7 @@ import { cn } from '@/lib/utils'
 type PageBannerProps = {
   variant: 'info' | 'success' | 'error'
   title: string
-  description: string
+  description: ReactNode
   className?: string
 }
 

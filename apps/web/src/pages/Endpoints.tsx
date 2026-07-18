@@ -5,8 +5,8 @@ import {
   type EndpointStatusTab,
 } from '@/components/console/EndpointStatusTabs'
 import { toast } from '@/lib/toast'
-import { ApiError, createEndpoint, listDeliveries, listEndpoints, patchEndpoint } from '@/api/client'
-import type { Delivery, Endpoint, EndpointWithSecret } from '@/api/types'
+import { ApiError, createEndpoint, listEndpoints, patchEndpoint } from '@/api/client'
+import type { Endpoint, EndpointWithSecret } from '@/api/types'
 import { ConsolePage } from '@/components/console/ConsolePage'
 import { DataPanel } from '@/components/console/DataPanel'
 import {
@@ -40,8 +40,8 @@ import { saveEndpointSecret } from '@/lib/endpoint-vault'
 
 const API_PAGE_SIZE = 25
 
-const ENVIRONMENT_OPTIONS = [
-  { value: 'all', label: 'All environments' },
+const LABEL_OPTIONS = [
+  { value: 'all', label: 'All labels' },
   { value: '__unlabeled', label: 'Unlabeled' },
 ] as const
 
@@ -51,23 +51,20 @@ const SORT_OPTIONS = [
   { value: 'url', label: 'URL (A–Z)' },
   { value: 'last_delivery', label: 'Last delivery' },
 ] as const
-type EnvironmentFilter = string
+type LabelFilter = string
 type SortOption = (typeof SORT_OPTIONS)[number]['value']
 
-function buildLastDeliveryMap(deliveries: Delivery[]): Record<string, EndpointRowLastDelivery> {
+function buildLastDeliveryMap(endpoints: Endpoint[]): Record<string, EndpointRowLastDelivery> {
   const map: Record<string, EndpointRowLastDelivery> = {}
 
-  for (const delivery of deliveries) {
-    const existing = map[delivery.endpoint_id]
-    if (existing && Date.parse(existing.updatedAt) >= Date.parse(delivery.updated_at)) {
-      continue
-    }
-
-    map[delivery.endpoint_id] = {
-      deliveryId: delivery.id,
-      status: delivery.status,
-      updatedAt: delivery.updated_at,
-      error: delivery.last_error,
+  for (const endpoint of endpoints) {
+    const last = endpoint.last_delivery
+    if (!last) continue
+    map[endpoint.id] = {
+      deliveryId: last.id,
+      status: last.status,
+      updatedAt: last.updated_at,
+      error: last.last_error,
     }
   }
 
@@ -118,10 +115,10 @@ function countByTab(
   }
 }
 
-function matchesEnvironment(endpoint: Endpoint, environmentFilter: EnvironmentFilter): boolean {
-  if (environmentFilter === 'all') return true
-  if (environmentFilter === '__unlabeled') return !endpoint.description
-  return endpoint.description === environmentFilter
+function matchesLabel(endpoint: Endpoint, labelFilter: LabelFilter): boolean {
+  if (labelFilter === 'all') return true
+  if (labelFilter === '__unlabeled') return !endpoint.description
+  return endpoint.description === labelFilter
 }
 
 function sortEndpoints(
@@ -349,7 +346,7 @@ export function Endpoints() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [statusTab, setStatusTab] = useState<EndpointStatusTab>('all')
-  const [environmentFilter, setEnvironmentFilter] = useState<EnvironmentFilter>('all')
+  const [labelFilter, setLabelFilter] = useState<LabelFilter>('all')
   const [sort, setSort] = useState<SortOption>('newest')
 
   const hasDataRef = useRef(false)
@@ -374,17 +371,14 @@ export function Endpoints() {
     }
 
     try {
-      const [endpointResult, deliveryResult] = await Promise.all([
-        listEndpoints({ limit: API_PAGE_SIZE, offset: nextOffset }),
-        listDeliveries({ limit: 200, offset: 0 }),
-      ])
+      const endpointResult = await listEndpoints({ limit: API_PAGE_SIZE, offset: nextOffset })
 
       listDispatch({
         type: 'load_success',
         endpoints: endpointResult.data,
         total: endpointResult.total,
         offset: endpointResult.offset,
-        lastDeliveries: buildLastDeliveryMap(deliveryResult.data),
+        lastDeliveries: buildLastDeliveryMap(endpointResult.data),
       })
       hasDataRef.current = true
     } catch (err) {
@@ -401,7 +395,7 @@ export function Endpoints() {
     void loadEndpoints(offset, hasDataRef.current)
   }, [loadEndpoints, offset])
 
-  const environmentOptions = useMemo(() => {
+  const labelOptions = useMemo(() => {
     const labels = new Set<string>()
     for (const endpoint of endpoints) {
       if (endpoint.description) {
@@ -409,7 +403,7 @@ export function Endpoints() {
       }
     }
     return [
-      ...ENVIRONMENT_OPTIONS,
+      ...LABEL_OPTIONS,
       ...[...labels].sort((a, b) => a.localeCompare(b)).map((label) => ({
         value: label,
         label,
@@ -420,9 +414,9 @@ export function Endpoints() {
   const tabSourceEndpoints = useMemo(() => {
     return endpoints.filter(
       (endpoint) =>
-        matchesSearch(endpoint, searchQuery) && matchesEnvironment(endpoint, environmentFilter),
+        matchesSearch(endpoint, searchQuery) && matchesLabel(endpoint, labelFilter),
     )
-  }, [endpoints, searchQuery, environmentFilter])
+  }, [endpoints, searchQuery, labelFilter])
 
   const tabCounts = useMemo(
     () => countByTab(tabSourceEndpoints, lastDeliveries),
@@ -437,7 +431,7 @@ export function Endpoints() {
   }, [tabSourceEndpoints, statusTab, sort, lastDeliveries])
 
   const usesClientList =
-    searchQuery.trim().length > 0 || environmentFilter !== 'all' || statusTab !== 'all'
+    searchQuery.trim().length > 0 || labelFilter !== 'all' || statusTab !== 'all'
 
   const visibleEndpoints = filteredEndpoints
 
@@ -445,7 +439,7 @@ export function Endpoints() {
   const displayOffset = usesClientList ? 0 : offset
 
   const hasSearch = searchQuery.trim().length > 0
-  const hasFilters = environmentFilter !== 'all' || statusTab !== 'all'
+  const hasFilters = labelFilter !== 'all' || statusTab !== 'all'
   const showEmpty = !isInitial && filteredEndpoints.length === 0
   const isDatasetEmpty = showEmpty && !hasSearch && !hasFilters
   const showPanelChrome = !isDatasetEmpty
@@ -458,7 +452,7 @@ export function Endpoints() {
           variant="inline"
           icon={Search}
           title="No endpoints match your filters"
-          description="Try a different search term, status, or environment."
+          description="Try a different search term, status, or label."
         />
       )
     }
@@ -524,7 +518,7 @@ export function Endpoints() {
   function handleSecretDismiss() {
     if (secretEndpoint && saveToVault) {
       saveEndpointSecret(secretEndpoint.id, secretEndpoint.secret)
-      toast.success('Secret saved to this browser')
+      toast.success('Secret saved for this browser session')
     }
     secretDispatch({ type: 'dismiss' })
   }
@@ -585,12 +579,12 @@ export function Endpoints() {
         </div>
 
         <div className="endpoint-panel-toolbar__filters" role="group" aria-label="Endpoint filters">
-          <CatalogSelect value={environmentFilter} onValueChange={setEnvironmentFilter}>
+          <CatalogSelect value={labelFilter} onValueChange={setLabelFilter}>
             <CatalogSelectTrigger className="endpoint-panel-toolbar__filter">
-              <CatalogSelectValue placeholder="Environment" />
+              <CatalogSelectValue placeholder="Label" />
             </CatalogSelectTrigger>
             <CatalogSelectContent>
-              {environmentOptions.map((option) => (
+              {labelOptions.map((option) => (
                 <CatalogSelectItem key={option.value} value={option.value}>
                   {option.label}
                 </CatalogSelectItem>
@@ -853,9 +847,10 @@ export function Endpoints() {
                   }
                 />
                 <span className="flex flex-col gap-1 text-sm">
-                  <span className="font-medium">Save to this browser</span>
+                  <span className="font-medium">Save for this session</span>
                   <span className="text-muted-strong">
-                    Stored in local storage on this device only. The server never keeps a copy.
+                    Kept in memory for this browser tab session only (lost on refresh). The server
+                    never keeps a copy.
                   </span>
                 </span>
               </label>
