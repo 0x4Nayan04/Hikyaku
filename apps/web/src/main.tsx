@@ -1,5 +1,5 @@
-if (import.meta.env.DEV) {
-  import("react-grab");
+if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_REACT_GRAB === 'true') {
+  import('react-grab')
 }
 
 import { StrictMode } from 'react'

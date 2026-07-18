@@ -1,42 +1,48 @@
-/* Shortly design tokens — synced with Design/supermemory-ai-variables.css */
-/* Web fonts load from index.html (preconnect + non-blocking link). */
+/* Hikyaku — Indigo (藍) + Seal Red (朱). Hex here is the brand lock. */
 
-/* @theme — primary/ink/border values match supermemory-ai-variables.css */
 @theme {
-  --color-primary: #0562ef;
-  --color-secondary: #7cb7ff;
-  --color-accent: #0562ef;
-  --color-ink: #0b1015; /* --color-text-1 */
-  --color-muted: #888e94; /* --color-text-3 / --color-neutral-100 */
-  --color-muted-strong: #5c6570; /* higher-contrast subtitles and helper text */
-  --color-muted-accessible: #5c6570; /* darker small UI text when strong is still marginal */
-  --color-border: #c5dbf2;
-  --color-surface: #ffffff; /* --color-neutral-50 */
-  --color-surface-muted: #fafafa; /* --color-bg-4 / --color-paper */
-  --color-background: #f5f9ff; /* --color-bg */
-  --color-background-alt: #e9f2ff; /* --color-bg-1 */
+  --color-primary: #1f3a5f;
+  /* Cool slate wash — secondary chrome (not seal; seal is accent) */
+  --color-secondary: #eaedf0;
+  --color-accent: #c43b2c;
+  --color-seal: #c43b2c;
+  --color-ink: #121820;
+  --color-muted: #667080;
+  --color-muted-strong: #556070;
+  --color-muted-accessible: #4a5568;
+  --color-border: #d0d7e2;
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef1f5;
+  --color-background: #f4f6f8;
+  --color-background-alt: #e8ecf2;
   --font-sans: 'DM Sans', system-ui, sans-serif;
   --font-display: 'Space Grotesk', 'DM Sans', system-ui, sans-serif;
+  /* Marketing/auth accent only — not UI chrome */
+  --font-accent: 'Instrument Serif', Georgia, serif;
   --font-mono: 'DM Mono', ui-monospace, monospace;
 
-  /* Error specific colors */
-  --color-error: #ef4444; /* A vibrant red for errors */
+  --color-error: #c0362c;
 }
 
 :root {
-  --grad-dot: radial-gradient(circle, rgba(124, 183, 255, 0.35) 1px, rgba(0, 0, 0, 0) 1.4px);
+  --color-primary-rgb: 31, 58, 95;
+  --color-seal-rgb: 196, 59, 44;
+  --grad-dot: radial-gradient(circle, rgba(var(--color-primary-rgb), 0.24) 1px, rgba(0, 0, 0, 0) 1.4px);
   --frame-max: 72rem;
   --frame-px: 3rem;
   --row-h: 4rem;
   --btn-h: 2.5625rem;
+  --btn-h-sm: 2.125rem;
   --btn-h-lg: 3.5625rem;
   --form-h: 3.25rem; /* 52px — app / dashboard hero-cli-bar */
   --hero-cli-h: 2.75rem; /* 44px — landing hero row (touch-friendly) */
-  --shadow-focus: rgba(5, 98, 239, 0.1) 0px 0px 0px 4px;
-  --shadow-elevated: 0 8px 24px rgba(11, 16, 21, 0.08), 0 2px 6px rgba(11, 16, 21, 0.04);
-  --color-primary-hover: #3782f2; /* --color-blue-hover */
-  --color-primary-active: #0263ef; /* --color-bg-11 */
-  --color-blue-tint: #eaf2ff; /* --color-bg-10 */
+  --shadow-focus: rgba(var(--color-primary-rgb), 0.16) 0px 0px 0px 4px;
+  --shadow-elevated: 0 8px 24px rgba(18, 24, 32, 0.08), 0 2px 6px rgba(18, 24, 32, 0.04);
+  --color-primary-hover: #18304f;
+  --color-primary-active: #12263f;
+  --color-seal: #c43b2c;
+  --color-seal-hover: #a83226;
+  --color-blue-tint: #e8eef5;
   --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-press: cubic-bezier(0.23, 1, 0.32, 1);
   --duration-interaction: 150ms;
@@ -45,9 +51,10 @@
   --section-bar-height: 0px;
   --color-frame-divider: color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
 
-  --color-success: #22c55e;
-  --color-info: #3b82f6;
-  --color-warning: #f59e0b;
+  --color-success: #1a7a52;
+  --color-info: #2563b9;
+  --color-warning: #a15c07;
+  --color-error: #c0362c;
 
   /* Error specific colors — light tint and border shade */
   --color-error-tint: color-mix(in srgb, var(--color-error) 10%, var(--color-surface));

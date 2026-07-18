@@ -130,19 +130,29 @@
     letter-spacing: -0.065em;
     text-wrap: balance;
   }
+  .landing-hero-headline {
+    margin: 0;
+    max-width: 22em;
+    font-family: var(--font-display);
+    font-size: clamp(1.2rem, 2.4vw, 1.65rem);
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
   .hero-heading-em {
-    font-family: 'Instrument Serif', Georgia, serif;
+    font-family: var(--font-accent);
     font-style: italic;
     font-weight: 500;
   }
   .hero-copy-em {
-    font-family: 'Instrument Serif', Georgia, serif;
+    font-family: var(--font-accent);
     font-style: italic;
   }
   .landing-section-title {
     font-family: var(--font-display);
     font-size: clamp(1.75rem, 3vw, 2.5rem);
-    font-weight: 500;
+    font-weight: 600;
     line-height: 1.12;
     letter-spacing: -0.04em;
     text-wrap: balance;
@@ -261,56 +271,5 @@
   }
   .nav-landing-logo--mark {
     gap: 0;
-  }
-  .shortly-logo {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    height: 28px;
-    flex-shrink: 0;
-  }
-  .shortly-logo-img {
-    display: block;
-    height: 28px;
-    width: auto;
-    object-fit: contain;
-    object-position: left center;
-    transition-property: opacity;
-    transition-duration: var(--duration-interaction);
-    transition-timing-function: var(--ease-default);
-  }
-  .shortly-logo--full .shortly-logo-img {
-    max-width: min(132px, 36vw);
-  }
-  @media (max-width: 380px) {
-    .shortly-logo--full .shortly-logo-img {
-      max-width: min(108px, 32vw);
-    }
-  }
-  .shortly-logo--mark .shortly-logo-img {
-    width: 28px;
-    max-width: 28px;
-  }
-  .shortly-logo--footer .shortly-logo-img {
-    height: 24px;
-  }
-  .shortly-logo-img--hover {
-    position: absolute;
-    inset: 0 auto auto 0;
-    opacity: 0;
-    pointer-events: none;
-  }
-  .nav-landing-logo:hover .shortly-logo-img--default,
-  .nav-landing-logo:focus-visible .shortly-logo-img--default {
-    opacity: 0;
-  }
-  .nav-landing-logo:hover .shortly-logo-img--hover,
-  .nav-landing-logo:focus-visible .shortly-logo-img--hover {
-    opacity: 1;
-  }
-  .nav-landing-logo:active .shortly-logo-img--default,
-  .nav-landing-logo:active .shortly-logo-img--hover {
-    transition-duration: var(--duration-press);
-    transition-timing-function: var(--ease-press);
   }
 }

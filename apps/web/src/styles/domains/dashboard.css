@@ -1,4 +1,4 @@
-/* Pruned — Shortly URL-shortener dashboard blocks removed; keep shared loading primitives. */
+/* Shared loading primitives for console/dashboard surfaces. */
 /* Recent Activity styles live in console-bridge.css */
 
 @layer utilities {

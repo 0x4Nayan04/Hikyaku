@@ -48,11 +48,11 @@
 
   /* ── Hero CLI bar (screenshots/button-default-md-*) ── */
   .hero-form-compound {
-    border: 1px dashed rgba(11, 16, 21, 0.16);
+    border: 1px dashed rgba(20, 37, 30, 0.16);
     background-color: var(--color-surface-muted);
   }
   .hero-form-compound:focus-within {
-    border-color: color-mix(in srgb, var(--color-primary) 45%, rgba(11, 16, 21, 0.16));
+    border-color: color-mix(in srgb, var(--color-primary) 45%, rgba(20, 37, 30, 0.16));
     box-shadow: var(--shadow-focus);
   }
   .hero-form-compound-error {
@@ -79,11 +79,11 @@
   }
   .hero-alias-field {
     overflow: hidden;
-    border: 1px dashed rgba(11, 16, 21, 0.16);
+    border: 1px dashed rgba(20, 37, 30, 0.16);
     background-color: var(--color-surface-muted);
   }
   .hero-alias-field:focus-within {
-    border-color: color-mix(in srgb, var(--color-primary) 45%, rgba(11, 16, 21, 0.16));
+    border-color: color-mix(in srgb, var(--color-primary) 45%, rgba(20, 37, 30, 0.16));
     box-shadow: var(--shadow-focus);
   }
   .hero-form-compound-error .hero-alias-field {
@@ -154,7 +154,7 @@
     align-items: stretch;
     height: var(--form-h);
     min-height: var(--form-h);
-    border: 1px dashed rgba(11, 16, 21, 0.16);
+    border: 1px dashed rgba(20, 37, 30, 0.16);
     background-color: var(--color-surface-muted);
   }
   .hero-cli-bar:focus-within {
@@ -288,7 +288,7 @@
   /* ── Announcement chip ── */
   .landing-emphasis,
   .hero-copy-em {
-    font-family: 'Instrument Serif', Georgia, serif;
+    font-family: var(--font-accent);
     font-style: italic;
     color: var(--color-ink);
   }
@@ -478,7 +478,7 @@
     height: 0.5rem;
     margin-top: 0.5rem;
     background-color: transparent;
-    border-radius: 2px;
+    border-radius: 0;
     transition: background-color var(--duration-interaction) var(--ease-default);
   }
   .catalog-scrolly-step--active .catalog-scrolly-step-marker {
@@ -668,7 +668,7 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    background: linear-gradient(160deg, #0562ef 0%, #0052d9 100%);
+    background: linear-gradient(160deg, var(--color-primary) 0%, var(--color-primary-active) 100%);
     padding: clamp(var(--space-s2), 4vw, var(--space-s3));
     overflow: hidden;
   }
@@ -737,13 +737,12 @@
     padding: 0.5rem 1rem;
     border: 1px solid rgba(255, 255, 255, 0.2);
     background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(4px);
     font-family: var(--font-mono);
     font-size: 12px;
     font-weight: 500;
     letter-spacing: 0.04em;
     color: rgba(255, 255, 255, 0.9);
-    border-radius: 4px;
+    border-radius: 0;
   }
   .catalog-visual-eyebrow {
     position: relative;
@@ -826,13 +825,12 @@
     padding: 0.5rem 1rem;
     border: 1px solid rgba(255, 255, 255, 0.2);
     background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(4px);
     font-family: var(--font-mono);
     font-size: 12px;
     font-weight: 500;
     letter-spacing: 0.04em;
     color: rgba(255, 255, 255, 0.9);
-    border-radius: 4px;
+    border-radius: 0;
   }
   .catalog-visual-eyebrow {
     position: relative;
@@ -1216,7 +1214,7 @@
   .faq-title {
     font-family: var(--font-display);
     font-size: clamp(1.75rem, 3vw, 2.5rem);
-    font-weight: 500;
+    font-weight: 600;
     line-height: 1.12;
     letter-spacing: -0.04em;
     color: var(--color-ink);
@@ -1397,7 +1395,7 @@
     left: 0;
     background: radial-gradient(
       ellipse 90% 70% at 0% 45%,
-      rgba(124, 183, 255, 0.14),
+      rgba(var(--color-primary-rgb), 0.12),
       transparent 72%
     );
   }
@@ -1405,7 +1403,7 @@
     right: 0;
     background: radial-gradient(
       ellipse 90% 70% at 100% 45%,
-      rgba(124, 183, 255, 0.14),
+      rgba(var(--color-seal-rgb), 0.08),
       transparent 72%
     );
   }

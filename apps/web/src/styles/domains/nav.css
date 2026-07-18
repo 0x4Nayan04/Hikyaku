@@ -277,18 +277,18 @@
     border-top: 1px solid var(--color-border);
   }
   .nav-user-menu-row--danger {
-    color: #dc2626;
+    color: var(--color-error);
   }
   .nav-user-menu-row--danger .nav-user-menu-row-icon {
-    color: #dc2626;
+    color: var(--color-error);
   }
   .nav-user-menu-row--danger:hover {
-    background-color: color-mix(in srgb, #dc2626 6%, var(--color-surface));
-    border-left-color: #dc2626;
-    color: #dc2626;
+    background-color: color-mix(in srgb, var(--color-error) 6%, var(--color-surface));
+    border-left-color: var(--color-error);
+    color: var(--color-error);
   }
   .nav-user-menu-row--danger:hover .nav-user-menu-row-icon {
-    color: #dc2626;
+    color: var(--color-error);
   }
 
   .landing-text-link {

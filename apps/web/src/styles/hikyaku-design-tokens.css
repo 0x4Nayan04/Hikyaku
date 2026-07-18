@@ -1,10 +1,9 @@
 /**
- * Shortly design system — domain-split CSS.
+ * Hikyaku design system — domain-split CSS.
  *
  * Edit files under ./domains/ (tokens, layout, auth, dashboard, nav, landing,
- * components, mobile). @theme and :root live in domains/tokens.css.
- *
- * Source of truth for color primitives: Design/supermemory-ai-design-tokens.json
+ * components, mobile). Brand hex lock + @theme live in domains/tokens.css;
+ * shadcn HSL mirrors in index.css must stay aligned with those hex values.
  * Run `npm run css:check` to verify the split files assemble cleanly.
  */
 @import './domains/tokens.css';
@@ -17,3 +16,4 @@
 @import './domains/mobile.css';
 @import './domains/docs.css';
 @import './console-bridge.css';
+@import './domains/landing-revamp.css';

@@ -1,4 +1,4 @@
-@import './styles/shortly-design-tokens.css';
+@import './styles/hikyaku-design-tokens.css';
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
@@ -7,7 +7,8 @@
 
 @theme inline {
   --font-sans: 'DM Sans', system-ui, sans-serif;
-  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'DM Sans', system-ui, sans-serif;
+  --font-accent: 'Instrument Serif', Georgia, serif;
   --font-mono: 'DM Mono', ui-monospace, monospace;
 
   --color-background: hsl(var(--background));
@@ -56,41 +57,61 @@
 
 @layer base {
   :root {
-    --background: 216 100% 98%;
-    --foreground: 210 24% 10%;
+    /* Cool paper + sumi ink */
+    --background: 210 18% 96%;
+    --foreground: 214 28% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 210 24% 10%;
+    --card-foreground: 214 28% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 210 24% 10%;
-    --primary: 216 96% 48%;
+    --popover-foreground: 214 28% 10%;
+    /* Indigo 藍 — primary */
+    --primary: 215 51% 25%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 214 86% 94%;
-    --secondary-foreground: 210 24% 10%;
-    --muted: 214 60% 96%;
-    --muted-foreground: 214 10% 40%;
-    --accent: 216 96% 48%;
+    /* Cool slate wash — secondary buttons */
+    --secondary: 214 18% 93%;
+    --secondary-foreground: 214 28% 10%;
+    --muted: 214 20% 95%;
+    --muted-foreground: 214 12% 40%;
+    /* Seal red 朱 — accent */
+    --accent: 6 63% 47%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
-    --border: 214 32% 88%;
-    --input: 214 32% 88%;
-    --ring: 216 96% 48%;
+    /* Danger — same hex as --color-error #c0362c */
+    --destructive: 4 63% 46%;
+    --border: 214 22% 85%;
+    --input: 214 22% 85%;
+    --ring: 215 51% 25%;
     --radius: 0px;
 
-    --status-neutral: 214 9% 40%;
-    --status-neutral-subtle: 214 32% 96%;
-    --status-neutral-border: 214 32% 88%;
-    --status-info: 216 96% 38%;
-    --status-info-subtle: 216 96% 96%;
-    --status-info-border: 216 60% 85%;
-    --status-success: 152 55% 30%;
-    --status-success-subtle: 152 55% 95%;
-    --status-success-border: 152 40% 82%;
-    --status-warning: 32 85% 32%;
-    --status-warning-subtle: 38 90% 95%;
-    --status-warning-border: 38 70% 82%;
-    --status-danger: 0 72% 38%;
-    --status-danger-subtle: 0 72% 96%;
-    --status-danger-border: 0 50% 85%;
+    --status-neutral: 214 10% 46%;
+    --status-neutral-subtle: 214 20% 96%;
+    --status-neutral-border: 214 18% 87%;
+    --status-info: 216 67% 44%;
+    --status-info-subtle: 216 65% 96%;
+    --status-info-border: 216 42% 84%;
+    --status-success: 155 65% 29%;
+    --status-success-subtle: 155 40% 95%;
+    --status-success-border: 155 28% 80%;
+    --status-warning: 33 90% 33%;
+    --status-warning-subtle: 36 75% 95%;
+    --status-warning-border: 36 52% 80%;
+    --status-danger: 4 63% 46%;
+    --status-danger-subtle: 4 60% 96%;
+    --status-danger-border: 4 42% 84%;
+
+    /* Brand lock — mirrors domains/tokens.css hex */
+    --color-ink: #121820;
+    --color-muted-strong: #556070;
+    --color-muted-accessible: #4a5568;
+    --color-surface: #ffffff;
+    --color-surface-muted: #eef1f5;
+    --color-background-alt: #e8ecf2;
+    --color-primary-rgb: 31, 58, 95;
+    --color-seal-rgb: 196, 59, 44;
+    --color-seal: #c43b2c;
+    --color-seal-hover: #a83226;
+    --color-primary-hover: #18304f;
+    --color-primary-active: #12263f;
+    --color-error: #c0362c;
   }
 
   *,
@@ -107,8 +128,8 @@
   }
 
   body {
-    background-color: var(--color-background, #f5f9ff);
-    color: var(--color-ink, #0b1015);
+    background-color: var(--color-background, #f4f6f8);
+    color: var(--color-ink, #121820);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
@@ -138,7 +159,9 @@
 [data-slot='select-trigger'],
 [data-slot='dialog-content'],
 [data-slot='sheet-content'],
-[data-slot='dropdown-menu-content'] {
+[data-slot='dropdown-menu-content'],
+[data-slot='badge'],
+[data-slot='card'] {
   border-radius: 0 !important;
 }
 
@@ -238,9 +261,9 @@
   animation: shimmer 1.5s ease-in-out infinite;
   background: linear-gradient(
     90deg,
-    var(--color-surface-muted, #fafafa) 25%,
+    var(--color-surface-muted, #eef1f5) 25%,
     var(--color-border) 50%,
-    var(--color-surface-muted, #fafafa) 75%
+    var(--color-surface-muted, #eef1f5) 75%
   );
   background-size: 200% 100%;
 }
