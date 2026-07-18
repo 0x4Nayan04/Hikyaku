@@ -47,14 +47,14 @@ export function SettingsVaultTab({
           description={
             isEmpty
               ? undefined
-              : 'The server cannot recover endpoint signing secrets. Entries here are kept in memory for this browser session only.'
+              : 'Optional convenience vault: signing secrets stay in memory for this browser session only (not localStorage). The server cannot recover them — copy into your secret manager at create time.'
           }
           loading={loadingVault && vaultEntries.length > 0}
           emptyFlush
           footer={
             missingCount > 0 ? (
               <p className="settings-panel-footnote">
-                {missingCount} endpoint(s) have no secret saved in this browser.
+                {missingCount} endpoint(s) have no secret saved for this browser session.
               </p>
             ) : undefined
           }
@@ -65,12 +65,12 @@ export function SettingsVaultTab({
                 title="No secrets saved"
                 description={
                   <>
-                    Signing secrets are kept in memory for this browser session only — the server cannot
-                    recover them. Save a secret when you{' '}
+                    This vault is optional session memory only (not durable storage) — the server cannot
+                    recover secrets. Save one when you{' '}
                     <Link to="/endpoints" className="font-medium text-primary hover:underline">
                       create an endpoint
                     </Link>{' '}
-                    to see it here.
+                    if you want it here for this browser session.
                   </>
                 }
               />

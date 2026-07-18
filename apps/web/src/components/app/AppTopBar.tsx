@@ -75,7 +75,7 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
     ? 'Platform admin'
     : (session?.tenant?.name ?? 'Workspace')
 
-  const roleLabel = isSuperAdmin ? 'Super admin' : 'Operator'
+  const roleLabel = isSuperAdmin ? 'Super admin' : 'Tenant operator'
 
   return (
     <header className="app-topbar">

@@ -103,7 +103,8 @@ export function TenantAdminUserActions({
           <CatalogDialogHeader>
             <CatalogDialogTitle>Reset password</CatalogDialogTitle>
             <CatalogDialogDescription className="text-muted-strong">
-              Set a new password for {user.email}. Existing sessions are not affected.
+              Set a new password for {user.email}. Their open console sessions stay signed in until
+              they expire — ask them to sign out on shared devices if this was a compromise.
             </CatalogDialogDescription>
           </CatalogDialogHeader>
           <form className="flex flex-col gap-4" onSubmit={handleReset}>

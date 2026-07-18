@@ -80,9 +80,9 @@ function ActivityRow({ item }: { item: ActivityItem }) {
         aria-hidden="true"
       >
         {isEvent ? (
-          <Package className="size-4" strokeWidth={1.75} />
-        ) : (
           <Send className="size-4" strokeWidth={1.75} />
+        ) : (
+          <Package className="size-4" strokeWidth={1.75} />
         )}
       </span>
       <div className="dashboard-activity-row__main">

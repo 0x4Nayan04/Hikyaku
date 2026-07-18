@@ -51,7 +51,7 @@ const breakdownMetrics: SummaryMetric[] = [
   {
     key: 'deferred',
     label: 'Deferred',
-    hint: 'Waiting for retry',
+    hint: 'Rate-limited; will retry',
     icon: PauseCircle,
     tone: 'warning',
     barClass: 'delivery-summary__segment--deferred',

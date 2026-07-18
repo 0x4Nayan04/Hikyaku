@@ -73,7 +73,7 @@ export function AdminInviteOperatorDialog({
       dispatch({ type: 'reset' })
       onOpenChange(false)
       onInvited({ inviteUrl: result.invite_url, expiresAt: result.expires_at })
-      toast.success('Operator invite created')
+      toast.success('Admin invite created')
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Failed to create invite')
     } finally {
@@ -92,9 +92,9 @@ export function AdminInviteOperatorDialog({
     <CatalogDialog open={open} onOpenChange={handleOpenChange}>
       <CatalogDialogContent className="sm:max-w-lg">
         <CatalogDialogHeader>
-          <CatalogDialogTitle>Invite operator</CatalogDialogTitle>
+          <CatalogDialogTitle>Invite admin</CatalogDialogTitle>
           <CatalogDialogDescription className="text-muted-foreground">
-            Creates an invite link for a new platform operator. Copy the link and send it manually.
+            Creates an invite link for a new platform admin. Copy the link and send it manually.
           </CatalogDialogDescription>
         </CatalogDialogHeader>
 

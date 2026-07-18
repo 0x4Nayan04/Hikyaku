@@ -230,8 +230,13 @@ export function Admin() {
     let cancelled = false
 
     loadSignupRequests()
-      .catch(() => {
-        // Signup request endpoint may not be available yet.
+      .catch((err) => {
+        if (!cancelled) {
+          dispatch({
+            type: 'signup_load_error',
+            error: err instanceof ApiError ? err.message : 'Failed to load signup requests',
+          })
+        }
       })
       .finally(() => {
         if (!cancelled) {
@@ -299,7 +304,7 @@ export function Admin() {
         case 'signup.rejected':
         case 'operator.invited':
         case 'operator.removed':
-          return (meta.email as string | undefined) ?? 'Operator'
+          return (meta.email as string | undefined) ?? 'Admin'
         default:
           return entry.action
       }
@@ -323,9 +328,9 @@ export function Admin() {
         case 'signup.rejected':
           return 'Rejected'
         case 'operator.invited':
-          return 'Operator invited'
+          return 'Admin invited'
         case 'operator.removed':
-          return 'Operator removed'
+          return 'Admin removed'
         default:
           return entry.action
       }
@@ -392,7 +397,7 @@ export function Admin() {
     <ConsolePage
       marker="Platform · Admin"
       title="Tenant management"
-      description="Approve signup requests, create tenants, and manage platform operators."
+      description="Platform ops only: approve signups, create tenants, and invite owners. Manage platform admins under Admins. Super-admins do not send events or run tenant deliveries — use a tenant owner account for that."
       actions={
         <>
           <CatalogButton
@@ -434,6 +439,14 @@ export function Admin() {
         <PageBanner variant="error" title="Could not load tenants" description={state.error} />
       ) : null}
 
+      {state.signupError ? (
+        <PageBanner
+          variant="error"
+          title="Signup request failed"
+          description={state.signupError}
+        />
+      ) : null}
+
       {state.createdResult ? (
         <PageBanner
           variant="success"
@@ -458,15 +471,13 @@ export function Admin() {
           signupLoading={state.signupLoading}
         />
 
-        {state.signupLoading || state.signupRequests.length > 0 ? (
-          <AdminSignupRequestsTable
-            requests={state.signupRequests}
-            loading={state.signupLoading}
-            actingId={state.signupActingId}
-            onApprove={handleApproveSignupRequest}
-            onReject={handleRejectSignupRequest}
-          />
-        ) : null}
+        <AdminSignupRequestsTable
+          requests={state.signupRequests}
+          loading={state.signupLoading}
+          actingId={state.signupActingId}
+          onApprove={handleApproveSignupRequest}
+          onReject={handleRejectSignupRequest}
+        />
 
         <AdminTenantTable
           tenants={state.tenants}

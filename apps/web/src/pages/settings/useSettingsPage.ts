@@ -139,7 +139,7 @@ export function useSettingsPage(isSuperAdmin = false) {
   function handleRemoveVaultEntry(endpointId: string) {
     removeEndpointSecret(endpointId)
     dispatchVault({ type: 'remove_entry', endpointId })
-    toast.success('Secret removed from this browser')
+    toast.success('Secret removed from this session')
   }
 
   return {

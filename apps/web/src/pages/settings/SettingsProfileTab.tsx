@@ -198,7 +198,7 @@ export function SettingsProfileTab() {
               }
             >
               <RotateCcw className="size-3.5" aria-hidden="true" />
-              Reset
+              Clear form
             </CatalogButton>
           </div>
         }

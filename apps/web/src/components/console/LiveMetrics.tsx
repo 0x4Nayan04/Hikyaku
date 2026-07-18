@@ -31,7 +31,7 @@ const metrics: {
   },
   {
     label: 'Deferred',
-    hint: 'Waiting for retry',
+    hint: 'Rate-limited; will retry',
     key: 'deliveries_deferred',
     icon: PauseCircle,
     tone: 'warning',

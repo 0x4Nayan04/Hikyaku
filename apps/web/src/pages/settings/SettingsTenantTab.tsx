@@ -44,7 +44,10 @@ export function SettingsTenantTab() {
         </SettingsCatalogList>
       ) : (
         <div className="px-5 py-4">
-          <p className="text-sm text-muted-strong">Workspace details are unavailable.</p>
+          <p className="text-sm text-muted-strong">
+            No workspace is linked to this account. Tenant operators see the workspace name and ID
+            here after signing in with a tenant account.
+          </p>
         </div>
       )}
     </DataPanel>

@@ -55,7 +55,7 @@ export function AdminOperators() {
       setOperators(result.data)
       setTotal(result.total)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load operators')
+      setError(err instanceof ApiError ? err.message : 'Failed to load admins')
     } finally {
       setLoading(false)
     }
@@ -71,10 +71,10 @@ export function AdminOperators() {
     try {
       await deleteOperator(pendingDelete.id)
       setPendingDelete(null)
-      toast.success('Operator removed')
+      toast.success('Admin removed')
       await loadOperators()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to remove operator')
+      toast.error(err instanceof ApiError ? err.message : 'Failed to remove admin')
     } finally {
       setDeleting(false)
     }
@@ -83,26 +83,26 @@ export function AdminOperators() {
   return (
     <ConsolePage
       marker="Platform · Admin"
-      title="Operators"
-      description="Invite and manage platform operators."
+      title="Admins"
+      description="Invite and manage platform administrators."
       actions={
         <CatalogButton size="sm" onClick={() => setInviteOpen(true)}>
           <Link2 className="size-4" strokeWidth={1.75} />
-          Invite operator
+          Invite admin
         </CatalogButton>
       }
     >
       {error ? (
-        <PageBanner variant="error" title="Could not load operators" description={error} />
+        <PageBanner variant="error" title="Could not load admins" description={error} />
       ) : null}
       {loading && operators.length === 0 ? (
         <PageLoading variant="table" />
       ) : (
         <DataPanel
-          title="Platform operators"
-          description={`${total.toLocaleString()} operators`}
+          title="Platform admins"
+          description={`${total.toLocaleString()} admins`}
           loading={loading}
-          empty={operators.length === 0 ? 'No platform operators yet.' : undefined}
+          empty={operators.length === 0 ? 'No platform admins yet.' : undefined}
           footer={
             operators.length > 0 ? (
               <PaginationBar
@@ -148,9 +148,9 @@ export function AdminOperators() {
                         disabled={cannotDelete}
                         title={
                           isSelf
-                            ? 'You cannot remove your own operator account'
+                            ? 'You cannot remove your own admin account'
                             : total <= 1
-                              ? 'The last platform operator cannot be removed'
+                              ? 'The last platform admin cannot be removed'
                               : undefined
                         }
                         onClick={() => setPendingDelete(operator)}
@@ -192,7 +192,7 @@ export function AdminOperators() {
       >
         <CatalogDialogContent className="sm:max-w-md">
           <CatalogDialogHeader>
-            <CatalogDialogTitle>Remove operator</CatalogDialogTitle>
+            <CatalogDialogTitle>Remove admin</CatalogDialogTitle>
             <CatalogDialogDescription className="text-muted-strong">
               Remove {pendingDelete?.email}? They will lose platform admin access immediately.
             </CatalogDialogDescription>
