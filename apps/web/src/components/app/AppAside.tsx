@@ -2,6 +2,7 @@ import { BookOpen, Shield } from 'lucide-react'
 import type { MeResponse } from '@/api/types'
 import { AppNav } from '@/components/app/AppNav'
 import { cn } from '@/lib/utils'
+import { APP_NAME } from '@/lib/app-meta'
 
 type AppAsideProps = {
   session: MeResponse | null
@@ -19,7 +20,7 @@ function workspaceInitials(name: string): string {
 
 export function AppAside({ session, loading, isSuperAdmin, className }: AppAsideProps) {
   const workspaceLabel = isSuperAdmin
-    ? 'Webhook Delivery'
+    ? APP_NAME
     : (session?.tenant?.name ?? (loading ? 'Loading…' : 'Workspace'))
 
   const contextLabel = isSuperAdmin ? 'Platform' : 'Workspace'

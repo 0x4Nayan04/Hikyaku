@@ -13,37 +13,40 @@ export function ConsoleGuidePage() {
     <DocsArticle
       slug="console-guide"
       title="Console guide"
-      description="Operate day-to-day from the browser"
+      description="Tenant pages and platform admin"
       toc={TOC}
     >
       <p className="docs-v2-prose">
-        After you <Link to="/signup">sign up</Link> (and a super-admin approves you) — or accept an invite — you land in
-        a tenant workspace. Everything in the console is scoped to that tenant.
+        After you <Link to="/signup">request access</Link> (and a super-admin approves) — or accept
+        an invite — you land in a tenant workspace. Console data is scoped to that tenant.
       </p>
 
       <DocsHeading id="tenant-console" level={2}>
         Tenant console
       </DocsHeading>
-      <p className="docs-v2-prose">Use these pages to ship and debug without leaving the browser:</p>
+      <p className="docs-v2-prose">Pages available to tenant users:</p>
       <ul className="docs-v2-list">
         <li>
-          <strong>Dashboard</strong> — check whether deliveries are healthy (success rate, queue depth, recent
-          activity).
+          <strong>Dashboard</strong> — ingest volume, queue depth, 24h outcomes, and recent
+          activity.
         </li>
         <li>
-          <strong>Endpoints</strong> — register a receiver URL and copy the signing secret shown once at create.
+          <strong>Endpoints</strong> — register a receiver URL and copy the signing secret shown
+          once at create.
         </li>
         <li>
-          <strong>Events</strong> — browse what you ingested and open an event to see its deliveries.
+          <strong>Events</strong> — browse ingested events and open one to see its deliveries.
         </li>
         <li>
-          <strong>Send event</strong> — fire a test payload from the UI when you do not want to use curl.
+          <strong>Send event</strong> — POST a test payload from the UI.
         </li>
         <li>
-          <strong>Deliveries</strong> — filter by status, inspect attempt timelines, and replay failures.
+          <strong>Deliveries</strong> — filter by status, inspect attempt timelines, and replay
+          failures.
         </li>
         <li>
-          <strong>Settings</strong> — manage API keys, the browser-local endpoint secrets vault, and your account.
+          <strong>Settings</strong> — API keys, browser-local endpoint secrets vault, and account
+          password.
         </li>
       </ul>
 
@@ -51,9 +54,10 @@ export function ConsoleGuidePage() {
         Platform admin
       </DocsHeading>
       <p className="docs-v2-prose">
-        Super-admins use <strong>Admin</strong> for platform ops: bootstrap once at{' '}
-        <Link to="/bootstrap">/bootstrap</Link>, then manage tenants, users, invites, signup approvals, and the audit
-        log. Super-admins are not tenant-scoped — they cannot open tenant dashboard pages.
+        Super-admins use <strong>Admin</strong> for platform operations: bootstrap once at{' '}
+        <Link to="/bootstrap">/bootstrap</Link>, then manage tenants, users, invites, signup
+        approvals, and the audit log. Super-admins are not tenant-scoped — they cannot open tenant
+        dashboard pages.
       </p>
     </DocsArticle>
   )

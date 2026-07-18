@@ -78,7 +78,7 @@ export function SettingsApiKeyDialogs({
           </div>
 
           <CatalogDialogFooter className="mx-0 mb-0 mt-0">
-            <CatalogButton onClick={() => onSecretKeyChange(null)}>Done</CatalogButton>
+            <CatalogButton size="sm" onClick={() => onSecretKeyChange(null)}>Done</CatalogButton>
           </CatalogDialogFooter>
         </CatalogDialogContent>
       </CatalogDialog>
@@ -116,14 +116,14 @@ export function SettingsApiKeyDialogs({
           </div>
 
           <CatalogDialogFooter className="mx-0 mb-0 mt-0">
-            <CatalogButton
+            <CatalogButton size="sm"
               variant="secondary"
               onClick={() => onRevokeTargetChange(null)}
               disabled={revokingId !== null}
             >
               Cancel
             </CatalogButton>
-            <CatalogButton onClick={onRevoke} disabled={revokingId !== null}>
+            <CatalogButton size="sm" onClick={onRevoke} disabled={revokingId !== null}>
               {revokingId ? 'Revoking…' : 'Revoke key'}
             </CatalogButton>
           </CatalogDialogFooter>

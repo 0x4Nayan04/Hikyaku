@@ -115,27 +115,26 @@ export function Signup() {
     <AuthLayout
       variant="split"
       eyebrow="Request access"
-      title="Sign up for a tenant workspace"
-      description="Create a dedicated workspace for your company and request access to the delivery console."
+      title="Request a tenant workspace"
+      description="Submit a signup request. A platform admin approves access before you can sign in."
       sidePanel={
         <div className="flex flex-col gap-6 h-full">
           <div className="flex flex-col gap-6 flex-1">
             <div>
               <h2 className="font-display text-xl font-medium tracking-tight text-ink">
-                A dedicated webhook delivery console for your team
+                Delivery console
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-strong">
-                Monitor, debug, and manage webhook deliveries across all your services from a single
-                workspace.
+                Manage endpoints, send events, and inspect delivery attempts for your tenant.
               </p>
             </div>
 
             <ul className="space-y-3 text-sm">
               {([
-                'Real-time delivery monitoring and debugging',
-                'Configurable retry policies and rate limiting',
-                'Inspect event payloads and delivery logs',
-                'Team-based access with role management',
+                'Delivery metrics and recent activity',
+                'Automatic retries with exponential backoff',
+                'Event payloads and attempt history',
+                'Tenant users and platform operators',
               ] as const).map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
                   <Check className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />
@@ -146,10 +145,10 @@ export function Signup() {
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-sm border border-border bg-surface p-4 text-sm leading-relaxed text-muted-foreground">
+            <div className="rounded-none border border-border bg-surface p-4 text-sm leading-relaxed text-muted-foreground">
               <p className="font-medium text-foreground">Approval required</p>
               <p className="mt-1">
-                A platform admin reviews your request. You can sign in after your account is approved.
+                A platform admin reviews your request. You can sign in after approval.
               </p>
             </div>
             <AuthFooterLink prompt="Already have an account?" linkLabel="Sign in" to="/login" />

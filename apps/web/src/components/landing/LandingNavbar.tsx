@@ -1,12 +1,13 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowRight, LayoutDashboard, Menu, X } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { WebhookMark } from '@/components/auth/WebhookMark'
+import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { useFocusTrap } from '@/components/accessibility/Accessibility'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useScrollSpy } from '@/hooks/useScrollSpy'
 import { getDefaultHomePath } from '@/lib/auth-redirect'
+import { APP_HOME_LABEL, APP_NAME } from '@/lib/app-meta'
 import { useSession } from '@/providers/session-context'
 
 const LANDING_SECTION_IDS = ['how-it-works', 'console', 'faq']
@@ -61,10 +62,10 @@ export const LandingNavbar = memo(function LandingNavbar() {
   }, [])
 
   const primaryCta = isLogin
-    ? { label: 'Get started free', path: '/signup' }
+    ? { label: 'Request access', path: '/signup' }
     : isSignup
       ? { label: 'Sign in', path: '/login' }
-      : { label: 'Get started free', path: '/signup' }
+      : { label: 'Request access', path: '/signup' }
 
   return (
     <header className="landing-nav">
@@ -74,10 +75,10 @@ export const LandingNavbar = memo(function LandingNavbar() {
             href="/"
             onClick={goHome}
             className="landing-nav-brand focus-ring"
-            aria-label="Webhook Delivery — home"
+            aria-label={APP_HOME_LABEL}
           >
-            <WebhookMark className="size-7 shrink-0 text-primary" />
-            <span className="landing-nav-brand-text">Webhook Delivery</span>
+            <HikyakuMark className="size-7 shrink-0" />
+            <span className="landing-nav-brand-text">{APP_NAME}</span>
           </a>
 
           <nav className="landing-nav-links hidden md:flex" aria-label="Page sections">

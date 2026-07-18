@@ -127,8 +127,7 @@ export function AdminTenantTable({
                 </DataTableCell>
                 <DataTableCell className="admin-tenant-table__col-id hidden md:table-cell">
                   <div className="flex min-w-0 items-center gap-1">
-                    <code
-                      className="truncate font-mono text-xs text-muted-strong"
+                    <code className="truncate font-mono text-xs text-muted-strong"
                       title={tenant.id}
                     >
                       {tenant.id.slice(0, 8)}…{tenant.id.slice(-4)}
@@ -150,8 +149,9 @@ export function AdminTenantTable({
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <CatalogButton
+                        size="sm"
                         variant="secondary"
-                        className="inline-flex h-[1.875rem] min-h-0 items-center gap-1 px-2.5 text-xs"
+                        className="inline-flex items-center gap-1"
                         aria-label={`Manage ${tenant.name}`}
                       >
                         Manage
@@ -224,17 +224,15 @@ export function AdminTenantTable({
             </CatalogDialogDescription>
           </CatalogDialogHeader>
           <CatalogDialogFooter>
-            <CatalogButton
+            <CatalogButton size="sm"
               variant="secondary"
               onClick={() => setStatusTarget(null)}
               disabled={statusUpdatingId !== null}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
               Cancel
             </CatalogButton>
-            <CatalogButton
+            <CatalogButton size="sm"
               disabled={statusTarget === null || statusUpdatingId !== null}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
               onClick={async () => {
                 if (!statusTarget) return
                 setStatusUpdatingId(statusTarget.id)
@@ -276,8 +274,7 @@ export function AdminTenantTable({
           }
         }}
       >
-        <CatalogDialogContent
-          className="sm:max-w-md"
+        <CatalogDialogContent className="sm:max-w-md"
           onOpenAutoFocus={(event) => {
             event.preventDefault()
             cancelDeleteRef.current?.focus()
@@ -307,7 +304,7 @@ export function AdminTenantTable({
             />
           </div>
           <CatalogDialogFooter>
-            <CatalogButton
+            <CatalogButton size="sm"
               ref={cancelDeleteRef}
               variant="secondary"
               onClick={() => {
@@ -315,12 +312,10 @@ export function AdminTenantTable({
                 setDeleteConfirmation('')
               }}
               disabled={deletingId !== null}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
               Cancel
             </CatalogButton>
-            <CatalogButton
-              className="bg-status-danger text-white hover:bg-status-danger/90 h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
+            <CatalogButton size="sm" className="bg-status-danger text-white hover:bg-status-danger/90"
               disabled={
                 deletingId !== null ||
                 deleteTarget === null ||

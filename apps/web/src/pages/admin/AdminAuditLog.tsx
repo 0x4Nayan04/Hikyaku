@@ -97,7 +97,7 @@ function AuditDetailsCell({ metadata }: { metadata: AuditLogEntry['metadata'] })
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="block w-full min-w-0 cursor-pointer truncate text-left hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="block w-full min-w-0 cursor-pointer truncate text-left hover:text-foreground catalog-focus"
           aria-label={`Show full details: ${text}`}
         >
           {text}
@@ -107,7 +107,7 @@ function AuditDetailsCell({ metadata }: { metadata: AuditLogEntry['metadata'] })
         align="end"
         side="top"
         collisionPadding={12}
-        className="w-80 max-w-[min(20rem,calc(100vw-2rem))] gap-3 border border-border bg-background shadow-lg"
+        className="w-80 max-w-[min(20rem,calc(100vw-2rem))] gap-3 border border-border bg-background shadow-none"
       >
         <PopoverHeader className="flex-row items-center justify-between gap-2">
           <PopoverTitle className="font-mono text-xs font-semibold tracking-wider text-muted-strong uppercase">
@@ -162,7 +162,7 @@ export function AdminAuditLog() {
     <ConsolePage
       marker="Platform · Admin"
       title="Audit log"
-      description="Review platform administration activity."
+      description="Platform administration actions."
       toolbar={
         <div className="w-full sm:w-64">
           <CatalogSelect

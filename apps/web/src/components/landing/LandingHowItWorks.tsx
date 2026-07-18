@@ -1,4 +1,4 @@
-import { Inbox, Send, ShieldCheck } from 'lucide-react'
+import { ArrowDownToLine, RadioTower, RotateCcw } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 
@@ -6,77 +6,56 @@ type Step = {
   icon: LucideIcon
   title: string
   description: string
-  detail: string
   number: string
 }
 
 const STEPS: Step[] = [
   {
-    icon: Inbox,
-    title: 'Ingest',
-    description: 'POST event → single endpoint',
-    detail: 'Send a JSON payload with your tenant API key. We validate, enqueue, and prepare fan-out.',
+    icon: ArrowDownToLine,
+    title: 'Ingest the event',
+    description: 'POST JSON to the ingest API. Hikyaku validates it and returns 202 Accepted.',
     number: '01',
   },
   {
-    icon: ShieldCheck,
-    title: 'Sign',
-    description: 'HMAC attached to every delivery',
-    detail: 'Each outbound request includes an X-Webhook-Signature header. Receivers verify authenticity without a signing service.',
+    icon: RadioTower,
+    title: 'Deliver per endpoint',
+    description:
+      'Each registered endpoint gets its own HMAC-signed HTTP request with the original payload.',
     number: '02',
   },
   {
-    icon: Send,
-    title: 'Deliver',
-    description: 'Fan out with retries + logging',
-    detail: 'Payloads are delivered to every registered endpoint. Failures retry automatically with exponential backoff — every attempt logged.',
+    icon: RotateCcw,
+    title: 'Retry and inspect',
+    description:
+      'Failed attempts retry with exponential backoff. Status, timing, and response body stay in the console.',
     number: '03',
   },
 ]
 
 export function LandingHowItWorks() {
   return (
-    <section
-      id="how-it-works"
-      className="scroll-mt-[calc(var(--nav-height)+var(--section-bar-height))] border-t border-border bg-surface"
-      aria-labelledby="how-it-works-heading"
-    >
-      <LandingFrameInner className="landing-section-intro">
-        <p className="landing-section-kicker">Workflow</p>
-        <h2 id="how-it-works-heading" className="landing-section-title text-ink">
-          How it works
-        </h2>
-        <p className="landing-section-lead max-w-xl">
-          From a single API call to verified delivery at every endpoint.
-        </p>
-      </LandingFrameInner>
+    <section id="how-it-works" className="lp-flow" aria-labelledby="how-it-works-heading">
+      <LandingFrameInner className="lp-section">
+        <header className="lp-section-heading lp-section-heading--centered">
+          <p className="lp-kicker">Ingest → deliver → retry</p>
+          <h2 id="how-it-works-heading">How delivery works</h2>
+          <p>
+            One ingest API, per-endpoint signed deliveries, automatic retries, and attempt history
+            in the console.
+          </p>
+        </header>
 
-      <LandingFrameInner className="pb-[var(--section-pad-y)]">
-        <ol
-          className="grid gap-3 sm:grid-cols-3 m-0 list-none p-0"
-          aria-label="How webhook delivery works"
-        >
+        <ol className="lp-steps">
           {STEPS.map((step) => (
-            <li
-              key={step.title}
-              className="relative flex flex-col gap-3 rounded-xl border border-border bg-surface p-6"
-            >
-              <div className="flex items-center gap-3">
-                <span className="flex size-11 items-center justify-center rounded-lg border border-border bg-background-alt">
-                  <step.icon className="size-5 text-primary" strokeWidth={1.6} />
+            <li key={step.number}>
+              <div className="lp-step__top">
+                <span className="lp-step__icon">
+                  <step.icon className="size-5" aria-hidden="true" />
                 </span>
-                <span className="font-mono text-xs font-medium tracking-wider text-muted-strong">
-                  Step {step.number}
-                </span>
+                <span className="lp-step__number">{step.number}</span>
               </div>
-              <div>
-                <h3 className="font-display text-lg font-semibold tracking-tight text-ink">
-                  {step.title}
-                </h3>
-                <p className="mt-1 text-sm leading-relaxed text-muted-strong">
-                  {step.detail}
-                </p>
-              </div>
+              <h3>{step.title}</h3>
+              <p>{step.description}</p>
             </li>
           ))}
         </ol>

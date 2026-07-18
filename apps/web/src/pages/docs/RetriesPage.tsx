@@ -15,18 +15,20 @@ export function RetriesPage() {
     <DocsArticle
       slug="retries"
       title="Retries & rate limits"
-      description="How failed deliveries recover — and when they stop"
+      description="Backoff, fail-fast, deferred deliveries, and replay"
       toc={TOC}
     >
       <p className="docs-v2-prose">
-        Transient failures are retried automatically. Permanent client errors fail fast. When a delivery is exhausted,
-        you can replay it from the API or the console.
+        Transient failures retry automatically. Permanent client errors fail fast. After a delivery
+        is exhausted, you can replay it from the API or the console.
       </p>
 
       <DocsHeading id="policy" level={2}>
         Retry policy
       </DocsHeading>
-      <p className="docs-v2-prose">Each delivery gets up to five HTTP attempts with exponential backoff and jitter:</p>
+      <p className="docs-v2-prose">
+        Each delivery gets up to five HTTP attempts with exponential backoff and jitter:
+      </p>
       <DocsTable label="Policy">
         <thead>
           <tr>
@@ -67,9 +69,9 @@ export function RetriesPage() {
       </DocsHeading>
       <DocsCallout variant="info" label="Deferred deliveries">
         <p>
-          When a tenant hits the rate limit, the delivery pauses as <code>deferred</code> for about 60 seconds. That
-          pause is not a failure and does not count toward the five-attempt cap. Check deferred and failed rows under{' '}
-          <strong>Deliveries</strong>.
+          When a tenant hits the rate limit, the delivery pauses as <code>deferred</code> for about
+          60 seconds. That pause is not a failure and does not count toward the five-attempt cap.
+          Check deferred and failed rows under <strong>Deliveries</strong>.
         </p>
       </DocsCallout>
 
@@ -78,9 +80,9 @@ export function RetriesPage() {
       </DocsHeading>
       <p className="docs-v2-prose">
         Only <code>failed</code> deliveries can be re-queued. Call{' '}
-        <DocsApiRoute method="POST" path="/v1/deliveries/:id/replay" /> (returns <code>202</code>), or use{' '}
-        <strong>Replay</strong> on the delivery detail page in the console. Pending, in-progress, succeeded, and deferred
-        deliveries are not replayable.
+        <DocsApiRoute method="POST" path="/v1/deliveries/:id/replay" /> (returns <code>202</code>),
+        or use <strong>Replay</strong> on the delivery detail page. Pending, in-progress, succeeded,
+        and deferred deliveries are not replayable.
       </p>
     </DocsArticle>
   )

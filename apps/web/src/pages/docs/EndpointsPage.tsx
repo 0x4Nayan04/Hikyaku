@@ -15,13 +15,13 @@ export function EndpointsPage() {
     <DocsArticle
       slug="endpoints"
       title="Endpoints"
-      description="Register subscriber URLs and signing secrets"
+      description="Receiver URLs and signing secrets"
       toc={TOC}
     >
       <p className="docs-v2-prose">
         An endpoint is a subscriber URL that receives signed webhook POSTs. Create one with{' '}
-        <DocsApiRoute method="POST" path="/v1/endpoints" /> — the signing secret is returned once. Active endpoints
-        receive fan-out; disabled endpoints do not.
+        <DocsApiRoute method="POST" path="/v1/endpoints" /> — the signing secret is returned once.
+        Active endpoints receive fan-out; disabled endpoints do not.
       </p>
 
       <DocsHeading id="create" level={2}>
@@ -43,8 +43,8 @@ export function EndpointsPage() {
       </p>
       <DocsCallout variant="warning" label="Browser vault">
         <p>
-          Secrets saved in Settings stay in this browser only — useful for local checks, not a backup. Copy the secret
-          into your secret manager when the endpoint is created.
+          Secrets saved in Settings stay in this browser only — useful for local checks, not a
+          durable backup. Copy the secret into your secret manager when the endpoint is created.
         </p>
       </DocsCallout>
     </DocsArticle>

@@ -2,31 +2,47 @@
 <html lang="en" suppressHydrationWarning>
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1f3a5f" />
     <meta
       name="description"
-      content="Webhook Delivery — multi-tenant webhook platform with signed deliveries, retries, and live observability."
+      content="Hikyaku — multi-tenant webhook delivery with HMAC-signed HTTP, automatic retries, and a console for events and deliveries."
     />
-    <meta property="og:title" content="Webhook Delivery" />
-    <meta property="og:description" content="Multi-tenant webhook platform with signed deliveries, retries, and live observability." />
+    <meta property="og:title" content="Hikyaku" />
+    <meta
+      property="og:description"
+      content="Multi-tenant webhook delivery with HMAC-signed HTTP, automatic retries, and a console for events and deliveries."
+    />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://webhook-delivery.app" />
+    <meta property="og:image" content="/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Hikyaku — signed webhook delivery" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Hikyaku" />
+    <meta
+      name="twitter:description"
+      content="Multi-tenant webhook delivery with HMAC-signed HTTP, automatic retries, and a console for events and deliveries."
+    />
+    <meta name="twitter:image" content="/og.png" />
+    <meta name="twitter:image:alt" content="Hikyaku — signed webhook delivery" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <title>Webhook Delivery</title>
+    <title>Hikyaku</title>
     <style>
       html {
-        background-color: #f5f9ff;
+        background-color: #f4f6f8;
         color-scheme: light;
       }
       body {
         margin: 0;
-        background-color: #f5f9ff;
+        background-color: #f4f6f8;
       }
       #root {
         min-height: 100svh;
@@ -35,11 +51,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module">
-      if (import.meta.env.DEV) {
-        import("react-grab");
-      }
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

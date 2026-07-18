@@ -79,7 +79,7 @@ const appNavSections: AppNavSection[] = [
         title: 'Dashboard',
         to: '/dashboard',
         icon: LayoutDashboard,
-        description: 'Delivery health and activity',
+        description: 'Delivery metrics and activity',
         tenantOnly: true,
       },
     ],
@@ -106,7 +106,7 @@ const appNavSections: AppNavSection[] = [
         title: 'Send event',
         to: '/events/send',
         icon: Send,
-        description: 'Test your pipeline',
+        description: 'Send a test event',
         tenantOnly: true,
       },
       {

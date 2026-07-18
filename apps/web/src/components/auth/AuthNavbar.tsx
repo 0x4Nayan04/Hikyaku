@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-import { WebhookMark } from '@/components/auth/WebhookMark'
+import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
+import { APP_HOME_LABEL, APP_NAME } from '@/lib/app-meta'
 
 export function AuthNavbar() {
   return (
@@ -11,14 +12,14 @@ export function AuthNavbar() {
           <Link
             to="/"
             className="landing-nav-brand focus-ring"
-            aria-label="Webhook Delivery — home"
+            aria-label={APP_HOME_LABEL}
           >
-            <WebhookMark className="size-7 shrink-0 text-primary" />
-            <span className="landing-nav-brand-text">Webhook Delivery</span>
+            <HikyakuMark className="size-7 shrink-0" />
+            <span className="landing-nav-brand-text">{APP_NAME}</span>
           </Link>
           <Link
             to="/"
-            className="sm-btn sm-btn-secondary focus-ring"
+            className="sm-btn sm-btn-sm sm-btn-secondary focus-ring"
           >
             <ArrowLeft className="mr-2 size-4" />
             Back to home

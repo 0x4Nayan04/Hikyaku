@@ -127,26 +127,22 @@ export function AdminInviteOperatorDialog({
           </div>
 
           <CatalogDialogFooter>
-            <CatalogButton
+            <CatalogButton size="sm"
               type="button"
               variant="secondary"
               onClick={() => handleOpenChange(false)}
               disabled={form.submitting}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
               Cancel
             </CatalogButton>
-            <CatalogButton
+            <CatalogButton size="sm"
               type="submit"
-              disabled={form.submitting}
-              className="sm-btn-split h-[2.125rem] min-h-0"
+              disabled={form.submitting} className="sm-btn-split"
             >
-              <span className="sm-btn-split-label text-[0.8125rem]">
+              <span className="sm-btn-split-label">
                 {form.submitting ? 'Creating…' : 'Create invite'}
               </span>
-              <span
-                className="sm-btn-split-icon"
-                style={{ width: '2.125rem', minWidth: '2.125rem' }}
+              <span className="sm-btn-split-icon"
               >
                 <ArrowRight className="size-3.5" aria-hidden="true" />
               </span>

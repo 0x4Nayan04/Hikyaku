@@ -2,10 +2,11 @@ import { memo, useCallback, useState } from 'react'
 import { LayoutDashboard } from 'lucide-react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 
-import { WebhookMark } from '@/components/auth/WebhookMark'
+import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { DocsSearch, DocsSearchTrigger } from '@/components/docs/DocsSearch'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { getDefaultHomePath } from '@/lib/auth-redirect'
+import { APP_NAME } from '@/lib/app-meta'
 import { useSession } from '@/providers/session-context'
 
 export const DocsHeader = memo(function DocsHeader() {
@@ -26,9 +27,9 @@ export const DocsHeader = memo(function DocsHeader() {
       <header className="docs-v2-header">
         <LandingFrameInner className="docs-v2-header-inner">
           <div className="docs-v2-header-brand">
-            <Link to="/" className="docs-v2-header-logo focus-ring" aria-label="Webhook Delivery home">
-              <WebhookMark className="size-6 shrink-0 text-primary" />
-              <span>Webhook Delivery</span>
+            <Link to="/" className="docs-v2-header-logo focus-ring" aria-label={`${APP_NAME} home`}>
+              <HikyakuMark className="size-7 shrink-0" />
+              <span>{APP_NAME}</span>
             </Link>
             <span className="docs-v2-header-divider" aria-hidden="true" />
             <NavLink to="/docs" end className="docs-v2-header-docs-link">

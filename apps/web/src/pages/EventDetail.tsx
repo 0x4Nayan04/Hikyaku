@@ -86,10 +86,10 @@ export function EventDetail() {
       description={
         event
           ? `Ingested ${formatDateTime(event.created_at)}`
-          : 'Inspect payload and delivery outcomes for a single ingested event.'
+          : 'Payload and delivery outcomes for one event.'
       }
       actions={
-        <CatalogButton variant="secondary" asChild className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]">
+        <CatalogButton size="sm" variant="secondary" asChild>
           <Link to="/events">
             <ArrowLeft className="size-3.5" aria-hidden="true" />
             Back to events

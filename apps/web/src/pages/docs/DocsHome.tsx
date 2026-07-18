@@ -3,6 +3,7 @@ import { ArrowRight, BookOpen, FileCode, Layers, Settings, Zap } from 'lucide-re
 
 import { DocsBadge } from '@/components/docs/DocsBadge'
 import { DOCS_NAV, docPath } from '@/docs/config'
+import { APP_NAME } from '@/lib/app-meta'
 
 const GROUP_ICONS = {
   'Getting started': BookOpen,
@@ -22,12 +23,12 @@ export function DocsHome() {
           </div>
 
           <h1 id="docs-overview-title" className="docs-v2-home-title">
-            Webhook Delivery Docs
+            {APP_NAME} Docs
           </h1>
 
           <p className="docs-v2-home-lead">
-            Everything you need to ingest events, deliver signed webhooks,
-            and operate the console — from first request to production.
+            API and console docs for ingesting events, HMAC-signed deliveries, retries, and
+            the operator console.
           </p>
 
           <div className="docs-v2-home-actions">

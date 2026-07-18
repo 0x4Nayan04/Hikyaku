@@ -16,12 +16,12 @@ export function IngestPage() {
     <DocsArticle
       slug="ingest"
       title="Ingest events"
-      description="Accept events once, fan them out safely"
+      description="POST /v1/events, idempotency, and event status"
       toc={TOC}
     >
       <p className="docs-v2-prose">
-        Post an event to <DocsApiRoute method="POST" path="/v1/events" />. The body must include three fields and stay
-        under <strong>256 KiB</strong> when serialized.
+        Post an event to <DocsApiRoute method="POST" path="/v1/events" />. The body must include three
+        fields and stay under <strong>256 KiB</strong> when serialized.
       </p>
 
       <DocsHeading id="request" level={2}>
@@ -72,11 +72,12 @@ export function IngestPage() {
         Event statuses
       </DocsHeading>
       <p className="docs-v2-prose">
-        An event’s status rolls up from its deliveries: <code>pending</code> while anything is still open,{' '}
-        <code>failed</code> when every delivery failed, and <code>completed</code> once all deliveries are terminal and
-        at least one succeeded. List events with <DocsApiRoute method="GET" path="/v1/events" />, or open a single event
-        with <DocsApiRoute method="GET" path="/v1/events/:id" />. The console <strong>Events</strong> and{' '}
-        <strong>Send event</strong> pages wrap the same APIs.
+        An event’s status rolls up from its deliveries: <code>pending</code> while anything is still
+        open, <code>failed</code> when every delivery failed, and <code>completed</code> once all
+        deliveries are terminal and at least one succeeded. List events with{' '}
+        <DocsApiRoute method="GET" path="/v1/events" />, or open a single event with{' '}
+        <DocsApiRoute method="GET" path="/v1/events/:id" />. The console <strong>Events</strong> and{' '}
+        <strong>Send event</strong> pages use the same APIs.
       </p>
       <DocsCallout variant="info" label="Idempotency">
         <p>

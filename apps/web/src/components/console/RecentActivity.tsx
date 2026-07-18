@@ -137,7 +137,7 @@ export function RecentActivity({ items, lastUpdated, isLive, onRefresh }: Recent
   return (
     <DataPanel
       title="Recent activity"
-      description="Latest events and delivery attempts"
+      description="Latest events and deliveries"
       actions={
         <Link to="/events" className="ra-cta-btn">
           View all events

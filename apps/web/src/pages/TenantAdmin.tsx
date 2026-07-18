@@ -151,17 +151,15 @@ export function TenantAdmin() {
         <>
           {state.tenant && id ? (
             <>
-              <CatalogButton
+              <CatalogButton size="sm"
                 variant="primary"
-                className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
                 onClick={() => dispatch({ type: 'set_create_open', open: true })}
               >
                 Create user
                 <ArrowRight className="size-3.5" aria-hidden="true" />
               </CatalogButton>
-              <CatalogButton
+              <CatalogButton size="sm"
                 variant="secondary"
-                className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
                 onClick={() => dispatch({ type: 'set_invite_open', open: true })}
               >
                 <Link2 className="size-3.5" aria-hidden="true" />
@@ -169,9 +167,8 @@ export function TenantAdmin() {
               </CatalogButton>
             </>
           ) : null}
-          <CatalogButton
+          <CatalogButton size="sm"
             variant="secondary"
-            className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             asChild
           >
             <Link to="/admin">

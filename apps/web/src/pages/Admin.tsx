@@ -33,6 +33,7 @@ import { AdminInviteTenantDialog } from '@/pages/admin/AdminInviteTenantDialog'
 import { AdminSignupRequestsTable } from '@/pages/admin/AdminSignupRequestsTable'
 import { AdminTenantTable } from '@/pages/admin/AdminTenantTable'
 import { CatalogInput } from '@/components/catalog/CatalogInput'
+import { CatalogButton } from '@/components/catalog/CatalogButton'
 import { formatDateTime } from '@/lib/format'
 
 const PAGE_SIZE = 25
@@ -391,25 +392,24 @@ export function Admin() {
     <ConsolePage
       marker="Platform · Admin"
       title="Tenant management"
-      description="Approve signup requests, provision tenants, and manage platform operators."
+      description="Approve signup requests, create tenants, and manage platform operators."
       actions={
         <>
-          <button
-            type="button"
-            className="console-btn inline-flex items-center gap-2 border border-border bg-surface px-3.5 text-sm font-medium text-ink transition-colors hover:bg-background-alt"
+          <CatalogButton
+            size="sm"
+            variant="secondary"
             onClick={() => dispatch({ type: 'set_invite_open', open: true })}
           >
             <Link2 className="size-4" strokeWidth={1.75} />
             Invite
-          </button>
-          <button
-            type="button"
-            className="console-btn inline-flex items-center gap-2 border border-primary bg-primary px-3.5 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+          </CatalogButton>
+          <CatalogButton
+            size="sm"
             onClick={() => dispatch({ type: 'set_create_open', open: true })}
           >
             <Plus className="size-4" strokeWidth={1.75} />
             Create tenant
-          </button>
+          </CatalogButton>
         </>
       }
       toolbar={

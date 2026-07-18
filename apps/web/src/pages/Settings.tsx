@@ -40,8 +40,8 @@ export function Settings() {
       title="Settings"
       description={
         isSuperAdmin
-          ? 'Manage your account, password, and platform administration access.'
-          : 'Manage tenant access credentials, endpoint secrets, and workspace identity.'
+          ? 'Account password and platform admin access.'
+          : 'Profile, API keys, endpoint secrets, and tenant identity.'
       }
     >
       <CatalogTabs value={tab} onValueChange={setTab}>

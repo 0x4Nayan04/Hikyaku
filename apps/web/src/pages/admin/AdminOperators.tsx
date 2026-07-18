@@ -84,16 +84,12 @@ export function AdminOperators() {
     <ConsolePage
       marker="Platform · Admin"
       title="Operators"
-      description="Invite and manage platform administrators."
+      description="Invite and manage platform operators."
       actions={
-        <button
-          type="button"
-          className="console-btn inline-flex items-center gap-2 border border-primary bg-primary px-3.5 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
-          onClick={() => setInviteOpen(true)}
-        >
+        <CatalogButton size="sm" onClick={() => setInviteOpen(true)}>
           <Link2 className="size-4" strokeWidth={1.75} />
           Invite operator
-        </button>
+        </CatalogButton>
       }
     >
       {error ? (
@@ -146,8 +142,9 @@ export function AdminOperators() {
                     </DataTableCell>
                     <DataTableCell className="text-right">
                       <CatalogButton
+                        size="sm"
                         variant="secondary"
-                        className="h-8 min-h-0 px-2.5 text-xs text-status-danger"
+                        className="text-status-danger"
                         disabled={cannotDelete}
                         title={
                           isSelf
@@ -201,7 +198,7 @@ export function AdminOperators() {
             </CatalogDialogDescription>
           </CatalogDialogHeader>
           <CatalogDialogFooter>
-            <CatalogButton
+            <CatalogButton size="sm"
               type="button"
               variant="secondary"
               disabled={deleting}
@@ -209,7 +206,7 @@ export function AdminOperators() {
             >
               Cancel
             </CatalogButton>
-            <CatalogButton
+            <CatalogButton size="sm"
               type="button"
               disabled={deleting}
               className="bg-status-danger text-white hover:bg-status-danger/90"

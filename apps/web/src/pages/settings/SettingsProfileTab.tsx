@@ -179,25 +179,23 @@ export function SettingsProfileTab() {
 
       <FormPanel
         title="Security"
-        description="Choose a strong, unique password that you don't use elsewhere."
+        description="Password for signing into the console."
         footer={
           <div className="flex flex-wrap items-center gap-3">
-            <CatalogButton
+            <CatalogButton size="sm"
               type="submit"
               form="security-form"
               disabled={!canSubmit}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
               <Lock className="size-3.5" aria-hidden="true" />
               {submitting ? 'Updating…' : 'Update password'}
             </CatalogButton>
-            <CatalogButton
+            <CatalogButton size="sm"
               variant="secondary"
               onClick={handleReset}
               disabled={
                 submitting || (!currentPassword && !newPassword && !confirmPassword)
               }
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
               <RotateCcw className="size-3.5" aria-hidden="true" />
               Reset
@@ -312,10 +310,9 @@ export function SettingsProfileTab() {
               title="Platform administrator"
               description="Tenant-scoped settings such as API keys live in each tenant workspace. Use Admin to manage tenants and invites."
             />
-            <CatalogButton
+            <CatalogButton size="sm"
               variant="secondary"
               asChild
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
               <Link to="/admin">
                 <ExternalLink className="mr-1.5 size-3.5" aria-hidden="true" />

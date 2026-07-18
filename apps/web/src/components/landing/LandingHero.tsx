@@ -1,77 +1,89 @@
-import { ArrowRight, CheckCircle2, LayoutDashboard, RefreshCw, ShieldCheck, TrendingUp } from 'lucide-react'
+import {
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  LayoutDashboard,
+  RadioTower,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+} from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
-import { HeroDotGridWrap } from '@/components/landing/HeroDotGridWrap'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { getDefaultHomePath } from '@/lib/auth-redirect'
 import { PRODUCT_LINKS } from '@/lib/app-meta'
 import { useSession } from '@/providers/session-context'
 
-const DELIVERIES = [
-  { endpoint: 'api.acme.com/webhooks', status: '200', state: 'ok' as const },
-  { endpoint: 'hooks.partner.io/events', status: '200', state: 'ok' as const },
-  { endpoint: 'backup.svc.dev/hooks', status: 'retry', state: 'retry' as const },
+const DESTINATIONS = [
+  { name: 'Billing service', endpoint: 'billing.acme.dev/events', status: 'Delivered', time: '142 ms' },
+  { name: 'CRM sync', endpoint: 'hooks.partner.io/hikyaku', status: 'Delivered', time: '186 ms' },
+  { name: 'Data archive', endpoint: 'archive.acme.dev/webhooks', status: 'Retrying', time: '8s' },
 ]
 
-function HeroDeliveryStage() {
+function DeliveryPreview() {
   return (
-    <div className="landing-hero-stage" aria-label="Webhook ingest and delivery preview">
-      <div className="landing-hero-stage-panel flex flex-col sm:flex-row">
-        <div className="landing-hero-stage-ingest-pane">
-          <div className="landing-hero-stage-head">
-            <div className="landing-hero-stage-ingest">
-              <span className="landing-hero-stage-ingest-label">Ingest</span>
-              <span className="landing-hero-stage-method">POST</span>
-              <code className="landing-hero-stage-path">/v1/events</code>
-            </div>
-            <span className="landing-hero-stage-live">
-              <span className="landing-hero-stage-live-dot" aria-hidden="true" />
-              Fan-out active
-            </span>
-          </div>
-          <ul className="landing-hero-stage-list">
-            {DELIVERIES.map((item) => (
-              <li
-                key={item.endpoint}
-                className={`landing-hero-stage-row landing-hero-stage-row--${item.state}`}
-              >
-                <span className="landing-hero-stage-endpoint">{item.endpoint}</span>
-                <span
-                  className={`landing-hero-stage-status landing-hero-stage-status--${item.state}`}
-                >
-                  {item.state === 'ok' ? (
-                    <CheckCircle2 className="size-3.5" aria-hidden="true" />
-                  ) : (
-                    <RefreshCw className="landing-hero-stage-retry-icon size-3.5" aria-hidden="true" />
-                  )}
-                  <span className="landing-hero-stage-status-text">{item.status}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
+    <div className="lp-route-map" aria-label="Webhook event routing preview">
+      <div className="lp-route-map__header">
+        <span className="lp-live-pill">
+          <span aria-hidden="true" /> Delivery in progress
+        </span>
+        <span>3 destinations</span>
+      </div>
+
+      <div className="lp-route-map__body">
+        <div className="lp-route-map__origin">
+          <span className="lp-route-map__icon" aria-hidden="true">
+            <Send className="size-4" />
+          </span>
+          <span>Your application</span>
+          <strong>order.created</strong>
+          <code>evt_7f2a</code>
         </div>
-        <div className="landing-hero-stage-proof">
-          <div className="landing-hero-proof-item">
-            <ShieldCheck className="size-4 text-primary" strokeWidth={1.5} />
-            <div>
-              <span className="landing-hero-proof-value">HMAC-SHA256</span>
-              <span className="landing-hero-proof-label">signed every delivery</span>
-            </div>
-          </div>
-          <div className="landing-hero-proof-item">
-            <TrendingUp className="size-4 text-primary" strokeWidth={1.5} />
-            <div>
-              <span className="landing-hero-proof-value">5× retries</span>
-              <span className="landing-hero-proof-label">exponential backoff</span>
-            </div>
-          </div>
-          <div className="landing-hero-proof-item">
-            <RefreshCw className="size-4 text-primary" strokeWidth={1.5} />
-            <div>
-              <span className="landing-hero-proof-value">99.9%</span>
-              <span className="landing-hero-proof-label">delivery success rate</span>
-            </div>
+
+        <div className="lp-route-map__handoff" aria-hidden="true">
+          <span />
+          <ArrowRight className="size-4" />
+        </div>
+
+        <div className="lp-route-map__router">
+          <span className="lp-route-map__icon" aria-hidden="true">
+            <RadioTower className="size-5" />
+          </span>
+          <div>
+            <strong>Hikyaku</strong>
+            <span>signs · retries · records</span>
           </div>
         </div>
+
+        <div className="lp-route-map__fanout" aria-hidden="true">
+          <span />
+          <ArrowRight className="size-4" />
+        </div>
+
+        <ul className="lp-route-map__destinations">
+          {DESTINATIONS.map((destination) => (
+            <li key={destination.name} className={destination.status === 'Retrying' ? 'is-retrying' : undefined}>
+              {destination.status === 'Retrying' ? (
+                <RefreshCw className="size-4 lp-spin" aria-hidden="true" />
+              ) : (
+                <CheckCircle2 className="size-4" aria-hidden="true" />
+              )}
+            <div>
+                <strong>{destination.name}</strong>
+                <code>{destination.endpoint}</code>
+              </div>
+              <span>
+                {destination.status} <time>{destination.time}</time>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="lp-route-map__footer">
+        <ShieldCheck className="size-4" aria-hidden="true" />
+        <span>HMAC-SHA256 signed</span>
+        <span>attempt history</span>
       </div>
     </div>
   )
@@ -82,63 +94,59 @@ export function LandingHero() {
   const { session, loading } = useSession()
 
   return (
-    <section className="landing-hero" aria-labelledby="hero-heading">
-      <HeroDotGridWrap wrapClassName="landing-hero-dot-grid">
-        <LandingFrameInner className="landing-hero-inner">
-          <div className="landing-hero-grid">
-            <div className="landing-hero-content">
-              <div className="landing-hero-chip">
-                <span className="landing-hero-chip-tag">Open source</span>
-                <span className="landing-hero-chip-text">Self-host or use our cloud</span>
-              </div>
+    <section className="lp-hero" aria-labelledby="hero-heading">
+      <LandingFrameInner className="lp-hero__inner">
+        <div className="lp-hero__copy">
+          <p className="lp-eyebrow">
+            <span aria-hidden="true">飛脚</span>
+            Webhook delivery
+          </p>
+          <h1 id="hero-heading">Send a webhook once. Track each attempt.</h1>
+          <p className="lp-hero__lead">
+            POST an event to the API. Hikyaku fans it out to your endpoints with HMAC-SHA256
+            signatures, retries failures with exponential backoff, and stores attempt-level history.
+          </p>
 
-              <h1 id="hero-heading" className="landing-hero-title text-ink">
-                One API call.{' '}
-                <span className="hero-heading-em">
-                  Signed delivery to every endpoint<span className="text-primary">.</span>
-                </span>
-              </h1>
-
-              <p className="landing-hero-lead">
-                POST events once. We fan out HMAC-signed HTTP deliveries to all your subscribers
-                with automatic retries, full attempt logging, and a real-time ops console —
-                zero queue infrastructure to build or maintain.
-              </p>
-
-              <div className="landing-hero-actions">
-                {session ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate(getDefaultHomePath(session.user))}
-                    className="sm-btn sm-btn-primary sm-btn-split focus-ring"
-                  >
-                    <span className="sm-btn-split-label">Go to dashboard</span>
-                    <span className="sm-btn-split-icon">
-                      <LayoutDashboard className="size-3.5" aria-hidden="true" />
-                    </span>
-                  </button>
-                ) : !loading ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/signup')}
-                    className="sm-btn sm-btn-primary sm-btn-split focus-ring"
-                  >
-                    <span className="sm-btn-split-label">Get started free</span>
-                    <span className="sm-btn-split-icon">
-                      <ArrowRight className="size-3.5" aria-hidden="true" />
-                    </span>
-                  </button>
-                ) : null}
-                <Link to={PRODUCT_LINKS.docs} className="sm-btn sm-btn-ghost focus-ring">
-                  View docs
-                </Link>
-              </div>
-            </div>
-
-            <HeroDeliveryStage />
+          <div className="lp-hero__actions">
+            {session ? (
+              <button
+                type="button"
+                onClick={() => navigate(getDefaultHomePath(session.user))}
+                className="lp-button lp-button--primary focus-ring"
+              >
+                Go to dashboard
+                <LayoutDashboard className="size-4" aria-hidden="true" />
+              </button>
+            ) : !loading ? (
+              <button
+                type="button"
+                onClick={() => navigate('/signup')}
+                className="lp-button lp-button--primary focus-ring"
+              >
+                Request access
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </button>
+            ) : null}
+            <Link to={PRODUCT_LINKS.docs} className="lp-button lp-button--secondary focus-ring">
+              Read the docs
+            </Link>
           </div>
-        </LandingFrameInner>
-      </HeroDotGridWrap>
+
+          <ul className="lp-hero__proof" aria-label="Product capabilities">
+            <li>
+              <Check className="size-4" aria-hidden="true" /> HMAC-SHA256
+            </li>
+            <li>
+              <Check className="size-4" aria-hidden="true" /> Exponential backoff
+            </li>
+            <li>
+              <Check className="size-4" aria-hidden="true" /> Attempt logs
+            </li>
+          </ul>
+        </div>
+
+        <DeliveryPreview />
+      </LandingFrameInner>
     </section>
   )
 }

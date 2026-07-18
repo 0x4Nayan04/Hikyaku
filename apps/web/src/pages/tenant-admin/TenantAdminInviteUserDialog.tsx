@@ -140,20 +140,19 @@ export function TenantAdminInviteUserDialog({
               </div>
 
               <CatalogDialogFooter>
-                <CatalogButton
+                <CatalogButton size="sm"
                   type="button"
                   variant="secondary"
                   onClick={() => handleOpenChange(false)}
                   disabled={form.submitting}
-                  className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
                 >
                   Cancel
                 </CatalogButton>
-                <CatalogButton type="submit" disabled={form.submitting} className="sm-btn-split h-[2.125rem] min-h-0">
-                  <span className="sm-btn-split-label text-[0.8125rem]">
+                <CatalogButton size="sm" type="submit" disabled={form.submitting} className="sm-btn-split">
+                  <span className="sm-btn-split-label">
                     {form.submitting ? 'Creating…' : 'Create invite'}
                   </span>
-                  <span className="sm-btn-split-icon" style={{ width: '2.125rem', minWidth: '2.125rem' }}>
+                  <span className="sm-btn-split-icon">
                     <ArrowRight className="size-3.5" aria-hidden="true" />
                   </span>
                 </CatalogButton>
@@ -185,10 +184,9 @@ export function TenantAdminInviteUserDialog({
                 <code className="flex-1 overflow-x-auto font-mono text-xs break-all text-foreground">
                   {inviteResult.inviteUrl}
                 </code>
-                <CatalogButton
+                <CatalogButton size="sm"
                   type="button"
-                  variant="secondary"
-                  className="shrink-0 px-2.5"
+                  variant="secondary" className="shrink-0 px-2.5"
                   onClick={copyInviteUrl}
                   aria-label="Copy invite link"
                 >
@@ -198,7 +196,7 @@ export function TenantAdminInviteUserDialog({
             </div>
 
             <CatalogDialogFooter>
-              <CatalogButton type="button" onClick={() => handleOpenChange(false)}>
+              <CatalogButton size="sm" type="button" onClick={() => handleOpenChange(false)}>
                 Done
               </CatalogButton>
             </CatalogDialogFooter>

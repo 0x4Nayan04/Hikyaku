@@ -108,26 +108,25 @@ export function Bootstrap() {
       variant="split"
       eyebrow="One-time setup"
       title="Create the first super-admin"
-      description="This flow runs once per deployment."
+      description="Runs once per deployment to create the initial platform operator."
       sidePanel={
         <div className="flex flex-col gap-6 h-full">
           <div className="flex flex-col gap-6 flex-1">
             <div>
               <h2 className="font-display text-xl font-medium tracking-tight text-ink">
-                A dedicated webhook delivery console for your team
+                Delivery console
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-strong">
-                Monitor, debug, and manage webhook deliveries across all your services from a single
-                workspace.
+                After bootstrap, use Admin to approve signups and provision tenants.
               </p>
             </div>
 
             <ul className="space-y-3 text-sm">
               {([
-                'Real-time delivery monitoring and debugging',
-                'Configurable retry policies and rate limiting',
-                'Inspect event payloads and delivery logs',
-                'Team-based access with role management',
+                'Approve signups and invite tenant owners',
+                'Invite platform operators',
+                'Inspect platform audit activity',
+                'Tenant consoles are separate from Admin',
               ] as const).map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
                   <Check className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />
@@ -136,11 +135,11 @@ export function Bootstrap() {
               ))}
             </ul>
 
-            <div className="rounded-sm border border-border bg-surface p-4 text-sm leading-relaxed text-muted-foreground">
-              <p className="font-medium text-foreground">Bootstrap secret stays server-side</p>
+            <div className="rounded-none border border-border bg-surface p-4 text-sm leading-relaxed text-muted-foreground">
+              <p className="font-medium text-foreground">Bootstrap secret</p>
               <p className="mt-1">
-                Enter the admin bootstrap secret from your deployment environment. It is used once
-                for this request and is never stored in the browser.
+                Use <code className="text-xs">ADMIN_BOOTSTRAP_SECRET</code> from your deployment
+                environment. It is sent once with this request and is not stored in the browser.
               </p>
             </div>
           </div>

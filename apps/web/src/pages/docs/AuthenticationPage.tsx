@@ -17,11 +17,12 @@ export function AuthenticationPage() {
     <DocsArticle
       slug="authentication"
       title="Authentication"
-      description="API keys, console sessions, and how teams get access"
+      description="API keys, sessions, signup, and invites"
       toc={TOC}
     >
       <p className="docs-v2-prose">
-        Use an API key for backends, a session cookie for the console, and a super-admin session for platform ops.
+        Backends use an API key. The console uses a session cookie. Platform ops use a super-admin
+        session.
       </p>
 
       <DocsHeading id="auth-modes" level={2}>
@@ -52,7 +53,7 @@ export function AuthenticationPage() {
             <td>Super-admin session</td>
             <td>Session cookie only</td>
             <td>
-              <strong>Admin</strong> platform ops — not tenant-scoped
+              <strong>Admin</strong> platform routes — not tenant-scoped
             </td>
           </tr>
         </tbody>
@@ -63,12 +64,12 @@ export function AuthenticationPage() {
         API keys
       </DocsHeading>
       <p className="docs-v2-prose">
-        Keys belong to one tenant. The platform resolves the tenant from the key — never from the request body. The full
-        secret is shown once on create or rotate; only a SHA-256 hash is stored.
+        Keys belong to one tenant. The tenant is resolved from the key, never from the request body.
+        The full secret is shown once on create or rotate; only a SHA-256 hash is stored.
       </p>
       <p className="docs-v2-prose">
-        Passwords must be 12–128 characters. Browser login and API keys are separate credentials that resolve to the same
-        tenant for tenant users.
+        Passwords must be 12–128 characters. Browser login and API keys are separate credentials that
+        resolve to the same tenant for tenant users.
       </p>
 
       <DocsHeading id="onboarding" level={2}>
@@ -77,11 +78,12 @@ export function AuthenticationPage() {
       <ul className="docs-v2-list">
         <li>
           <strong>Bootstrap</strong> — create the first super-admin once via{' '}
-          <DocsApiRoute method="POST" path="/v1/auth/bootstrap" /> (requires <code>ADMIN_BOOTSTRAP_SECRET</code>).
+          <DocsApiRoute method="POST" path="/v1/auth/bootstrap" /> (requires{' '}
+          <code>ADMIN_BOOTSTRAP_SECRET</code>).
         </li>
         <li>
-          <strong>Signup</strong> — request access at <Link to="/signup">/signup</Link>; a super-admin approves or
-          rejects on Admin.
+          <strong>Signup</strong> — request access at <Link to="/signup">/signup</Link>; a
+          super-admin approves or rejects on Admin.
         </li>
         <li>
           <strong>Invite</strong> — a super-admin creates a link via{' '}

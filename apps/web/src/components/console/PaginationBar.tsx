@@ -32,6 +32,7 @@ export function PaginationBar({
       </p>
       <div className="pagination-bar__actions">
         <CatalogButton
+          size="sm"
           variant={paginationButtonVariant(canGoBack)}
           className={cn(
             'pagination-bar__btn',
@@ -44,6 +45,7 @@ export function PaginationBar({
           Previous
         </CatalogButton>
         <CatalogButton
+          size="sm"
           variant={paginationButtonVariant(canGoForward)}
           className={cn(
             'pagination-bar__btn',

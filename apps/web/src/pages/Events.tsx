@@ -167,12 +167,12 @@ export function Events() {
   return (
     <ConsolePage
       title="Events"
-      description="Browse ingested events. Open a row to inspect payload and delivery outcomes."
+      description="Ingested events for this tenant. Open a row for payload and delivery outcomes."
       actions={
-        <CatalogButton className="sm-btn-split h-[2.125rem] min-h-0" asChild>
+        <CatalogButton size="sm" className="sm-btn-split" asChild>
           <Link to="/events/send">
-            <span className="sm-btn-split-label text-[0.8125rem]">Send event</span>
-            <span className="sm-btn-split-icon" style={{ width: '2.125rem', minWidth: '2.125rem' }}>
+            <span className="sm-btn-split-label">Send event</span>
+            <span className="sm-btn-split-icon">
               <Send className="size-3.5" aria-hidden="true" />
             </span>
           </Link>

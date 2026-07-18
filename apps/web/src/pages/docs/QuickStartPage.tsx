@@ -16,11 +16,12 @@ export function QuickStartPage() {
     <DocsArticle
       slug="quick-start"
       title="Quick start"
-      description="Send your first webhook in a few minutes"
+      description="Bootstrap, create an endpoint, send a test event"
       toc={TOC}
     >
       <p className="docs-v2-prose">
-        Choose a path below. Both need the API and worker running — <code>pnpm dev</code> starts them together.
+        Pick a path below. Both need the API and worker running — <code>pnpm dev</code> starts them
+        together.
       </p>
 
       <DocsHeading id="console-path" level={2}>

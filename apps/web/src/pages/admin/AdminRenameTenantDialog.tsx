@@ -87,20 +87,19 @@ export function AdminRenameTenantDialog({
           </div>
 
           <CatalogDialogFooter>
-            <CatalogButton
+            <CatalogButton size="sm"
               type="button"
               variant="secondary"
               onClick={() => handleOpenChange(false)}
               disabled={submitting}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
               Cancel
             </CatalogButton>
-            <CatalogButton type="submit" disabled={submitting || !name.trim()} className="sm-btn-split h-[2.125rem] min-h-0">
-              <span className="sm-btn-split-label text-[0.8125rem]">
+            <CatalogButton size="sm" type="submit" disabled={submitting || !name.trim()} className="sm-btn-split">
+              <span className="sm-btn-split-label">
                 {submitting ? 'Renaming…' : 'Rename'}
               </span>
-              <span className="sm-btn-split-icon" style={{ width: '2.125rem', minWidth: '2.125rem' }}>
+              <span className="sm-btn-split-icon">
                 <ArrowRight className="size-3.5" aria-hidden="true" />
               </span>
             </CatalogButton>

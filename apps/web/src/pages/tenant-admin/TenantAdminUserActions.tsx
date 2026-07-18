@@ -72,16 +72,17 @@ export function TenantAdminUserActions({
     <>
       <div className="flex justify-end gap-2">
         <CatalogButton
+          size="sm"
           variant="secondary"
-          className="h-8 min-h-0 px-2.5 text-xs"
           onClick={() => setResetOpen(true)}
         >
           <KeyRound className="size-3.5" aria-hidden="true" />
           Reset password
         </CatalogButton>
         <CatalogButton
+          size="sm"
           variant="secondary"
-          className="h-8 min-h-0 px-2.5 text-xs text-status-danger"
+          className="text-status-danger"
           disabled={cannotDelete}
           title={
             userCount <= 1
@@ -139,7 +140,7 @@ export function TenantAdminUserActions({
               </p>
             </div>
             <CatalogDialogFooter>
-              <CatalogButton
+              <CatalogButton size="sm"
                 type="button"
                 variant="secondary"
                 disabled={submitting}
@@ -147,7 +148,7 @@ export function TenantAdminUserActions({
               >
                 Cancel
               </CatalogButton>
-              <CatalogButton type="submit" disabled={submitting}>
+              <CatalogButton size="sm" type="submit" disabled={submitting}>
                 {submitting ? 'Resetting…' : 'Reset password'}
               </CatalogButton>
             </CatalogDialogFooter>
@@ -164,14 +165,14 @@ export function TenantAdminUserActions({
             </CatalogDialogDescription>
           </CatalogDialogHeader>
           <CatalogDialogFooter>
-            <CatalogButton
+            <CatalogButton size="sm"
               variant="secondary"
               disabled={submitting}
               onClick={() => setDeleteOpen(false)}
             >
               Cancel
             </CatalogButton>
-            <CatalogButton disabled={submitting} onClick={handleDelete}>
+            <CatalogButton size="sm" disabled={submitting} onClick={handleDelete}>
               {submitting ? 'Deleting…' : 'Delete user'}
             </CatalogButton>
           </CatalogDialogFooter>

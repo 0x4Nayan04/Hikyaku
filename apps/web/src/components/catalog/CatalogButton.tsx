@@ -4,13 +4,43 @@ import { Slot } from 'radix-ui'
 import { cn } from '@/lib/utils'
 
 export type CatalogButtonVariant = 'primary' | 'secondary' | 'ghost'
-type CatalogButtonSize = 'default' | 'lg'
+type CatalogButtonSize = 'default' | 'sm' | 'lg'
 
 export type CatalogButtonProps = React.ComponentProps<'button'> & {
   variant?: CatalogButtonVariant
   size?: CatalogButtonSize
   block?: boolean
   asChild?: boolean
+}
+
+function sizeClass(size: CatalogButtonSize): string {
+  switch (size) {
+    case 'sm':
+      return 'sm-btn-sm'
+    case 'lg':
+      return 'sm-btn-lg h-auto'
+    case 'default':
+      return 'h-auto min-h-[var(--form-h)]'
+    default: {
+      const _exhaustive: never = size
+      return _exhaustive
+    }
+  }
+}
+
+function variantClass(variant: CatalogButtonVariant): string {
+  switch (variant) {
+    case 'primary':
+      return 'sm-btn-primary'
+    case 'secondary':
+      return 'sm-btn-secondary'
+    case 'ghost':
+      return 'sm-btn-ghost'
+    default: {
+      const _exhaustive: never = variant
+      return _exhaustive
+    }
+  }
 }
 
 export function CatalogButton({
@@ -29,9 +59,9 @@ export function CatalogButton({
       data-slot="catalog-button"
       type={asChild ? undefined : type}
       className={cn(
-        'sm-btn catalog-focus h-auto min-h-[var(--form-h)]',
-        variant === 'primary' ? 'sm-btn-primary' : variant === 'ghost' ? 'sm-btn-ghost' : 'sm-btn-secondary',
-        size === 'lg' && 'sm-btn-lg',
+        'sm-btn catalog-focus',
+        sizeClass(size),
+        variantClass(variant),
         block && 'sm-btn-block',
         className,
       )}

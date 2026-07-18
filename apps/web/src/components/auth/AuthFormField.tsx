@@ -66,7 +66,7 @@ export function AuthFormField({
           <button
             type="button"
             onClick={() => setVisible((v) => !v)}
-            className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-strong hover:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+            className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-strong hover:text-foreground transition-colors catalog-focus"
             aria-label={visible ? 'Hide password' : 'Show password'}
             aria-pressed={visible}
           >

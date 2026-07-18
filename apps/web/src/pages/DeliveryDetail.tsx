@@ -225,24 +225,23 @@ export function DeliveryDetail() {
       description={
         delivery
           ? `Last updated ${formatDateTime(delivery.updated_at)} · ${delivery.attempt_count} attempt(s)`
-          : 'Inspect attempt history and replay failed deliveries.'
+          : 'Attempt history and replay for one delivery.'
       }
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <LiveConnectionPill mode={mode} />
-          <CatalogButton variant="secondary" asChild className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]">
+          <CatalogButton size="sm" variant="secondary" asChild>
             <Link to="/deliveries">
               <ArrowLeft className="size-3.5" aria-hidden="true" />
               Back to deliveries
             </Link>
           </CatalogButton>
           {delivery?.status === 'failed' ? (
-            <CatalogButton
-              className="sm-btn-split h-[2.125rem] min-h-0"
+            <CatalogButton size="sm" className="sm-btn-split"
               onClick={() => replayDispatch({ type: 'set_replay_open', open: true })}
             >
-              <span className="sm-btn-split-label text-[0.8125rem]">Replay</span>
-              <span className="sm-btn-split-icon" style={{ width: '2.125rem', minWidth: '2.125rem' }}>
+              <span className="sm-btn-split-label">Replay</span>
+              <span className="sm-btn-split-icon">
                 <RotateCcw className="size-3.5" aria-hidden="true" />
               </span>
             </CatalogButton>
@@ -342,14 +341,14 @@ export function DeliveryDetail() {
             </CatalogDialogDescription>
           </CatalogDialogHeader>
           <CatalogDialogFooter>
-            <CatalogButton
+            <CatalogButton size="sm"
               variant="secondary"
               onClick={() => replayDispatch({ type: 'set_replay_open', open: false })}
               disabled={replaying}
             >
               Cancel
             </CatalogButton>
-            <CatalogButton onClick={handleReplay} disabled={replaying}>
+            <CatalogButton size="sm" onClick={handleReplay} disabled={replaying}>
               {replaying ? 'Replaying…' : 'Confirm replay'}
             </CatalogButton>
           </CatalogDialogFooter>

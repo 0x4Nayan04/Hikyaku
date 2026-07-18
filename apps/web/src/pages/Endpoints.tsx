@@ -471,8 +471,7 @@ export function Endpoints() {
           <>
             Register a URL where signed webhook payloads should be delivered.{' '}
             <button
-              type="button"
-              className="font-medium text-primary hover:underline"
+              type="button" className="font-medium text-primary hover:underline"
               onClick={() => createDispatch({ type: 'set_create_open', open: true })}
             >
               Create your first endpoint
@@ -562,8 +561,7 @@ export function Endpoints() {
   const showFooter = !isInitial && displayTotal > 0
 
   const createButton = (
-    <CatalogButton
-      className="endpoint-panel-toolbar__create h-[2.125rem] min-h-0 gap-1.5 px-3.5 text-[0.8125rem]"
+    <CatalogButton size="sm" className="endpoint-panel-toolbar__create gap-1.5"
       onClick={() => createDispatch({ type: 'set_create_open', open: true })}
       disabled={submitting}
     >
@@ -581,8 +579,7 @@ export function Endpoints() {
             type="search"
             placeholder="Search endpoints by URL, ID, or label…"
             value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            className="endpoint-panel-toolbar__search-input"
+            onChange={(event) => setSearchQuery(event.target.value)} className="endpoint-panel-toolbar__search-input"
             aria-label="Search endpoints"
           />
         </div>
@@ -625,7 +622,7 @@ export function Endpoints() {
   return (
     <ConsolePage
       title="Endpoints"
-      description="Register receiver URLs. Signing secrets are shown once on create."
+      description="Receiver URLs for this tenant. Signing secrets are shown once on create."
     >
       {error ? (
         <PageBanner variant="error" title="Could not load endpoints" description={error} />
@@ -634,8 +631,7 @@ export function Endpoints() {
       {showLoading ? (
         <PageLoading variant="table" />
       ) : (
-        <DataPanel
-          className="endpoint-panel"
+        <DataPanel className="endpoint-panel"
           loading={isRefreshing}
           footer={
             showFooter ? (
@@ -689,8 +685,7 @@ export function Endpoints() {
             </CatalogDialogHeader>
 
             <form
-              id="create-endpoint-form"
-              className="mt-4 flex flex-col gap-4"
+              id="create-endpoint-form" className="mt-4 flex flex-col gap-4"
               onSubmit={handleCreate}
             >
               <SendEventField
@@ -712,7 +707,7 @@ export function Endpoints() {
               <SendEventField
                 id="endpoint-description"
                 label="Label"
-                hint="Optional label for your team (e.g. Production, Staging)."
+                hint="Optional label (e.g. Production, Staging)."
                 variant="plain"
               >
                 <CatalogInput
@@ -728,20 +723,18 @@ export function Endpoints() {
           </div>
 
           <CatalogDialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/[0.06] px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
-            <CatalogButton
+            <CatalogButton size="sm"
               type="button"
               variant="secondary"
               onClick={() => createDispatch({ type: 'set_create_open', open: false })}
               disabled={submitting}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
               Cancel
             </CatalogButton>
-            <CatalogButton
+            <CatalogButton size="sm"
               type="submit"
               form="create-endpoint-form"
               disabled={submitting}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
               {submitting ? 'Creating…' : 'Create endpoint'}
             </CatalogButton>
@@ -770,8 +763,7 @@ export function Endpoints() {
 
             {editTarget ? (
               <form
-                id="edit-endpoint-form"
-                className="mt-4 flex flex-col gap-4"
+                id="edit-endpoint-form" className="mt-4 flex flex-col gap-4"
                 onSubmit={handleEdit}
               >
                 <SendEventField
@@ -781,8 +773,7 @@ export function Endpoints() {
                   variant="plain"
                 >
                   <p
-                    id="edit-endpoint-url"
-                    className="endpoint-locked-url"
+                    id="edit-endpoint-url" className="endpoint-locked-url"
                     title={editTarget.url}
                   >
                     {editTarget.url}
@@ -809,20 +800,18 @@ export function Endpoints() {
           </div>
 
           <CatalogDialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/[0.06] px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
-            <CatalogButton
+            <CatalogButton size="sm"
               type="button"
               variant="secondary"
               onClick={() => editDispatch({ type: 'close' })}
               disabled={editSubmitting}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
               Cancel
             </CatalogButton>
-            <CatalogButton
+            <CatalogButton size="sm"
               type="submit"
               form="edit-endpoint-form"
               disabled={editSubmitting}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
               {editSubmitting ? 'Saving…' : 'Save changes'}
             </CatalogButton>
@@ -857,8 +846,7 @@ export function Endpoints() {
 
               <label className="flex cursor-pointer items-start gap-3 border border-border bg-surface px-4 py-3 transition-colors hover:bg-background-alt">
                 <input
-                  type="checkbox"
-                  className="mt-1 shrink-0"
+                  type="checkbox" className="mt-1 shrink-0"
                   checked={saveToVault}
                   onChange={(event) =>
                     secretDispatch({ type: 'set_save_to_vault', value: event.target.checked })
@@ -875,7 +863,7 @@ export function Endpoints() {
           ) : null}
 
           <CatalogDialogFooter>
-            <CatalogButton onClick={handleSecretDismiss}>Done</CatalogButton>
+            <CatalogButton size="sm" onClick={handleSecretDismiss}>Done</CatalogButton>
           </CatalogDialogFooter>
         </CatalogDialogContent>
       </CatalogDialog>

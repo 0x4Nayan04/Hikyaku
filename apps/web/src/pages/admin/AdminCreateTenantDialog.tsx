@@ -169,15 +169,13 @@ export function AdminCreateTenantDialog({
                   value={form.ownerPassword}
                   onChange={(event) =>
                     dispatch({ type: 'set_field', field: 'ownerPassword', value: event.target.value })
-                  }
-                  className="pr-9"
+                  } className="pr-9"
                   required
                   disabled={form.submitting}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-strong hover:text-foreground transition-colors"
+                  onClick={() => setShowPassword((v) => !v)} className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-strong hover:text-foreground transition-colors"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                   aria-pressed={showPassword}
                 >
@@ -194,18 +192,17 @@ export function AdminCreateTenantDialog({
             </div>
 
             <CatalogDialogFooter>
-              <CatalogButton
+              <CatalogButton size="sm"
                 type="button"
                 variant="secondary"
                 onClick={() => handleOpenChange(false)}
                 disabled={form.submitting}
-                className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
               >
                 Cancel
               </CatalogButton>
-              <CatalogButton type="submit" className="sm-btn-split h-[2.125rem] min-h-0">
-                <span className="sm-btn-split-label text-[0.8125rem]">Review</span>
-                <span className="sm-btn-split-icon" style={{ width: '2.125rem', minWidth: '2.125rem' }}>
+              <CatalogButton size="sm" type="submit" className="sm-btn-split">
+                <span className="sm-btn-split-label">Review</span>
+                <span className="sm-btn-split-icon">
                   <ArrowRight className="size-3.5" aria-hidden="true" />
                 </span>
               </CatalogButton>
@@ -231,25 +228,23 @@ export function AdminCreateTenantDialog({
               </div>
             </div>
             <CatalogDialogFooter>
-              <CatalogButton
+              <CatalogButton size="sm"
                 type="button"
                 variant="secondary"
                 onClick={() => setStep('form')}
                 disabled={form.submitting}
-                className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
               >
                 Back
               </CatalogButton>
-              <CatalogButton
+              <CatalogButton size="sm"
                 type="button"
                 onClick={handleConfirm}
-                disabled={form.submitting}
-                className="sm-btn-split h-[2.125rem] min-h-0"
+                disabled={form.submitting} className="sm-btn-split"
               >
-                <span className="sm-btn-split-label text-[0.8125rem]">
+                <span className="sm-btn-split-label">
                   {form.submitting ? 'Creating…' : 'Create tenant'}
                 </span>
-                <span className="sm-btn-split-icon" style={{ width: '2.125rem', minWidth: '2.125rem' }}>
+                <span className="sm-btn-split-icon">
                   <ArrowRight className="size-3.5" aria-hidden="true" />
                 </span>
               </CatalogButton>

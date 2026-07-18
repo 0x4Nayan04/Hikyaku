@@ -1,165 +1,81 @@
-import { ArrowRight, CheckCircle2, Clock, ExternalLink, Globe, RefreshCw, ShieldCheck, Layers } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowRight, Search } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { PRODUCT_LINKS } from '@/lib/app-meta'
+import { cn } from '@/lib/utils'
 
-const PROOF_METRICS = [
-  { label: 'Endpoints managed', value: 'Unlimited' },
-  { label: 'Retries per delivery', value: 'Up to 5' },
-  { label: 'Setup time', value: '< 5 min' },
-  { label: 'Tenant isolation', value: 'Built-in' },
-]
-
-const FEATURES = [
-  {
-    icon: Globe,
-    title: 'Fan-out',
-    description: 'One POST fans out to every registered endpoint — no broadcast logic to write.',
+const VIEWS = {
+  deliveries: {
+    label: 'Deliveries',
+    src: '/landing/console-deliveries.png',
+    alt: 'Hikyaku deliveries list with status and attempt details',
   },
-  {
-    icon: ShieldCheck,
-    title: 'HMAC signing',
-    description: 'Every delivery includes a verifiable signature. Receivers authenticate without you maintaining a signing service.',
+  dashboard: {
+    label: 'Dashboard',
+    src: '/landing/console-dashboard.png',
+    alt: 'Hikyaku dashboard with delivery metrics and recent activity',
   },
-  {
-    icon: RefreshCw,
-    title: 'Retries with visibility',
-    description: 'Exponential backoff, attempt logs, and console replay — not a black-box proxy.',
-  },
-  {
-    icon: Layers,
-    title: 'Multi-tenant',
-    description: 'Isolated workspaces with scoped API keys and endpoint secrets from day one.',
-  },
-]
-
-const RECENT_DELIVERIES = [
-  { endpoint: 'api.acme.com/webhooks', status: '200', time: '2s ago' },
-  { endpoint: 'hooks.partner.io/events', status: '200', time: '12s ago' },
-  { endpoint: 'backup.svc.dev/hooks', status: 'retry', time: '45s ago' },
-  { endpoint: 'events.stripe.com/live', status: '200', time: '1m ago' },
-]
+} as const
 
 export function LandingConsolePreview() {
   const navigate = useNavigate()
+  const [activeView, setActiveView] = useState<keyof typeof VIEWS>('deliveries')
+  const view = VIEWS[activeView]
 
   return (
-    <section
-      id="console"
-      className="scroll-mt-[calc(var(--nav-height)+var(--section-bar-height))] border-t border-border bg-background-alt"
-      aria-labelledby="console-heading"
-    >
-      <LandingFrameInner className="landing-console-section">
-        <header className="landing-console-header">
-          <div className="landing-console-header-copy">
-            <p className="landing-section-kicker">Operator console</p>
-            <h2 id="console-heading" className="landing-section-title text-ink">
-              See every delivery. Control every retry.
-            </h2>
-            <p className="landing-section-lead">
-              Manage endpoints, inspect attempt logs, send test events, and monitor live
-              delivery health — all from a single dashboard.
+    <section id="console" className="lp-console" aria-labelledby="console-heading">
+      <LandingFrameInner className="lp-section">
+        <header className="lp-console__heading">
+          <div className="lp-section-heading">
+            <p className="lp-kicker">Operator console</p>
+            <h2 id="console-heading">Inspect deliveries when they fail</h2>
+            <p>
+              Browse events and deliveries, open an attempt for status and response body, then
+              replay after the endpoint recovers.
             </p>
-            <div className="landing-console-actions">
-              <button
-                type="button"
-                onClick={() => navigate('/signup')}
-                className="sm-btn sm-btn-primary sm-btn-split focus-ring"
-              >
-                <span className="sm-btn-split-label">Open console</span>
-                <span className="sm-btn-split-icon">
-                  <ArrowRight className="size-3.5" aria-hidden="true" />
-                </span>
-              </button>
-              <Link
-                to={`${PRODUCT_LINKS.docs}#api-reference`}
-                className="sm-btn sm-btn-secondary focus-ring"
-              >
-                API reference
-              </Link>
-            </div>
           </div>
-          <div className="landing-console-metrics">
-            {PROOF_METRICS.map((m) => (
-              <div key={m.label} className="landing-console-metric">
-                <span className="landing-console-metric-value">{m.value}</span>
-                <span className="landing-console-metric-label">{m.label}</span>
-              </div>
-            ))}
+          <div className="lp-console__actions">
+            <button
+              type="button"
+              onClick={() => navigate('/signup')}
+              className="lp-button lp-button--primary focus-ring"
+            >
+              Request access <ArrowRight className="size-4" aria-hidden="true" />
+            </button>
+            <Link
+              to={`${PRODUCT_LINKS.docs}/api-reference`}
+              className="lp-text-link lp-console__reference focus-ring"
+            >
+              <Search className="size-4" aria-hidden="true" /> API reference
+            </Link>
           </div>
         </header>
 
-        <div className="landing-console-body">
-          <div className="landing-console-dashboard">
-            <div className="landing-console-dashboard-head">
-              <div className="landing-console-dashboard-dots" aria-hidden="true">
-                <span /><span /><span />
-              </div>
-              <span className="landing-console-dashboard-url">app.webhook.delivery/deliveries</span>
-              <ExternalLink className="size-3 text-muted" strokeWidth={1.5} />
-            </div>
-            <div className="landing-console-dashboard-body">
-              <div className="landing-console-stats-row">
-                <div className="landing-console-stat">
-                  <span className="landing-console-stat-label">Active endpoints</span>
-                  <span className="landing-console-stat-value">12</span>
-                </div>
-                <div className="landing-console-stat">
-                  <span className="landing-console-stat-label">Deliveries (24h)</span>
-                  <span className="landing-console-stat-value">1,847</span>
-                </div>
-                <div className="landing-console-stat">
-                  <span className="landing-console-stat-label">Success rate</span>
-                  <span className="landing-console-stat-value text-success">99.3%</span>
-                </div>
-                <div className="landing-console-stat">
-                  <span className="landing-console-stat-label">Pending retries</span>
-                  <span className="landing-console-stat-value text-warning">3</span>
-                </div>
-              </div>
-              <div className="landing-console-feed">
-                <span className="landing-console-feed-label">Recent deliveries</span>
-                <ul className="landing-console-feed-list">
-                  {RECENT_DELIVERIES.map((d) => (
-                    <li key={d.endpoint} className="landing-console-feed-item">
-                      <span className={`landing-console-feed-dot landing-console-feed-dot--${d.status}`} />
-                      <code className="landing-console-feed-endpoint">{d.endpoint}</code>
-                      <span className="landing-console-feed-status">
-                        {d.status === 'retry' ? (
-                          <RefreshCw className="size-3" strokeWidth={1.5} />
-                        ) : (
-                          <CheckCircle2 className="size-3" strokeWidth={1.5} />
-                        )}
-                        {d.status === 'retry' ? 'Retrying' : d.status}
-                      </span>
-                      <span className="landing-console-feed-time">
-                        <Clock className="size-3" strokeWidth={1.5} />
-                        {d.time}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div className="landing-console-features">
-            <p className="landing-console-features-kicker">Everything you need</p>
-            <ul className="landing-console-features-list">
-              {FEATURES.map((f) => (
-                <li key={f.title} className="landing-console-feature">
-                  <span className="landing-console-feature-icon" aria-hidden="true">
-                    <f.icon className="size-4" strokeWidth={1.5} />
-                  </span>
-                  <div>
-                    <span className="landing-console-feature-title">{f.title}</span>
-                    <p className="landing-console-feature-desc">{f.description}</p>
-                  </div>
-                </li>
+        <figure className="lp-product-shot">
+          <div className="lp-product-shot__toolbar">
+            <div className="lp-product-shot__tabs" role="tablist" aria-label="Console screenshots">
+              {(Object.keys(VIEWS) as Array<keyof typeof VIEWS>).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeView === key}
+                  className={cn(activeView === key && 'is-active')}
+                  onClick={() => setActiveView(key)}
+                >
+                  {VIEWS[key].label}
+                </button>
               ))}
-            </ul>
+            </div>
           </div>
-        </div>
+          <div className="lp-product-shot__viewport">
+            <img key={view.src} src={view.src} alt={view.alt} loading="lazy" />
+          </div>
+          <figcaption>
+            Console screenshots with sample workspace data.
+          </figcaption>
+        </figure>
       </LandingFrameInner>
     </section>
   )

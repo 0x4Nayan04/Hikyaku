@@ -99,8 +99,8 @@ export function Dashboard() {
   return (
     <ConsolePage
       marker="Overview"
-      title="Delivery health"
-      description="Live metrics for ingest volume, queue depth, and 24-hour delivery outcomes."
+      title="Dashboard"
+      description="Ingest volume, queue depth, and 24-hour delivery outcomes."
       actions={<LiveChip active={isLive} />}
     >
       {error ? (
@@ -113,7 +113,7 @@ export function Dashboard() {
         <div className="dashboard-page">
           {!hasData ? <EmptyDashboardCTA /> : null}
 
-          <DataPanel title="Live metrics">
+          <DataPanel title="Metrics">
             <LiveMetrics stats={stats} />
           </DataPanel>
 
@@ -190,19 +190,19 @@ function EmptyDashboardCTA() {
           <Zap className="size-5" strokeWidth={1.75} />
         </span>
         <div className="dashboard-onboarding__main">
-          <p className="dashboard-onboarding__title">Welcome to Webhook Delivery</p>
+          <p className="dashboard-onboarding__title">Get started</p>
           <p className="dashboard-onboarding__desc">
-            Create an endpoint and send your first event. Delivery metrics will appear here once data starts flowing.
+            Create an endpoint, then send a test event. Metrics show up once deliveries start.
           </p>
         </div>
         <div className="dashboard-onboarding__actions">
-          <CatalogButton asChild className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]">
+          <CatalogButton size="sm" asChild>
             <Link to="/endpoints">
               Create endpoint
               <ArrowRight className="size-3.5" aria-hidden="true" />
             </Link>
           </CatalogButton>
-          <CatalogButton variant="secondary" asChild className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]">
+          <CatalogButton size="sm" variant="secondary" asChild>
             <Link to="/events/send">Send a test event</Link>
           </CatalogButton>
         </div>

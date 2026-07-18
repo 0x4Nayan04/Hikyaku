@@ -16,14 +16,14 @@ const actions: QuickAction[] = [
     icon: Send,
     tone: 'info',
     title: 'Send event',
-    hint: 'Test your ingest pipeline',
+    hint: 'POST a test event',
   },
   {
     to: '/deliveries',
     icon: Package,
     tone: 'success',
     title: 'View deliveries',
-    hint: 'Debug outbound attempts',
+    hint: 'Outbound attempts',
   },
   {
     to: '/endpoints',

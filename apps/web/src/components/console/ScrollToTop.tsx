@@ -47,7 +47,7 @@ export function ScrollToTop({ scrollContainerRef }: ScrollToTopProps) {
       onClick={scrollToTop}
       className={cn(
         'scroll-to-top catalog-focus fixed z-50 inline-flex size-9 items-center justify-center',
-        'border border-border bg-surface text-muted-strong shadow-md',
+        'border border-border bg-surface text-muted-strong shadow-none',
         'transition-[opacity,transform,visibility,color,border-color,background-color]',
         'duration-150 ease-out hover:border-primary hover:bg-surface hover:text-primary',
         'right-5 bottom-5 md:right-6 md:bottom-6',

@@ -25,7 +25,7 @@ export function CatalogSecretReveal({
       </div>
       <div className="catalog-secret-reveal__field">
         <code className="catalog-secret-reveal__value">{value}</code>
-        <CatalogButton
+        <CatalogButton size="sm"
           type="button"
           variant="secondary"
           className="catalog-secret-reveal__copy h-auto min-h-0"

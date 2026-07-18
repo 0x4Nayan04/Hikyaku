@@ -54,10 +54,9 @@ export function SettingsApiKeysTab({
           loading={loadingKeys && apiKeys.length > 0}
           emptyFlush
           actions={
-            <CatalogButton
+            <CatalogButton size="sm"
               onClick={onCreateKey}
               disabled={creatingKey}
-              className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
             >
               <Plus className="mr-1 size-3.5" aria-hidden="true" />
               {creatingKey ? 'Creating…' : 'Create API key'}
@@ -107,8 +106,8 @@ export function SettingsApiKeysTab({
                         {!revoked ? (
                           <div className="settings-row-actions">
                             <CatalogButton
+                              size="sm"
                               variant="ghost"
-                              className="h-7 min-h-0 px-2 text-xs"
                               disabled={rotatingId === apiKey.id}
                               onClick={() => onRotate(apiKey.id)}
                             >
@@ -116,8 +115,8 @@ export function SettingsApiKeysTab({
                               Rotate
                             </CatalogButton>
                             <CatalogButton
+                              size="sm"
                               variant="ghost"
-                              className="h-7 min-h-0 px-2 text-xs"
                               disabled={revokingId === apiKey.id}
                               onClick={() => onRevokeClick(apiKey)}
                             >

@@ -261,7 +261,7 @@ export function Deliveries() {
   return (
     <ConsolePage
       title="Deliveries"
-      description="Browse outbound webhook attempts. Open a row to inspect request and response details."
+      description="Outbound webhook attempts. Open a row for request and response details."
       actions={<LiveConnectionPill mode={mode} />}
     >
       {error ? (

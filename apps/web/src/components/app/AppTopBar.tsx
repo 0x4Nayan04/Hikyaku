@@ -2,12 +2,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import { LogOut, Menu, Settings, Shield, User, X } from 'lucide-react'
 import { logout } from '@/api/client'
 import type { MeResponse } from '@/api/types'
-import { WebhookMark } from '@/components/auth/WebhookMark'
+import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { AppNav } from '@/components/app/AppNav'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useFocusTrap } from '@/components/accessibility/Accessibility'
 import { useSession } from '@/providers/session-context'
+import { APP_HOME_LABEL, APP_NAME } from '@/lib/app-meta'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 type AppTopBarProps = {
@@ -99,10 +100,10 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
               href="/"
               onClick={goHome}
               className="landing-nav-brand focus-ring"
-              aria-label="Webhook Delivery — home"
+              aria-label={APP_HOME_LABEL}
             >
-              <WebhookMark className="size-7 shrink-0 text-primary" />
-              <span className="landing-nav-brand-text">Webhook Delivery</span>
+              <HikyakuMark className="size-7 shrink-0" />
+              <span className="landing-nav-brand-text">{APP_NAME}</span>
             </a>
           </div>
 
@@ -197,7 +198,7 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
                 ) : null}
               </div>
             ) : !loading ? (
-              <Link to="/login" className="sm-btn sm-btn-primary">
+              <Link to="/login" className="sm-btn sm-btn-sm sm-btn-primary focus-ring">
                 Sign in
               </Link>
             ) : null}
@@ -226,10 +227,10 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
                   closeMobileMenu()
                 }}
                 className="landing-nav-brand focus-ring"
-                aria-label="Webhook Delivery — home"
+                aria-label={APP_HOME_LABEL}
               >
-                <WebhookMark className="size-6 text-primary" />
-                <span className="landing-nav-brand-text">Console</span>
+                <HikyakuMark className="size-7" />
+                <span className="landing-nav-brand-text">{APP_NAME}</span>
               </a>
               <p className="console-mobile-menu-tenant">{workspaceLabel}</p>
               <button

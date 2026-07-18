@@ -6,7 +6,6 @@ import { LandingFaq } from '@/components/landing/LandingFaq'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 import { LandingHowItWorks } from '@/components/landing/LandingHowItWorks'
 
-
 export function Landing() {
   return (
     <div className="landing-page flex min-h-screen flex-col scroll-smooth">

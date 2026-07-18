@@ -153,7 +153,7 @@ export function AttemptResponseBody({ body }: AttemptResponseBodyProps) {
 
   if (kind === 'html' && !htmlOpen) {
     return (
-      <div className="mt-3 rounded-md border border-border bg-muted/30 p-3">
+      <div className="mt-3 rounded-none border border-border bg-muted/30 p-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-xs font-medium text-foreground">HTML response</p>
@@ -175,7 +175,7 @@ export function AttemptResponseBody({ body }: AttemptResponseBodyProps) {
   }
 
   return (
-    <div className="mt-3 overflow-hidden rounded-md border border-border bg-muted/30">
+    <div className="mt-3 overflow-hidden rounded-none border border-border bg-muted/30">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 px-3 py-1.5">
         <p className="text-[0.6875rem] font-medium uppercase tracking-wider text-muted-strong">
           {kind === 'json' ? 'Response body' : kind === 'html' ? 'HTML response' : 'Response body'}
@@ -249,7 +249,7 @@ function ToolbarButton({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-6 items-center gap-1 rounded-sm px-1.5 text-[0.6875rem] font-medium text-muted-strong hover:bg-muted hover:text-foreground"
+      className="inline-flex h-6 items-center gap-1 rounded-none px-1.5 text-[0.6875rem] font-medium text-muted-strong hover:bg-muted hover:text-foreground"
     >
       {children}
       <span>{label}</span>
@@ -272,7 +272,7 @@ function ViewToggle({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'inline-flex h-6 items-center rounded-sm px-1.5 text-[0.6875rem] font-medium',
+        'inline-flex h-6 items-center rounded-none px-1.5 text-[0.6875rem] font-medium',
         active
           ? 'bg-muted text-foreground'
           : 'text-muted-strong hover:bg-muted/70 hover:text-foreground',

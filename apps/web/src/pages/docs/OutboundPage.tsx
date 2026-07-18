@@ -16,12 +16,12 @@ export function OutboundPage() {
     <DocsArticle
       slug="outbound"
       title="Outbound deliveries"
-      description="What subscribers receive and how to track it"
+      description="Delivery body, headers, statuses, and inspection"
       toc={TOC}
     >
       <p className="docs-v2-prose">
-        Each active endpoint gets a signed POST for every ingested event. Here is the body shape, the headers to trust,
-        and how to follow delivery status.
+        Each active endpoint gets a signed POST for every ingested event. This page covers the body
+        shape, headers, statuses, and how to inspect attempts.
       </p>
 
       <DocsHeading id="body" level={2}>
@@ -41,12 +41,12 @@ export function OutboundPage() {
 X-Webhook-Id: <delivery_uuid>
 X-Webhook-Timestamp: <unix_seconds>
 X-Webhook-Signature: sha256=<hmac_hex>
-User-Agent: WebhookDelivery/1.0`}
+User-Agent: Hikyaku/1.0`}
         language="http"
       />
       <p className="docs-v2-prose">
-        <code>X-Webhook-Id</code> is the delivery UUID. It stays the same across retries for that event×endpoint pair —
-        use it to dedupe under at-least-once delivery.
+        <code>X-Webhook-Id</code> is the delivery UUID. It stays the same across retries for that
+        event×endpoint pair — use it to dedupe under at-least-once delivery.
       </p>
 
       <DocsHeading id="statuses" level={2}>
@@ -75,13 +75,14 @@ User-Agent: WebhookDelivery/1.0`}
       </DocsHeading>
       <p className="docs-v2-prose">
         List deliveries with <DocsApiRoute method="GET" path="/v1/deliveries" /> (optional{' '}
-        <code>?status=failed</code>), or open one with <DocsApiRoute method="GET" path="/v1/deliveries/:id" /> for the
-        attempt timeline. Attempts may include a truncated response body (~1KB) for debugging. In the console, open a
-        delivery to inspect attempts and replay failures.
+        <code>?status=failed</code>), or open one with{' '}
+        <DocsApiRoute method="GET" path="/v1/deliveries/:id" /> for the attempt timeline. Attempts
+        may include a truncated response body (~1KB) for debugging. In the console, open a delivery
+        to inspect attempts and replay failures.
       </p>
       <p className="docs-v2-prose">
-        Live updates use <DocsApiRoute method="GET" path="/v1/deliveries/stream" /> (SSE, session cookie only), with
-        polling as a fallback when the stream is unavailable.
+        Live updates use <DocsApiRoute method="GET" path="/v1/deliveries/stream" /> (SSE, session
+        cookie only), with polling as a fallback when the stream is unavailable.
       </p>
     </DocsArticle>
   )

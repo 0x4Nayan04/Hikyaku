@@ -15,26 +15,26 @@ export function SigningPage() {
     <DocsArticle
       slug="signing"
       title="HMAC signing"
-      description="Verify that a webhook really came from you"
+      description="Verify X-Webhook-Signature on the receiver"
       toc={TOC}
     >
       <p className="docs-v2-prose">
-        Every outbound POST is signed with HMAC-SHA256 so your subscribers can reject forged requests. Verify the
-        signature before you trust the body.
+        Every outbound POST is signed with HMAC-SHA256. Receivers should verify{' '}
+        <code>X-Webhook-Signature</code> before trusting the body.
       </p>
 
       <DocsHeading id="algorithm" level={2}>
         Signing algorithm
       </DocsHeading>
       <p className="docs-v2-prose">
-        Sign the UTF-8 string <code>timestamp.raw_body</code> (a literal dot between the unix timestamp and the raw
-        request body) with the endpoint secret. Put the result in <code>X-Webhook-Signature</code> as{' '}
-        <code>sha256=&lt;hex&gt;</code>.
+        Sign the UTF-8 string <code>timestamp.raw_body</code> (a literal dot between the unix
+        timestamp and the raw request body) with the endpoint secret. Put the result in{' '}
+        <code>X-Webhook-Signature</code> as <code>sha256=&lt;hex&gt;</code>.
       </p>
       <DocsCallout variant="tip" label="Verify before parsing">
         <p>
-          Always verify against the raw body bytes before <code>JSON.parse</code>. Re-serializing JSON can change
-          whitespace and break the signature.
+          Always verify against the raw body bytes before <code>JSON.parse</code>. Re-serializing
+          JSON can change whitespace and break the signature.
         </p>
       </DocsCallout>
 

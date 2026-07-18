@@ -5,6 +5,7 @@ import { DocsHeader } from '@/components/docs/DocsHeader'
 import { DocsSidebar } from '@/components/docs/DocsSidebar'
 import { LandingFrame } from '@/components/landing/LandingFrame'
 import { DOCS_FLAT, DOCS_NAV, findDocItem } from '@/docs/config'
+import { APP_NAME } from '@/lib/app-meta'
 import { cn } from '@/lib/utils'
 
 function isDocsHomePath(pathname: string): boolean {
@@ -58,8 +59,8 @@ export function DocsLayout() {
     const slug = location.pathname.replace(/^\/docs\/?/, '')
     const item = slug ? findDocItem(slug) : null
     document.title = item
-      ? `${item.label} — Webhook Delivery Docs`
-      : 'Overview — Webhook Delivery Docs'
+      ? `${item.label} — ${APP_NAME} Docs`
+      : `Overview — ${APP_NAME} Docs`
   }, [location.pathname])
 
   useEffect(() => {

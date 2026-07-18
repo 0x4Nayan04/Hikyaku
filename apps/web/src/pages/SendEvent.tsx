@@ -158,12 +158,12 @@ export function SendEvent() {
   return (
     <ConsolePage
       title="Send event"
-      description="Submit a test event to this tenant. The API returns 202 and deliveries run asynchronously."
+      description="POST a test event for this tenant. The API returns 202; deliveries run asynchronously."
       actions={
-        <CatalogButton className="sm-btn-split h-[2.125rem] min-h-0" variant="secondary" asChild>
+        <CatalogButton size="sm" className="sm-btn-split" variant="secondary" asChild>
           <Link to="/events">
-            <span className="sm-btn-split-label text-[0.8125rem]">View events</span>
-            <span className="sm-btn-split-icon" style={{ width: '2.125rem', minWidth: '2.125rem' }}>
+            <span className="sm-btn-split-label">View events</span>
+            <span className="sm-btn-split-icon">
               <ArrowRight className="size-3.5" aria-hidden="true" />
             </span>
           </Link>
@@ -176,20 +176,18 @@ export function SendEvent() {
           description="Open the event to see delivery fan-out and outcomes."
           footer={
             <div className="flex w-full flex-wrap items-center justify-end gap-3 px-4 py-3 md:px-5">
-              <CatalogButton
+              <CatalogButton size="sm"
                 variant="secondary"
                 onClick={handleResetForm}
-                className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
               >
                 <RefreshCw className="size-3.5" aria-hidden="true" />
                 Send another
               </CatalogButton>
-              <CatalogButton className="sm-btn-split h-[2.125rem] min-h-0" asChild>
+              <CatalogButton size="sm" className="sm-btn-split" asChild>
                 <Link to={`/events/${result.id}`}>
-                  <span className="sm-btn-split-label text-[0.8125rem]">View event</span>
+                  <span className="sm-btn-split-label">View event</span>
                   <span
                     className="sm-btn-split-icon"
-                    style={{ width: '2.125rem', minWidth: '2.125rem' }}
                   >
                     <ArrowRight className="size-3.5" aria-hidden="true" />
                   </span>
@@ -234,28 +232,25 @@ export function SendEvent() {
               .
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              <CatalogButton
+              <CatalogButton size="sm"
                 type="submit"
                 form="send-event-form"
-                disabled={submitting}
-                className="sm-btn-split h-[2.125rem] min-h-0"
+                disabled={submitting} className="sm-btn-split"
               >
-                <span className="sm-btn-split-label text-[0.8125rem]">
+                <span className="sm-btn-split-label">
                   {submitting ? 'Sending…' : 'Send event'}
                 </span>
                 <span
                   className="sm-btn-split-icon"
-                  style={{ width: '2.125rem', minWidth: '2.125rem' }}
                 >
                   <Send className="size-3.5" aria-hidden="true" />
                 </span>
               </CatalogButton>
-              <CatalogButton
+              <CatalogButton size="sm"
                 type="button"
                 variant="secondary"
                 onClick={handleResetForm}
                 disabled={submitting}
-                className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
               >
                 <RotateCcw className="size-3.5" aria-hidden="true" />
                 Reset form

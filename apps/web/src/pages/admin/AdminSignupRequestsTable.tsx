@@ -75,17 +75,15 @@ export function AdminSignupRequestsTable({
                   </DataTableCell>
                   <DataTableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <CatalogButton
+                      <CatalogButton size="sm"
                         variant="secondary"
-                        className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
                         disabled={isActing}
                         onClick={() => onReject(request.id)}
                       >
                         <X className="mr-1 size-3.5" />
                         Reject
                       </CatalogButton>
-                      <CatalogButton
-                        className="h-[2.125rem] min-h-0 px-3.5 text-[0.8125rem]"
+                      <CatalogButton size="sm"
                         disabled={isActing}
                         onClick={() => onApprove(request.id)}
                       >

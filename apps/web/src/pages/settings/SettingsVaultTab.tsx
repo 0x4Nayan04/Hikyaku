@@ -105,16 +105,16 @@ export function SettingsVaultTab({
                     <DataTableCell className="text-right">
                       <div className="settings-row-actions">
                         <CatalogButton
+                          size="sm"
                           variant="ghost"
-                          className="h-7 min-h-0 px-2 text-xs"
                           onClick={() => copySecret(entry.secret, 'Secret')}
                         >
                           <Copy className="mr-1 size-3" aria-hidden="true" />
                           Copy
                         </CatalogButton>
                         <CatalogButton
+                          size="sm"
                           variant="ghost"
-                          className="h-7 min-h-0 px-2 text-xs"
                           onClick={() => onRemoveVaultEntry(entry.endpointId)}
                         >
                           <Trash2 className="mr-1 size-3" aria-hidden="true" />
