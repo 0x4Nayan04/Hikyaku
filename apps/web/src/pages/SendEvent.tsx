@@ -1,8 +1,8 @@
-import { useReducer } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, RefreshCw, RotateCcw, Send } from 'lucide-react'
+import { ArrowRight, RefreshCw, RotateCcw, Send, Webhook } from 'lucide-react'
 import { toast } from '@/lib/toast'
-import { ApiError, sendEvent } from '@/api/client'
+import { ApiError, listEndpoints, sendEvent } from '@/api/client'
 import type { IngestEventResponse } from '@/api/types'
 import { StatusBadge } from '@/components/console/StatusBadge'
 import { CatalogButton } from '@/components/catalog/CatalogButton'
@@ -10,7 +10,10 @@ import { CatalogInput } from '@/components/catalog/CatalogInput'
 import { CatalogTextarea } from '@/components/catalog/CatalogTextarea'
 import { ConsolePage } from '@/components/console/ConsolePage'
 import { DataPanel } from '@/components/console/DataPanel'
+import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { FormPanel } from '@/components/console/FormPanel'
+import { PageBanner } from '@/components/console/PageBanner'
+import { PageLoading } from '@/components/console/PageLoading'
 import { SendEventField } from '@/components/console/SendEventField'
 import {
   SettingsCatalogList,
@@ -18,6 +21,7 @@ import {
   SettingsCopyValue,
 } from '@/components/console/SettingsCatalog'
 import { formatDateTime } from '@/lib/format'
+import { hasActiveEndpoint } from '@/lib/tenant-onboarding'
 
 const DEFAULT_PAYLOAD = `{
   "order_id": "123",
@@ -116,9 +120,36 @@ function sendEventReducer(state: SendEventState, action: SendEventAction): SendE
   }
 }
 
+type EndpointGate =
+  | { status: 'loading' }
+  | { status: 'ready'; canSend: boolean }
+  | { status: 'error'; message: string }
+
 export function SendEvent() {
   const [state, dispatch] = useReducer(sendEventReducer, initialSendEventState)
+  const [gate, setGate] = useState<EndpointGate>({ status: 'loading' })
   const { idempotencyKey, type, payloadText, payloadError, submitError, submitting, result } = state
+
+  useEffect(() => {
+    let cancelled = false
+    listEndpoints({ limit: 100, offset: 0 })
+      .then((result) => {
+        if (!cancelled) {
+          setGate({ status: 'ready', canSend: hasActiveEndpoint(result.data) })
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setGate({
+            status: 'error',
+            message: err instanceof ApiError ? err.message : 'Failed to load endpoints',
+          })
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -157,8 +188,8 @@ export function SendEvent() {
 
   return (
     <ConsolePage
-      title="Send event"
-      description="POST a test event for this tenant. The API returns 202; deliveries run asynchronously."
+      title="Test event"
+      description="Console smoke test for this tenant. Production traffic should use POST /v1/events with an API key."
       actions={
         <CatalogButton size="sm" className="sm-btn-split" variant="secondary" asChild>
           <Link to="/events">
@@ -170,183 +201,221 @@ export function SendEvent() {
         </CatalogButton>
       }
     >
-      {result ? (
+      {gate.status === 'error' ? (
+        <PageBanner variant="error" title="Could not check endpoints" description={gate.message} />
+      ) : null}
+
+      {gate.status === 'loading' ? <PageLoading variant="detail" /> : null}
+
+      {gate.status === 'ready' && !gate.canSend ? (
         <DataPanel
-          title="Accepted event"
-          description="Open the event to see delivery fan-out and outcomes."
-          footer={
-            <div className="flex w-full flex-wrap items-center justify-end gap-3 px-4 py-3 md:px-5">
-              <CatalogButton size="sm"
-                variant="secondary"
-                onClick={handleResetForm}
-              >
-                <RefreshCw className="size-3.5" aria-hidden="true" />
-                Send another
-              </CatalogButton>
-              <CatalogButton size="sm" className="sm-btn-split" asChild>
-                <Link to={`/events/${result.id}`}>
-                  <span className="sm-btn-split-label">View event</span>
-                  <span
-                    className="sm-btn-split-icon"
-                  >
-                    <ArrowRight className="size-3.5" aria-hidden="true" />
-                  </span>
-                </Link>
-              </CatalogButton>
-            </div>
+          emptyFlush
+          empty={
+            <DataPanelEmpty
+              icon={Webhook}
+              title="Create an endpoint first"
+              description={
+                <>
+                  Ingest can succeed with zero deliveries if nothing is listening.{' '}
+                  <Link to="/endpoints" className="font-medium text-primary hover:underline">
+                    Create an endpoint
+                  </Link>
+                  , then come back to smoke-test.
+                </>
+              }
+            />
           }
         >
-          <SettingsCatalogList>
-            <SettingsCatalogRow label="Status">
-              <StatusBadge kind="event" status={result.status} />
-            </SettingsCatalogRow>
-            <SettingsCatalogRow label="Event ID" layout="stacked">
-              <SettingsCopyValue value={result.id} copyLabel="Event ID" buttonLabel="Copy" />
-            </SettingsCatalogRow>
-            <SettingsCatalogRow label="Created">
-              <span className="text-sm text-ink">{formatDateTime(result.created_at)}</span>
-            </SettingsCatalogRow>
-          </SettingsCatalogList>
+          {null}
         </DataPanel>
       ) : null}
 
-      <FormPanel
-        title="Compose event"
-        titleVariant="prominent"
-        description={
-          <>
-            Request body for{' '}
-            <code className="send-event-api-endpoint">POST /v1/events</code>. The API responds with{' '}
-            <strong className="font-medium text-ink">202 Accepted</strong> — webhook deliveries are
-            queued immediately.
-          </>
-        }
-        footerAlign="between"
-        footer={
-          <>
-            <p className="send-event-footer-note">
-              After send, track outcomes on{' '}
-              <Link to="/deliveries" className="font-medium text-primary hover:underline">
-                Deliveries
-              </Link>
-              .
-            </p>
-            <div className="flex flex-wrap items-center gap-3">
-              <CatalogButton size="sm"
-                type="submit"
-                form="send-event-form"
-                disabled={submitting} className="sm-btn-split"
-              >
-                <span className="sm-btn-split-label">
-                  {submitting ? 'Sending…' : 'Send event'}
-                </span>
-                <span
-                  className="sm-btn-split-icon"
-                >
-                  <Send className="size-3.5" aria-hidden="true" />
-                </span>
-              </CatalogButton>
-              <CatalogButton size="sm"
-                type="button"
-                variant="secondary"
-                onClick={handleResetForm}
-                disabled={submitting}
-              >
-                <RotateCcw className="size-3.5" aria-hidden="true" />
-                Reset form
-              </CatalogButton>
-            </div>
-          </>
-        }
-      >
-        <form id="send-event-form" className="send-event-form" onSubmit={handleSubmit}>
-          <fieldset className="m-0 border-0 p-0" disabled={submitting}>
-            <legend className="sr-only">Send event</legend>
-
-            {submitError ? (
-              <div className="send-event-form-error" role="alert">
-                <p className="send-event-form-error__title">Could not send event</p>
-                <p className="send-event-form-error__desc">{submitError}</p>
-              </div>
-            ) : null}
-
-            <div className="send-event-fields">
-              <SendEventField
-                id="idempotency-key"
-                variant="plain"
-                label="Idempotency key"
-                hint="Auto-generated UUID. Reusing the same key returns the original event without creating new deliveries."
-                action={
-                  <CatalogButton
-                    type="button"
+      {gate.status === 'ready' && gate.canSend ? (
+        <>
+          {result ? (
+            <DataPanel
+              title="Accepted event"
+              description="Open the event to see delivery fan-out and outcomes."
+              footer={
+                <div className="flex w-full flex-wrap items-center justify-end gap-3 px-4 py-3 md:px-5">
+                  <CatalogButton size="sm"
                     variant="secondary"
-                    className="send-event-field__head-btn"
-                    onClick={handleRegenerateKey}
-                    disabled={submitting}
+                    onClick={handleResetForm}
                   >
                     <RefreshCw className="size-3.5" aria-hidden="true" />
-                    New UUID
+                    Send another
                   </CatalogButton>
-                }
-              >
-                <div className="send-event-id-strip">
-                  <CatalogInput
-                  id="idempotency-key"
-                  value={idempotencyKey}
-                  onChange={(event) =>
-                    dispatch({ type: 'set_idempotency_key', value: event.target.value })
-                  }
-                  placeholder="e.g. 12a91c57-8f3a-4b2c-9d1e-6f7a8b9c0d1e"
-                  className="send-event-plain-input send-event-plain-input--mono"
-                  maxLength={256}
-                  required
-                  aria-describedby={fieldDescribedBy('idempotency-key', true, false)}
-                />
+                  <CatalogButton size="sm" className="sm-btn-split" asChild>
+                    <Link to={`/events/${result.id}`}>
+                      <span className="sm-btn-split-label">View event</span>
+                      <span
+                        className="sm-btn-split-icon"
+                      >
+                        <ArrowRight className="size-3.5" aria-hidden="true" />
+                      </span>
+                    </Link>
+                  </CatalogButton>
                 </div>
-              </SendEventField>
+              }
+            >
+              <SettingsCatalogList>
+                <SettingsCatalogRow label="Status">
+                  <StatusBadge kind="event" status={result.status} />
+                </SettingsCatalogRow>
+                <SettingsCatalogRow label="Event ID" layout="stacked">
+                  <SettingsCopyValue value={result.id} copyLabel="Event ID" buttonLabel="Copy" />
+                </SettingsCatalogRow>
+                <SettingsCatalogRow label="Created">
+                  <span className="text-sm text-ink">{formatDateTime(result.created_at)}</span>
+                </SettingsCatalogRow>
+              </SettingsCatalogList>
+            </DataPanel>
+          ) : null}
 
-              <SendEventField
-                id="event-type"
-                variant="plain"
-                label="Event type"
-                hint="Dot-separated name, e.g. order.paid or user.created."
-              >
-                <CatalogInput
-                  id="event-type"
-                  value={type}
-                  onChange={(event) => dispatch({ type: 'set_type', value: event.target.value })}
-                  placeholder="order.paid"
-                  className="send-event-plain-input send-event-plain-input--bordered"
-                  maxLength={128}
-                  required
-                  aria-describedby={fieldDescribedBy('event-type', true, false)}
-                />
-              </SendEventField>
+          <FormPanel
+            title="Compose test event"
+            titleVariant="prominent"
+            description={
+              <>
+                Smoke-test request body for{' '}
+                <code className="send-event-api-endpoint">POST /v1/events</code>. For real traffic,
+                create an API key and use curl — see{' '}
+                <Link to="/docs/ingest" className="font-medium text-primary hover:underline">
+                  ingest docs
+                </Link>
+                . The API responds with{' '}
+                <strong className="font-medium text-ink">202 Accepted</strong>; deliveries queue
+                immediately.
+              </>
+            }
+            footerAlign="between"
+            footer={
+              <>
+                <p className="send-event-footer-note">
+                  After send, track outcomes on{' '}
+                  <Link to="/deliveries" className="font-medium text-primary hover:underline">
+                    Deliveries
+                  </Link>
+                  .
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <CatalogButton size="sm"
+                    type="submit"
+                    form="send-event-form"
+                    disabled={submitting} className="sm-btn-split"
+                  >
+                    <span className="sm-btn-split-label">
+                      {submitting ? 'Sending…' : 'Send test event'}
+                    </span>
+                    <span
+                      className="sm-btn-split-icon"
+                    >
+                      <Send className="size-3.5" aria-hidden="true" />
+                    </span>
+                  </CatalogButton>
+                  <CatalogButton size="sm"
+                    type="button"
+                    variant="secondary"
+                    onClick={handleResetForm}
+                    disabled={submitting}
+                  >
+                    <RotateCcw className="size-3.5" aria-hidden="true" />
+                    Reset form
+                  </CatalogButton>
+                </div>
+              </>
+            }
+          >
+            <form id="send-event-form" className="send-event-form" onSubmit={handleSubmit}>
+              <fieldset className="m-0 border-0 p-0" disabled={submitting}>
+                <legend className="sr-only">Test event</legend>
 
-              <SendEventField
-                id="event-payload"
-                label="Payload"
-                meta="JSON object · max 256 KiB"
-                error={payloadError}
-              >
-                <CatalogTextarea
-                  id="event-payload"
-                  value={payloadText}
-                  onChange={(event) =>
-                    dispatch({ type: 'set_payload_text', value: event.target.value })
-                  }
-                  rows={PAYLOAD_LINE_COUNT}
-                  className="send-event-control-editor"
-                  spellCheck={false}
-                  required
-                  aria-invalid={payloadError !== null}
-                  aria-describedby={fieldDescribedBy('event-payload', false, payloadError !== null)}
-                />
-              </SendEventField>
-            </div>
-          </fieldset>
-        </form>
-      </FormPanel>
+                {submitError ? (
+                  <div className="send-event-form-error" role="alert">
+                    <p className="send-event-form-error__title">Could not send event</p>
+                    <p className="send-event-form-error__desc">{submitError}</p>
+                  </div>
+                ) : null}
+
+                <div className="send-event-fields">
+                  <SendEventField
+                    id="idempotency-key"
+                    variant="plain"
+                    label="Idempotency key"
+                    hint="Auto-generated UUID. Reusing the same key returns the original event without creating new deliveries."
+                    action={
+                      <CatalogButton
+                        type="button"
+                        variant="secondary"
+                        className="send-event-field__head-btn"
+                        onClick={handleRegenerateKey}
+                        disabled={submitting}
+                      >
+                        <RefreshCw className="size-3.5" aria-hidden="true" />
+                        New UUID
+                      </CatalogButton>
+                    }
+                  >
+                    <div className="send-event-id-strip">
+                      <CatalogInput
+                      id="idempotency-key"
+                      value={idempotencyKey}
+                      onChange={(event) =>
+                        dispatch({ type: 'set_idempotency_key', value: event.target.value })
+                      }
+                      placeholder="e.g. 12a91c57-8f3a-4b2c-9d1e-6f7a8b9c0d1e"
+                      className="send-event-plain-input send-event-plain-input--mono"
+                      maxLength={256}
+                      required
+                      aria-describedby={fieldDescribedBy('idempotency-key', true, false)}
+                    />
+                    </div>
+                  </SendEventField>
+
+                  <SendEventField
+                    id="event-type"
+                    variant="plain"
+                    label="Event type"
+                    hint="Dot-separated name, e.g. order.paid or user.created."
+                  >
+                    <CatalogInput
+                      id="event-type"
+                      value={type}
+                      onChange={(event) => dispatch({ type: 'set_type', value: event.target.value })}
+                      placeholder="order.paid"
+                      className="send-event-plain-input send-event-plain-input--bordered"
+                      maxLength={128}
+                      required
+                      aria-describedby={fieldDescribedBy('event-type', true, false)}
+                    />
+                  </SendEventField>
+
+                  <SendEventField
+                    id="event-payload"
+                    label="Payload"
+                    meta="JSON object · max 256 KiB"
+                    error={payloadError}
+                  >
+                    <CatalogTextarea
+                      id="event-payload"
+                      value={payloadText}
+                      onChange={(event) =>
+                        dispatch({ type: 'set_payload_text', value: event.target.value })
+                      }
+                      rows={PAYLOAD_LINE_COUNT}
+                      className="send-event-control-editor"
+                      spellCheck={false}
+                      required
+                      aria-invalid={payloadError !== null}
+                      aria-describedby={fieldDescribedBy('event-payload', false, payloadError !== null)}
+                    />
+                  </SendEventField>
+                </div>
+              </fieldset>
+            </form>
+          </FormPanel>
+        </>
+      ) : null}
     </ConsolePage>
   )
 }

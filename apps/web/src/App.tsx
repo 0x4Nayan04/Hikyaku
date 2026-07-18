@@ -1,5 +1,4 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { RequireGuest } from '@/components/layout/RequireGuest'
 import { RequireSession } from '@/components/layout/RequireSession'
 import { RequireSuperAdmin } from '@/components/layout/RequireSuperAdmin'
 import { RequireTenantUser } from '@/components/layout/RequireTenantUser'
@@ -28,9 +27,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/docs/*" element={<DocsRoutes />} />
-      <Route element={<RequireGuest />}>
-        <Route path="/" element={<Landing />} />
-      </Route>
+      {/* Marketing home stays viewable while logged in (role CTAs in nav). */}
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/bootstrap" element={<Bootstrap />} />

@@ -1,4 +1,4 @@
-import { KeyRound, ShieldCheck, TriangleAlert } from 'lucide-react'
+import { Copy, KeyRound, ShieldCheck, TriangleAlert } from 'lucide-react'
 import type { ApiKey, ApiKeyWithSecret } from '@/api/types'
 import { CatalogButton } from '@/components/catalog/CatalogButton'
 import {
@@ -11,6 +11,8 @@ import {
 } from '@/components/catalog/CatalogDialog'
 import { CatalogSecretReveal } from '@/components/catalog/CatalogSecretReveal'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { API_BASE } from '@/docs/constants'
+import { buildIngestCurl } from '@/lib/tenant-onboarding'
 import { toast } from '@/lib/toast'
 
 async function copySecret(value: string, label: string) {
@@ -35,6 +37,8 @@ export function SettingsApiKeyDialogs({
   onRevokeTargetChange,
   onRevoke,
 }: SettingsApiKeyDialogsProps) {
+  const ingestCurl = secretKey ? buildIngestCurl(secretKey.api_key, API_BASE) : null
+
   return (
     <>
       <CatalogDialog
@@ -66,6 +70,28 @@ export function SettingsApiKeyDialogs({
                 onCopy={() => void copySecret(secretKey.api_key, 'API key')}
                 copyLabel="Copy key"
               />
+            ) : null}
+
+            {ingestCurl ? (
+              <div className="settings-ingest-curl">
+                <div className="settings-ingest-curl__bar">
+                  <span className="settings-ingest-curl__label">Try ingest</span>
+                  <span className="settings-ingest-curl__hint">
+                    Copy into your terminal — key is already filled in.
+                  </span>
+                </div>
+                <pre className="settings-ingest-curl__code">{ingestCurl}</pre>
+                <CatalogButton
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                  className="self-start"
+                  onClick={() => void copySecret(ingestCurl, 'curl command')}
+                >
+                  <Copy className="size-3.5" aria-hidden="true" />
+                  Copy curl
+                </CatalogButton>
+              </div>
             ) : null}
 
             <Alert>

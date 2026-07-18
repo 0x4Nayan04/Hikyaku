@@ -6,7 +6,7 @@ describe('getNavEndPaths', () => {
   it('marks parent paths when a sibling nav item is nested under them', () => {
     const items: AppNavItem[] = [
       { title: 'Events', to: '/events', icon: List },
-      { title: 'Send event', to: '/events/send', icon: Send },
+      { title: 'Test event', to: '/events/send', icon: Send },
       { title: 'Settings', to: '/settings', icon: Settings },
       { title: 'Profile', to: '/settings/profile', icon: User },
     ]
@@ -23,7 +23,7 @@ describe('getNavEndPaths', () => {
 describe('isNavItemActive', () => {
   const items: AppNavItem[] = [
     { title: 'Events', to: '/events', icon: List },
-    { title: 'Send event', to: '/events/send', icon: Send },
+    { title: 'Test event', to: '/events/send', icon: Send },
     { title: 'Deliveries', to: '/deliveries', icon: List },
   ]
 
@@ -36,7 +36,7 @@ describe('isNavItemActive', () => {
     expect(isNavItemActive('/events/101b0b89-b62e-408d-adfa-02bdcae4f589', events, items)).toBe(true)
   })
 
-  it('does not highlight Events on Send event', () => {
+  it('does not highlight Events on Test event', () => {
     expect(isNavItemActive('/events/send', events, items)).toBe(false)
     expect(isNavItemActive('/events/send', sendEvent, items)).toBe(true)
   })
@@ -58,6 +58,15 @@ describe('filterNavSections', () => {
     expect(paths).toContain('/settings')
     expect(paths).not.toContain('/dashboard')
     expect(paths).not.toContain('/endpoints')
+  })
+
+  it('labels platform admins as Admins (not Operators)', () => {
+    const sections = filterNavSections(true)
+    const admins = sections
+      .flatMap((section) => section.items)
+      .find((item) => item.to === '/admin/operators')
+
+    expect(admins?.title).toBe('Admins')
   })
 
   it('hides admin routes from tenant operators', () => {

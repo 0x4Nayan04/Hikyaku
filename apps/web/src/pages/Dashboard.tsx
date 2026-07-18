@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  ArrowRight,
-  Zap,
-} from 'lucide-react'
-import { ApiError, getStats, listDeliveries, listEvents } from '@/api/client'
+import { Check, Zap } from 'lucide-react'
+import { ApiError, getStats, listApiKeys, listDeliveries, listEndpoints, listEvents } from '@/api/client'
 import type { Stats } from '@/api/types'
 import { PageBanner } from '@/components/console/PageBanner'
 import { ConsolePage } from '@/components/console/ConsolePage'
@@ -13,9 +10,14 @@ import { DashboardQuickActions } from '@/components/console/DashboardQuickAction
 import { LiveChip } from '@/components/console/LiveChip'
 import { LiveMetrics } from '@/components/console/LiveMetrics'
 import { RecentActivity, type ActivityItem } from '@/components/console/RecentActivity'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatPercent } from '@/lib/format'
+import {
+  buildOnboardingSteps,
+  hasActiveEndpoint,
+  type OnboardingStep,
+} from '@/lib/tenant-onboarding'
+import { cn } from '@/lib/utils'
 
 const POLL_INTERVAL_MS = 10_000
 
@@ -37,6 +39,7 @@ export function Dashboard() {
       setIsLive(true)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load stats')
+      setIsLive(false)
     } finally {
       setIsInitial(false)
     }
@@ -183,28 +186,63 @@ function OutcomesPanel({ stats }: { stats: Stats }) {
 }
 
 function EmptyDashboardCTA() {
+  const [steps, setSteps] = useState<OnboardingStep[]>(() =>
+    buildOnboardingSteps({ hasEndpoint: false, hasApiKey: false }),
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([listEndpoints({ limit: 100, offset: 0 }), listApiKeys()])
+      .then(([endpoints, keys]) => {
+        if (cancelled) return
+        setSteps(
+          buildOnboardingSteps({
+            hasEndpoint: hasActiveEndpoint(endpoints.data),
+            hasApiKey: keys.data.some((key) => !key.revoked_at),
+          }),
+        )
+      })
+      .catch(() => {
+        // Keep the default unchecked checklist; empty-dashboard UX still works.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <DataPanel title="Get started">
-      <div className="dashboard-onboarding">
+      <div className="dashboard-onboarding dashboard-onboarding--checklist">
         <span className="dashboard-onboarding__icon" aria-hidden="true">
           <Zap className="size-5" strokeWidth={1.75} />
         </span>
         <div className="dashboard-onboarding__main">
           <p className="dashboard-onboarding__title">Get started</p>
           <p className="dashboard-onboarding__desc">
-            Create an endpoint, then send a test event. Metrics show up once deliveries start.
+            Wire a receiver, create a key, then smoke-test. Metrics show up once deliveries start.
           </p>
-        </div>
-        <div className="dashboard-onboarding__actions">
-          <CatalogButton size="sm" asChild>
-            <Link to="/endpoints">
-              Create endpoint
-              <ArrowRight className="size-3.5" aria-hidden="true" />
-            </Link>
-          </CatalogButton>
-          <CatalogButton size="sm" variant="secondary" asChild>
-            <Link to="/events/send">Send a test event</Link>
-          </CatalogButton>
+          <ol className="dashboard-onboarding-steps">
+            {steps.map((step, index) => (
+              <li
+                key={step.id}
+                className={cn(
+                  'dashboard-onboarding-step',
+                  step.done && 'dashboard-onboarding-step--done',
+                )}
+              >
+                <span className="dashboard-onboarding-step__marker" aria-hidden="true">
+                  {step.done ? <Check className="size-3.5" strokeWidth={2.25} /> : index + 1}
+                </span>
+                {step.done ? (
+                  <span className="dashboard-onboarding-step__label">{step.label}</span>
+                ) : (
+                  <Link to={step.to} className="dashboard-onboarding-step__label dashboard-onboarding-step__label--link">
+                    {step.label}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ol>
         </div>
       </div>
     </DataPanel>

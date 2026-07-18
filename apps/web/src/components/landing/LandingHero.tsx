@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import {
   ArrowRight,
   Check,
@@ -9,8 +10,10 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
+import { getBootstrapStatus } from '@/api/client'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
-import { getDefaultHomePath } from '@/lib/auth-redirect'
+import { resolveGuestLandingPrimaryCta } from '@/lib/auth-first-run'
+import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
 import { PRODUCT_LINKS } from '@/lib/app-meta'
 import { useSession } from '@/providers/session-context'
 
@@ -92,6 +95,28 @@ function DeliveryPreview() {
 export function LandingHero() {
   const navigate = useNavigate()
   const { session, loading } = useSession()
+  const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (session || loading) return
+    let cancelled = false
+    getBootstrapStatus()
+      .then((status) => {
+        if (!cancelled) setBootstrapAvailable(status.available)
+      })
+      .catch(() => {
+        if (!cancelled) setBootstrapAvailable(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [session, loading])
+
+  const guestPrimary = resolveGuestLandingPrimaryCta(bootstrapAvailable)
+  const guestSecondary =
+    guestPrimary.path === '/bootstrap'
+      ? { label: 'Sign in', path: '/login' as const }
+      : { label: 'Request access', path: '/signup' as const }
 
   return (
     <section className="lp-hero" aria-labelledby="hero-heading">
@@ -114,18 +139,23 @@ export function LandingHero() {
                 onClick={() => navigate(getDefaultHomePath(session.user))}
                 className="lp-button lp-button--primary focus-ring"
               >
-                Go to dashboard
+                Go to {getHomeLabel(session.user).toLowerCase()}
                 <LayoutDashboard className="size-4" aria-hidden="true" />
               </button>
             ) : !loading ? (
-              <button
-                type="button"
-                onClick={() => navigate('/signup')}
-                className="lp-button lp-button--primary focus-ring"
-              >
-                Request access
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate(guestPrimary.path)}
+                  className="lp-button lp-button--primary focus-ring"
+                >
+                  {guestPrimary.label}
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </button>
+                <Link to={guestSecondary.path} className="lp-button lp-button--secondary focus-ring">
+                  {guestSecondary.label}
+                </Link>
+              </>
             ) : null}
             <Link to={PRODUCT_LINKS.docs} className="lp-button lp-button--secondary focus-ring">
               Read the docs

@@ -103,10 +103,10 @@ const appNavSections: AppNavSection[] = [
         tenantOnly: true,
       },
       {
-        title: 'Send event',
+        title: 'Test event',
         to: '/events/send',
         icon: Send,
-        description: 'Send a test event',
+        description: 'Console smoke test',
         tenantOnly: true,
       },
       {
@@ -130,7 +130,7 @@ const appNavSections: AppNavSection[] = [
         superAdminOnly: true,
       },
       {
-        title: 'Operators',
+        title: 'Admins',
         to: '/admin/operators',
         icon: Users,
         description: 'Platform administrators',

@@ -5,6 +5,8 @@ import { AppTopBar } from '@/components/app/AppTopBar'
 import { AppCatalogShell } from '@/components/app/AppCatalogShell'
 import { ScrollToTop } from '@/components/console/ScrollToTop'
 import type { AppOutletContext } from '@/layouts/app-context'
+import { isTenantSuspended } from '@/lib/tenant-status'
+import { SuspendedTenant } from '@/pages/SuspendedTenant'
 import { useSession } from '@/providers/session-context'
 
 export function ConsoleLayout() {
@@ -14,6 +16,10 @@ export function ConsoleLayout() {
   const outletContext: AppOutletContext = {
     session,
     loadingSession: loading,
+  }
+
+  if (!loading && isTenantSuspended(session)) {
+    return <SuspendedTenant />
   }
 
   return (

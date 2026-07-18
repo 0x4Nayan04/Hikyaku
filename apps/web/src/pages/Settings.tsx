@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { ConsolePage } from '@/components/console/ConsolePage'
 import { SettingsLayout } from '@/components/console/SettingsLayout'
@@ -15,13 +16,23 @@ import { SettingsVaultTab } from '@/pages/settings/SettingsVaultTab'
 import { SettingsProfileTab } from '@/pages/settings/SettingsProfileTab'
 import { useSettingsPage } from '@/pages/settings/useSettingsPage'
 
+const TENANT_ONLY_TABS = new Set(['tenant', 'api-keys', 'vault'])
+
 export function Settings() {
   const { session } = useOutletContext<AppOutletContext>()
   const isSuperAdmin = session?.user.is_super_admin ?? false
 
   const [searchParams, setSearchParams] = useSearchParams()
-  const tab = searchParams.get('tab') ?? 'profile'
+  const requestedTab = searchParams.get('tab') ?? 'profile'
+  const tab =
+    isSuperAdmin && TENANT_ONLY_TABS.has(requestedTab) ? 'profile' : requestedTab
   const setTab = (newTab: string) => setSearchParams({ tab: newTab }, { replace: true })
+
+  useEffect(() => {
+    if (tab !== requestedTab) {
+      setSearchParams({ tab }, { replace: true })
+    }
+  }, [tab, requestedTab, setSearchParams])
 
   const {
     apiKeysState,

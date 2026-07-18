@@ -6,17 +6,17 @@ import { useFocusTrap } from '@/components/accessibility/Accessibility'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useScrollSpy } from '@/hooks/useScrollSpy'
-import { getDefaultHomePath } from '@/lib/auth-redirect'
-import { APP_HOME_LABEL, APP_NAME } from '@/lib/app-meta'
+import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
+import { APP_HOME_LABEL, APP_NAME, PRODUCT_LINKS } from '@/lib/app-meta'
 import { useSession } from '@/providers/session-context'
 
-const LANDING_SECTION_IDS = ['how-it-works', 'console', 'faq']
+const LANDING_SECTION_IDS = ['how-it-works', 'faq']
 
 const NAV_LINKS = [
   { label: 'How it works', href: '#how-it-works', sectionId: 'how-it-works', external: false },
-  { label: 'Console', href: '#console', sectionId: 'console', external: false },
+  { label: 'Console', href: PRODUCT_LINKS.console, sectionId: null, external: false },
   { label: 'FAQ', href: '#faq', sectionId: 'faq', external: false },
-  { label: 'Docs', href: '/docs', sectionId: null, external: false },
+  { label: 'Docs', href: PRODUCT_LINKS.docs, sectionId: null, external: false },
 ] as const
 
 export const LandingNavbar = memo(function LandingNavbar() {
@@ -61,11 +61,11 @@ export const LandingNavbar = memo(function LandingNavbar() {
     menuButtonRef.current?.focus()
   }, [])
 
+  // Invite/bootstrap-first: Sign in is the default primary; signup stays secondary.
   const primaryCta = isLogin
     ? { label: 'Request access', path: '/signup' }
-    : isSignup
-      ? { label: 'Sign in', path: '/login' }
-      : { label: 'Request access', path: '/signup' }
+    : { label: 'Sign in', path: '/login' }
+  const secondaryCta = isLanding ? { label: 'Request access', path: '/signup' } : null
 
   return (
     <header className="landing-nav">
@@ -112,18 +112,19 @@ export const LandingNavbar = memo(function LandingNavbar() {
                   onClick={() => navigate(getDefaultHomePath(session.user))}
                   className="sm-btn sm-btn-primary sm-btn-split focus-ring"
                 >
-                  <span className="sm-btn-split-label">Dashboard</span>
+                  <span className="sm-btn-split-label">{getHomeLabel(session.user)}</span>
                   <span className="sm-btn-split-icon">
                     <LayoutDashboard className="size-3.5" aria-hidden="true" />
                   </span>
                 </button>
-              ) : !loading && isLanding ? (
+              ) : null}
+              {!session && !loading && secondaryCta ? (
                 <button
                   type="button"
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate(secondaryCta.path)}
                   className="sm-btn sm-btn-secondary focus-ring"
                 >
-                  Sign in
+                  {secondaryCta.label}
                 </button>
               ) : null}
               {!session && !loading ? (
@@ -206,20 +207,20 @@ export const LandingNavbar = memo(function LandingNavbar() {
                   }}
                   className="sm-btn sm-btn-primary w-full"
                 >
-                  Dashboard
+                  {getHomeLabel(session.user)}
                 </button>
               ) : !loading ? (
                 <>
-                  {isLanding ? (
+                  {secondaryCta ? (
                     <button
                       type="button"
                       onClick={() => {
-                        navigate('/login')
+                        navigate(secondaryCta.path)
                         closeMobileMenu()
                       }}
                       className="sm-btn sm-btn-secondary w-full"
                     >
-                      Sign in
+                      {secondaryCta.label}
                     </button>
                   ) : null}
                   <button

@@ -5,7 +5,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { DocsSearch, DocsSearchTrigger } from '@/components/docs/DocsSearch'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
-import { getDefaultHomePath } from '@/lib/auth-redirect'
+import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
 import { APP_NAME } from '@/lib/app-meta'
 import { useSession } from '@/providers/session-context'
 
@@ -42,7 +42,7 @@ export const DocsHeader = memo(function DocsHeader() {
             {!loading ? (
               <button type="button" className="docs-v2-header-dashboard focus-ring" onClick={goDashboard}>
                 <LayoutDashboard className="size-3.5" aria-hidden="true" />
-                {session ? 'Dashboard' : 'Sign in'}
+                {session ? getHomeLabel(session.user) : 'Sign in'}
               </button>
             ) : null}
           </div>
