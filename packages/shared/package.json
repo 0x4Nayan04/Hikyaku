@@ -31,6 +31,10 @@
     "./password": {
       "types": "./dist/password.d.ts",
       "default": "./dist/password.js"
+    },
+    "./webhookUrl": {
+      "types": "./dist/webhookUrl.d.ts",
+      "default": "./dist/webhookUrl.js"
     }
   },
   "scripts": {

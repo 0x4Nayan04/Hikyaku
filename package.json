@@ -20,6 +20,9 @@
     "db:seed": "pnpm --filter @webhook/api db:seed",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
+    "start:api": "pnpm db:migrate && pnpm --filter @webhook/api start",
+    "start:worker": "pnpm --filter @webhook/worker start",
+    "start:web": "pnpm --filter @webhook/web preview --host 0.0.0.0 --port ${PORT:-4173}",
     "test:smoke": "playwright test",
     "test:smoke:ui": "playwright test --ui"
   },

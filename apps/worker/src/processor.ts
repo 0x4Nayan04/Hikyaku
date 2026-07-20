@@ -1,6 +1,7 @@
 import { RATE_LIMIT_DEFER_MS } from '@webhook/shared/constants'
 import { signPayload } from '@webhook/shared/crypto'
 import { deliveryAttempts, deliveries, endpoints, events } from '@webhook/shared/schema'
+import { checkWebhookUrl } from '@webhook/shared/webhookUrl'
 import { DelayedError, type Job } from 'bullmq'
 import { eq, max } from 'drizzle-orm'
 import { calculateBackoffDelayMs } from './backoff.js'
@@ -274,6 +275,15 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
   if (row.endpointStatus === 'disabled') {
     await recordShortCircuitFail(row.id, row.eventId, 'endpoint_disabled')
     log.info('endpoint_disabled')
+    return
+  }
+
+  const urlCheck = await checkWebhookUrl(row.url, {
+    allowPrivate: env.NODE_ENV !== 'production',
+  })
+  if (!urlCheck.ok) {
+    await recordShortCircuitFail(row.id, row.eventId, 'blocked_url')
+    log.info({ reason: urlCheck.reason }, 'blocked_url')
     return
   }
 

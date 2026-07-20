@@ -1,7 +1,9 @@
 import { generateEndpointSecret } from '@webhook/shared/crypto'
 import { deliveries, endpoints } from '@webhook/shared/schema'
+import { checkWebhookUrl } from '@webhook/shared/webhookUrl'
 import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
+import { env } from '../../config.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { parsePagination } from '../../lib/pagination.js'
@@ -67,6 +69,13 @@ async function loadLastDeliveries(
 export async function createEndpoint(req: Request, res: Response, next: NextFunction) {
   try {
     const body = parseCreateBody(req.body)
+    const urlCheck = await checkWebhookUrl(body.url, {
+      allowPrivate: env.NODE_ENV !== 'production',
+    })
+    if (!urlCheck.ok) {
+      throw new AppError(400, 'validation_error', urlCheck.reason)
+    }
+
     const secret = generateEndpointSecret()
     const db = getDb()
 

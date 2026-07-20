@@ -26,7 +26,8 @@ export function createSessionMiddleware(): RequestHandler {
     }),
     cookie: {
       httpOnly: true,
-      sameSite: 'lax',
+      // Split web/api hosts are cross-site; Lax drops the session cookie on XHR.
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
       secure: env.NODE_ENV === 'production',
       maxAge: env.SESSION_COOKIE_MAX_AGE,
     },

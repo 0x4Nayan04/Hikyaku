@@ -24,7 +24,7 @@ vi.mock('../../../src/config.js', () => ({
 }))
 
 describe('createSessionMiddleware cookie options', () => {
-  it('uses SameSite=Lax and Secure in production', async () => {
+  it('uses SameSite=None and Secure in production', async () => {
     const { createSessionMiddleware } = await import('../../../src/auth/session.js')
     const options = createSessionMiddleware() as unknown as {
       cookie: { sameSite: string; secure: boolean; httpOnly: boolean }
@@ -32,7 +32,7 @@ describe('createSessionMiddleware cookie options', () => {
 
     expect(options.cookie).toMatchObject({
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
       secure: true,
     })
   })

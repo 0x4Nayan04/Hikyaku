@@ -245,9 +245,10 @@ Headers: `Content-Type`, `X-Webhook-Id`, `X-Webhook-Timestamp`, `X-Webhook-Signa
 | Success      | HTTP 2xx within 30s                                |
 | Retryable    | Network error, timeout, 408, 429, 5xx              |
 | Fail-fast    | 4xx (except 408, 429)                              |
-| Rate limit   | 100 HTTP delivery attempts / minute / tenant       |
+| Delivery RL  | 100 HTTP delivery attempts / minute / tenant       |
+| Ingest RL    | 120 `POST /v1/events` / minute / tenant            |
 
-Rate-limited jobs defer for 60s without counting toward the 5-attempt cap. Limits come from deployment config (see `.env.example`).
+Rate-limited delivery jobs defer for 60s without counting toward the 5-attempt cap. Ingest over limit returns `429 rate_limited`. Limits come from deployment config (see `.env.example`). Endpoint URLs that resolve to private/loopback addresses are rejected in production.
 
 ## Manual smoke test (webhook.site)
 

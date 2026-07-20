@@ -25,6 +25,7 @@ describe('apiEnvSchema', () => {
     expect(env.SESSION_COOKIE_MAX_AGE).toBe(604_800_000)
     expect(env.WEB_APP_URL).toBe('http://localhost:5173')
     expect(env.INVITE_TTL_MS).toBe(7 * 24 * 60 * 60 * 1000)
+    expect(env.INGEST_RATE_LIMIT_PER_MINUTE).toBe(120)
   })
 
   it('coerces SESSION_COOKIE_MAX_AGE from env', () => {
