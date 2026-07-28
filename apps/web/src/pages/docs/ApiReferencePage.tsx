@@ -1,13 +1,7 @@
 import { DocsArticle } from '@/components/docs/DocsArticle'
 import { DocsHeading } from '@/components/docs/DocsHeading'
 import { DocsTable } from '@/components/docs/DocsTable'
-import { API_BASE, API_ROUTES } from '@/docs/constants'
-
-const TOC = [
-  { id: 'routes', label: 'Routes', level: 2 as const },
-  { id: 'pagination', label: 'Pagination', level: 2 as const },
-  { id: 'auth', label: 'Auth requirements', level: 2 as const },
-]
+import { API_ROUTES } from '@/docs/constants'
 
 export function ApiReferencePage() {
   return (
@@ -15,11 +9,10 @@ export function ApiReferencePage() {
       slug="api-reference"
       title="API reference"
       description="Routes, auth rules, and pagination"
-      toc={TOC}
     >
       <p className="docs-v2-prose">
-        Base URL is <code>{API_BASE}</code> (from <code>VITE_API_URL</code> at build time). All routes sit under{' '}
-        <code>/v1</code>.
+        All routes sit under <code>/v1</code>. The base URL is the app's API origin,
+        set via <code>VITE_API_URL</code> at build time.
       </p>
 
       <DocsHeading id="routes" level={2}>

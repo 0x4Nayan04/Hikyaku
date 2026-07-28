@@ -6,18 +6,12 @@ import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 import { DocsHeading } from '@/components/docs/DocsHeading'
 import { INGEST_CURL } from '@/docs/constants'
 
-const TOC = [
-  { id: 'console-path', label: 'Console path', level: 2 as const },
-  { id: 'api-path', label: 'API-only path', level: 2 as const },
-]
-
 export function QuickStartPage() {
   return (
     <DocsArticle
       slug="quick-start"
       title="Quick start"
       description="Bootstrap, create an endpoint, send a test event"
-      toc={TOC}
     >
       <p className="docs-v2-prose">
         Pick a path below. Both need the API and worker running — <code>pnpm dev</code> starts them

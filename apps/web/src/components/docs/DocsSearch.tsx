@@ -25,6 +25,7 @@ export function DocsSearch({ open, onOpenChange }: DocsSearchProps) {
       (item) =>
         item.label.toLowerCase().includes(q) ||
         item.description.toLowerCase().includes(q) ||
+        (item.keywords && item.keywords.toLowerCase().includes(q)) ||
         item.groupLabel.toLowerCase().includes(q) ||
         item.badge.includes(q),
     )

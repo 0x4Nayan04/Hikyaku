@@ -68,6 +68,27 @@ export function shortId(value: string, visible = 8): string {
   return `${value.slice(0, visible)}…`
 }
 
+const DELIVERY_ERROR_LABELS: Record<string, string> = {
+  timeout: 'Timed out',
+  network_error: 'Network error',
+  endpoint_disabled: 'Endpoint disabled',
+  blocked_url: 'Blocked URL',
+  max_attempts: 'Max attempts reached',
+}
+
+/** Human-readable label for delivery `last_error` codes (e.g. http_404 → HTTP 404). */
+export function formatDeliveryError(error: string): string {
+  const known = DELIVERY_ERROR_LABELS[error]
+  if (known) return known
+
+  const httpMatch = /^http_(\d{3})$/.exec(error)
+  if (httpMatch) {
+    return `HTTP ${httpMatch[1]}`
+  }
+
+  return error.replace(/_/g, ' ')
+}
+
 /** Prefer hostname + path start; truncate the end when space is tight. */
 export function formatEndpointUrlForDisplay(url: string, maxLen = 56): string {
   if (url.length <= maxLen) return url

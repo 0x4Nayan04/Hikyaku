@@ -24,8 +24,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   formatCreatedStacked,
+  formatDeliveryError,
   formatDeliveryTime,
-  formatEndpointUrlForDisplay,
   shortId,
 } from '@/lib/format'
 import { toast } from '@/lib/toast'
@@ -141,7 +141,9 @@ function LastDeliveryColumn({
         to={`/deliveries/${lastDelivery.deliveryId}`}
         className="endpoint-catalog-row__metric-link"
         title={
-          lastDelivery.error ? `${statusLabel} — ${lastDelivery.error}` : statusLabel
+          lastDelivery.error
+            ? `${statusLabel} — ${formatDeliveryError(lastDelivery.error)}`
+            : statusLabel
         }
       >
         <div className="endpoint-catalog-row__metric-value">
@@ -219,7 +221,7 @@ function EndpointCatalogRow({
 
       <div className="endpoint-catalog-row__main">
         <p className="endpoint-catalog-row__url" title={endpoint.url}>
-          {formatEndpointUrlForDisplay(endpoint.url, 64)}
+          {endpoint.url}
         </p>
         <div className="endpoint-catalog-row__meta">
           <code className="endpoint-catalog-row__id" title={endpoint.id}>

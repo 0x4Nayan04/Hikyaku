@@ -4,20 +4,12 @@ import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 import { DocsHeading } from '@/components/docs/DocsHeading'
 import { OUTBOUND_BODY } from '@/docs/constants'
 
-const TOC = [
-  { id: 'body', label: 'Delivery body', level: 2 as const },
-  { id: 'headers', label: 'Headers', level: 2 as const },
-  { id: 'statuses', label: 'Delivery statuses', level: 2 as const },
-  { id: 'inspection', label: 'Inspection & live updates', level: 2 as const },
-]
-
 export function OutboundPage() {
   return (
     <DocsArticle
       slug="outbound"
       title="Outbound deliveries"
       description="Delivery body, headers, statuses, and inspection"
-      toc={TOC}
     >
       <p className="docs-v2-prose">
         Each active endpoint gets a signed POST for every ingested event. This page covers the body

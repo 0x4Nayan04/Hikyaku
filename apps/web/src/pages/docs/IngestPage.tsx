@@ -6,18 +6,12 @@ import { DocsHeading } from '@/components/docs/DocsHeading'
 import { DocsTable } from '@/components/docs/DocsTable'
 import { INGEST_RESPONSE } from '@/docs/constants'
 
-const TOC = [
-  { id: 'request', label: 'Request body', level: 2 as const },
-  { id: 'statuses', label: 'Event statuses', level: 2 as const },
-]
-
 export function IngestPage() {
   return (
     <DocsArticle
       slug="ingest"
       title="Ingest events"
       description="POST /v1/events, idempotency, and event status"
-      toc={TOC}
     >
       <p className="docs-v2-prose">
         Post an event to <DocsApiRoute method="POST" path="/v1/events" />. The body must include three
@@ -67,6 +61,32 @@ export function IngestPage() {
         language="json"
       />
       <DocsCodeBlock label="Response (202)" code={INGEST_RESPONSE} language="json" />
+
+      <DocsHeading id="errors" level={2}>
+        Errors
+      </DocsHeading>
+      <DocsTable label="Status">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>When</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>400</code>
+            </td>
+            <td>Missing or invalid fields — check the request body and rules above</td>
+          </tr>
+          <tr>
+            <td>
+              <code>429</code>
+            </td>
+            <td>Too many requests — wait and retry after a short delay</td>
+          </tr>
+        </tbody>
+      </DocsTable>
 
       <DocsHeading id="statuses" level={2}>
         Event statuses

@@ -2,18 +2,12 @@ import { DocsArticle } from '@/components/docs/DocsArticle'
 import { DocsHeading } from '@/components/docs/DocsHeading'
 import { APP_NAME } from '@/lib/app-meta'
 
-const TOC = [
-  { id: 'pipeline', label: 'How it works', level: 2 as const },
-  { id: 'concepts', label: 'Core concepts', level: 2 as const },
-]
-
 export function IntroductionPage() {
   return (
     <DocsArticle
       slug="introduction"
       title="Introduction"
       description="Ingest, fan-out, signing, and retries"
-      toc={TOC}
     >
       <DocsHeading id="pipeline" level={2}>
         How it works

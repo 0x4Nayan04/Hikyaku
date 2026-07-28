@@ -4,19 +4,12 @@ import { DocsCallout } from '@/components/docs/DocsCallout'
 import { DocsHeading } from '@/components/docs/DocsHeading'
 import { DocsTable } from '@/components/docs/DocsTable'
 
-const TOC = [
-  { id: 'policy', label: 'Retry policy', level: 2 as const },
-  { id: 'rate-limits', label: 'Rate limiting', level: 2 as const },
-  { id: 'replay', label: 'Replay', level: 2 as const },
-]
-
 export function RetriesPage() {
   return (
     <DocsArticle
       slug="retries"
       title="Retries & rate limits"
       description="Backoff, fail-fast, deferred deliveries, and replay"
-      toc={TOC}
     >
       <p className="docs-v2-prose">
         Transient failures retry automatically. Permanent client errors fail fast. After a delivery

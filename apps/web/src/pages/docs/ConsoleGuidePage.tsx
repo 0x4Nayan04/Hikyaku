@@ -3,18 +3,12 @@ import { Link } from 'react-router-dom'
 import { DocsArticle } from '@/components/docs/DocsArticle'
 import { DocsHeading } from '@/components/docs/DocsHeading'
 
-const TOC = [
-  { id: 'tenant-console', label: 'Tenant console', level: 2 as const },
-  { id: 'admin', label: 'Platform admin', level: 2 as const },
-]
-
 export function ConsoleGuidePage() {
   return (
     <DocsArticle
       slug="console-guide"
       title="Console guide"
       description="Tenant pages and platform admin"
-      toc={TOC}
     >
       <p className="docs-v2-prose">
         Fresh deploys bootstrap a super-admin at <Link to="/bootstrap">/bootstrap</Link>. Tenant
@@ -47,9 +41,9 @@ export function ConsoleGuidePage() {
           failures.
         </li>
         <li>
-          <strong>Settings</strong> — API keys, an optional endpoint-secrets vault (session memory
-          only — not durable storage), and account password. Super-admins see profile/password only;
-          they have no API keys or vault tabs.
+        <strong>Settings</strong> — API keys, an optional Vault (session memory
+            only — not durable storage), and account password. Super-admins see profile/password only;
+            they have no API keys or vault tabs.
         </li>
       </ul>
 

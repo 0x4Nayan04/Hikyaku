@@ -9,20 +9,17 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
-import { DocsOnPageNav } from '@/components/docs/DocsOnPageNav'
 import { DocsPager } from '@/components/docs/DocsPager'
 import { adjacentDocs } from '@/docs/config'
-import type { DocTocItem } from '@/docs/types'
 
 type DocsArticleProps = {
   slug: string
   title: string
   description: string
-  toc?: DocTocItem[]
   children: ReactNode
 }
 
-export function DocsArticle({ slug, title, description, toc = [], children }: DocsArticleProps) {
+export function DocsArticle({ slug, title, description, children }: DocsArticleProps) {
   const { previous, next } = adjacentDocs(slug)
 
   return (
@@ -49,8 +46,6 @@ export function DocsArticle({ slug, title, description, toc = [], children }: Do
         <div className="docs-v2-article-body">{children}</div>
 
       </article>
-
-      <DocsOnPageNav items={toc} />
 
       <DocsPager
         previous={previous ? { slug: previous.slug, label: previous.label } : null}
