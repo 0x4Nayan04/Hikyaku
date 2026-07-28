@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, Zap } from 'lucide-react'
+import {
+  Check,
+  ChevronRight,
+  KeyRound,
+  Package,
+  Send,
+  Webhook,
+  type LucideIcon,
+} from 'lucide-react'
 import { ApiError, getStats, listApiKeys, listDeliveries, listEndpoints, listEvents } from '@/api/client'
 import type { Stats } from '@/api/types'
 import { PageBanner } from '@/components/console/PageBanner'
@@ -16,6 +24,7 @@ import {
   buildOnboardingSteps,
   hasActiveEndpoint,
   type OnboardingStep,
+  type OnboardingStepId,
 } from '@/lib/tenant-onboarding'
 import { cn } from '@/lib/utils'
 
@@ -185,6 +194,91 @@ function OutcomesPanel({ stats }: { stats: Stats }) {
   )
 }
 
+const onboardingStepMeta: Record<
+  OnboardingStepId,
+  { icon: LucideIcon; hint: string; tone: 'info' | 'success' | 'neutral' }
+> = {
+  endpoint: {
+    icon: Webhook,
+    hint: 'Receiver URL and signing secret',
+    tone: 'neutral',
+  },
+  api_key: {
+    icon: KeyRound,
+    hint: 'Bearer auth for ingest API',
+    tone: 'neutral',
+  },
+  test_event: {
+    icon: Send,
+    hint: 'Console smoke test',
+    tone: 'info',
+  },
+  deliveries: {
+    icon: Package,
+    hint: 'Outbound delivery attempts',
+    tone: 'success',
+  },
+}
+
+const onboardingToneIconClass = {
+  info: 'dashboard-activity-row__icon--event',
+  success: 'dashboard-activity-row__icon--delivery',
+  neutral: 'dashboard-activity-row__icon--neutral',
+} as const
+
+function OnboardingStepRow({ step }: { step: OnboardingStep }) {
+  const meta = onboardingStepMeta[step.id]
+  const Icon = meta.icon
+
+  const rowContent = (
+    <>
+      <span
+        className={cn(
+          'dashboard-activity-row__icon',
+          step.done
+            ? 'dashboard-activity-row__icon--success'
+            : onboardingToneIconClass[meta.tone],
+        )}
+        aria-hidden="true"
+      >
+        {step.done ? (
+          <Check className="size-4" strokeWidth={2.25} />
+        ) : (
+          <Icon className="size-4" strokeWidth={1.75} />
+        )}
+      </span>
+      <div className="dashboard-activity-row__main">
+        <p
+          className={cn(
+            'dashboard-activity-row__name',
+            step.done && 'text-muted-strong line-through decoration-muted-strong/45',
+          )}
+        >
+          {step.label}
+        </p>
+        <p className="dashboard-panel-row__hint">{meta.hint}</p>
+      </div>
+      {!step.done ? (
+        <ChevronRight
+          className="size-4 shrink-0 text-muted-strong/40 transition-colors duration-150 group-hover:text-primary"
+          strokeWidth={2}
+          aria-hidden="true"
+        />
+      ) : null}
+    </>
+  )
+
+  if (step.done) {
+    return <div className="dashboard-metric-row">{rowContent}</div>
+  }
+
+  return (
+    <Link to={step.to} className="dashboard-activity-row group">
+      {rowContent}
+    </Link>
+  )
+}
+
 function EmptyDashboardCTA() {
   const [steps, setSteps] = useState<OnboardingStep[]>(() =>
     buildOnboardingSteps({ hasEndpoint: false, hasApiKey: false }),
@@ -211,39 +305,14 @@ function EmptyDashboardCTA() {
   }, [])
 
   return (
-    <DataPanel title="Get started">
-      <div className="dashboard-onboarding dashboard-onboarding--checklist">
-        <span className="dashboard-onboarding__icon" aria-hidden="true">
-          <Zap className="size-5" strokeWidth={1.75} />
-        </span>
-        <div className="dashboard-onboarding__main">
-          <p className="dashboard-onboarding__title">Get started</p>
-          <p className="dashboard-onboarding__desc">
-            Wire a receiver, create a key, then smoke-test. Metrics show up once deliveries start.
-          </p>
-          <ol className="dashboard-onboarding-steps">
-            {steps.map((step, index) => (
-              <li
-                key={step.id}
-                className={cn(
-                  'dashboard-onboarding-step',
-                  step.done && 'dashboard-onboarding-step--done',
-                )}
-              >
-                <span className="dashboard-onboarding-step__marker" aria-hidden="true">
-                  {step.done ? <Check className="size-3.5" strokeWidth={2.25} /> : index + 1}
-                </span>
-                {step.done ? (
-                  <span className="dashboard-onboarding-step__label">{step.label}</span>
-                ) : (
-                  <Link to={step.to} className="dashboard-onboarding-step__label dashboard-onboarding-step__label--link">
-                    {step.label}
-                  </Link>
-                )}
-              </li>
-            ))}
-          </ol>
-        </div>
+    <DataPanel
+      title="Get started"
+      description="Wire a receiver, create a key, then smoke-test. Metrics show up once deliveries start."
+    >
+      <div className="dashboard-activity-list">
+        {steps.map((step) => (
+          <OnboardingStepRow key={step.id} step={step} />
+        ))}
       </div>
     </DataPanel>
   )

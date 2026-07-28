@@ -33,7 +33,7 @@ export function DocsCodeBlock({ label, code, language }: DocsCodeBlockProps) {
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current)
       resetTimerRef.current = setTimeout(() => setCopied(false), 2000)
     } catch {
-      toast.error('Could not copy')
+      toast.error("Clipboard access denied — use a secure context (HTTPS)")
     }
   }, [code])
 

@@ -9,7 +9,12 @@ import {
   DataTableRow,
 } from '@/components/console/DataTable'
 import { StatusBadge } from '@/components/console/StatusBadge'
-import { formatDateTime, formatEndpointUrlForDisplay, shortId } from '@/lib/format'
+import {
+  formatDateTime,
+  formatDeliveryError,
+  formatEndpointUrlForDisplay,
+  shortId,
+} from '@/lib/format'
 
 type DeliveryCatalogListProps = {
   deliveries: Delivery[]
@@ -46,7 +51,7 @@ export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
               </Link>
               {delivery.last_error ? (
                 <p className="delivery-table__error" title={delivery.last_error}>
-                  {delivery.last_error}
+                  {formatDeliveryError(delivery.last_error)}
                 </p>
               ) : null}
             </DataTableCell>

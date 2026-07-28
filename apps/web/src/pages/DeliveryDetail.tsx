@@ -28,7 +28,7 @@ import {
 } from '@/components/catalog/CatalogDialog'
 
 import { useDeliveryLiveUpdates } from '@/hooks/useDeliveryLiveUpdates'
-import { formatDateTime } from '@/lib/format'
+import { formatDateTime, formatDeliveryError } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { toast } from '@/lib/toast'
 
@@ -297,7 +297,7 @@ export function DeliveryDetail() {
                 <PageBanner
                   variant="error"
                   title="Last error"
-                  description={delivery.last_error}
+                  description={formatDeliveryError(delivery.last_error)}
                 />
               </div>
             ) : null}

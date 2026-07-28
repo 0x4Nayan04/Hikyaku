@@ -5,18 +5,12 @@ import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 import { DocsHeading } from '@/components/docs/DocsHeading'
 import { CREATE_ENDPOINT_CURL } from '@/docs/constants'
 
-const TOC = [
-  { id: 'create', label: 'Create endpoint', level: 2 as const },
-  { id: 'console', label: 'Console workflow', level: 2 as const },
-]
-
 export function EndpointsPage() {
   return (
     <DocsArticle
       slug="endpoints"
       title="Endpoints"
       description="Receiver URLs and signing secrets"
-      toc={TOC}
     >
       <p className="docs-v2-prose">
         An endpoint is a subscriber URL that receives signed webhook POSTs. Create one with{' '}

@@ -6,19 +6,12 @@ import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 import { DocsHeading } from '@/components/docs/DocsHeading'
 import { DocsTable } from '@/components/docs/DocsTable'
 
-const TOC = [
-  { id: 'auth-modes', label: 'Auth modes', level: 2 as const },
-  { id: 'api-keys', label: 'API keys', level: 2 as const },
-  { id: 'onboarding', label: 'Onboarding flows', level: 2 as const },
-]
-
 export function AuthenticationPage() {
   return (
     <DocsArticle
       slug="authentication"
       title="Authentication"
       description="API keys, sessions, signup, and invites"
-      toc={TOC}
     >
       <p className="docs-v2-prose">
         Backends use an API key. The console uses a session cookie. Platform ops use a super-admin

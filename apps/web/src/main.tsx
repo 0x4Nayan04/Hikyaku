@@ -1,5 +1,5 @@
 if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_REACT_GRAB === 'true') {
-  import('react-grab')
+  import("react-grab").then((m) => m.init({"activationKey":"g","activationMode":"toggle","allowActivationInsideInput":true,"maxContextLines":3}))
 }
 
 import { StrictMode } from 'react'

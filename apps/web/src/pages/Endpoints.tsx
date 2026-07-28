@@ -18,9 +18,10 @@ import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { SendEventField } from '@/components/console/SendEventField'
+import { SettingsCopyValue } from '@/components/console/SettingsCatalog'
 import { CatalogButton } from '@/components/catalog/CatalogButton'
 import { CatalogInput } from '@/components/catalog/CatalogInput'
-import { CatalogSecretReveal } from '@/components/catalog/CatalogSecretReveal'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   CatalogSelect,
   CatalogSelectContent,
@@ -523,14 +524,6 @@ export function Endpoints() {
     secretDispatch({ type: 'dismiss' })
   }
 
-  async function copySecret() {
-    if (!secretEndpoint) {
-      return
-    }
-    await navigator.clipboard.writeText(secretEndpoint.secret)
-    toast.success('Secret copied')
-  }
-
   async function handleToggleStatus(endpoint: Endpoint) {
     const nextStatus = endpoint.status === 'active' ? 'disabled' : 'active'
     listDispatch({ type: 'toggle_start', id: endpoint.id })
@@ -821,44 +814,56 @@ export function Endpoints() {
           }
         }}
       >
-        <CatalogDialogContent className="sm:max-w-lg">
-          <CatalogDialogHeader>
-            <CatalogDialogTitle>Signing secret</CatalogDialogTitle>
-            <CatalogDialogDescription className="text-muted-strong">
-              Copy this secret now. The server cannot show it again after you close this dialog.
-            </CatalogDialogDescription>
-          </CatalogDialogHeader>
+        <CatalogDialogContent className="gap-0 p-0 sm:max-w-lg">
+          <div className="flex flex-col gap-4 px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))] pb-4">
+            <CatalogDialogHeader>
+              <CatalogDialogTitle>Signing secret</CatalogDialogTitle>
+              <CatalogDialogDescription className="text-muted-foreground">
+                Copy this secret now. The server cannot show it again after you close this dialog.
+              </CatalogDialogDescription>
+            </CatalogDialogHeader>
 
-          {secretEndpoint ? (
-            <div className="flex flex-col gap-4">
-              <CatalogSecretReveal
-                value={secretEndpoint.secret}
-                onCopy={() => void copySecret()}
-                copyLabel="Copy secret"
-                hint="Use this value to verify webhook signatures."
-              />
-
-              <label className="flex cursor-pointer items-start gap-3 border border-border bg-surface px-4 py-3 transition-colors hover:bg-background-alt">
-                <input
-                  type="checkbox" className="mt-1 shrink-0"
-                  checked={saveToVault}
-                  onChange={(event) =>
-                    secretDispatch({ type: 'set_save_to_vault', value: event.target.checked })
-                  }
+            {secretEndpoint ? (
+              <>
+                <PageBanner
+                  variant="info"
+                  title="Shown once"
+                  description="Use this value to verify webhook signatures. Treat it like a password."
                 />
-                <span className="flex flex-col gap-1 text-sm">
-                  <span className="font-medium">Save for this session</span>
-                  <span className="text-muted-strong">
-                    Kept in memory for this browser tab session only (lost on refresh). The server
-                    never keeps a copy.
-                  </span>
-                </span>
-              </label>
-            </div>
-          ) : null}
 
-          <CatalogDialogFooter>
-            <CatalogButton size="sm" onClick={handleSecretDismiss}>Done</CatalogButton>
+                <SettingsCopyValue
+                  value={secretEndpoint.secret}
+                  copyLabel="Secret"
+                  buttonLabel="Copy"
+                />
+
+                <div className="flex items-start gap-2.5">
+                  <Checkbox
+                    id="save-endpoint-secret"
+                    className="mt-0.5"
+                    checked={saveToVault}
+                    onCheckedChange={(checked) =>
+                      secretDispatch({ type: 'set_save_to_vault', value: checked === true })
+                    }
+                  />
+                  <label
+                    htmlFor="save-endpoint-secret"
+                    className="send-event-field--plain min-w-0 cursor-pointer"
+                  >
+                    <span className="send-event-field__label">Save for this session</span>
+                    <span className="send-event-field__hint mt-0 block">
+                      Optional in-memory vault for this browser tab only.
+                    </span>
+                  </label>
+                </div>
+              </>
+            ) : null}
+          </div>
+
+          <CatalogDialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/[0.06] px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
+            <CatalogButton size="sm" type="button" onClick={handleSecretDismiss}>
+              Done
+            </CatalogButton>
           </CatalogDialogFooter>
         </CatalogDialogContent>
       </CatalogDialog>

@@ -4,19 +4,12 @@ import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 import { DocsHeading } from '@/components/docs/DocsHeading'
 import { VERIFY_NODE, VERIFY_PYTHON } from '@/docs/constants'
 
-const TOC = [
-  { id: 'algorithm', label: 'Signing algorithm', level: 2 as const },
-  { id: 'node', label: 'Node.js', level: 2 as const },
-  { id: 'python', label: 'Python', level: 2 as const },
-]
-
 export function SigningPage() {
   return (
     <DocsArticle
       slug="signing"
       title="HMAC signing"
       description="Verify X-Webhook-Signature on the receiver"
-      toc={TOC}
     >
       <p className="docs-v2-prose">
         Every outbound POST is signed with HMAC-SHA256. Receivers should verify{' '}
