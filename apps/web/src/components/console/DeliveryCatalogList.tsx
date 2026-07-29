@@ -39,7 +39,7 @@ export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
       <DataTableBody>
         {deliveries.map((delivery) => (
           <DataTableRow key={delivery.id}>
-            <DataTableCell className="max-w-[18rem] md:max-w-[22rem]">
+            <DataTableCell className="max-w-[18rem] md:max-w-88">
               <Link
                 to={`/deliveries/${delivery.id}`}
                 className="block min-w-0 font-medium hover:text-primary hover:underline"

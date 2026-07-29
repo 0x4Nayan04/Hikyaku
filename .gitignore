@@ -8,3 +8,6 @@ coverage
 .DS_Store
 
 
+skills-lock.json
+.agents/skills/ponytail/SKILL.md
+apps/web/.agents/skills/react-grab/SKILL.md
