@@ -321,7 +321,7 @@ function EmptyDashboardCTA() {
 function DashboardSkeleton() {
   return (
     <div className="dashboard-page">
-      <Skeleton className="h-[4.5rem]" />
+      <Skeleton className="h-18" />
       <Skeleton className="h-28" />
       <Skeleton className="h-32" />
       <Skeleton className="h-48" />

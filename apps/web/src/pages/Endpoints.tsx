@@ -709,7 +709,7 @@ export function Endpoints() {
             </form>
           </div>
 
-          <CatalogDialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/[0.06] px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
+          <CatalogDialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/6 px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
             <CatalogButton size="sm"
               type="button"
               variant="secondary"
@@ -786,7 +786,7 @@ export function Endpoints() {
             ) : null}
           </div>
 
-          <CatalogDialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/[0.06] px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
+          <CatalogDialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/6 px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
             <CatalogButton size="sm"
               type="button"
               variant="secondary"
@@ -860,7 +860,7 @@ export function Endpoints() {
             ) : null}
           </div>
 
-          <CatalogDialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/[0.06] px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
+          <CatalogDialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/6 px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
             <CatalogButton size="sm" type="button" onClick={handleSecretDismiss}>
               Done
             </CatalogButton>
