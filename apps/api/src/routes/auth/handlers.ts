@@ -5,6 +5,7 @@ import { tenants, users } from '@webhook/shared/schema'
 import { hashPassword, verifyPassword } from '../../auth/password.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
+import { revokeUserSessions } from '../../lib/revokeSessions.js'
 import { toBootstrapUserJson, toTenantJson, toUserJson } from './serialize.js'
 import {
   parseBootstrapBody,
@@ -211,7 +212,11 @@ export async function changePassword(req: Request, res: Response, next: NextFunc
     }
 
     const passwordHash = await hashPassword(body.new_password)
-    await db.update(users).set({ passwordHash }).where(eq(users.id, userId))
+    await db.transaction(async (tx) => {
+      await tx.update(users).set({ passwordHash }).where(eq(users.id, userId))
+      await revokeUserSessions(userId, tx)
+    })
+    await destroySession(req)
 
     res.status(204).send()
   } catch (err) {

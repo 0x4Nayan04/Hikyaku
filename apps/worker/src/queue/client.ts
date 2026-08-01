@@ -10,8 +10,19 @@ export const queue = new Queue(QUEUE_NAME, {
   connection: getRedisConnectionOptions(),
 })
 
-export async function enqueueDelivery(deliveryId: string): Promise<void> {
-  await queue.add(JOB_NAME, { deliveryId } satisfies DeliveryJobData, {
+/** Enqueue a delivery job, replacing any exhausted completed/failed job with the same id. */
+export async function enqueueDelivery(deliveryId: string, targetQueue: Queue = queue): Promise<void> {
+  const existing = await targetQueue.getJob(deliveryId)
+  if (existing) {
+    const state = await existing.getState()
+    if (state === 'completed' || state === 'failed') {
+      await existing.remove()
+    } else {
+      return
+    }
+  }
+
+  await targetQueue.add(JOB_NAME, { deliveryId } satisfies DeliveryJobData, {
     jobId: deliveryId,
     ...DELIVERY_JOB_OPTIONS,
   })

@@ -1,6 +1,6 @@
 import { RATE_LIMIT_DEFER_MS } from '@webhook/shared/constants'
 import { signPayload } from '@webhook/shared/crypto'
-import { deliveryAttempts, deliveries, endpoints, events } from '@webhook/shared/schema'
+import { deliveryAttempts, deliveries, endpoints, events, tenants } from '@webhook/shared/schema'
 import { checkWebhookUrl } from '@webhook/shared/webhookUrl'
 import { DelayedError, type Job } from 'bullmq'
 import { eq, max } from 'drizzle-orm'
@@ -28,6 +28,7 @@ type DeliveryContext = {
   url: string
   secret: string
   endpointStatus: string
+  tenantStatus: string
 }
 
 type HttpAttemptFields = {
@@ -52,10 +53,12 @@ async function loadDeliveryContext(deliveryId: string): Promise<DeliveryContext 
       url: endpoints.url,
       secret: endpoints.secret,
       endpointStatus: endpoints.status,
+      tenantStatus: tenants.status,
     })
     .from(deliveries)
     .innerJoin(events, eq(events.id, deliveries.eventId))
     .innerJoin(endpoints, eq(endpoints.id, deliveries.endpointId))
+    .innerJoin(tenants, eq(tenants.id, deliveries.tenantId))
     .where(eq(deliveries.id, deliveryId))
     .limit(1)
 
@@ -278,6 +281,12 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     return
   }
 
+  if (row.tenantStatus === 'suspended') {
+    await recordShortCircuitFail(row.id, row.eventId, 'tenant_suspended')
+    log.info('tenant_suspended')
+    return
+  }
+
   const urlCheck = await checkWebhookUrl(row.url, {
     allowPrivate: env.NODE_ENV !== 'production',
   })
@@ -322,10 +331,17 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
   let error: string | null = null
 
   try {
-    const result = await postWithTimeout(row.url, body, headers, env.DELIVERY_TIMEOUT_MS)
+    const result = await postWithTimeout(row.url, body, headers, env.DELIVERY_TIMEOUT_MS, {
+      allowPrivate: env.NODE_ENV !== 'production',
+    })
     httpStatus = result.status
     responseBody = result.body
+  } catch (err) {
+    error = classifyDeliveryError(err)
+    log.info({ error }, 'delivery_transport_failure')
+  }
 
+  if (httpStatus !== null) {
     if (httpStatus >= 200 && httpStatus < 300) {
       await recordSuccess(
         row.id,
@@ -351,9 +367,6 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
       log.info({ last_error: `http_${httpStatus}` }, 'delivery_failed_fast')
       return
     }
-  } catch (err) {
-    error = classifyDeliveryError(err)
-    log.info({ error }, 'delivery_transport_failure')
   }
 
   const attempt: HttpAttemptFields = {

@@ -19,7 +19,6 @@ function isUniqueViolation(err: unknown): boolean {
 export async function createSignupRequest(req: Request, res: Response, next: NextFunction) {
   try {
     const body = parseSignupRequestBody(req.body)
-    const passwordHash = await hashPassword(body.password)
     const db = getDb()
 
     const request = await db.transaction(async (tx) => {
@@ -27,6 +26,7 @@ export async function createSignupRequest(req: Request, res: Response, next: Nex
       await assertNoPendingInvite(body.email, tx)
       await assertNoPendingSignupRequest(body.email, tx)
 
+      const passwordHash = await hashPassword(body.password)
       const [r] = await tx
         .insert(signupRequests)
         .values({

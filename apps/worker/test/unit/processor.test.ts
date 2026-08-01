@@ -846,6 +846,66 @@ describe('processor', () => {
     await mock.close()
   })
 
+  it('fails immediately when tenant is suspended without HTTP call', async () => {
+    const db = getDb()
+    let requestCount = 0
+
+    const mock = await startMockServer((_req, res) => {
+      requestCount += 1
+      res.writeHead(200)
+      res.end('ok')
+    })
+
+    const [tenant] = await db
+      .insert(tenants)
+      .values({ name: 'Processor Suspended', status: 'suspended' })
+      .returning()
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: `http://127.0.0.1:${mock.port}/hook`,
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-suspended-1',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({
+        tenantId: tenant.id,
+        eventId: event.id,
+        endpointId: endpoint.id,
+      })
+      .returning()
+
+    await processor(makeJob(delivery.id))
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    const attempts = await db
+      .select()
+      .from(deliveryAttempts)
+      .where(eq(deliveryAttempts.deliveryId, delivery.id))
+
+    expect(requestCount).toBe(0)
+    expect(updated.status).toBe('failed')
+    expect(updated.lastError).toBe('tenant_suspended')
+    expect(updated.attemptCount).toBe(0)
+    expect(attempts).toHaveLength(1)
+    expect(attempts[0]?.error).toBe('tenant_suspended')
+    expect(attempts[0]?.httpStatus).toBeNull()
+
+    await mock.close()
+  })
+
   it('processes a replayed delivery after attempt_count and status reset', async () => {
     const db = getDb()
     let responseStatus = 400
