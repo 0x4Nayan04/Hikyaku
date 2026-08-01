@@ -19,6 +19,7 @@ export const apiEnvSchema = baseSchema
     WEB_APP_URL: z.string().url().default('http://localhost:5173'),
     INVITE_TTL_MS: z.coerce.number().default(7 * 24 * 60 * 60 * 1000),
     INGEST_RATE_LIMIT_PER_MINUTE: z.coerce.number().default(120),
+    AUTH_RATE_LIMIT_PER_MINUTE: z.coerce.number().default(20),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV !== 'production') return

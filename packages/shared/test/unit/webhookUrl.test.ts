@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkWebhookUrl, isPrivateIp } from '../../src/webhookUrl.js'
+import { checkWebhookUrl, isPrivateIp, resolveWebhookUrl } from '../../src/webhookUrl.js'
 
 describe('isPrivateIp', () => {
   it('flags common private and loopback IPv4 ranges', () => {
@@ -15,6 +15,9 @@ describe('isPrivateIp', () => {
     expect(isPrivateIp('::1')).toBe(true)
     expect(isPrivateIp('fc00::1')).toBe(true)
     expect(isPrivateIp('fe80::1')).toBe(true)
+    expect(isPrivateIp('::ffff:7f00:1')).toBe(true)
+    expect(isPrivateIp('64:ff9b::192.0.2.1')).toBe(true)
+    expect(isPrivateIp('2002:c000:0204::')).toBe(true)
     expect(isPrivateIp('2001:4860:4860::8888')).toBe(false)
   })
 })
@@ -41,5 +44,15 @@ describe('checkWebhookUrl', () => {
 
   it('accepts a public https URL', async () => {
     await expect(checkWebhookUrl('https://example.com/hook')).resolves.toEqual({ ok: true })
+  })
+
+  it('returns only validated public addresses for connection pinning', async () => {
+    const result = await resolveWebhookUrl('https://example.com/hook')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.url.hostname).toBe('example.com')
+    expect(result.addresses.length).toBeGreaterThan(0)
+    expect(result.addresses.every((address) => !isPrivateIp(address.address))).toBe(true)
   })
 })

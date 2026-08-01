@@ -189,10 +189,20 @@ describe('super-admin tenant management', () => {
     const newPassword = 'replacement-password-12'
 
     try {
+      const loginRes = await request(app)
+        .post('/v1/auth/login')
+        .send({ email: tenantUser.email, password: tenantUser.password })
+      expect(loginRes.status).toBe(200)
+      const sessionCookie = loginRes.headers['set-cookie']
+      expect(sessionCookie).toBeDefined()
+
       const resetRes = await agent
         .post(`/v1/admin/tenants/${existingTenantId}/users/${tenantUser.userId}/reset-password`)
         .send({ password: newPassword })
       expect(resetRes.status).toBe(204)
+
+      const meRes = await request(app).get('/v1/auth/me').set('Cookie', sessionCookie)
+      expect(meRes.status).toBe(401)
 
       expect(
         (

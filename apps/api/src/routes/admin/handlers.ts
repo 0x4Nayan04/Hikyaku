@@ -8,6 +8,7 @@ import { recordAudit } from '../../lib/audit.js'
 import { AppError } from '../../lib/errors.js'
 import { assertEmailAvailable } from '../../lib/invites.js'
 import { parsePagination } from '../../lib/pagination.js'
+import { revokeUserSessions } from '../../lib/revokeSessions.js'
 import { toUserJson } from '../auth/serialize.js'
 import { toAdminTenantJson } from './serialize.js'
 import {
@@ -371,6 +372,7 @@ export async function resetTenantUserPassword(req: Request, res: Response, next:
     await db.transaction(async (tx) => {
       await tx.update(users).set({ passwordHash }).where(eq(users.id, target.id))
       await recordAudit(tx, 'user.password_reset', req.userId!, id, { email: target.email })
+      await revokeUserSessions(target.id, tx)
     })
 
     res.status(204).send()

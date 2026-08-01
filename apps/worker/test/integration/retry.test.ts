@@ -3,7 +3,7 @@ import { deliveries, deliveryAttempts, events } from '@webhook/shared/schema'
 import type { Job } from 'bullmq'
 import { asc, eq } from 'drizzle-orm'
 import request from 'supertest'
-import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../../../api/src/config.js'
 import { closePool as closeApiPool } from '../../../api/src/db/client.js'
 import { closeRedis } from '../../../api/src/lib/redis.js'
@@ -13,6 +13,12 @@ import { createTenantWithKey, deleteTenant } from '../../../api/test/helpers/ten
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
 import { processor } from '../../src/processor.js'
+
+vi.mock('../../../api/src/queue/client.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  enqueueDelivery: vi.fn().mockResolvedValue(undefined),
+  reEnqueueDelivery: vi.fn().mockResolvedValue(undefined),
+}))
 
 const app = createApp()
 

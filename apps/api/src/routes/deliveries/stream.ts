@@ -21,6 +21,10 @@ const deliverySelect = {
   updatedAt: deliveries.updatedAt,
 }
 
+export function writeSseEvent(res: Response, event: string, data: unknown): void {
+  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+}
+
 export function deliveryFingerprint(row: DeliveryRow): string {
   return JSON.stringify({
     status: row.status,
@@ -29,10 +33,6 @@ export function deliveryFingerprint(row: DeliveryRow): string {
     last_error: row.lastError,
     updated_at: row.updatedAt.toISOString(),
   })
-}
-
-export function writeSseEvent(res: Response, event: string, data: unknown): void {
-  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
 }
 
 async function loadTenantDeliveries(tenantId: string): Promise<DeliveryRow[]> {
@@ -55,11 +55,13 @@ export async function streamDeliveries(req: Request, res: Response, next: NextFu
 
     const snapshots = new Map<string, string>()
     let closed = false
+    let polling = false
 
     const poll = async () => {
-      if (closed) {
+      if (closed || polling) {
         return
       }
+      polling = true
 
       try {
         const rows = await loadTenantDeliveries(tenantId)
@@ -82,6 +84,8 @@ export async function streamDeliveries(req: Request, res: Response, next: NextFu
         if (!closed) {
           res.end()
         }
+      } finally {
+        polling = false
       }
     }
 
