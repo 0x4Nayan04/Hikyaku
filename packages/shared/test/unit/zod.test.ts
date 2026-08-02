@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  adminCreateUserSchema,
-  bootstrapSchema,
-  changePasswordSchema,
-  loginSchema,
-} from '../../src/zod.js'
+import { bootstrapSchema, changePasswordSchema, loginSchema } from '../../src/zod.js'
 
 describe('loginSchema', () => {
   it('accepts a valid login payload', () => {
@@ -84,37 +79,6 @@ describe('changePasswordSchema', () => {
       changePasswordSchema.safeParse({
         current_password: 'old-password-12',
         new_password: 'short',
-      }).success,
-    ).toBe(false)
-  })
-})
-
-describe('adminCreateUserSchema', () => {
-  it('accepts a valid create-user payload', () => {
-    expect(
-      adminCreateUserSchema.safeParse({
-        email: 'teammate@acme.com',
-        password: 'temporary-password-12',
-        name: 'Acme Teammate',
-      }).success,
-    ).toBe(true)
-  })
-
-  it('rejects a missing name', () => {
-    expect(
-      adminCreateUserSchema.safeParse({
-        email: 'teammate@acme.com',
-        password: 'temporary-password-12',
-      }).success,
-    ).toBe(false)
-  })
-
-  it('rejects an invalid email', () => {
-    expect(
-      adminCreateUserSchema.safeParse({
-        email: 'bad-email',
-        password: 'temporary-password-12',
-        name: 'Acme Teammate',
       }).success,
     ).toBe(false)
   })

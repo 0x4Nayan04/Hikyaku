@@ -12,12 +12,9 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { TenantStatus } from './constants.js'
-
 export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
-  status: text('status').$type<TenantStatus>().notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -168,47 +165,4 @@ export const invites = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('invites_email_idx').on(t.email)],
-)
-
-export const auditLog = pgTable(
-  'audit_log',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    action: text('action').notNull(),
-    actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
-    tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'set null' }),
-    metadata: jsonb('metadata'),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    index('audit_log_actor_id_idx').on(t.actorId),
-    index('audit_log_tenant_id_idx').on(t.tenantId),
-    index('audit_log_action_created_at_idx').on(t.action, t.createdAt),
-  ],
-)
-
-export const signupRequests = pgTable(
-  'signup_requests',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    tenantName: text('tenant_name').notNull(),
-    email: text('email').notNull(),
-    name: text('name').notNull(),
-    passwordHash: text('password_hash').notNull(),
-    status: text('status').notNull().default('pending'),
-    reviewedByUserId: uuid('reviewed_by_user_id').references(() => users.id, {
-      onDelete: 'set null',
-    }),
-    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
-    tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'set null' }),
-    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    index('signup_requests_email_idx').on(t.email),
-    index('signup_requests_status_created_at_idx').on(t.status, t.createdAt),
-    uniqueIndex('signup_requests_email_pending_uidx')
-      .on(t.email)
-      .where(sql`${t.status} = 'pending'`),
-  ],
 )

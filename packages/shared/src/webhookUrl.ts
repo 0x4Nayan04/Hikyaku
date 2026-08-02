@@ -16,13 +16,30 @@ BLOCKED_IPS.addSubnet('100.64.0.0', 10, 'ipv4')
 BLOCKED_IPS.addSubnet('127.0.0.0', 8, 'ipv4')
 BLOCKED_IPS.addSubnet('169.254.0.0', 16, 'ipv4')
 BLOCKED_IPS.addSubnet('172.16.0.0', 12, 'ipv4')
+BLOCKED_IPS.addSubnet('192.0.0.0', 24, 'ipv4')
+BLOCKED_IPS.addSubnet('192.0.2.0', 24, 'ipv4')
+BLOCKED_IPS.addSubnet('192.88.99.0', 24, 'ipv4')
 BLOCKED_IPS.addSubnet('192.168.0.0', 16, 'ipv4')
+BLOCKED_IPS.addSubnet('198.18.0.0', 15, 'ipv4')
+BLOCKED_IPS.addSubnet('198.51.100.0', 24, 'ipv4')
+BLOCKED_IPS.addSubnet('203.0.113.0', 24, 'ipv4')
+BLOCKED_IPS.addSubnet('224.0.0.0', 4, 'ipv4')
+BLOCKED_IPS.addSubnet('240.0.0.0', 4, 'ipv4')
 BLOCKED_IPS.addAddress('::', 'ipv6')
 BLOCKED_IPS.addAddress('::1', 'ipv6')
 BLOCKED_IPS.addSubnet('fc00::', 7, 'ipv6')
 BLOCKED_IPS.addSubnet('fe80::', 10, 'ipv6')
+BLOCKED_IPS.addSubnet('fec0::', 10, 'ipv6')
+BLOCKED_IPS.addSubnet('ff00::', 8, 'ipv6')
 BLOCKED_IPS.addSubnet('64:ff9b::', 96, 'ipv6')
+BLOCKED_IPS.addSubnet('64:ff9b:1::', 48, 'ipv6')
+BLOCKED_IPS.addSubnet('100::', 64, 'ipv6')
+BLOCKED_IPS.addSubnet('100:0:0:1::', 64, 'ipv6')
+BLOCKED_IPS.addSubnet('2001::', 23, 'ipv6')
+BLOCKED_IPS.addSubnet('2001:db8::', 32, 'ipv6')
 BLOCKED_IPS.addSubnet('2002::', 16, 'ipv6')
+BLOCKED_IPS.addSubnet('3fff::', 20, 'ipv6')
+BLOCKED_IPS.addSubnet('5f00::', 16, 'ipv6')
 
 function stripBrackets(hostname: string): string {
   if (hostname.startsWith('[') && hostname.endsWith(']')) {
@@ -47,7 +64,7 @@ function isBlockedHostname(hostname: string): boolean {
 /** Resolves and validates every address so the caller can pin the connection to this result. */
 export async function resolveWebhookUrl(
   raw: string,
-  options: { allowPrivate?: boolean } = {},
+  allowPrivate = false,
 ): Promise<ResolvedWebhookUrlCheck> {
   let url: URL
   try {
@@ -65,14 +82,14 @@ export async function resolveWebhookUrl(
   }
 
   const host = stripBrackets(url.hostname)
-  if (!options.allowPrivate && isBlockedHostname(host)) {
+  if (!allowPrivate && isBlockedHostname(host)) {
     return { ok: false, reason: 'URL must not target a private or loopback address' }
   }
 
   try {
     const records = await lookup(host, { all: true, verbatim: true })
     for (const record of records) {
-      if (!options.allowPrivate && isPrivateIp(record.address)) {
+      if (!allowPrivate && isPrivateIp(record.address)) {
         return { ok: false, reason: 'URL must not target a private or loopback address' }
       }
     }
@@ -85,8 +102,8 @@ export async function resolveWebhookUrl(
 /** Rejects non-http(s) URLs and targets that resolve to private/loopback addresses. */
 export async function checkWebhookUrl(
   raw: string,
-  options: { allowPrivate?: boolean } = {},
+  allowPrivate = false,
 ): Promise<WebhookUrlCheck> {
-  const result = await resolveWebhookUrl(raw, options)
+  const result = await resolveWebhookUrl(raw, allowPrivate)
   return result.ok ? { ok: true } : result
 }

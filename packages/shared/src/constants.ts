@@ -1,21 +1,32 @@
 export const QUEUE_NAME = 'webhook-deliveries'
 export const JOB_NAME = 'deliver'
 
+export type DeliveryJobData = {
+  deliveryId: string
+}
+
 export const MAX_INGEST_BODY_BYTES = 256 * 1024
 
-export const MAX_DELIVERY_ATTEMPTS = 5
-export const BULLMQ_JOB_ATTEMPTS = 10
-export const DELIVERY_TIMEOUT_MS = 30_000
-export const WORKER_LOCK_DURATION_MS = DELIVERY_TIMEOUT_MS + 30_000
-export const RATE_LIMIT_PER_MINUTE = 100
-export const INGEST_RATE_LIMIT_PER_MINUTE = 120
-export const AUTH_RATE_LIMIT_PER_MINUTE = 20
+export const CONFIG_DEFAULTS = {
+  NODE_ENV: 'development',
+  LOG_LEVEL: 'info',
+  PORT: 3000,
+  SESSION_COOKIE_MAX_AGE: 604_800_000,
+  CORS_ORIGIN: 'http://localhost:5173',
+  WEB_APP_URL: 'http://localhost:5173',
+  INVITE_TTL_MS: 7 * 24 * 60 * 60 * 1000,
+  INGEST_RATE_LIMIT_PER_MINUTE: 120,
+  AUTH_RATE_LIMIT_PER_MINUTE: 20,
+  DELIVERY_TIMEOUT_MS: 30_000,
+  MAX_DELIVERY_ATTEMPTS: 5,
+  RATE_LIMIT_PER_MINUTE: 100,
+  WORKER_CONCURRENCY: 5,
+} as const
+
 export const RATE_LIMIT_DEFER_MS = 60_000
-export const WORKER_CONCURRENCY = 5
 
 export const DELIVERY_JOB_OPTIONS = {
-  attempts: BULLMQ_JOB_ATTEMPTS,
-  backoff: { type: 'exponential' as const, delay: 60_000 },
+  attempts: 1,
   removeOnComplete: 1000,
   removeOnFail: 1000,
 }
@@ -28,15 +39,8 @@ export const DELIVERY_STATUSES = [
   'in_progress',
   'succeeded',
   'failed',
-  'deferred',
 ] as const
 export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number]
 
 export const ENDPOINT_STATUSES = ['active', 'disabled'] as const
 export type EndpointStatus = (typeof ENDPOINT_STATUSES)[number]
-
-export const TENANT_STATUSES = ['active', 'suspended'] as const
-export type TenantStatus = (typeof TENANT_STATUSES)[number]
-
-export const SIGNUP_REQUEST_STATUSES = ['pending', 'approved', 'rejected'] as const
-export type SignupRequestStatus = (typeof SIGNUP_REQUEST_STATUSES)[number]
