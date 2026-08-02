@@ -31,7 +31,6 @@ describe('auth', () => {
     expect(res.body).toEqual({
       events_today: 0,
       deliveries_active: 0,
-      deliveries_deferred: 0,
       deliveries_succeeded_24h: 0,
       deliveries_failed_24h: 0,
       success_rate_24h: null,
@@ -54,25 +53,5 @@ describe('auth', () => {
         message: 'Missing or invalid Bearer token or session',
       },
     })
-  })
-
-  it('returns 404 for cross-tenant access on GET /v1/tenants/:tenantId', async () => {
-    const res = await request(app)
-      .get(`/v1/tenants/${acme.tenantId}`)
-      .set('Authorization', `Bearer ${globex.apiKey}`)
-
-    expect(res.status).toBe(404)
-    expect(res.body).toEqual({
-      error: { code: 'not_found', message: 'Not found' },
-    })
-  })
-
-  it('returns 200 when accessing the authenticated tenant on GET /v1/tenants/:tenantId', async () => {
-    const res = await request(app)
-      .get(`/v1/tenants/${acme.tenantId}`)
-      .set('Authorization', `Bearer ${acme.apiKey}`)
-
-    expect(res.status).toBe(200)
-    expect(res.body).toEqual({ id: acme.tenantId })
   })
 })

@@ -1,13 +1,14 @@
 import { deliveries, events } from '@webhook/shared/schema'
+import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
 import { and, count, desc, eq } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
-import { ingestFanout } from '../../ingest/fanout.js'
+import { ingestFanout, eventColumns } from '../../ingest/fanout.js'
 import { AppError } from '../../lib/errors.js'
 import { logger } from '../../lib/logger.js'
 import { parsePagination } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
-import { enqueueDelivery } from '../../queue/client.js'
+import { queue } from '../../queue/client.js'
 import {
   type DeliveriesSummary,
   toEventDetailJson,
@@ -15,16 +16,6 @@ import {
   toIngestEventJson,
 } from './serialize.js'
 import { parseEventId, parseIngestBody } from './validation.js'
-
-const eventColumns = {
-  id: events.id,
-  tenantId: events.tenantId,
-  idempotencyKey: events.idempotencyKey,
-  type: events.type,
-  payload: events.payload,
-  status: events.status,
-  createdAt: events.createdAt,
-}
 
 async function loadDeliveriesSummary(
   eventId: string,
@@ -45,7 +36,6 @@ async function loadDeliveriesSummary(
     succeeded: 0,
     failed: 0,
     pending: 0,
-    deferred: 0,
   }
 
   for (const row of rows) {
@@ -56,8 +46,6 @@ async function loadDeliveriesSummary(
       summary.failed = row.value
     } else if (row.status === 'pending' || row.status === 'in_progress') {
       summary.pending += row.value
-    } else if (row.status === 'deferred') {
-      summary.deferred = row.value
     }
   }
 
@@ -72,7 +60,7 @@ export async function ingestEvent(req: Request, res: Response, next: NextFunctio
 
     for (const deliveryId of result.newDeliveryIds) {
       try {
-        await enqueueDelivery(deliveryId)
+        await enqueueDeliveryJob(queue, deliveryId)
       } catch (err) {
         logger.error({ delivery_id: deliveryId, err }, 'enqueue_failed')
         throw new AppError(503, 'service_unavailable', 'Service temporarily unavailable')

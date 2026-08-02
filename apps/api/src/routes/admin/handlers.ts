@@ -1,39 +1,22 @@
-import { tenants, users } from '@webhook/shared/schema'
-import type { TenantStatus } from '@webhook/shared/constants'
+import { generateInviteToken, hashInviteToken } from '@webhook/shared/crypto'
+import { invites, tenants, users } from '@webhook/shared/schema'
+import { adminCreateInviteSchema } from '@webhook/shared/zod'
 import { count, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
-import { hashPassword } from '../../auth/password.js'
+import { env } from '../../config.js'
 import { getDb } from '../../db/client.js'
-import { recordAudit } from '../../lib/audit.js'
 import { AppError } from '../../lib/errors.js'
-import { assertEmailAvailable } from '../../lib/invites.js'
+import { assertEmailAvailable, assertNoPendingInvite } from '../../lib/invites.js'
 import { parsePagination } from '../../lib/pagination.js'
-import { revokeUserSessions } from '../../lib/revokeSessions.js'
-import { toUserJson } from '../auth/serialize.js'
+import { isUuid, parseSchema } from '../../lib/validation.js'
 import { toAdminTenantJson } from './serialize.js'
-import {
-  parseCreateTenantBody,
-  parseCreateUserBody,
-  parsePatchTenantBody,
-  parseResetUserPasswordBody,
-  parseTenantId,
-  parseUserId,
-} from './validation.js'
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+import { parsePatchTenantBody, parseTenantId, parseUserId } from './validation.js'
+import { toUserJson, userColumns } from '../auth/serialize.js'
 
 const tenantColumns = {
   id: tenants.id,
   name: tenants.name,
-  status: tenants.status,
   createdAt: tenants.createdAt,
-}
-
-const userColumns = {
-  id: users.id,
-  email: users.email,
-  name: users.name,
-  isSuperAdmin: users.isSuperAdmin,
 }
 
 export async function listTenants(req: Request, res: Response, next: NextFunction) {
@@ -49,7 +32,7 @@ export async function listTenants(req: Request, res: Response, next: NextFunctio
       compactId.length >= 8 &&
       compactId.length <= 32 &&
       /^[0-9a-f]+$/i.test(compactId)
-    const idFilter = UUID_RE.test(searchQuery ?? '')
+    const idFilter = isUuid(searchQuery ?? '')
       ? eq(tenants.id, searchQuery!)
       : isIdPrefix
         ? sql`${tenants.id}::text LIKE ${`${searchQuery!.toLowerCase()}%`}`
@@ -100,48 +83,6 @@ export async function getTenant(req: Request, res: Response, next: NextFunction)
   }
 }
 
-export async function createTenantWithOwner(req: Request, res: Response, next: NextFunction) {
-  try {
-    const body = parseCreateTenantBody(req.body)
-    const passwordHash = await hashPassword(body.owner_password)
-    const db = getDb()
-
-    const result = await db.transaction(async (tx) => {
-      await assertEmailAvailable(body.owner_email, tx)
-
-      const [tenant] = await tx
-        .insert(tenants)
-        .values({ name: body.tenant_name })
-        .returning(tenantColumns)
-
-      const [user] = await tx
-        .insert(users)
-        .values({
-          tenantId: tenant.id,
-          email: body.owner_email,
-          passwordHash,
-          name: body.owner_name,
-          isSuperAdmin: false,
-        })
-        .returning(userColumns)
-
-      await recordAudit(tx, 'tenant.created', req.userId!, tenant.id, {
-        tenantName: body.tenant_name,
-        ownerEmail: body.owner_email,
-      })
-
-      return { tenant, user }
-    })
-
-    res.status(201).json({
-      tenant: toAdminTenantJson(result.tenant),
-      user: toUserJson(result.user),
-    })
-  } catch (err) {
-    next(err)
-  }
-}
-
 export async function deleteTenant(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params
@@ -159,11 +100,6 @@ export async function deleteTenant(req: Request, res: Response, next: NextFuncti
       throw new AppError(404, 'not_found', 'Tenant not found')
     }
 
-    await recordAudit(db, 'tenant.deleted', req.userId!, id, {
-      tenantId: tenant.id,
-      tenantName: tenant.name,
-    })
-
     await db.delete(tenants).where(eq(tenants.id, id))
 
     res.status(204).send()
@@ -180,128 +116,17 @@ export async function patchTenant(req: Request, res: Response, next: NextFunctio
     const body = parsePatchTenantBody(req.body)
     const db = getDb()
 
-    const [existing] = await db
-      .select({ name: tenants.name })
-      .from(tenants)
-      .where(eq(tenants.id, id))
-      .limit(1)
-
-    if (!existing) {
-      throw new AppError(404, 'not_found', 'Tenant not found')
-    }
-
     const [row] = await db
       .update(tenants)
       .set({ name: body.tenant_name })
       .where(eq(tenants.id, id))
       .returning(tenantColumns)
 
-    await recordAudit(db, 'tenant.renamed', req.userId!, id, {
-      oldName: existing.name,
-      newName: body.tenant_name,
-    })
-
-    res.json(toAdminTenantJson(row))
-  } catch (err) {
-    next(err)
-  }
-}
-
-async function setTenantStatus(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-  status: TenantStatus,
-) {
-  try {
-    const { id } = req.params
-    parseTenantId(id)
-
-    const db = getDb()
-    const [existing] = await db
-      .select(tenantColumns)
-      .from(tenants)
-      .where(eq(tenants.id, id))
-      .limit(1)
-
-    if (!existing) {
+    if (!row) {
       throw new AppError(404, 'not_found', 'Tenant not found')
     }
 
-    if (existing.status === status) {
-      res.json(toAdminTenantJson(existing))
-      return
-    }
-
-    const row = await db.transaction(async (tx) => {
-      const [updated] = await tx
-        .update(tenants)
-        .set({ status })
-        .where(eq(tenants.id, id))
-        .returning(tenantColumns)
-
-      await recordAudit(
-        tx,
-        status === 'suspended' ? 'tenant.suspended' : 'tenant.unsuspended',
-        req.userId!,
-        id,
-        { tenantName: existing.name },
-      )
-
-      return updated
-    })
-
     res.json(toAdminTenantJson(row))
-  } catch (err) {
-    next(err)
-  }
-}
-
-export function suspendTenant(req: Request, res: Response, next: NextFunction) {
-  return setTenantStatus(req, res, next, 'suspended')
-}
-
-export function unsuspendTenant(req: Request, res: Response, next: NextFunction) {
-  return setTenantStatus(req, res, next, 'active')
-}
-
-export async function createTenantUser(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { id } = req.params
-    parseTenantId(id)
-
-    const body = parseCreateUserBody(req.body)
-    const passwordHash = await hashPassword(body.password)
-    const db = getDb()
-
-    const [tenant] = await db
-      .select({ id: tenants.id })
-      .from(tenants)
-      .where(eq(tenants.id, id))
-      .limit(1)
-
-    if (!tenant) {
-      throw new AppError(404, 'not_found', 'Tenant not found')
-    }
-
-    const user = await db.transaction(async (tx) => {
-      await assertEmailAvailable(body.email, tx)
-
-      const [u] = await tx
-        .insert(users)
-        .values({
-          tenantId: tenant.id,
-          email: body.email,
-          passwordHash,
-          name: body.name,
-          isSuperAdmin: false,
-        })
-        .returning(userColumns)
-
-      return u
-    })
-
-    res.status(201).json({ user: toUserJson(user) })
   } catch (err) {
     next(err)
   }
@@ -341,38 +166,6 @@ export async function deleteTenantUser(req: Request, res: Response, next: NextFu
       }
 
       await tx.delete(users).where(eq(users.id, target.id))
-      await recordAudit(tx, 'user.deleted', req.userId!, id, { email: target.email })
-    })
-
-    res.status(204).send()
-  } catch (err) {
-    next(err)
-  }
-}
-
-export async function resetTenantUserPassword(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { id, userId } = req.params
-    parseTenantId(id)
-    parseUserId(userId)
-    const body = parseResetUserPasswordBody(req.body)
-    const passwordHash = await hashPassword(body.password)
-    const db = getDb()
-
-    const [target] = await db
-      .select({ id: users.id, email: users.email })
-      .from(users)
-      .where(sql`${users.id} = ${userId} AND ${users.tenantId} = ${id}`)
-      .limit(1)
-
-    if (!target) {
-      throw new AppError(404, 'not_found', 'User not found')
-    }
-
-    await db.transaction(async (tx) => {
-      await tx.update(users).set({ passwordHash }).where(eq(users.id, target.id))
-      await recordAudit(tx, 'user.password_reset', req.userId!, id, { email: target.email })
-      await revokeUserSessions(target.id, tx)
     })
 
     res.status(204).send()
@@ -415,6 +208,71 @@ export async function listTenantUsers(req: Request, res: Response, next: NextFun
       total,
       limit,
       offset,
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function createInvite(req: Request, res: Response, next: NextFunction) {
+  try {
+    const body = parseSchema(adminCreateInviteSchema, req.body)
+    const createdByUserId = req.userId
+    if (!createdByUserId) {
+      throw new AppError(401, 'unauthorized', 'Missing or invalid session')
+    }
+
+    const db = getDb()
+    const rawToken = generateInviteToken()
+    const tokenHash = hashInviteToken(rawToken)
+    const expiresAt = new Date(Date.now() + env.INVITE_TTL_MS)
+
+    if (body.kind === 'tenant_owner') {
+      await assertEmailAvailable(body.owner_email)
+      await assertNoPendingInvite(body.owner_email)
+
+      await db.insert(invites).values({
+        tokenHash,
+        kind: body.kind,
+        email: body.owner_email,
+        tenantName: body.tenant_name,
+        invitedName: body.owner_name ?? null,
+        createdByUserId,
+        expiresAt,
+      })
+    } else if (body.kind === 'tenant_user') {
+      await assertEmailAvailable(body.email)
+      await assertNoPendingInvite(body.email)
+
+      const [tenant] = await db
+        .select({ id: tenants.id })
+        .from(tenants)
+        .where(eq(tenants.id, body.tenant_id))
+        .limit(1)
+
+      if (!tenant) {
+        throw new AppError(404, 'not_found', 'Tenant not found')
+      }
+
+      await db.insert(invites).values({
+        tokenHash,
+        kind: body.kind,
+        email: body.email,
+        tenantId: body.tenant_id,
+        invitedName: body.name ?? null,
+        createdByUserId,
+        expiresAt,
+      })
+    } else {
+      const _exhaustive: never = body
+      throw new AppError(500, 'internal_error', `Unknown invite kind: ${String(_exhaustive)}`)
+    }
+
+    const inviteUrl = `${env.WEB_APP_URL}/accept-invite?token=${encodeURIComponent(rawToken)}`
+
+    res.status(201).json({
+      invite_url: inviteUrl,
+      expires_at: expiresAt.toISOString(),
     })
   } catch (err) {
     next(err)

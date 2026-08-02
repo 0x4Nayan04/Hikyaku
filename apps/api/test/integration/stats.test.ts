@@ -28,7 +28,7 @@ describe('GET /v1/stats', () => {
     const endpointRows = await db
       .insert(endpoints)
       .values(
-        Array.from({ length: 5 }, (_, index) => ({
+        Array.from({ length: 4 }, (_, index) => ({
           tenantId,
           url: `https://webhook.site/stats-test-${index}`,
           secret: 'whsec_' + 'a'.repeat(32),
@@ -47,14 +47,14 @@ describe('GET /v1/stats', () => {
       })
       .returning({ id: events.id })
 
-    const statuses = ['pending', 'in_progress', 'deferred', 'succeeded', 'failed'] as const
+    const statuses = ['pending', 'in_progress', 'succeeded', 'failed'] as const
     await db.insert(deliveries).values(
       endpointRows.map((endpoint, index) => ({
         tenantId,
         eventId: event.id,
         endpointId: endpoint.id,
         status: statuses[index],
-        attemptCount: statuses[index] === 'pending' || statuses[index] === 'deferred' ? 0 : 1,
+        attemptCount: statuses[index] === 'pending' ? 0 : 1,
         updatedAt: statuses[index] === 'succeeded' || statuses[index] === 'failed' ? new Date() : undefined,
       })),
     )
@@ -82,7 +82,6 @@ describe('GET /v1/stats', () => {
     expect(res.body).toEqual({
       events_today: 1,
       deliveries_active: 2,
-      deliveries_deferred: 1,
       deliveries_succeeded_24h: 1,
       deliveries_failed_24h: 1,
       success_rate_24h: 0.5,
@@ -95,7 +94,6 @@ describe('GET /v1/stats', () => {
     expect(stats).toEqual({
       events_today: 1,
       deliveries_active: 0,
-      deliveries_deferred: 0,
       deliveries_succeeded_24h: 0,
       deliveries_failed_24h: 0,
       success_rate_24h: null,

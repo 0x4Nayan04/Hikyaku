@@ -165,4 +165,12 @@ describe('GET /v1/deliveries', () => {
       error: { code: 'not_found', message: 'Delivery not found' },
     })
   })
+
+  it('does not expose the delivery SSE stream', async () => {
+    const res = await request(app)
+      .get('/v1/deliveries/stream')
+      .set('Authorization', `Bearer ${apiKey}`)
+
+    expect(res.status).toBe(404)
+  })
 })

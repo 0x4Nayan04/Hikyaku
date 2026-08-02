@@ -18,13 +18,7 @@ export async function loadTenantStats(tenantId: string) {
   const sinceMidnightUtc = utcMidnightToday()
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
-  const [
-    [eventsTodayRow],
-    [pendingRow],
-    [deferredRow],
-    [succeeded24hRow],
-    [failed24hRow],
-  ] = await Promise.all([
+  const [[eventsTodayRow], [pendingRow], [succeeded24hRow], [failed24hRow]] = await Promise.all([
     db
       .select({ value: count() })
       .from(events)
@@ -38,10 +32,6 @@ export async function loadTenantStats(tenantId: string) {
           inArray(deliveries.status, ['pending', 'in_progress']),
         ),
       ),
-    db
-      .select({ value: count() })
-      .from(deliveries)
-      .where(and(eq(deliveries.tenantId, tenantId), eq(deliveries.status, 'deferred'))),
     db
       .select({ value: count() })
       .from(deliveries)
@@ -71,7 +61,6 @@ export async function loadTenantStats(tenantId: string) {
   return {
     events_today: eventsTodayRow?.value ?? 0,
     deliveries_active: pendingRow?.value ?? 0,
-    deliveries_deferred: deferredRow?.value ?? 0,
     deliveries_succeeded_24h: deliveriesSucceeded24h,
     deliveries_failed_24h: deliveriesFailed24h,
     success_rate_24h: terminal24h === 0 ? null : deliveriesSucceeded24h / terminal24h,
@@ -88,14 +77,3 @@ async function getStats(req: Request, res: Response, next: NextFunction) {
 }
 
 statsRouter.get('/stats', requireTenantAuth, getStats)
-
-statsRouter.get('/tenants/:tenantId', requireTenantAuth, (req, res) => {
-  if (req.params.tenantId !== req.tenantId) {
-    res.status(404).json({
-      error: { code: 'not_found', message: 'Not found' },
-    })
-    return
-  }
-
-  res.json({ id: req.tenantId })
-})

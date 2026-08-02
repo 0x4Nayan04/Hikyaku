@@ -1,14 +1,11 @@
 import { DELIVERY_STATUSES, type DeliveryStatus } from '@webhook/shared/constants'
 import { AppError } from '../../lib/errors.js'
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+import { isUuid, requireUuid } from '../../lib/validation.js'
 
 const DELIVERY_STATUS_SET = new Set<string>(DELIVERY_STATUSES)
 
 export function parseDeliveryId(id: string): void {
-  if (!UUID_RE.test(id)) {
-    throw new AppError(404, 'not_found', 'Delivery not found')
-  }
+  requireUuid(id, 'Delivery not found')
 }
 
 export function assertReplayableStatus(status: string): void {
@@ -34,7 +31,7 @@ export function parseListQuery(query: {
   }
 
   if (eventIdRaw !== undefined) {
-    if (!UUID_RE.test(eventIdRaw)) {
+    if (!isUuid(eventIdRaw)) {
       throw new AppError(400, 'validation_error', 'Invalid event_id filter')
     }
     result.eventId = eventIdRaw

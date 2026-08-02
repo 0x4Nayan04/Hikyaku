@@ -13,7 +13,6 @@ const app = createApp()
 const emptyStats = {
   events_today: 0,
   deliveries_active: 0,
-  deliveries_deferred: 0,
   deliveries_succeeded_24h: 0,
   deliveries_failed_24h: 0,
   success_rate_24h: null,

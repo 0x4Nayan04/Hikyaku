@@ -1,25 +1,17 @@
 import { count, eq } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
-import type { TenantStatus } from '@webhook/shared/constants'
 import { tenants, users } from '@webhook/shared/schema'
-import { hashPassword, verifyPassword } from '../../auth/password.js'
+import { hashPassword, verifyPassword } from '@webhook/shared/password'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { revokeUserSessions } from '../../lib/revokeSessions.js'
-import { toBootstrapUserJson, toTenantJson, toUserJson } from './serialize.js'
+import { toUserJson, userColumns } from './serialize.js'
 import {
   parseBootstrapBody,
   parseChangePasswordBody,
   parseLoginBody,
   requireAdminSecret,
 } from './validation.js'
-
-const userColumns = {
-  id: users.id,
-  email: users.email,
-  name: users.name,
-  isSuperAdmin: users.isSuperAdmin,
-}
 
 function saveSession(req: Request): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -83,7 +75,9 @@ export async function bootstrap(req: Request, res: Response, next: NextFunction)
       })
       .returning(userColumns)
 
-    res.status(201).json({ user: toBootstrapUserJson(user) })
+    res.status(201).json({
+      user: { id: user.id, email: user.email, is_super_admin: user.isSuperAdmin },
+    })
   } catch (err) {
     next(err)
   }
@@ -107,8 +101,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       .limit(1)
 
     const user = rows[0]
-    // Same error for missing user, wrong password, and pending signup —
-    // never reveal account state or verify signup_requests.password_hash here.
+    // Keep the same response for missing users and wrong passwords.
     if (!user || !(await verifyPassword(body.password, user.passwordHash))) {
       throw new AppError(401, 'unauthorized', 'Invalid email or password')
     }
@@ -163,17 +156,17 @@ export async function me(req: Request, res: Response, next: NextFunction) {
       throw new AppError(401, 'unauthorized', 'Missing or invalid session')
     }
 
-    let tenant: { id: string; name: string; status: TenantStatus } | null = null
+    let tenant: { id: string; name: string } | null = null
     if (user.tenantId) {
       const tenantRows = await db
-        .select({ id: tenants.id, name: tenants.name, status: tenants.status })
+        .select({ id: tenants.id, name: tenants.name })
         .from(tenants)
         .where(eq(tenants.id, user.tenantId))
         .limit(1)
 
       const tenantRow = tenantRows[0]
       if (tenantRow) {
-        tenant = toTenantJson(tenantRow)
+        tenant = { id: tenantRow.id, name: tenantRow.name }
       }
     }
 

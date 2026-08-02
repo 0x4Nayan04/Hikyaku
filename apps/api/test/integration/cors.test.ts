@@ -33,4 +33,25 @@ describe('CORS credentials', () => {
     expect(res.headers['access-control-allow-credentials']).toBe('true')
     expect(res.headers['access-control-allow-origin']).toBe(allowedOrigin)
   })
+
+  it('rejects mutation requests from an unapproved browser origin', async () => {
+    const res = await request(app)
+      .post('/v1/auth/logout')
+      .set('Origin', 'https://attacker.example')
+
+    expect(res.status).toBe(403)
+    expect(res.body).toEqual({
+      error: {
+        code: 'origin_not_allowed',
+        message: 'Origin is not allowed',
+      },
+    })
+  })
+
+  it('allows non-browser clients without an Origin header', async () => {
+    const res = await request(app).post('/v1/auth/logout')
+
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('unauthorized')
+  })
 })

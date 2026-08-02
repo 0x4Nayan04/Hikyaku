@@ -8,9 +8,11 @@ import { AppError } from '../../../../src/lib/errors.js'
 import { ingestEvent } from '../../../../src/routes/events/handlers.js'
 import { createTenantWithKey, deleteTenant } from '../../../helpers/tenant.js'
 
-vi.mock('../../../../src/queue/client.js', () => ({
-  enqueueDelivery: vi.fn().mockRejectedValue(new Error('redis unreachable')),
+vi.mock('@webhook/shared/enqueueDelivery', () => ({
+  enqueueDeliveryJob: vi.fn().mockRejectedValue(new Error('redis unreachable')),
 }))
+
+vi.mock('../../../../src/queue/client.js', () => ({ queue: {} }))
 
 function createMockRes() {
   const res = {

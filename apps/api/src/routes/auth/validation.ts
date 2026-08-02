@@ -1,15 +1,8 @@
-import {
-  bootstrapSchema,
-  changePasswordSchema,
-  loginSchema,
-} from '@webhook/shared/zod'
+import { bootstrapSchema, changePasswordSchema, loginSchema } from '@webhook/shared/zod'
 import type { Request } from 'express'
 import { env } from '../../config.js'
 import { AppError } from '../../lib/errors.js'
-
-function zodMessage(error: { errors: { message?: string }[] }): string {
-  return error.errors[0]?.message ?? 'Validation failed'
-}
+import { parseSchema } from '../../lib/validation.js'
 
 export function requireAdminSecret(req: Request): void {
   const secret = req.get('x-admin-secret')
@@ -19,25 +12,13 @@ export function requireAdminSecret(req: Request): void {
 }
 
 export function parseBootstrapBody(body: unknown) {
-  const parsed = bootstrapSchema.safeParse(body)
-  if (!parsed.success) {
-    throw new AppError(400, 'validation_error', zodMessage(parsed.error))
-  }
-  return parsed.data
+  return parseSchema(bootstrapSchema, body)
 }
 
 export function parseLoginBody(body: unknown) {
-  const parsed = loginSchema.safeParse(body)
-  if (!parsed.success) {
-    throw new AppError(400, 'validation_error', zodMessage(parsed.error))
-  }
-  return parsed.data
+  return parseSchema(loginSchema, body)
 }
 
 export function parseChangePasswordBody(body: unknown) {
-  const parsed = changePasswordSchema.safeParse(body)
-  if (!parsed.success) {
-    throw new AppError(400, 'validation_error', zodMessage(parsed.error))
-  }
-  return parsed.data
+  return parseSchema(changePasswordSchema, body)
 }

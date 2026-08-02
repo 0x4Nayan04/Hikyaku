@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
 import { AppError } from '../lib/errors.js'
+import { asyncHandler } from '../lib/asyncHandler.js'
 import { resolveTenantId } from './apiKey.js'
 import { attachSessionUser } from './requireSession.js'
 
@@ -15,67 +16,33 @@ function parseBearerToken(header: string | undefined): string | null {
   return token.length > 0 ? token : null
 }
 
-const SESSION_UNAUTHORIZED_MESSAGE = 'Missing or invalid session'
-
-function assertTenantActive(req: Request): void {
-  if (req.tenantStatus === 'suspended') {
-    throw new AppError(403, 'tenant_suspended', 'Tenant is suspended')
-  }
-}
-
-export function requireTenantSession(req: Request, _res: Response, next: NextFunction): void {
-  void (async () => {
-    try {
-      await attachSessionUser(req)
-
-      if (!req.tenantId || req.isSuperAdmin) {
-        throw new AppError(401, 'unauthorized', SESSION_UNAUTHORIZED_MESSAGE)
-      }
-
-      assertTenantActive(req)
-      next()
-    } catch (err) {
-      if (err instanceof AppError && err.statusCode === 401) {
-        next(new AppError(401, 'unauthorized', SESSION_UNAUTHORIZED_MESSAGE))
-        return
-      }
-      next(err)
-    }
-  })()
-}
-
-export function requireTenantAuth(req: Request, _res: Response, next: NextFunction): void {
-  void (async () => {
-    try {
-      const token = parseBearerToken(req.get('authorization') ?? undefined)
-      if (token !== null) {
-        const tenantId = await resolveTenantId(token)
-        if (!tenantId) {
-          throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
-        }
-
-        req.tenantId = tenantId
-        next()
-        return
-      }
-
-      try {
-        await attachSessionUser(req)
-      } catch (err) {
-        if (err instanceof AppError && err.statusCode === 401) {
-          throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
-        }
-        throw err
-      }
-
-      if (!req.tenantId || req.isSuperAdmin) {
+export const requireTenantAuth = asyncHandler(
+  async (req: Request, _res: Response, next: NextFunction) => {
+    const token = parseBearerToken(req.get('authorization') ?? undefined)
+    if (token !== null) {
+      const tenantId = await resolveTenantId(token)
+      if (!tenantId) {
         throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
       }
 
-      assertTenantActive(req)
+      req.tenantId = tenantId
       next()
-    } catch (err) {
-      next(err)
+      return
     }
-  })()
-}
+
+    try {
+      await attachSessionUser(req)
+    } catch (err) {
+      if (err instanceof AppError && err.statusCode === 401) {
+        throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
+      }
+      throw err
+    }
+
+    if (!req.tenantId || req.isSuperAdmin) {
+      throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
+    }
+
+    next()
+  },
+)
