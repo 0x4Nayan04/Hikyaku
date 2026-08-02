@@ -1,9 +1,9 @@
 import { Worker } from 'bullmq'
-import { QUEUE_NAME, WORKER_LOCK_DURATION_MS } from '@webhook/shared/constants'
+import { QUEUE_NAME } from '@webhook/shared/constants'
 import { closePool } from './db/client.js'
-import { env } from './config.js'
+import { env, WORKER_LOCK_DURATION_MS } from './config.js'
 import { logger } from './lib/logger.js'
-import { getRedisConnectionOptions } from './lib/redis.js'
+import { closeRedis, getRedisConnectionOptions } from './lib/redis.js'
 import { processor } from './processor.js'
 import { startSweeper, stopSweeper } from './sweeper.js'
 
@@ -39,6 +39,7 @@ async function shutdown(signal: string): Promise<void> {
       await worker.pause(true)
       await worker.close()
       await closePool()
+      await closeRedis()
     })(),
     new Promise<void>((_, reject) => {
       setTimeout(() => reject(new Error('shutdown_timeout')), SHUTDOWN_TIMEOUT_MS)

@@ -73,9 +73,7 @@ describe('postWithTimeout response body cap', () => {
     })
 
     try {
-      const result = await postWithTimeout('http://127.0.0.1/hook', '{}', {}, 5_000, {
-        allowPrivate: true,
-      })
+      const result = await postWithTimeout('http://127.0.0.1/hook', '{}', {}, 5_000, true)
       expect(result.status).toBe(200)
       expect(Buffer.byteLength(result.body, 'utf8')).toBeLessThanOrEqual(1024)
     } finally {

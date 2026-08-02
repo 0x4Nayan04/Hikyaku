@@ -88,14 +88,14 @@ export async function postWithTimeout(
   body: string,
   headers: Record<string, string>,
   timeoutMs: number,
-  options: { allowPrivate?: boolean } = {},
+  allowPrivate = false,
 ): Promise<{ status: number; body: string; durationMs: number }> {
   const start = Date.now()
   const signal = AbortSignal.timeout(timeoutMs)
   let currentUrl = url
 
   for (let redirects = 0; ; redirects += 1) {
-    const target = await resolveWebhookUrl(currentUrl, options)
+    const target = await resolveWebhookUrl(currentUrl, allowPrivate)
     if (!target.ok) {
       throw new Error(`blocked_url: ${target.reason}`)
     }

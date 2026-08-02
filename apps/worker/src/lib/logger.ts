@@ -1,6 +1,4 @@
-import pino from 'pino'
+import { createLogger } from '@webhook/shared/logger'
 import { env } from '../config.js'
 
-export const logger = pino({
-  level: env.LOG_LEVEL,
-})
+export const logger = createLogger(env.LOG_LEVEL)

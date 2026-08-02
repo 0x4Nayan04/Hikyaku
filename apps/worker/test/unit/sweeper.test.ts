@@ -22,7 +22,7 @@ async function clearQueue(): Promise<void> {
   }
 }
 
-async function seedPendingDelivery(): Promise<string> {
+async function seedPendingDeliveries(count = 1): Promise<string[]> {
   const db = getDb()
   const [tenant] = await db.insert(tenants).values({ name: 'sweeper-test' }).returning()
   const [endpoint] = await db
@@ -33,33 +33,42 @@ async function seedPendingDelivery(): Promise<string> {
       secret: 'whsec_' + 'c'.repeat(32),
     })
     .returning()
-  const [event] = await db
+  const seededEvents = await db
     .insert(events)
-    .values({
-      tenantId: tenant.id,
-      idempotencyKey: `sweeper-${crypto.randomUUID()}`,
-      type: 'test',
-      payload: {},
-    })
+    .values(
+      Array.from({ length: count }, () => ({
+        tenantId: tenant.id,
+        idempotencyKey: `sweeper-${crypto.randomUUID()}`,
+        type: 'test',
+        payload: {},
+      })),
+    )
     .returning()
-  const [delivery] = await db
+  const seededDeliveries = await db
     .insert(deliveries)
-    .values({
-      tenantId: tenant.id,
-      eventId: event.id,
-      endpointId: endpoint.id,
-      status: 'pending',
-    })
+    .values(
+      seededEvents.map((event, index) => ({
+        tenantId: tenant.id,
+        eventId: event.id,
+        endpointId: endpoint.id,
+        status: 'pending',
+        updatedAt: new Date(Date.now() - (6 * 60 + count - index) * 1000),
+      })),
+    )
     .returning({ id: deliveries.id })
 
-  return delivery.id
+  return seededDeliveries.map((delivery) => delivery.id)
+}
+
+async function seedPendingDelivery(): Promise<string> {
+  return (await seedPendingDeliveries())[0]!
 }
 
 async function clearOrphanCandidates(): Promise<void> {
   const db = getDb()
   await db
     .delete(deliveries)
-    .where(inArray(deliveries.status, ['pending', 'deferred', 'in_progress']))
+    .where(inArray(deliveries.status, ['pending', 'in_progress']))
 }
 
 describe('sweepOrphanDeliveries', () => {
@@ -86,10 +95,41 @@ describe('sweepOrphanDeliveries', () => {
     expect(job?.data).toEqual({ deliveryId })
   })
 
-  it('re-enqueues deferred deliveries missing from the queue', async () => {
+  it('does not re-enqueue fresh or future-scheduled deliveries', async () => {
+    const [freshId, futureRetryId] = await seedPendingDeliveries(2)
+    const db = getDb()
+    await db
+      .update(deliveries)
+      .set({ updatedAt: new Date() })
+      .where(eq(deliveries.id, freshId))
+    await db
+      .update(deliveries)
+      .set({ nextRetryAt: new Date(Date.now() + 60_000) })
+      .where(eq(deliveries.id, futureRetryId))
+
+    await sweepOrphanDeliveries(queue)
+
+    expect(await queue.getJob(freshId)).toBeUndefined()
+    expect(await queue.getJob(futureRetryId)).toBeUndefined()
+  })
+
+  it('limits each sweep to the 100 oldest eligible deliveries', async () => {
+    const deliveryIds = await seedPendingDeliveries(101)
+
+    await sweepOrphanDeliveries(queue)
+
+    const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
+    expect(jobs).toHaveLength(100)
+    expect(jobs.map((job) => job.id)).not.toContain(deliveryIds[100])
+  })
+
+  it('re-enqueues rate-limited pending deliveries when nextRetryAt has passed', async () => {
     const deliveryId = await seedPendingDelivery()
     const db = getDb()
-    await db.update(deliveries).set({ status: 'deferred' }).where(eq(deliveries.id, deliveryId))
+    await db
+      .update(deliveries)
+      .set({ lastError: 'rate_limited', nextRetryAt: new Date(Date.now() - 1_000) })
+      .where(eq(deliveries.id, deliveryId))
 
     await sweepOrphanDeliveries(queue)
 
