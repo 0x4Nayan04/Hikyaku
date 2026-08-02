@@ -4,10 +4,6 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
     "./env": {
       "types": "./dist/env.d.ts",
       "default": "./dist/env.js"
@@ -15,6 +11,14 @@
     "./constants": {
       "types": "./dist/constants.d.ts",
       "default": "./dist/constants.js"
+    },
+    "./enqueueDelivery": {
+      "types": "./dist/enqueueDelivery.d.ts",
+      "default": "./dist/enqueueDelivery.js"
+    },
+    "./eventStatus": {
+      "types": "./dist/eventStatus.d.ts",
+      "default": "./dist/eventStatus.js"
     },
     "./schema": {
       "types": "./dist/schema.d.ts",
@@ -35,6 +39,14 @@
     "./webhookUrl": {
       "types": "./dist/webhookUrl.d.ts",
       "default": "./dist/webhookUrl.js"
+    },
+    "./db": {
+      "types": "./dist/db.d.ts",
+      "default": "./dist/db.js"
+    },
+    "./logger": {
+      "types": "./dist/logger.d.ts",
+      "default": "./dist/logger.js"
     }
   },
   "scripts": {
@@ -44,12 +56,16 @@
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.34.5",
     "drizzle-orm": "^0.38.3",
+    "pg": "^8.13.1",
+    "pino": "^9.6.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
     "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }
