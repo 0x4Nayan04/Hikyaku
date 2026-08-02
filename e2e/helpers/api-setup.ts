@@ -151,20 +151,32 @@ export async function ensureSmokeOwner(): Promise<SmokeOwner> {
   const jar = new CookieJar()
   await getSuperAdminSession(jar, ts)
 
-  const createTenant = await apiFetch('/v1/admin/tenants', jar, {
+  const createInvite = await apiFetch('/v1/admin/invites', jar, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      kind: 'tenant_owner',
       tenant_name: owner.tenantName,
       owner_email: owner.email,
-      owner_password: owner.password,
       owner_name: 'Smoke Owner',
     }),
   })
 
-  if (!createTenant.ok) {
-    const body = await createTenant.text()
-    throw new Error(`Create tenant failed (${createTenant.status}): ${body}`)
+  if (!createInvite.ok) {
+    const body = await createInvite.text()
+    throw new Error(`Create invite failed (${createInvite.status}): ${body}`)
+  }
+
+  const invite = (await createInvite.json()) as { invite_url: string }
+  const token = new URL(invite.invite_url).searchParams.get('token')
+  const acceptInvite = await fetch(`${API_BASE}/v1/auth/accept-invite`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, name: 'Smoke Owner', password: owner.password }),
+  })
+  if (!acceptInvite.ok) {
+    const body = await acceptInvite.text()
+    throw new Error(`Accept invite failed (${acceptInvite.status}): ${body}`)
   }
 
   return owner
