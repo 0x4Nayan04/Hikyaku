@@ -1,11 +1,13 @@
 import { deliveries, deliveryAttempts, endpoints } from '@webhook/shared/schema'
-import { and, asc, count, desc, eq, sql } from 'drizzle-orm'
+import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
+import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
+import { and, asc, count, desc, eq } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { logger } from '../../lib/logger.js'
 import { parsePagination } from '../../lib/pagination.js'
-import { reEnqueueDelivery } from '../../queue/client.js'
+import { queue } from '../../queue/client.js'
 import { getTenantId } from '../../lib/tenant.js'
 import { toDeliveryDetailJson, toDeliveryListJson } from './serialize.js'
 import { assertReplayableStatus, parseDeliveryId, parseListQuery } from './validation.js'
@@ -101,28 +103,6 @@ export async function getDelivery(req: Request, res: Response, next: NextFunctio
   }
 }
 
-async function reevaluateEventStatus(
-  eventId: string,
-  tx: { execute: (query: ReturnType<typeof sql>) => Promise<unknown> },
-): Promise<void> {
-  await tx.execute(sql`
-    WITH summary AS (
-      SELECT
-        count(*) FILTER (WHERE status = 'succeeded') AS s,
-        count(*) FILTER (WHERE status = 'failed') AS f,
-        count(*) FILTER (WHERE status IN ('pending', 'in_progress', 'deferred')) AS open
-      FROM deliveries
-      WHERE event_id = ${eventId}
-    )
-    UPDATE events SET status = CASE
-      WHEN (SELECT open FROM summary) > 0 THEN 'pending'
-      WHEN (SELECT s FROM summary) = 0 AND (SELECT f FROM summary) > 0 THEN 'failed'
-      ELSE 'completed'
-    END
-    WHERE id = ${eventId}
-  `)
-}
-
 export async function replayDelivery(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params
@@ -163,7 +143,7 @@ export async function replayDelivery(req: Request, res: Response, next: NextFunc
     })
 
     try {
-      await reEnqueueDelivery(id)
+      await enqueueDeliveryJob(queue, id, { force: true })
     } catch (err) {
       logger.error({ delivery_id: id, err }, 'replay_enqueue_failed')
       throw new AppError(503, 'service_unavailable', 'Service temporarily unavailable')

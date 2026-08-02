@@ -1,34 +1,19 @@
 import { createEndpointSchema, patchEndpointSchema } from '@webhook/shared/zod'
 import { AppError } from '../../lib/errors.js'
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-function zodMessage(error: { errors: { message?: string }[] }): string {
-  return error.errors[0]?.message ?? 'Validation failed'
-}
+import { parseSchema, requireUuid } from '../../lib/validation.js'
 
 export function parseEndpointId(id: string): void {
-  if (!UUID_RE.test(id)) {
-    throw new AppError(404, 'not_found', 'Endpoint not found')
-  }
+  requireUuid(id, 'Endpoint not found')
 }
 
 export function parseCreateBody(body: unknown) {
-  const parsed = createEndpointSchema.safeParse(body)
-  if (!parsed.success) {
-    throw new AppError(400, 'validation_error', zodMessage(parsed.error))
-  }
-  return parsed.data
+  return parseSchema(createEndpointSchema, body)
 }
 
 export function parsePatchBody(body: unknown) {
   assertNoImmutableFields(body)
 
-  const parsed = patchEndpointSchema.safeParse(body)
-  if (!parsed.success) {
-    throw new AppError(400, 'validation_error', zodMessage(parsed.error))
-  }
-  return parsed.data
+  return parseSchema(patchEndpointSchema, body)
 }
 
 function assertNoImmutableFields(body: unknown): void {

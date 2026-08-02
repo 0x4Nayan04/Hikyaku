@@ -3,7 +3,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import * as schema from '@webhook/shared/schema'
 import { users } from '@webhook/shared/schema'
 import { bootstrapSchema } from '@webhook/shared/zod'
-import { hashPassword } from '../auth/password.js'
+import { hashPassword } from '@webhook/shared/password'
 
 type SeedDb = NodePgDatabase<typeof schema>
 

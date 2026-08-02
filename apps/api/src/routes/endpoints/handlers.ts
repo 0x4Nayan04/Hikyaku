@@ -69,9 +69,7 @@ async function loadLastDeliveries(
 export async function createEndpoint(req: Request, res: Response, next: NextFunction) {
   try {
     const body = parseCreateBody(req.body)
-    const urlCheck = await checkWebhookUrl(body.url, {
-      allowPrivate: env.NODE_ENV !== 'production',
-    })
+    const urlCheck = await checkWebhookUrl(body.url, env.NODE_ENV !== 'production')
     if (!urlCheck.ok) {
       throw new AppError(400, 'validation_error', urlCheck.reason)
     }

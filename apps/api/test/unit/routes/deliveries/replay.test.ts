@@ -9,9 +9,11 @@ import { AppError } from '../../../../src/lib/errors.js'
 import { replayDelivery } from '../../../../src/routes/deliveries/handlers.js'
 import { createTenantWithKey, deleteTenant } from '../../../helpers/tenant.js'
 
-vi.mock('../../../../src/queue/client.js', () => ({
-  reEnqueueDelivery: vi.fn().mockResolvedValue(undefined),
+vi.mock('@webhook/shared/enqueueDelivery', () => ({
+  enqueueDeliveryJob: vi.fn().mockResolvedValue(undefined),
 }))
+
+vi.mock('../../../../src/queue/client.js', () => ({ queue: {} }))
 
 function createMockRes(onComplete: (result: { statusCode: number; body: unknown }) => void) {
   const res = {

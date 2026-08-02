@@ -5,7 +5,6 @@ export type DeliveriesSummary = {
   succeeded: number
   failed: number
   pending: number
-  deferred: number
 }
 
 export function toIngestEventJson(row: EventRow) {

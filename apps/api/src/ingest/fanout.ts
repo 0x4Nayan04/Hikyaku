@@ -7,7 +7,7 @@ import { getDb } from '../db/client.js'
 
 type DbExecutor = NodePgDatabase<typeof schema>
 
-const eventColumns = {
+export const eventColumns = {
   id: events.id,
   tenantId: events.tenantId,
   idempotencyKey: events.idempotencyKey,

@@ -1,19 +1,12 @@
 import { invites, tenants, users } from '@webhook/shared/schema'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
-import { hashPassword } from '../../auth/password.js'
+import { hashPassword } from '@webhook/shared/password'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { assertEmailAvailable, assertInviteUsable, findInviteByToken } from '../../lib/invites.js'
-import { toUserJson } from './serialize.js'
+import { toUserJson, userColumns } from './serialize.js'
 import { parseAcceptInviteBody } from './invite-validation.js'
-
-const userColumns = {
-  id: users.id,
-  email: users.email,
-  name: users.name,
-  isSuperAdmin: users.isSuperAdmin,
-}
 
 export async function validateInvite(req: Request, res: Response, next: NextFunction) {
   try {
@@ -103,17 +96,6 @@ export async function acceptInvite(req: Request, res: Response, next: NextFuncti
             passwordHash,
             name: body.name,
             isSuperAdmin: false,
-          })
-          .returning(userColumns)
-      } else if (invite.kind === 'platform_admin') {
-        ;[createdUser] = await tx
-          .insert(users)
-          .values({
-            tenantId: null,
-            email: invite.email,
-            passwordHash,
-            name: body.name,
-            isSuperAdmin: true,
           })
           .returning(userColumns)
       } else {

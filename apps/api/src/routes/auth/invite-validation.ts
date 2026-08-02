@@ -1,14 +1,6 @@
 import { acceptInviteSchema } from '@webhook/shared/zod'
-import { AppError } from '../../lib/errors.js'
-
-function zodMessage(error: { errors: { message?: string }[] }): string {
-  return error.errors[0]?.message ?? 'Validation failed'
-}
+import { parseSchema } from '../../lib/validation.js'
 
 export function parseAcceptInviteBody(body: unknown) {
-  const parsed = acceptInviteSchema.safeParse(body)
-  if (!parsed.success) {
-    throw new AppError(400, 'validation_error', zodMessage(parsed.error))
-  }
-  return parsed.data
+  return parseSchema(acceptInviteSchema, body)
 }
