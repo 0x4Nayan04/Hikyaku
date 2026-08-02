@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { CONFIG_DEFAULTS } from './constants.js'
 
 const DEFAULT_ADMIN_BOOTSTRAP_SECRETS = new Set(['change-me-in-production'])
+const DEFAULT_SESSION_SECRETS = new Set(['change-me-session-secret-min-32-chars'])
 
 const baseSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default(CONFIG_DEFAULTS.NODE_ENV),
@@ -42,6 +43,14 @@ export const apiEnvSchema = baseSchema
         code: z.ZodIssueCode.custom,
         path: ['ADMIN_BOOTSTRAP_SECRET'],
         message: 'Default bootstrap secret is not allowed in production',
+      })
+    }
+
+    if (DEFAULT_SESSION_SECRETS.has(data.SESSION_SECRET)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['SESSION_SECRET'],
+        message: 'Default session secret is not allowed in production',
       })
     }
   })

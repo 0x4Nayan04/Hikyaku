@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { NextFunction, Request, Response } from 'express'
 import { eq } from 'drizzle-orm'
 import { deliveries, endpoints, events } from '@webhook/shared/schema'
+import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import '../../../../src/config.js'
 import { closePool, getDb } from '../../../../src/db/client.js'
@@ -14,6 +15,8 @@ vi.mock('@webhook/shared/enqueueDelivery', () => ({
 }))
 
 vi.mock('../../../../src/queue/client.js', () => ({ queue: {} }))
+
+const enqueueMock = vi.mocked(enqueueDeliveryJob)
 
 function createMockRes(onComplete: (result: { statusCode: number; body: unknown }) => void) {
   const res = {
@@ -178,6 +181,7 @@ describe('replayDelivery validation', () => {
   })
 
   it('replays a failed delivery for the owning tenant', async () => {
+    enqueueMock.mockResolvedValue(undefined)
     const { tenantId } = await createTenantWithKey()
 
     try {
@@ -235,6 +239,138 @@ describe('replayDelivery validation', () => {
         attemptCount: 0,
         lastError: null,
       })
+    } finally {
+      await deleteTenant(tenantId)
+    }
+  })
+
+  it('reverts to failed when replay enqueue fails so replay can be retried', async () => {
+    enqueueMock.mockRejectedValueOnce(new Error('redis unreachable'))
+    const { tenantId } = await createTenantWithKey()
+
+    try {
+      const db = getDb()
+      const [endpoint] = await db
+        .insert(endpoints)
+        .values({
+          tenantId,
+          url: 'https://example.com/hook',
+          secret: 'whsec_test',
+          status: 'active',
+        })
+        .returning({ id: endpoints.id })
+
+      const [event] = await db
+        .insert(events)
+        .values({
+          tenantId,
+          idempotencyKey: `replay-enqueue-fail-${randomUUID()}`,
+          type: 'test',
+          payload: {},
+          status: 'failed',
+        })
+        .returning({ id: events.id })
+
+      const [delivery] = await db
+        .insert(deliveries)
+        .values({
+          tenantId,
+          eventId: event.id,
+          endpointId: endpoint.id,
+          status: 'failed',
+          lastError: 'http_500',
+          attemptCount: 2,
+        })
+        .returning({ id: deliveries.id })
+
+      const result = await runReplayDelivery(delivery.id, tenantId)
+
+      expect(result.error).toBeInstanceOf(AppError)
+      expect(result.error).toMatchObject({
+        statusCode: 503,
+        code: 'service_unavailable',
+      })
+
+      const [updated] = await db
+        .select({
+          status: deliveries.status,
+          lastError: deliveries.lastError,
+        })
+        .from(deliveries)
+        .where(eq(deliveries.id, delivery.id))
+
+      expect(updated).toMatchObject({
+        status: 'failed',
+        lastError: 'enqueue_failed',
+      })
+    } finally {
+      await deleteTenant(tenantId)
+    }
+  })
+
+  it('does not overwrite a newer delivery state when replay enqueue fails', async () => {
+    let signalEnqueue!: () => void
+    let rejectEnqueue!: (reason?: unknown) => void
+    const enqueueStarted = new Promise<void>((resolve) => {
+      signalEnqueue = resolve
+    })
+    enqueueMock.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectEnqueue = reject
+          signalEnqueue()
+        }),
+    )
+    const { tenantId } = await createTenantWithKey()
+
+    try {
+      const db = getDb()
+      const [endpoint] = await db
+        .insert(endpoints)
+        .values({
+          tenantId,
+          url: 'https://example.com/hook',
+          secret: 'whsec_test',
+          status: 'active',
+        })
+        .returning({ id: endpoints.id })
+      const [event] = await db
+        .insert(events)
+        .values({
+          tenantId,
+          idempotencyKey: `replay-state-change-${randomUUID()}`,
+          type: 'test',
+          payload: {},
+          status: 'failed',
+        })
+        .returning({ id: events.id })
+      const [delivery] = await db
+        .insert(deliveries)
+        .values({
+          tenantId,
+          eventId: event.id,
+          endpointId: endpoint.id,
+          status: 'failed',
+          lastError: 'http_500',
+        })
+        .returning({ id: deliveries.id })
+
+      const replay = runReplayDelivery(delivery.id, tenantId)
+      await enqueueStarted
+      await db
+        .update(deliveries)
+        .set({ status: 'succeeded', lastError: null })
+        .where(eq(deliveries.id, delivery.id))
+      rejectEnqueue(new Error('redis unreachable'))
+
+      const result = await replay
+      expect(result.error).toMatchObject({ statusCode: 503 })
+
+      const [updated] = await db
+        .select({ status: deliveries.status })
+        .from(deliveries)
+        .where(eq(deliveries.id, delivery.id))
+      expect(updated?.status).toBe('succeeded')
     } finally {
       await deleteTenant(tenantId)
     }

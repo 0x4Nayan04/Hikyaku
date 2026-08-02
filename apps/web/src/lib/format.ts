@@ -77,7 +77,10 @@ const DELIVERY_ERROR_LABELS: Record<string, string> = {
   network_error: 'Network error',
   endpoint_disabled: 'Endpoint disabled',
   blocked_url: 'Blocked URL',
+  too_many_redirects: 'Too many redirects',
   max_attempts: 'Max attempts reached',
+  enqueue_failed: 'Queue unavailable',
+  rate_limited: 'Rate limited',
 }
 
 /** Human-readable label for delivery `last_error` codes (e.g. http_404 → HTTP 404). */

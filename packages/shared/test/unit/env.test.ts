@@ -66,6 +66,18 @@ describe('apiEnvSchema', () => {
       NODE_ENV: 'production',
       ...apiSecrets,
       ADMIN_BOOTSTRAP_SECRET: 'change-me-in-production',
+      SESSION_SECRET: 'a'.repeat(32),
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects default session secret in production', () => {
+    const result = apiEnvSchema.safeParse({
+      ...baseEnv,
+      NODE_ENV: 'production',
+      ADMIN_BOOTSTRAP_SECRET: 'a'.repeat(32),
+      SESSION_SECRET: 'change-me-session-secret-min-32-chars',
     })
 
     expect(result.success).toBe(false)
@@ -77,6 +89,7 @@ describe('apiEnvSchema', () => {
       NODE_ENV: 'production',
       ...apiSecrets,
       ADMIN_BOOTSTRAP_SECRET: 'only-sixteen-chars',
+      SESSION_SECRET: 'a'.repeat(32),
     })
 
     expect(result.success).toBe(false)
@@ -86,8 +99,8 @@ describe('apiEnvSchema', () => {
     const result = apiEnvSchema.safeParse({
       ...baseEnv,
       NODE_ENV: 'production',
-      ...apiSecrets,
       ADMIN_BOOTSTRAP_SECRET: 'a'.repeat(32),
+      SESSION_SECRET: 'b'.repeat(32),
     })
 
     expect(result.success).toBe(true)

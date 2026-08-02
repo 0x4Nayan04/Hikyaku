@@ -1,4 +1,4 @@
-import { count, eq } from 'drizzle-orm'
+import { count, eq, sql } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { tenants, users } from '@webhook/shared/schema'
 import { hashPassword, verifyPassword } from '@webhook/shared/password'
@@ -12,6 +12,9 @@ import {
   parseLoginBody,
   requireAdminSecret,
 } from './validation.js'
+
+/** Transaction-scoped advisory lock so concurrent bootstrap cannot create two super-admins. */
+const BOOTSTRAP_LOCK_KEY = 872_014_001
 
 function saveSession(req: Request): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -56,24 +59,30 @@ export async function bootstrap(req: Request, res: Response, next: NextFunction)
   try {
     requireAdminSecret(req)
     const body = parseBootstrapBody(req.body)
+    const passwordHash = await hashPassword(body.password)
     const db = getDb()
 
-    if (!(await isBootstrapAvailable())) {
-      throw new AppError(403, 'forbidden', 'Bootstrap is disabled')
-    }
+    const user = await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${BOOTSTRAP_LOCK_KEY})`)
 
-    const passwordHash = await hashPassword(body.password)
+      const [countRow] = await tx.select({ value: count() }).from(users)
+      if ((countRow?.value ?? 0) > 0) {
+        throw new AppError(403, 'forbidden', 'Bootstrap is disabled')
+      }
 
-    const [user] = await db
-      .insert(users)
-      .values({
-        email: body.email,
-        passwordHash,
-        name: body.name,
-        isSuperAdmin: true,
-        tenantId: null,
-      })
-      .returning(userColumns)
+      const [created] = await tx
+        .insert(users)
+        .values({
+          email: body.email,
+          passwordHash,
+          name: body.name,
+          isSuperAdmin: true,
+          tenantId: null,
+        })
+        .returning(userColumns)
+
+      return created
+    })
 
     res.status(201).json({
       user: { id: user.id, email: user.email, is_super_admin: user.isSuperAdmin },

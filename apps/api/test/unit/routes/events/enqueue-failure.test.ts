@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import type { NextFunction, Request, Response } from 'express'
-import { endpoints } from '@webhook/shared/schema'
+import { and, eq } from 'drizzle-orm'
+import { deliveries, endpoints, events } from '@webhook/shared/schema'
+import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import '../../../../src/config.js'
 import { closePool, getDb } from '../../../../src/db/client.js'
@@ -9,10 +11,12 @@ import { ingestEvent } from '../../../../src/routes/events/handlers.js'
 import { createTenantWithKey, deleteTenant } from '../../../helpers/tenant.js'
 
 vi.mock('@webhook/shared/enqueueDelivery', () => ({
-  enqueueDeliveryJob: vi.fn().mockRejectedValue(new Error('redis unreachable')),
+  enqueueDeliveryJob: vi.fn(),
 }))
 
 vi.mock('../../../../src/queue/client.js', () => ({ queue: {} }))
+
+const enqueueMock = vi.mocked(enqueueDeliveryJob)
 
 function createMockRes() {
   const res = {
@@ -33,14 +37,19 @@ function createMockRes() {
 async function runIngestEvent(
   req: Request,
 ): Promise<{ error?: unknown; statusCode?: number; body?: unknown }> {
-  const res = createMockRes()
   return new Promise((resolve) => {
+    const res = createMockRes()
+    const originalJson = res.json.bind(res)
+    res.json = ((payload: unknown) => {
+      originalJson(payload)
+      resolve({ statusCode: res.statusCode, body: res.body })
+      return res
+    }) as typeof res.json
+
     const next: NextFunction = (err?: unknown) => {
       if (err) {
         resolve({ error: err })
-        return
       }
-      resolve({ statusCode: res.statusCode, body: res.body })
     }
 
     void ingestEvent(req, res, next)
@@ -70,6 +79,8 @@ describe('ingestEvent enqueue failure', () => {
   })
 
   it('returns 503 when BullMQ enqueue fails after commit', async () => {
+    enqueueMock.mockRejectedValueOnce(new Error('redis unreachable'))
+
     const req = {
       tenantId,
       body: {
@@ -87,5 +98,54 @@ describe('ingestEvent enqueue failure', () => {
       code: 'service_unavailable',
       message: 'Service temporarily unavailable',
     })
+  })
+
+  it('re-enqueues open deliveries on idempotent retry after a prior enqueue 503', async () => {
+    const idempotencyKey = `enqueue-retry-${randomUUID()}`
+    enqueueMock.mockRejectedValueOnce(new Error('redis unreachable'))
+
+    const first = await runIngestEvent({
+      tenantId,
+      body: {
+        idempotency_key: idempotencyKey,
+        type: 'test.event',
+        payload: {},
+      },
+    } as Request)
+
+    expect(first.error).toMatchObject({ statusCode: 503 })
+
+    const [event] = await getDb()
+      .select({ id: events.id })
+      .from(events)
+      .where(and(eq(events.tenantId, tenantId), eq(events.idempotencyKey, idempotencyKey)))
+      .limit(1)
+
+    expect(event).toBeDefined()
+
+    const open = await getDb()
+      .select({ id: deliveries.id })
+      .from(deliveries)
+      .where(and(eq(deliveries.eventId, event!.id), eq(deliveries.status, 'pending')))
+
+    expect(open.length).toBeGreaterThan(0)
+
+    enqueueMock.mockResolvedValue(undefined)
+    enqueueMock.mockClear()
+
+    const retry = await runIngestEvent({
+      tenantId,
+      body: {
+        idempotency_key: idempotencyKey,
+        type: 'test.event',
+        payload: {},
+      },
+    } as Request)
+
+    expect(retry.error).toBeUndefined()
+    expect(retry.statusCode).toBe(202)
+    expect(enqueueMock.mock.calls.map((call) => call[1])).toEqual(
+      expect.arrayContaining(open.map((row) => row.id)),
+    )
   })
 })

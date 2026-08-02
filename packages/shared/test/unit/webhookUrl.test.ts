@@ -63,6 +63,13 @@ describe('checkWebhookUrl', () => {
     await expect(checkWebhookUrl('ftp://example.com/hook')).resolves.toMatchObject({ ok: false })
   })
 
+  it('rejects plain http when private targets are not allowed', async () => {
+    await expect(checkWebhookUrl('http://example.com/hook')).resolves.toMatchObject({
+      ok: false,
+      reason: 'URL must use https',
+    })
+  })
+
   it('allows private targets when allowPrivate is set', async () => {
     await expect(checkWebhookUrl('http://127.0.0.1/hook', true)).resolves.toEqual({ ok: true })
   })
