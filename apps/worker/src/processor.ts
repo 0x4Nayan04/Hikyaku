@@ -1,6 +1,8 @@
 import { RATE_LIMIT_DEFER_MS } from '@webhook/shared/constants'
+import type { DeliveryJobData } from '@webhook/shared/constants'
 import { signPayload } from '@webhook/shared/crypto'
-import { deliveryAttempts, deliveries, endpoints, events, tenants } from '@webhook/shared/schema'
+import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
+import { deliveryAttempts, deliveries, endpoints, events } from '@webhook/shared/schema'
 import { checkWebhookUrl } from '@webhook/shared/webhookUrl'
 import { DelayedError, type Job } from 'bullmq'
 import { eq, max } from 'drizzle-orm'
@@ -10,11 +12,6 @@ import { getDb } from './db/client.js'
 import { postWithTimeout } from './httpClient.js'
 import { logger } from './lib/logger.js'
 import { takeRateLimitToken } from './rateLimit.js'
-import { reevaluateEventStatus } from './status.js'
-
-export type DeliveryJobData = {
-  deliveryId: string
-}
 
 type DeliveryContext = {
   id: string
@@ -28,7 +25,6 @@ type DeliveryContext = {
   url: string
   secret: string
   endpointStatus: string
-  tenantStatus: string
 }
 
 type HttpAttemptFields = {
@@ -36,6 +32,15 @@ type HttpAttemptFields = {
   responseBody: string | null
   error: string | null
   durationMs: number
+}
+
+type AttemptOutcome = Partial<HttpAttemptFields> & { error?: string | null }
+
+type DeliveryOutcome = {
+  status: 'in_progress' | 'succeeded' | 'failed' | 'pending'
+  attemptCount?: number
+  lastError?: string | null
+  nextRetryAt?: Date | null
 }
 
 async function loadDeliveryContext(deliveryId: string): Promise<DeliveryContext | null> {
@@ -53,12 +58,10 @@ async function loadDeliveryContext(deliveryId: string): Promise<DeliveryContext 
       url: endpoints.url,
       secret: endpoints.secret,
       endpointStatus: endpoints.status,
-      tenantStatus: tenants.status,
     })
     .from(deliveries)
     .innerJoin(events, eq(events.id, deliveries.eventId))
     .innerJoin(endpoints, eq(endpoints.id, deliveries.endpointId))
-    .innerJoin(tenants, eq(tenants.id, deliveries.tenantId))
     .where(eq(deliveries.id, deliveryId))
     .limit(1)
 
@@ -75,161 +78,23 @@ async function nextAttemptNumber(deliveryId: string): Promise<number> {
   return (result?.value ?? 0) + 1
 }
 
-/** Audit-only path for disabled endpoint or HTTP cap; does not increment attempt_count. */
-async function recordShortCircuitFail(
+async function recordOutcome(
   deliveryId: string,
   eventId: string,
-  error: string,
+  delivery: DeliveryOutcome,
+  attempt?: AttemptOutcome,
 ): Promise<void> {
   const db = getDb()
-  const attemptNumber = await nextAttemptNumber(deliveryId)
+  const attemptNumber = attempt ? await nextAttemptNumber(deliveryId) : null
 
   await db.transaction(async (tx) => {
-    await tx.insert(deliveryAttempts).values({
-      deliveryId,
-      attemptNumber,
-      error,
-    })
+    if (attempt && attemptNumber !== null) {
+      await tx.insert(deliveryAttempts).values({ deliveryId, attemptNumber, ...attempt })
+    }
     await tx
       .update(deliveries)
       .set({
-        status: 'failed',
-        lastError: error,
-        nextRetryAt: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(deliveries.id, deliveryId))
-    await reevaluateEventStatus(eventId, tx)
-  })
-}
-
-async function recordRateLimitedDefer(deliveryId: string, eventId: string): Promise<void> {
-  const db = getDb()
-  const attemptNumber = await nextAttemptNumber(deliveryId)
-
-  await db.transaction(async (tx) => {
-    await tx.insert(deliveryAttempts).values({
-      deliveryId,
-      attemptNumber,
-      error: 'rate_limited',
-    })
-    await tx
-      .update(deliveries)
-      .set({
-        status: 'deferred',
-        nextRetryAt: new Date(Date.now() + RATE_LIMIT_DEFER_MS),
-        updatedAt: new Date(),
-      })
-      .where(eq(deliveries.id, deliveryId))
-    await reevaluateEventStatus(eventId, tx)
-  })
-}
-
-async function markInProgress(deliveryId: string, eventId: string): Promise<void> {
-  const db = getDb()
-  await db.transaction(async (tx) => {
-    await tx
-      .update(deliveries)
-      .set({ status: 'in_progress', updatedAt: new Date() })
-      .where(eq(deliveries.id, deliveryId))
-    await reevaluateEventStatus(eventId, tx)
-  })
-}
-
-async function recordSuccess(
-  deliveryId: string,
-  eventId: string,
-  attemptCount: number,
-  httpStatus: number,
-  responseBody: string | null,
-  durationMs: number,
-): Promise<void> {
-  const db = getDb()
-  const attemptNumber = await nextAttemptNumber(deliveryId)
-
-  await db.transaction(async (tx) => {
-    await tx.insert(deliveryAttempts).values({
-      deliveryId,
-      attemptNumber,
-      httpStatus,
-      responseBody,
-      durationMs,
-    })
-    await tx
-      .update(deliveries)
-      .set({
-        attemptCount: attemptCount + 1,
-        status: 'succeeded',
-        lastError: null,
-        nextRetryAt: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(deliveries.id, deliveryId))
-    await reevaluateEventStatus(eventId, tx)
-  })
-}
-
-async function recordFailureWithAttempt(
-  deliveryId: string,
-  eventId: string,
-  attemptCount: number,
-  lastError: string,
-  attempt: HttpAttemptFields,
-): Promise<void> {
-  const db = getDb()
-  const attemptNumber = await nextAttemptNumber(deliveryId)
-
-  await db.transaction(async (tx) => {
-    await tx.insert(deliveryAttempts).values({
-      deliveryId,
-      attemptNumber,
-      httpStatus: attempt.httpStatus,
-      responseBody: attempt.responseBody,
-      error: attempt.error,
-      durationMs: attempt.durationMs,
-    })
-    await tx
-      .update(deliveries)
-      .set({
-        attemptCount: attemptCount + 1,
-        status: 'failed',
-        lastError,
-        nextRetryAt: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(deliveries.id, deliveryId))
-    await reevaluateEventStatus(eventId, tx)
-  })
-}
-
-async function recordRetryableFailure(
-  deliveryId: string,
-  eventId: string,
-  attemptCount: number,
-  attemptCountAfterHttp: number,
-  lastError: string,
-  attempt: HttpAttemptFields,
-): Promise<void> {
-  const db = getDb()
-  const attemptNumber = await nextAttemptNumber(deliveryId)
-  const delayMs = calculateBackoffDelayMs(attemptCountAfterHttp)
-
-  await db.transaction(async (tx) => {
-    await tx.insert(deliveryAttempts).values({
-      deliveryId,
-      attemptNumber,
-      httpStatus: attempt.httpStatus,
-      responseBody: attempt.responseBody,
-      error: attempt.error,
-      durationMs: attempt.durationMs,
-    })
-    await tx
-      .update(deliveries)
-      .set({
-        attemptCount: attemptCount + 1,
-        status: 'pending',
-        lastError,
-        nextRetryAt: new Date(Date.now() + delayMs),
+        ...delivery,
         updatedAt: new Date(),
       })
       .where(eq(deliveries.id, deliveryId))
@@ -276,37 +141,51 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
   }
 
   if (row.endpointStatus === 'disabled') {
-    await recordShortCircuitFail(row.id, row.eventId, 'endpoint_disabled')
+    await recordOutcome(
+      row.id,
+      row.eventId,
+      { status: 'failed', lastError: 'endpoint_disabled', nextRetryAt: null },
+      { error: 'endpoint_disabled' },
+    )
     log.info('endpoint_disabled')
     return
   }
 
-  if (row.tenantStatus === 'suspended') {
-    await recordShortCircuitFail(row.id, row.eventId, 'tenant_suspended')
-    log.info('tenant_suspended')
-    return
-  }
-
-  const urlCheck = await checkWebhookUrl(row.url, {
-    allowPrivate: env.NODE_ENV !== 'production',
-  })
+  const allowPrivate = env.NODE_ENV !== 'production'
+  const urlCheck = await checkWebhookUrl(row.url, allowPrivate)
   if (!urlCheck.ok) {
-    await recordShortCircuitFail(row.id, row.eventId, 'blocked_url')
+    await recordOutcome(
+      row.id,
+      row.eventId,
+      { status: 'failed', lastError: 'blocked_url', nextRetryAt: null },
+      { error: 'blocked_url' },
+    )
     log.info({ reason: urlCheck.reason }, 'blocked_url')
     return
   }
 
   if (row.attemptCount >= env.MAX_DELIVERY_ATTEMPTS) {
-    await recordShortCircuitFail(row.id, row.eventId, 'max_attempts')
+    await recordOutcome(
+      row.id,
+      row.eventId,
+      { status: 'failed', lastError: 'max_attempts', nextRetryAt: null },
+      { error: 'max_attempts' },
+    )
     log.info('max_attempts')
     return
   }
 
   const allowed = await takeRateLimitToken(row.tenantId)
   if (!allowed) {
-    await recordRateLimitedDefer(row.id, row.eventId)
-    await job.moveToDelayed(Date.now() + RATE_LIMIT_DEFER_MS, token)
-    log.info('rate_limited_deferred')
+    const retryAt = new Date(Date.now() + RATE_LIMIT_DEFER_MS)
+    await recordOutcome(
+      row.id,
+      row.eventId,
+      { status: 'pending', lastError: 'rate_limited', nextRetryAt: retryAt },
+      { error: 'rate_limited' },
+    )
+    await job.moveToDelayed(retryAt.getTime(), token)
+    log.info('rate_limited')
     throw new DelayedError()
   }
 
@@ -322,7 +201,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     'User-Agent': 'Hikyaku/1.0',
   }
 
-  await markInProgress(row.id, row.eventId)
+  await recordOutcome(row.id, row.eventId, { status: 'in_progress' })
 
   const start = Date.now()
   const attemptCountAfterHttp = row.attemptCount + 1
@@ -331,9 +210,13 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
   let error: string | null = null
 
   try {
-    const result = await postWithTimeout(row.url, body, headers, env.DELIVERY_TIMEOUT_MS, {
-      allowPrivate: env.NODE_ENV !== 'production',
-    })
+    const result = await postWithTimeout(
+      row.url,
+      body,
+      headers,
+      env.DELIVERY_TIMEOUT_MS,
+      allowPrivate,
+    )
     httpStatus = result.status
     responseBody = result.body
   } catch (err) {
@@ -343,13 +226,16 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
 
   if (httpStatus !== null) {
     if (httpStatus >= 200 && httpStatus < 300) {
-      await recordSuccess(
+      await recordOutcome(
         row.id,
         row.eventId,
-        row.attemptCount,
-        httpStatus,
-        responseBody,
-        Date.now() - start,
+        {
+          attemptCount: row.attemptCount + 1,
+          status: 'succeeded',
+          lastError: null,
+          nextRetryAt: null,
+        },
+        { httpStatus, responseBody, durationMs: Date.now() - start },
       )
       log.info({ http_status: httpStatus }, 'delivery_succeeded')
       return
@@ -358,12 +244,17 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     log.info({ http_status: httpStatus }, 'delivery_http_failure')
 
     if (!isRetryableHttpStatus(httpStatus)) {
-      await recordFailureWithAttempt(row.id, row.eventId, row.attemptCount, `http_${httpStatus}`, {
-        httpStatus,
-        responseBody,
-        error: null,
-        durationMs: Date.now() - start,
-      })
+      await recordOutcome(
+        row.id,
+        row.eventId,
+        {
+          attemptCount: row.attemptCount + 1,
+          status: 'failed',
+          lastError: `http_${httpStatus}`,
+          nextRetryAt: null,
+        },
+        { httpStatus, responseBody, error: null, durationMs: Date.now() - start },
+      )
       log.info({ last_error: `http_${httpStatus}` }, 'delivery_failed_fast')
       return
     }
@@ -377,20 +268,35 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
   }
 
   if (attemptCountAfterHttp >= env.MAX_DELIVERY_ATTEMPTS) {
-    await recordFailureWithAttempt(row.id, row.eventId, row.attemptCount, 'max_attempts', attempt)
+    await recordOutcome(
+      row.id,
+      row.eventId,
+      {
+        attemptCount: row.attemptCount + 1,
+        status: 'failed',
+        lastError: 'max_attempts',
+        nextRetryAt: null,
+      },
+      attempt,
+    )
     log.info({ attempt_count: attemptCountAfterHttp }, 'delivery_dead_letter')
     return
   }
 
   const lastError = error ?? `http_${httpStatus}`
-  await recordRetryableFailure(
+  const retryAt = new Date(Date.now() + calculateBackoffDelayMs(attemptCountAfterHttp))
+  await recordOutcome(
     row.id,
     row.eventId,
-    row.attemptCount,
-    attemptCountAfterHttp,
-    lastError,
+    {
+      attemptCount: row.attemptCount + 1,
+      status: 'pending',
+      lastError,
+      nextRetryAt: retryAt,
+    },
     attempt,
   )
+  await job.moveToDelayed(retryAt.getTime(), token)
   log.info({ last_error: lastError, attempt_count: attemptCountAfterHttp }, 'delivery_retrying')
-  throw new Error(lastError)
+  throw new DelayedError()
 }

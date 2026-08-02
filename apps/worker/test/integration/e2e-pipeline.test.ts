@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { verifyPayload } from '@webhook/shared/crypto'
-import { QUEUE_NAME, WORKER_LOCK_DURATION_MS } from '@webhook/shared/constants'
+import { QUEUE_NAME } from '@webhook/shared/constants'
+import { WORKER_LOCK_DURATION_MS } from '../../src/config.js'
 import { deliveries, events } from '@webhook/shared/schema'
 import { Worker } from 'bullmq'
 import { eq } from 'drizzle-orm'

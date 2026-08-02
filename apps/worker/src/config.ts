@@ -7,3 +7,4 @@ const envPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env'
 loadEnv({ path: envPath })
 
 export const env: WorkerEnv = parseWorkerEnv()
+export const WORKER_LOCK_DURATION_MS = env.DELIVERY_TIMEOUT_MS + 30_000

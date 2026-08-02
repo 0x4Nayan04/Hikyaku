@@ -207,7 +207,7 @@ describe('processor', () => {
     await mock.close()
   })
 
-  it('throws for retryable 5xx status to trigger BullMQ backoff', async () => {
+  it('delays retryable 5xx using the application backoff', async () => {
     const db = getDb()
     let requestCount = 0
 
@@ -246,7 +246,8 @@ describe('processor', () => {
       .returning()
 
     const before = Date.now()
-    await expect(processor(makeJob(delivery.id))).rejects.toThrow()
+    const job = makeJob(delivery.id)
+    await expect(processor(job)).rejects.toThrow(DelayedError)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -267,6 +268,7 @@ describe('processor', () => {
     )
     expect(attempts).toHaveLength(1)
     expect(attempts[0]?.httpStatus).toBe(503)
+    expect(job.moveToDelayed).toHaveBeenCalledWith(updated.nextRetryAt!.getTime(), undefined)
 
     await mock.close()
   })
@@ -309,7 +311,7 @@ describe('processor', () => {
       .returning()
 
     const before = Date.now()
-    await expect(processor(makeJob(delivery.id))).rejects.toThrow()
+    await expect(processor(makeJob(delivery.id))).rejects.toThrow(DelayedError)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const delayMs = calculateBackoffDelayMs(3)
@@ -322,7 +324,7 @@ describe('processor', () => {
     await mock.close()
   })
 
-  it.each([408, 429])('throws for retryable HTTP %i to trigger BullMQ backoff', async (status) => {
+  it.each([408, 429])('delays retryable HTTP %i using application backoff', async (status) => {
     const db = getDb()
 
     const mock = await startMockServer((_req, res) => {
@@ -361,7 +363,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await expect(processor(makeJob(delivery.id))).rejects.toThrow()
+    await expect(processor(makeJob(delivery.id))).rejects.toThrow(DelayedError)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -378,7 +380,7 @@ describe('processor', () => {
     await mock.close()
   })
 
-  it('throws on timeout to trigger BullMQ backoff', async () => {
+  it('delays a timeout using application backoff', async () => {
     const db = getDb()
     const abortErr = new DOMException('The operation was aborted', 'AbortError')
     vi.spyOn(httpClient, 'postWithTimeout').mockRejectedValue(abortErr)
@@ -411,7 +413,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await expect(processor(makeJob(delivery.id))).rejects.toThrow('timeout')
+    await expect(processor(makeJob(delivery.id))).rejects.toThrow(DelayedError)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -427,7 +429,7 @@ describe('processor', () => {
     expect(attempts[0]?.httpStatus).toBeNull()
   })
 
-  it('throws on network error to trigger BullMQ backoff', async () => {
+  it('delays a network error using application backoff', async () => {
     const db = getDb()
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Network' }).returning()
@@ -458,7 +460,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await expect(processor(makeJob(delivery.id))).rejects.toThrow('network_error')
+    await expect(processor(makeJob(delivery.id))).rejects.toThrow(DelayedError)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -846,66 +848,6 @@ describe('processor', () => {
     await mock.close()
   })
 
-  it('fails immediately when tenant is suspended without HTTP call', async () => {
-    const db = getDb()
-    let requestCount = 0
-
-    const mock = await startMockServer((_req, res) => {
-      requestCount += 1
-      res.writeHead(200)
-      res.end('ok')
-    })
-
-    const [tenant] = await db
-      .insert(tenants)
-      .values({ name: 'Processor Suspended', status: 'suspended' })
-      .returning()
-    const [endpoint] = await db
-      .insert(endpoints)
-      .values({
-        tenantId: tenant.id,
-        url: `http://127.0.0.1:${mock.port}/hook`,
-        secret: generateEndpointSecret(),
-        status: 'active',
-      })
-      .returning()
-    const [event] = await db
-      .insert(events)
-      .values({
-        tenantId: tenant.id,
-        idempotencyKey: 'proc-suspended-1',
-        type: 'test.event',
-        payload: {},
-      })
-      .returning()
-    const [delivery] = await db
-      .insert(deliveries)
-      .values({
-        tenantId: tenant.id,
-        eventId: event.id,
-        endpointId: endpoint.id,
-      })
-      .returning()
-
-    await processor(makeJob(delivery.id))
-
-    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
-    const attempts = await db
-      .select()
-      .from(deliveryAttempts)
-      .where(eq(deliveryAttempts.deliveryId, delivery.id))
-
-    expect(requestCount).toBe(0)
-    expect(updated.status).toBe('failed')
-    expect(updated.lastError).toBe('tenant_suspended')
-    expect(updated.attemptCount).toBe(0)
-    expect(attempts).toHaveLength(1)
-    expect(attempts[0]?.error).toBe('tenant_suspended')
-    expect(attempts[0]?.httpStatus).toBeNull()
-
-    await mock.close()
-  })
-
   it('processes a replayed delivery after attempt_count and status reset', async () => {
     const db = getDb()
     let responseStatus = 400
@@ -1025,7 +967,8 @@ describe('processor', () => {
     expect(job.moveToDelayed).toHaveBeenCalledOnce()
     const delayedUntil = vi.mocked(job.moveToDelayed).mock.calls[0]?.[0] as number
     expect(delayedUntil).toBeGreaterThanOrEqual(before + RATE_LIMIT_DEFER_MS - 1_000)
-    expect(updated.status).toBe('deferred')
+    expect(updated.status).toBe('pending')
+    expect(updated.lastError).toBe('rate_limited')
     expect(updated.attemptCount).toBe(2)
     expect(updated.nextRetryAt).not.toBeNull()
     expect(updated.nextRetryAt!.getTime()).toBeGreaterThanOrEqual(

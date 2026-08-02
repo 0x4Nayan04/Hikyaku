@@ -98,7 +98,10 @@ function startFlakyMockServer(
 }
 
 function makeJob(deliveryId: string): Job<{ deliveryId: string }> {
-  return { data: { deliveryId } } as Job<{ deliveryId: string }>
+  return {
+    data: { deliveryId },
+    moveToDelayed: vi.fn().mockResolvedValue(undefined),
+  } as unknown as Job<{ deliveryId: string }>
 }
 
 async function runProcessorUntilSettled(deliveryId: string, maxRuns: number): Promise<void> {

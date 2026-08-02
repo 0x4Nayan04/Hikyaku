@@ -15,7 +15,12 @@ describe('takeRateLimitToken', () => {
   afterEach(async () => {
     vi.restoreAllMocks()
     const redis = getRedis()
-    await Promise.all(tenantIds.splice(0).map((id) => redis.del(`ratelimit:tenant:${id}`)))
+    const ids = tenantIds.splice(0)
+    if (ids.length === 0) return
+    const keys = (
+      await Promise.all(ids.map((id) => redis.keys(`ratelimit:tenant:${id}:*`)))
+    ).flat()
+    if (keys.length > 0) await redis.del(...keys)
   })
 
   afterAll(async () => {
