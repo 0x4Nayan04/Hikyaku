@@ -8,7 +8,7 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
       type={type}
       data-slot="input"
       className={cn(
-        'catalog-focus sm-input h-auto min-h-[var(--form-h)] w-full rounded-none text-[15px] md:text-[15px]',
+        'catalog-focus sm-input h-auto min-h-[var(--form-h)] w-full rounded-none text-[15px]',
         className,
       )}
       {...props}

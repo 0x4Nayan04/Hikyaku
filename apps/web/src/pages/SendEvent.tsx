@@ -1,13 +1,13 @@
-import { useEffect, useReducer, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, RefreshCw, RotateCcw, Send, Webhook } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { ApiError, listEndpoints, sendEvent } from '@/api/client'
 import type { IngestEventResponse } from '@/api/types'
 import { StatusBadge } from '@/components/console/StatusBadge'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
-import { CatalogInput } from '@/components/catalog/CatalogInput'
-import { CatalogTextarea } from '@/components/catalog/CatalogTextarea'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { ConsolePage } from '@/components/console/ConsolePage'
 import { DataPanel } from '@/components/console/DataPanel'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
@@ -47,77 +47,8 @@ function parsePayloadJson(raw: string): Record<string, unknown> | null {
 }
 
 function fieldDescribedBy(id: string, hasHint: boolean, hasError: boolean): string | undefined {
-  const ids = [
-    hasHint ? `${id}-hint` : null,
-    hasError ? `${id}-error` : null,
-  ].filter(Boolean)
+  const ids = [hasHint ? `${id}-hint` : null, hasError ? `${id}-error` : null].filter(Boolean)
   return ids.length > 0 ? ids.join(' ') : undefined
-}
-
-type SendEventState = {
-  idempotencyKey: string
-  type: string
-  payloadText: string
-  payloadError: string | null
-  submitError: string | null
-  submitting: boolean
-  result: IngestEventResponse | null
-}
-
-type SendEventAction =
-  | { type: 'set_idempotency_key'; value: string }
-  | { type: 'set_type'; value: string }
-  | { type: 'set_payload_text'; value: string }
-  | { type: 'submit_prepare' }
-  | { type: 'set_payload_error'; error: string }
-  | { type: 'submit_start' }
-  | { type: 'submit_success'; result: IngestEventResponse }
-  | { type: 'submit_failure'; error: string }
-  | { type: 'reset' }
-
-const initialSendEventState: SendEventState = {
-  idempotencyKey: createIdempotencyKey(),
-  type: 'order.paid',
-  payloadText: DEFAULT_PAYLOAD,
-  payloadError: null,
-  submitError: null,
-  submitting: false,
-  result: null,
-}
-
-function sendEventReducer(state: SendEventState, action: SendEventAction): SendEventState {
-  switch (action.type) {
-    case 'set_idempotency_key':
-      return { ...state, idempotencyKey: action.value, submitError: null }
-    case 'set_type':
-      return { ...state, type: action.value, submitError: null }
-    case 'set_payload_text':
-      return { ...state, payloadText: action.value, payloadError: null, submitError: null }
-    case 'submit_prepare':
-      return { ...state, submitError: null, payloadError: null, result: null }
-    case 'set_payload_error':
-      return { ...state, payloadError: action.error }
-    case 'submit_start':
-      return { ...state, submitting: true }
-    case 'submit_success':
-      return { ...state, result: action.result, submitting: false }
-    case 'submit_failure':
-      return { ...state, submitError: action.error, submitting: false }
-    case 'reset':
-      return {
-        idempotencyKey: createIdempotencyKey(),
-        type: 'order.paid',
-        payloadText: DEFAULT_PAYLOAD,
-        payloadError: null,
-        submitError: null,
-        submitting: false,
-        result: null,
-      }
-    default: {
-      action satisfies never
-      return state
-    }
-  }
 }
 
 type EndpointGate =
@@ -126,9 +57,14 @@ type EndpointGate =
   | { status: 'error'; message: string }
 
 export function SendEvent() {
-  const [state, dispatch] = useReducer(sendEventReducer, initialSendEventState)
   const [gate, setGate] = useState<EndpointGate>({ status: 'loading' })
-  const { idempotencyKey, type, payloadText, payloadError, submitError, submitting, result } = state
+  const [idempotencyKey, setIdempotencyKey] = useState(() => createIdempotencyKey())
+  const [type, setType] = useState('order.paid')
+  const [payloadText, setPayloadText] = useState(DEFAULT_PAYLOAD)
+  const [payloadError, setPayloadError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [result, setResult] = useState<IngestEventResponse | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -153,15 +89,17 @@ export function SendEvent() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    dispatch({ type: 'submit_prepare' })
+    setSubmitError(null)
+    setPayloadError(null)
+    setResult(null)
 
     const payload = parsePayloadJson(payloadText)
     if (!payload) {
-      dispatch({ type: 'set_payload_error', error: 'Enter a valid JSON object (not an array or primitive).' })
+      setPayloadError('Enter a valid JSON object (not an array or primitive).')
       return
     }
 
-    dispatch({ type: 'submit_start' })
+    setSubmitting(true)
 
     try {
       const response = await sendEvent({
@@ -169,21 +107,30 @@ export function SendEvent() {
         type: type.trim(),
         payload,
       })
-      dispatch({ type: 'submit_success', result: response })
+      setResult(response)
       toast.success('Event accepted')
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Failed to send event'
-      dispatch({ type: 'submit_failure', error: message })
+      setSubmitError(message)
       toast.error(message)
+    } finally {
+      setSubmitting(false)
     }
   }
 
   function handleResetForm() {
-    dispatch({ type: 'reset' })
+    setIdempotencyKey(createIdempotencyKey())
+    setType('order.paid')
+    setPayloadText(DEFAULT_PAYLOAD)
+    setPayloadError(null)
+    setSubmitError(null)
+    setSubmitting(false)
+    setResult(null)
   }
 
   function handleRegenerateKey() {
-    dispatch({ type: 'set_idempotency_key', value: createIdempotencyKey() })
+    setIdempotencyKey(createIdempotencyKey())
+    setSubmitError(null)
   }
 
   return (
@@ -191,14 +138,14 @@ export function SendEvent() {
       title="Test event"
       description="Console smoke test for this tenant. Production traffic should use POST /v1/events with an API key."
       actions={
-        <CatalogButton size="sm" className="sm-btn-split" variant="secondary" asChild>
+        <Button size="sm" className="sm-btn-split" variant="secondary" asChild>
           <Link to="/events">
             <span className="sm-btn-split-label">View events</span>
             <span className="sm-btn-split-icon">
               <ArrowRight className="size-3.5" aria-hidden="true" />
             </span>
           </Link>
-        </CatalogButton>
+        </Button>
       }
     >
       {gate.status === 'error' ? (
@@ -238,23 +185,18 @@ export function SendEvent() {
               description="Open the event to see delivery fan-out and outcomes."
               footer={
                 <div className="flex w-full flex-wrap items-center justify-end gap-3 px-4 py-3 md:px-5">
-                  <CatalogButton size="sm"
-                    variant="secondary"
-                    onClick={handleResetForm}
-                  >
+                  <Button size="sm" variant="secondary" onClick={handleResetForm}>
                     <RefreshCw className="size-3.5" aria-hidden="true" />
                     Send another
-                  </CatalogButton>
-                  <CatalogButton size="sm" className="sm-btn-split" asChild>
+                  </Button>
+                  <Button size="sm" className="sm-btn-split" asChild>
                     <Link to={`/events/${result.id}`}>
                       <span className="sm-btn-split-label">View event</span>
-                      <span
-                        className="sm-btn-split-icon"
-                      >
+                      <span className="sm-btn-split-icon">
                         <ArrowRight className="size-3.5" aria-hidden="true" />
                       </span>
                     </Link>
-                  </CatalogButton>
+                  </Button>
                 </div>
               }
             >
@@ -280,7 +222,7 @@ export function SendEvent() {
                 Smoke-test request body for{' '}
                 <code className="send-event-api-endpoint">POST /v1/events</code>. For real traffic,
                 create an API key and use curl — see{' '}
-                <Link to="/docs/ingest" className="font-medium text-primary hover:underline">
+                <Link to="/docs#ingest" className="font-medium text-primary hover:underline">
                   ingest docs
                 </Link>
                 . The API responds with{' '}
@@ -299,21 +241,22 @@ export function SendEvent() {
                   .
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
-                  <CatalogButton size="sm"
+                  <Button
+                    size="sm"
                     type="submit"
                     form="send-event-form"
-                    disabled={submitting} className="sm-btn-split"
+                    disabled={submitting}
+                    className="sm-btn-split"
                   >
                     <span className="sm-btn-split-label">
                       {submitting ? 'Sending…' : 'Send test event'}
                     </span>
-                    <span
-                      className="sm-btn-split-icon"
-                    >
+                    <span className="sm-btn-split-icon">
                       <Send className="size-3.5" aria-hidden="true" />
                     </span>
-                  </CatalogButton>
-                  <CatalogButton size="sm"
+                  </Button>
+                  <Button
+                    size="sm"
                     type="button"
                     variant="secondary"
                     onClick={handleResetForm}
@@ -321,7 +264,7 @@ export function SendEvent() {
                   >
                     <RotateCcw className="size-3.5" aria-hidden="true" />
                     Reset form
-                  </CatalogButton>
+                  </Button>
                 </div>
               </>
             }
@@ -344,7 +287,7 @@ export function SendEvent() {
                     label="Idempotency key"
                     hint="Auto-generated UUID. Reusing the same key returns the original event without creating new deliveries."
                     action={
-                      <CatalogButton
+                      <Button
                         type="button"
                         variant="secondary"
                         className="send-event-field__head-btn"
@@ -353,22 +296,23 @@ export function SendEvent() {
                       >
                         <RefreshCw className="size-3.5" aria-hidden="true" />
                         New UUID
-                      </CatalogButton>
+                      </Button>
                     }
                   >
                     <div className="send-event-id-strip">
-                      <CatalogInput
-                      id="idempotency-key"
-                      value={idempotencyKey}
-                      onChange={(event) =>
-                        dispatch({ type: 'set_idempotency_key', value: event.target.value })
-                      }
-                      placeholder="e.g. 12a91c57-8f3a-4b2c-9d1e-6f7a8b9c0d1e"
-                      className="send-event-plain-input send-event-plain-input--mono"
-                      maxLength={256}
-                      required
-                      aria-describedby={fieldDescribedBy('idempotency-key', true, false)}
-                    />
+                      <Input
+                        id="idempotency-key"
+                        value={idempotencyKey}
+                        onChange={(event) => {
+                          setIdempotencyKey(event.target.value)
+                          setSubmitError(null)
+                        }}
+                        placeholder="e.g. 12a91c57-8f3a-4b2c-9d1e-6f7a8b9c0d1e"
+                        className="send-event-plain-input send-event-plain-input--mono"
+                        maxLength={256}
+                        required
+                        aria-describedby={fieldDescribedBy('idempotency-key', true, false)}
+                      />
                     </div>
                   </SendEventField>
 
@@ -378,10 +322,13 @@ export function SendEvent() {
                     label="Event type"
                     hint="Dot-separated name, e.g. order.paid or user.created."
                   >
-                    <CatalogInput
+                    <Input
                       id="event-type"
                       value={type}
-                      onChange={(event) => dispatch({ type: 'set_type', value: event.target.value })}
+                      onChange={(event) => {
+                        setType(event.target.value)
+                        setSubmitError(null)
+                      }}
                       placeholder="order.paid"
                       className="send-event-plain-input send-event-plain-input--bordered"
                       maxLength={128}
@@ -396,18 +343,24 @@ export function SendEvent() {
                     meta="JSON object · max 256 KiB"
                     error={payloadError}
                   >
-                    <CatalogTextarea
+                    <Textarea
                       id="event-payload"
                       value={payloadText}
-                      onChange={(event) =>
-                        dispatch({ type: 'set_payload_text', value: event.target.value })
-                      }
+                      onChange={(event) => {
+                        setPayloadText(event.target.value)
+                        setPayloadError(null)
+                        setSubmitError(null)
+                      }}
                       rows={PAYLOAD_LINE_COUNT}
                       className="send-event-control-editor"
                       spellCheck={false}
                       required
                       aria-invalid={payloadError !== null}
-                      aria-describedby={fieldDescribedBy('event-payload', false, payloadError !== null)}
+                      aria-describedby={fieldDescribedBy(
+                        'event-payload',
+                        false,
+                        payloadError !== null,
+                      )}
                     />
                   </SendEventField>
                 </div>

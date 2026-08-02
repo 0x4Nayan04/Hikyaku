@@ -1,13 +1,8 @@
 import type { ReactNode } from 'react'
 import { Copy } from 'lucide-react'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
-import { toast } from '@/lib/toast'
+import { Button } from '@/components/ui/button'
+import { copyToClipboard } from '@/lib/clipboard'
 import { cn } from '@/lib/utils'
-
-async function copyToClipboard(value: string, label: string) {
-  await navigator.clipboard.writeText(value)
-  toast.success(`${label} copied`)
-}
 
 type SettingsCatalogListProps = {
   children: ReactNode
@@ -70,7 +65,7 @@ export function SettingsCopyValue({
   return (
     <div className="settings-copy-value">
       <code className="settings-copy-value__text">{value}</code>
-      <CatalogButton
+      <Button
         type="button"
         variant="secondary"
         className="settings-copy-value__btn"
@@ -78,7 +73,7 @@ export function SettingsCopyValue({
       >
         <Copy className="size-3.5" aria-hidden="true" />
         <span>{buttonLabel}</span>
-      </CatalogButton>
+      </Button>
     </div>
   )
 }

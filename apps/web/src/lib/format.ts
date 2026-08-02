@@ -3,6 +3,10 @@ const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: 'short',
 })
 
+export function formatStatusLabel(value: string): string {
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 export function formatPercent(rate: number | null, emptyLabel = '—'): string {
   if (rate === null) {
     return emptyLabel

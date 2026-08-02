@@ -1,41 +1,36 @@
 import type {
   AcceptInviteInput,
   AdminCreateInviteInput,
-  AdminCreateTenantInput,
-  AdminCreateUserInput,
-  AdminResetUserPasswordInput,
-  AuditLogEntry,
+  BootstrapInput,
+  ChangePasswordInput,
+  CreateEndpointInput,
+  IngestEventInput,
+  LoginInput,
+  PatchEndpointInput,
+} from '@webhook/shared/zod'
+import type {
   CreateInviteResponse,
   AdminTenant,
   ApiErrorBody,
   ApiKey,
   ApiKeyWithSecret,
-  BootstrapInput,
-  ChangePasswordInput,
-  CreateEndpointInput,
   Delivery,
   DeliveryDetail,
   Endpoint,
   EndpointWithSecret,
   EventDetail,
   EventSummary,
-  IngestEventInput,
   IngestEventResponse,
   ListDeliveriesParams,
-  LoginInput,
   Paginated,
   PaginationParams,
-  PatchEndpointInput,
-  PlatformOperator,
   ReplayDeliveryResponse,
-  SignupRequest,
-  SignupRequestInput,
   Stats,
   User,
   ValidateInviteResponse,
 } from './types'
 
-const DEFAULT_BASE_URL = 'http://localhost:3000'
+export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 export class ApiError extends Error {
   readonly status: number
@@ -53,12 +48,8 @@ export type ApiFetchOptions = RequestInit & {
   skipAuthRedirect?: boolean
 }
 
-function getBaseUrl(): string {
-  return import.meta.env.VITE_API_URL ?? DEFAULT_BASE_URL
-}
-
 export function apiUrl(path: string): string {
-  return `${getBaseUrl()}${path}`
+  return `${API_BASE}${path}`
 }
 
 function buildQuery(params: Record<string, string | number | undefined>): string {
@@ -110,10 +101,6 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
 
   if (!res.ok) {
     const error = await parseErrorResponse(res)
-    // Remount so /auth/me picks up suspended status and ConsoleLayout can gate.
-    if (error.code === 'tenant_suspended' && !skipAuthRedirect) {
-      window.location.assign('/dashboard')
-    }
     throw error
   }
 
@@ -244,14 +231,6 @@ export function deleteAdminTenant(id: string): Promise<void> {
   return apiFetch(`/v1/admin/tenants/${id}`, { method: 'DELETE' })
 }
 
-export function suspendAdminTenant(id: string): Promise<AdminTenant> {
-  return apiFetch(`/v1/admin/tenants/${id}/suspend`, { method: 'POST' })
-}
-
-export function unsuspendAdminTenant(id: string): Promise<AdminTenant> {
-  return apiFetch(`/v1/admin/tenants/${id}/unsuspend`, { method: 'POST' })
-}
-
 export function patchAdminTenant(id: string, body: { tenant_name: string }): Promise<AdminTenant> {
   return apiFetch(`/v1/admin/tenants/${id}`, {
     method: 'PATCH',
@@ -266,38 +245,8 @@ export function listTenantUsers(
   return apiFetch(`/v1/admin/tenants/${tenantId}/users${buildQuery(params)}`)
 }
 
-export function createAdminTenant(
-  body: AdminCreateTenantInput,
-): Promise<{ tenant: AdminTenant; user: User }> {
-  return apiFetch('/v1/admin/tenants', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
-}
-
-export function createAdminTenantUser(
-  tenantId: string,
-  body: AdminCreateUserInput,
-): Promise<{ user: User }> {
-  return apiFetch(`/v1/admin/tenants/${tenantId}/users`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
-}
-
 export function deleteAdminTenantUser(tenantId: string, userId: string): Promise<void> {
   return apiFetch(`/v1/admin/tenants/${tenantId}/users/${userId}`, { method: 'DELETE' })
-}
-
-export function resetAdminTenantUserPassword(
-  tenantId: string,
-  userId: string,
-  body: AdminResetUserPasswordInput,
-): Promise<void> {
-  return apiFetch(`/v1/admin/tenants/${tenantId}/users/${userId}/reset-password`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
 }
 
 export function createAdminInvite(body: AdminCreateInviteInput): Promise<CreateInviteResponse> {
@@ -305,26 +254,6 @@ export function createAdminInvite(body: AdminCreateInviteInput): Promise<CreateI
     method: 'POST',
     body: JSON.stringify(body),
   })
-}
-
-export function listOperators(
-  params: PaginationParams = {},
-): Promise<Paginated<PlatformOperator>> {
-  return apiFetch(`/v1/admin/operators${buildQuery(params)}`)
-}
-
-export function inviteOperator(body: {
-  email: string
-  name?: string
-}): Promise<CreateInviteResponse> {
-  return apiFetch('/v1/admin/operators/invites', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
-}
-
-export function deleteOperator(id: string): Promise<void> {
-  return apiFetch(`/v1/admin/operators/${id}`, { method: 'DELETE' })
 }
 
 export function validateInvite(token: string): Promise<ValidateInviteResponse> {
@@ -339,37 +268,4 @@ export function acceptInvite(body: AcceptInviteInput): Promise<{ user: User }> {
     skipAuthRedirect: true,
     body: JSON.stringify(body),
   })
-}
-
-export function createSignupRequest(
-  body: SignupRequestInput,
-): Promise<{ signupRequest: SignupRequest }> {
-  return apiFetch('/v1/auth/signup', {
-    method: 'POST',
-    skipAuthRedirect: true,
-    body: JSON.stringify(body),
-  })
-}
-
-export function listAdminSignupRequests(
-  params: PaginationParams & { status?: SignupRequest['status'] } = {},
-): Promise<Paginated<SignupRequest>> {
-  return apiFetch(`/v1/admin/signup-requests${buildQuery(params)}`)
-}
-
-export function approveAdminSignupRequest(
-  id: string,
-): Promise<{ signupRequest: SignupRequest; tenant: AdminTenant; user: User }> {
-  return apiFetch(`/v1/admin/signup-requests/${id}/approve`, { method: 'POST' })
-}
-
-export function listAuditLog(
-  params: PaginationParams & { action?: string } = {},
-): Promise<Paginated<AuditLogEntry>> {
-  const { action, ...rest } = params
-  return apiFetch(`/v1/admin/audit-log${buildQuery({ ...rest, action })}`)
-}
-
-export function rejectAdminSignupRequest(id: string): Promise<{ signupRequest: SignupRequest }> {
-  return apiFetch(`/v1/admin/signup-requests/${id}/reject`, { method: 'POST' })
 }

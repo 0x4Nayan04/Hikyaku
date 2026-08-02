@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useReducer } from 'react'
+import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-import { ApiError, getEvent } from '@/api/client'
+import { getEvent } from '@/api/client'
 import type { EventDetail as EventDetailType } from '@/api/types'
 import { ConsolePage } from '@/components/console/ConsolePage'
 import { DataPanel } from '@/components/console/DataPanel'
@@ -14,71 +14,24 @@ import {
   SettingsCatalogRow,
   SettingsCopyAction,
 } from '@/components/console/SettingsCatalog'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
+import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/format'
+import { useDetailFetch } from '@/hooks/useDetailFetch'
 
 function formatPayload(payload: Record<string, unknown>): string {
   return JSON.stringify(payload, null, 2)
 }
 
-type EventLoadState = {
-  event: EventDetailType | null
-  loading: boolean
-  error: string | null
-}
-
-type EventLoadAction =
-  | { type: 'success'; event: EventDetailType }
-  | { type: 'failure'; error: string }
-
-function eventLoadReducer(state: EventLoadState, action: EventLoadAction): EventLoadState {
-  switch (action.type) {
-    case 'success':
-      return { event: action.event, error: null, loading: false }
-    case 'failure':
-      return { ...state, error: action.error, loading: false }
-  }
-}
-
 export function EventDetail() {
   const { id } = useParams<{ id: string }>()
-  const [{ event, loading, error }, dispatch] = useReducer(eventLoadReducer, {
-    event: null,
-    loading: Boolean(id),
-    error: id ? null : 'Event ID is missing',
+  const { data: event, loading, error } = useDetailFetch<EventDetailType>({
+    id,
+    fetchDetail: getEvent,
+    missingError: 'Event ID is missing',
+    fallbackError: 'Failed to load event',
   })
 
-  useEffect(() => {
-    if (!id) {
-      return
-    }
-
-    let cancelled = false
-
-    getEvent(id)
-      .then((data) => {
-        if (!cancelled) {
-          dispatch({ type: 'success', event: data })
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          dispatch({
-            type: 'failure',
-            error: err instanceof ApiError ? err.message : 'Failed to load event',
-          })
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [id])
-
-  const payloadText = useMemo(
-    () => (event ? formatPayload(event.payload) : ''),
-    [event],
-  )
+  const payloadText = useMemo(() => (event ? formatPayload(event.payload) : ''), [event])
 
   return (
     <ConsolePage
@@ -89,12 +42,12 @@ export function EventDetail() {
           : 'Payload and delivery outcomes for one event.'
       }
       actions={
-        <CatalogButton size="sm" variant="secondary" asChild>
+        <Button size="sm" variant="secondary" asChild>
           <Link to="/events">
             <ArrowLeft className="size-3.5" aria-hidden="true" />
             Back to events
           </Link>
-        </CatalogButton>
+        </Button>
       }
     >
       {error ? (
@@ -119,10 +72,7 @@ export function EventDetail() {
               <SettingsCatalogRow
                 label="Idempotency key"
                 action={
-                  <SettingsCopyAction
-                    value={event.idempotency_key}
-                    copyLabel="Idempotency key"
-                  />
+                  <SettingsCopyAction value={event.idempotency_key} copyLabel="Idempotency key" />
                 }
               >
                 <code

@@ -17,9 +17,14 @@ export function AppNav({ isSuperAdmin, onNavigate, variant = 'sidebar' }: AppNav
   return (
     <nav className={cn('flex flex-col', isMobile ? 'gap-4' : 'gap-0')} aria-label="Console">
       {sections.map((section) => (
-          <div key={section.id} className="app-nav-section">
-            <p className="app-nav-section-label">{section.label}</p>
-            <ul className={cn('mt-1 flex flex-col gap-0.5', isMobile && 'border border-border bg-surface')}>
+        <div key={section.id} className="app-nav-section">
+          <p className="app-nav-section-label">{section.label}</p>
+          <ul
+            className={cn(
+              'mt-1 flex flex-col gap-0.5',
+              isMobile && 'border border-border bg-surface',
+            )}
+          >
             {section.items.map((item, itemIndex) => {
               const Icon = item.icon
               const active = isNavItemActive(location.pathname, item, allItems)
@@ -60,7 +65,9 @@ export function AppNav({ isSuperAdmin, onNavigate, variant = 'sidebar' }: AppNav
                           <Icon className="size-4" strokeWidth={1.75} />
                         </span>
                         <span className="min-w-0 flex-1 overflow-hidden">
-                          <span className="app-nav-link-title block truncate leading-snug">{item.title}</span>
+                          <span className="app-nav-link-title block truncate leading-snug">
+                            {item.title}
+                          </span>
                           {item.description ? (
                             <span className="app-nav-link-desc mt-0.5 block truncate text-xs leading-snug">
                               {item.description}

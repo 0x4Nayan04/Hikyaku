@@ -10,7 +10,7 @@ type LoginLocationState = {
 const TENANT_HOME = '/dashboard'
 const ADMIN_HOME = '/admin'
 
-const PUBLIC_PATHS = new Set(['/', '/login', '/signup', '/bootstrap', '/accept-invite'])
+const PUBLIC_PATHS = new Set(['/', '/login', '/bootstrap', '/accept-invite'])
 
 /** Paths both roles may use (not bounced for super-admin). */
 function isSharedPath(pathname: string): boolean {

@@ -1,17 +1,17 @@
-import { Activity, PauseCircle, Zap, type LucideIcon } from 'lucide-react'
+import { Activity, Zap, type LucideIcon } from 'lucide-react'
 import type { Stats } from '@/api/types'
 import { cn } from '@/lib/utils'
 
 type LiveMetricsProps = {
-  stats: Pick<Stats, 'events_today' | 'deliveries_active' | 'deliveries_deferred'>
+  stats: Pick<Stats, 'events_today' | 'deliveries_active'>
 }
 
-type MetricTone = 'info' | 'success' | 'warning'
+type MetricTone = 'info' | 'success'
 
 const metrics: {
   label: string
   hint: string
-  key: keyof Pick<Stats, 'events_today' | 'deliveries_active' | 'deliveries_deferred'>
+  key: keyof Pick<Stats, 'events_today' | 'deliveries_active'>
   icon: LucideIcon
   tone: MetricTone
 }[] = [
@@ -29,19 +29,11 @@ const metrics: {
     icon: Activity,
     tone: 'success',
   },
-  {
-    label: 'Deferred',
-    hint: 'Rate-limited; will retry',
-    key: 'deliveries_deferred',
-    icon: PauseCircle,
-    tone: 'warning',
-  },
 ]
 
 const toneIconClass: Record<MetricTone, string> = {
   info: 'dashboard-activity-row__icon--event',
   success: 'dashboard-activity-row__icon--delivery',
-  warning: 'dashboard-activity-row__icon--warning',
 }
 
 export function LiveMetrics({ stats }: LiveMetricsProps) {
@@ -61,9 +53,7 @@ export function LiveMetrics({ stats }: LiveMetricsProps) {
               <p className="dashboard-activity-row__name">{metric.label}</p>
               <p className="dashboard-panel-row__hint">{metric.hint}</p>
             </div>
-            <span className="dashboard-stat-value">
-              {stats[metric.key].toLocaleString()}
-            </span>
+            <span className="dashboard-stat-value">{stats[metric.key].toLocaleString()}</span>
           </div>
         )
       })}

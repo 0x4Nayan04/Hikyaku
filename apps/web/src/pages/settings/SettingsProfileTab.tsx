@@ -1,5 +1,5 @@
-import { useReducer } from 'react'
-import { Link, useOutletContext } from 'react-router-dom'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ExternalLink, Lock, RotateCcw } from 'lucide-react'
 import { ApiError, changePassword } from '@/api/client'
 import { AuthFormField } from '@/components/auth/AuthFormField'
@@ -9,72 +9,13 @@ import { DataPanel } from '@/components/console/DataPanel'
 import { FormPanel } from '@/components/console/FormPanel'
 import { SettingsLayout } from '@/components/console/SettingsLayout'
 import { SettingsAccountStrip } from '@/components/console/SettingsCatalog'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
-import type { AppOutletContext } from '@/layouts/app-context'
+import { Button } from '@/components/ui/button'
+import { useSession } from '@/providers/session-context'
+import { copyToClipboard } from '@/lib/clipboard'
 import { toast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 
 const MIN_PASSWORD_LENGTH = 12
-
-type PasswordFormState = {
-  currentPassword: string
-  newPassword: string
-  confirmPassword: string
-  formError: string | null
-  submitting: boolean
-  passwordUpdated: boolean
-}
-
-type PasswordFormAction =
-  | { type: 'set_current_password'; value: string }
-  | { type: 'set_new_password'; value: string }
-  | { type: 'set_confirm_password'; value: string }
-  | { type: 'set_form_error'; error: string | null }
-  | { type: 'submit_start' }
-  | { type: 'submit_success' }
-  | { type: 'submit_end' }
-
-const initialPasswordFormState: PasswordFormState = {
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: '',
-  formError: null,
-  submitting: false,
-  passwordUpdated: false,
-}
-
-function passwordFormReducer(
-  state: PasswordFormState,
-  action: PasswordFormAction,
-): PasswordFormState {
-  switch (action.type) {
-    case 'set_current_password':
-      return { ...state, currentPassword: action.value, passwordUpdated: false }
-    case 'set_new_password':
-      return { ...state, newPassword: action.value, passwordUpdated: false }
-    case 'set_confirm_password':
-      return { ...state, confirmPassword: action.value, passwordUpdated: false }
-    case 'set_form_error':
-      return { ...state, formError: action.error }
-    case 'submit_start':
-      return { ...state, formError: null, submitting: true, passwordUpdated: false }
-    case 'submit_success':
-      return {
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-        formError: null,
-        submitting: false,
-        passwordUpdated: true,
-      }
-    case 'submit_end':
-      return { ...state, submitting: false }
-    default: {
-      action satisfies never
-      return state
-    }
-  }
-}
 
 function calculateStrength(password: string): { score: number; label: string } {
   let score = 0
@@ -96,16 +37,14 @@ function strengthBarTone(score: number): string {
   return 'bg-primary'
 }
 
-async function copyToClipboard(value: string, label: string) {
-  await navigator.clipboard.writeText(value)
-  toast.success(`${label} copied`)
-}
-
 export function SettingsProfileTab() {
-  const { session, loadingSession } = useOutletContext<AppOutletContext>()
-  const [formState, formDispatch] = useReducer(passwordFormReducer, initialPasswordFormState)
-  const { currentPassword, newPassword, confirmPassword, formError, submitting, passwordUpdated } =
-    formState
+  const { session, loading } = useSession()
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [formError, setFormError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [passwordUpdated, setPasswordUpdated] = useState(false)
 
   const isSuperAdmin = session?.user.is_super_admin ?? false
   const roleLabel = isSuperAdmin ? 'Super admin' : 'Tenant operator'
@@ -119,48 +58,51 @@ export function SettingsProfileTab() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    formDispatch({ type: 'set_form_error', error: null })
+    setFormError(null)
 
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      formDispatch({
-        type: 'set_form_error',
-        error: `New password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
-      })
+      setFormError(`New password must be at least ${MIN_PASSWORD_LENGTH} characters.`)
       return
     }
 
     if (newPassword !== confirmPassword) {
-      formDispatch({ type: 'set_form_error', error: 'New password and confirmation do not match.' })
+      setFormError('New password and confirmation do not match.')
       return
     }
 
-    formDispatch({ type: 'submit_start' })
+    setSubmitting(true)
+    setPasswordUpdated(false)
 
     try {
       await changePassword({
         current_password: currentPassword,
         new_password: newPassword,
       })
-      formDispatch({ type: 'submit_success' })
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setPasswordUpdated(true)
       toast.success('Password updated successfully')
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Failed to change password'
-      formDispatch({ type: 'set_form_error', error: message })
+      setFormError(message)
       toast.error(message)
-      formDispatch({ type: 'submit_end' })
+    } finally {
+      setSubmitting(false)
     }
   }
 
   function handleReset() {
-    formDispatch({ type: 'set_form_error', error: null })
-    formDispatch({ type: 'set_current_password', value: '' })
-    formDispatch({ type: 'set_new_password', value: '' })
-    formDispatch({ type: 'set_confirm_password', value: '' })
+    setFormError(null)
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
+    setPasswordUpdated(false)
   }
 
   const strength = newPassword.length > 0 ? calculateStrength(newPassword) : null
 
-  if (loadingSession && !session) {
+  if (loading && !session) {
     return <PageLoading variant="detail" />
   }
 
@@ -182,24 +124,19 @@ export function SettingsProfileTab() {
         description="Password for signing into the console."
         footer={
           <div className="flex flex-wrap items-center gap-3">
-            <CatalogButton size="sm"
-              type="submit"
-              form="security-form"
-              disabled={!canSubmit}
-            >
+            <Button size="sm" type="submit" form="security-form" disabled={!canSubmit}>
               <Lock className="size-3.5" aria-hidden="true" />
               {submitting ? 'Updating…' : 'Update password'}
-            </CatalogButton>
-            <CatalogButton size="sm"
+            </Button>
+            <Button
+              size="sm"
               variant="secondary"
               onClick={handleReset}
-              disabled={
-                submitting || (!currentPassword && !newPassword && !confirmPassword)
-              }
+              disabled={submitting || (!currentPassword && !newPassword && !confirmPassword)}
             >
               <RotateCcw className="size-3.5" aria-hidden="true" />
               Clear form
-            </CatalogButton>
+            </Button>
           </div>
         }
       >
@@ -231,7 +168,10 @@ export function SettingsProfileTab() {
                 icon={Lock}
                 autoComplete="current-password"
                 value={currentPassword}
-                onChange={(v) => formDispatch({ type: 'set_current_password', value: v })}
+                onChange={(value) => {
+                  setCurrentPassword(value)
+                  setPasswordUpdated(false)
+                }}
                 required
               />
 
@@ -252,7 +192,10 @@ export function SettingsProfileTab() {
                     icon={Lock}
                     autoComplete="new-password"
                     value={newPassword}
-                    onChange={(v) => formDispatch({ type: 'set_new_password', value: v })}
+                    onChange={(value) => {
+                      setNewPassword(value)
+                      setPasswordUpdated(false)
+                    }}
                     required
                   />
                   {strength ? (
@@ -269,8 +212,7 @@ export function SettingsProfileTab() {
                         ))}
                       </div>
                       <p className="text-xs text-muted-strong" aria-live="polite">
-                        Strength:{' '}
-                        <span className="font-medium text-ink">{strength.label}</span>
+                        Strength: <span className="font-medium text-ink">{strength.label}</span>
                         {newPassword.length < MIN_PASSWORD_LENGTH ? (
                           <span className="ml-1 text-muted-strong/60">
                             ({newPassword.length}/{MIN_PASSWORD_LENGTH} min)
@@ -287,7 +229,10 @@ export function SettingsProfileTab() {
                     icon={Lock}
                     autoComplete="new-password"
                     value={confirmPassword}
-                    onChange={(v) => formDispatch({ type: 'set_confirm_password', value: v })}
+                    onChange={(value) => {
+                      setConfirmPassword(value)
+                      setPasswordUpdated(false)
+                    }}
                     required
                   />
                   {confirmPassword.length > 0 && !passwordsMatch ? (
@@ -310,15 +255,12 @@ export function SettingsProfileTab() {
               title="Platform administrator"
               description="Tenant-scoped settings such as API keys live in each tenant workspace. Use Admin to manage tenants and invites."
             />
-            <CatalogButton size="sm"
-              variant="secondary"
-              asChild
-            >
+            <Button size="sm" variant="secondary" asChild>
               <Link to="/admin">
                 <ExternalLink className="mr-1.5 size-3.5" aria-hidden="true" />
                 Open admin console
               </Link>
-            </CatalogButton>
+            </Button>
           </div>
         </FormPanel>
       ) : null}

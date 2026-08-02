@@ -1,14 +1,14 @@
 import { Copy } from 'lucide-react'
 import { PageBanner } from '@/components/console/PageBanner'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
+import { Button } from '@/components/ui/button'
 import {
-  CatalogDialog,
-  CatalogDialogContent,
-  CatalogDialogDescription,
-  CatalogDialogFooter,
-  CatalogDialogHeader,
-  CatalogDialogTitle,
-} from '@/components/catalog/CatalogDialog'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { formatDateTime } from '@/lib/format'
 import { toast } from '@/lib/toast'
 
@@ -35,15 +35,15 @@ export function InviteUrlDialog({
   }
 
   return (
-    <CatalogDialog open={open} onOpenChange={onOpenChange}>
-      <CatalogDialogContent className="sm:max-w-lg">
-        <CatalogDialogHeader>
-          <CatalogDialogTitle>Invite link</CatalogDialogTitle>
-          <CatalogDialogDescription className="text-muted-foreground">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Invite link</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             Copy this link now and send it to the invitee. The server cannot show it again after you
             close this dialog.
-          </CatalogDialogDescription>
-        </CatalogDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         {inviteUrl ? (
           <div className="flex flex-col gap-4">
@@ -61,7 +61,7 @@ export function InviteUrlDialog({
               <code className="flex-1 overflow-x-auto font-mono text-xs break-all text-foreground">
                 {inviteUrl}
               </code>
-              <CatalogButton
+              <Button
                 type="button"
                 variant="secondary"
                 className="shrink-0 px-2.5"
@@ -69,17 +69,17 @@ export function InviteUrlDialog({
                 aria-label="Copy invite link"
               >
                 <Copy className="size-4" />
-              </CatalogButton>
+              </Button>
             </div>
           </div>
         ) : null}
 
-        <CatalogDialogFooter>
-          <CatalogButton type="button" onClick={() => onOpenChange(false)}>
+        <DialogFooter>
+          <Button type="button" onClick={() => onOpenChange(false)}>
             Done
-          </CatalogButton>
-        </CatalogDialogFooter>
-      </CatalogDialogContent>
-    </CatalogDialog>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -1,8 +1,8 @@
 import { Copy } from 'lucide-react'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-type CatalogSecretRevealProps = {
+type SecretRevealProps = {
   value: string
   onCopy: () => void
   copyLabel?: string
@@ -10,13 +10,13 @@ type CatalogSecretRevealProps = {
   className?: string
 }
 
-export function CatalogSecretReveal({
+export function SecretReveal({
   value,
   onCopy,
   copyLabel = 'Copy',
   hint = 'Store securely before closing this dialog.',
   className,
-}: CatalogSecretRevealProps) {
+}: SecretRevealProps) {
   return (
     <div className={cn('catalog-secret-reveal', className)}>
       <div className="catalog-secret-reveal__bar">
@@ -25,7 +25,8 @@ export function CatalogSecretReveal({
       </div>
       <div className="catalog-secret-reveal__field">
         <code className="catalog-secret-reveal__value">{value}</code>
-        <CatalogButton size="sm"
+        <Button
+          size="sm"
           type="button"
           variant="secondary"
           className="catalog-secret-reveal__copy h-auto min-h-0"
@@ -34,7 +35,7 @@ export function CatalogSecretReveal({
         >
           <Copy className="size-3.5" aria-hidden="true" />
           <span>{copyLabel}</span>
-        </CatalogButton>
+        </Button>
       </div>
     </div>
   )

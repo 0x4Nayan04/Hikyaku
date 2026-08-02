@@ -24,8 +24,7 @@ export const LandingNavbar = memo(function LandingNavbar() {
   const location = useLocation()
   const { session, loading } = useSession()
   const isLogin = location.pathname === '/login'
-  const isSignup = location.pathname === '/signup'
-  const isLanding = !isLogin && !isSignup
+  const isLanding = !isLogin
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const mobileMenuRef = useFocusTrap(isMobileMenuOpen, {
@@ -61,11 +60,7 @@ export const LandingNavbar = memo(function LandingNavbar() {
     menuButtonRef.current?.focus()
   }, [])
 
-  // Invite/bootstrap-first: Sign in is the default primary; signup stays secondary.
-  const primaryCta = isLogin
-    ? { label: 'Request access', path: '/signup' }
-    : { label: 'Sign in', path: '/login' }
-  const secondaryCta = isLanding ? { label: 'Request access', path: '/signup' } : null
+  const primaryCta = { label: 'Sign in', path: '/login' }
 
   return (
     <header className="landing-nav">
@@ -84,11 +79,7 @@ export const LandingNavbar = memo(function LandingNavbar() {
           <nav className="landing-nav-links hidden md:flex" aria-label="Page sections">
             {NAV_LINKS.map((item) =>
               item.external ? (
-                <Link
-                  key={item.label}
-                  to={item.href}
-                  className="landing-nav-link focus-ring"
-                >
+                <Link key={item.label} to={item.href} className="landing-nav-link focus-ring">
                   {item.label}
                 </Link>
               ) : (
@@ -96,7 +87,9 @@ export const LandingNavbar = memo(function LandingNavbar() {
                   key={item.label}
                   href={item.href}
                   className={`landing-nav-link focus-ring${item.sectionId && activeSectionId === item.sectionId ? ' landing-nav-link--active' : ''}`}
-                  aria-current={item.sectionId && activeSectionId === item.sectionId ? 'location' : undefined}
+                  aria-current={
+                    item.sectionId && activeSectionId === item.sectionId ? 'location' : undefined
+                  }
                 >
                   {item.label}
                 </a>
@@ -116,15 +109,6 @@ export const LandingNavbar = memo(function LandingNavbar() {
                   <span className="sm-btn-split-icon">
                     <LayoutDashboard className="size-3.5" aria-hidden="true" />
                   </span>
-                </button>
-              ) : null}
-              {!session && !loading && secondaryCta ? (
-                <button
-                  type="button"
-                  onClick={() => navigate(secondaryCta.path)}
-                  className="sm-btn sm-btn-secondary focus-ring"
-                >
-                  {secondaryCta.label}
                 </button>
               ) : null}
               {!session && !loading ? (
@@ -190,7 +174,9 @@ export const LandingNavbar = memo(function LandingNavbar() {
                     href={item.href}
                     className={`landing-nav-drawer-link${item.sectionId && activeSectionId === item.sectionId ? ' landing-nav-drawer-link--active' : ''}`}
                     onClick={closeMobileMenu}
-                    aria-current={item.sectionId && activeSectionId === item.sectionId ? 'location' : undefined}
+                    aria-current={
+                      item.sectionId && activeSectionId === item.sectionId ? 'location' : undefined
+                    }
                   >
                     {item.label}
                   </a>
@@ -211,18 +197,6 @@ export const LandingNavbar = memo(function LandingNavbar() {
                 </button>
               ) : !loading ? (
                 <>
-                  {secondaryCta ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigate(secondaryCta.path)
-                        closeMobileMenu()
-                      }}
-                      className="sm-btn sm-btn-secondary w-full"
-                    >
-                      {secondaryCta.label}
-                    </button>
-                  ) : null}
                   <button
                     type="button"
                     onClick={() => {

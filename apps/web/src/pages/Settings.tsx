@@ -1,31 +1,27 @@
 import { useEffect } from 'react'
-import { useOutletContext, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { ConsolePage } from '@/components/console/ConsolePage'
 import { SettingsLayout } from '@/components/console/SettingsLayout'
-import {
-  CatalogTabs,
-  CatalogTabsContent,
-  CatalogTabsList,
-  CatalogTabsTrigger,
-} from '@/components/catalog/CatalogTabs'
-import type { AppOutletContext } from '@/layouts/app-context'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useSession } from '@/providers/session-context'
 import { SettingsApiKeyDialogs } from '@/pages/settings/SettingsApiKeyDialogs'
 import { SettingsApiKeysTab } from '@/pages/settings/SettingsApiKeysTab'
 import { SettingsTenantTab } from '@/pages/settings/SettingsTenantTab'
-import { SettingsVaultTab } from '@/pages/settings/SettingsVaultTab'
 import { SettingsProfileTab } from '@/pages/settings/SettingsProfileTab'
 import { useSettingsPage } from '@/pages/settings/useSettingsPage'
 
-const TENANT_ONLY_TABS = new Set(['tenant', 'api-keys', 'vault'])
+const TENANT_ONLY_TABS = new Set(['tenant', 'api-keys'])
 
 export function Settings() {
-  const { session } = useOutletContext<AppOutletContext>()
+  const { session } = useSession()
   const isSuperAdmin = session?.user.is_super_admin ?? false
 
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedTab = searchParams.get('tab') ?? 'profile'
   const tab =
-    isSuperAdmin && TENANT_ONLY_TABS.has(requestedTab) ? 'profile' : requestedTab
+    requestedTab === 'vault' || (isSuperAdmin && TENANT_ONLY_TABS.has(requestedTab))
+      ? 'profile'
+      : requestedTab
   const setTab = (newTab: string) => setSearchParams({ tab: newTab }, { replace: true })
 
   useEffect(() => {
@@ -35,14 +31,19 @@ export function Settings() {
   }, [tab, requestedTab, setSearchParams])
 
   const {
-    apiKeysState,
-    vaultState,
-    dialogState,
-    dispatchDialog,
+    apiKeys,
+    loadingKeys,
+    keysError,
+    creatingKey,
+    revokingId,
+    rotatingId,
+    secretKey,
+    revokeTarget,
+    setSecretKey,
+    setRevokeTarget,
     handleCreateKey,
     handleRevoke,
     handleRotate,
-    handleRemoveVaultEntry,
   } = useSettingsPage(isSuperAdmin)
 
   return (
@@ -52,76 +53,58 @@ export function Settings() {
       description={
         isSuperAdmin
           ? 'Account password and platform admin access.'
-          : 'Profile, API keys, endpoint secrets, and tenant identity.'
+          : 'Profile, API keys, and tenant identity.'
       }
     >
-      <CatalogTabs value={tab} onValueChange={setTab}>
-        <CatalogTabsList>
-          <CatalogTabsTrigger value="profile">Profile</CatalogTabsTrigger>
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
           {!isSuperAdmin && (
             <>
-              <CatalogTabsTrigger value="tenant">Tenant</CatalogTabsTrigger>
-              <CatalogTabsTrigger value="api-keys">API keys</CatalogTabsTrigger>
-              <CatalogTabsTrigger value="vault">Endpoint secrets</CatalogTabsTrigger>
+              <TabsTrigger value="tenant">Tenant</TabsTrigger>
+              <TabsTrigger value="api-keys">API keys</TabsTrigger>
             </>
           )}
-        </CatalogTabsList>
+        </TabsList>
 
-        <CatalogTabsContent value="profile">
+        <TabsContent value="profile">
           <SettingsProfileTab />
-        </CatalogTabsContent>
+        </TabsContent>
 
         {!isSuperAdmin && (
           <>
-            <CatalogTabsContent value="tenant">
+            <TabsContent value="tenant">
               <SettingsLayout>
                 <SettingsTenantTab />
               </SettingsLayout>
-            </CatalogTabsContent>
+            </TabsContent>
 
-            <CatalogTabsContent value="api-keys">
+            <TabsContent value="api-keys">
               <SettingsLayout>
                 <SettingsApiKeysTab
-                apiKeys={apiKeysState.apiKeys}
-                loadingKeys={apiKeysState.loading}
-                keysError={apiKeysState.error}
-                creatingKey={dialogState.creatingKey}
-                rotatingId={dialogState.rotatingId}
-                revokingId={dialogState.revokingId}
-                onCreateKey={handleCreateKey}
-                onRotate={handleRotate}
-                onRevokeClick={(apiKey) =>
-                  dispatchDialog({ type: 'set_revoke_target', target: apiKey })
-                }
-              />
+                  apiKeys={apiKeys}
+                  loadingKeys={loadingKeys}
+                  keysError={keysError}
+                  creatingKey={creatingKey}
+                  rotatingId={rotatingId}
+                  revokingId={revokingId}
+                  onCreateKey={handleCreateKey}
+                  onRotate={handleRotate}
+                  onRevokeClick={setRevokeTarget}
+                />
               </SettingsLayout>
-            </CatalogTabsContent>
-
-            <CatalogTabsContent value="vault">
-              <SettingsLayout>
-                <SettingsVaultTab
-                vaultEntries={vaultState.entries}
-                endpoints={vaultState.endpoints}
-                loadingVault={vaultState.loading}
-                onRemoveVaultEntry={handleRemoveVaultEntry}
-              />
-              </SettingsLayout>
-            </CatalogTabsContent>
+            </TabsContent>
           </>
         )}
-      </CatalogTabs>
+      </Tabs>
 
       {!isSuperAdmin && (
         <SettingsApiKeyDialogs
-          secretKey={dialogState.secretKey}
-          revokeTarget={dialogState.revokeTarget}
-          revokingId={dialogState.revokingId}
-          onSecretKeyChange={(secretKey) =>
-            dispatchDialog({ type: 'set_secret_key', secretKey })
-          }
-          onRevokeTargetChange={(target) =>
-            dispatchDialog({ type: 'set_revoke_target', target })
-          }
+          secretKey={secretKey}
+          revokeTarget={revokeTarget}
+          revokingId={revokingId}
+          onSecretKeyChange={setSecretKey}
+          onRevokeTargetChange={setRevokeTarget}
           onRevoke={handleRevoke}
         />
       )}

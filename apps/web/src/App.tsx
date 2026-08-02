@@ -2,7 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { RequireSession } from '@/components/layout/RequireSession'
 import { RequireSuperAdmin } from '@/components/layout/RequireSuperAdmin'
 import { RequireTenantUser } from '@/components/layout/RequireTenantUser'
-import { AppLayout } from '@/layouts/AppLayout'
+import { ConsoleLayout } from '@/layouts/ConsoleLayout'
 import { AcceptInvite } from '@/pages/AcceptInvite'
 import { Bootstrap } from '@/pages/Bootstrap'
 import { Dashboard } from '@/pages/Dashboard'
@@ -15,13 +15,10 @@ import { DocsRoutes } from '@/pages/docs'
 import { Landing } from '@/pages/Landing'
 import { Login } from '@/pages/Login'
 import { NotFound } from '@/pages/NotFound'
-import { Signup } from '@/pages/Signup'
 import { Admin } from '@/pages/Admin'
 import { SendEvent } from '@/pages/SendEvent'
 import { Settings } from '@/pages/Settings'
 import { TenantAdmin } from '@/pages/TenantAdmin'
-import { AdminAuditLog } from '@/pages/admin/AdminAuditLog'
-import { AdminOperators } from '@/pages/admin/AdminOperators'
 
 export default function App() {
   return (
@@ -30,10 +27,9 @@ export default function App() {
       {/* Marketing home stays viewable while logged in (role CTAs in nav). */}
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
       <Route path="/bootstrap" element={<Bootstrap />} />
       <Route path="/accept-invite" element={<AcceptInvite />} />
-      <Route element={<AppLayout />}>
+      <Route element={<ConsoleLayout />}>
         <Route element={<RequireSession />}>
           <Route element={<RequireTenantUser />}>
             <Route path="dashboard" element={<Dashboard />} />
@@ -51,8 +47,6 @@ export default function App() {
           />
           <Route element={<RequireSuperAdmin />}>
             <Route path="admin" element={<Admin />} />
-            <Route path="admin/audit" element={<AdminAuditLog />} />
-            <Route path="admin/operators" element={<AdminOperators />} />
             <Route path="admin/tenants/:id" element={<TenantAdmin />} />
           </Route>
         </Route>

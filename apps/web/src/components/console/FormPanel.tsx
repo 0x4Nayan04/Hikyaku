@@ -42,7 +42,12 @@ export function FormPanel({
           ) : null}
         </CardHeader>
       ) : null}
-      <CardContent className={cn('form-panel-content px-4 pb-4 pt-2 md:px-5 md:pb-5 md:pt-3', formFieldClasses)}>
+      <CardContent
+        className={cn(
+          'form-panel-content px-4 pb-4 pt-2 md:px-5 md:pb-5 md:pt-3',
+          formFieldClasses,
+        )}
+      >
         {children}
       </CardContent>
       {footer ? (

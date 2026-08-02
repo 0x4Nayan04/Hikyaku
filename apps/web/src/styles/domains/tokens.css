@@ -1,33 +1,105 @@
-/* Hikyaku — Indigo (藍) + Seal Red (朱). Hex here is the brand lock. */
+/* Hikyaku — the single source for design tokens. */
 
-@theme {
-  --color-primary: #1f3a5f;
-  /* Cool slate wash — secondary chrome (not seal; seal is accent) */
-  --color-secondary: #eaedf0;
-  --color-accent: #c43b2c;
-  --color-seal: #c43b2c;
-  --color-ink: #121820;
-  --color-muted: #667080;
-  --color-muted-strong: #556070;
-  --color-muted-accessible: #4a5568;
-  --color-border: #d0d7e2;
-  --color-surface: #ffffff;
-  --color-surface-muted: #eef1f5;
-  --color-background: #f4f6f8;
-  --color-background-alt: #e8ecf2;
+@theme inline {
   --font-sans: 'DM Sans', system-ui, sans-serif;
   --font-display: 'Space Grotesk', 'DM Sans', system-ui, sans-serif;
-  /* Marketing/auth accent only — not UI chrome */
   --font-accent: 'Instrument Serif', Georgia, serif;
   --font-mono: 'DM Mono', ui-monospace, monospace;
 
-  --color-error: #c0362c;
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-status-neutral: hsl(var(--status-neutral));
+  --color-status-neutral-subtle: hsl(var(--status-neutral-subtle));
+  --color-status-neutral-border: hsl(var(--status-neutral-border));
+  --color-status-info: hsl(var(--status-info));
+  --color-status-info-subtle: hsl(var(--status-info-subtle));
+  --color-status-info-border: hsl(var(--status-info-border));
+  --color-status-success: hsl(var(--status-success));
+  --color-status-success-subtle: hsl(var(--status-success-subtle));
+  --color-status-success-border: hsl(var(--status-success-border));
+  --color-status-warning: hsl(var(--status-warning));
+  --color-status-warning-subtle: hsl(var(--status-warning-subtle));
+  --color-status-warning-border: hsl(var(--status-warning-border));
+  --color-status-danger: hsl(var(--status-danger));
+  --color-status-danger-subtle: hsl(var(--status-danger-subtle));
+  --color-status-danger-border: hsl(var(--status-danger-border));
+
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.03), 0 1px 0 0 rgb(0 0 0 / 0.02);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 1px -1px rgb(0 0 0 / 0.02);
 }
 
 :root {
+  --background: 210 18% 96%;
+  --foreground: 214 28% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 214 28% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 214 28% 10%;
+  --primary: 215 51% 25%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 214 18% 93%;
+  --secondary-foreground: 214 28% 10%;
+  --muted: 214 20% 95%;
+  --muted-foreground: 214 12% 40%;
+  --accent: 6 63% 47%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 4 63% 46%;
+  --border: 214 22% 85%;
+  --input: 214 22% 85%;
+  --ring: 215 51% 25%;
+  --radius: 0px;
+
+  --status-neutral: 214 10% 46%;
+  --status-neutral-subtle: 214 20% 96%;
+  --status-neutral-border: 214 18% 87%;
+  --status-info: 216 67% 44%;
+  --status-info-subtle: 216 65% 96%;
+  --status-info-border: 216 42% 84%;
+  --status-success: 155 65% 29%;
+  --status-success-subtle: 155 40% 95%;
+  --status-success-border: 155 28% 80%;
+  --status-warning: 33 90% 33%;
+  --status-warning-subtle: 36 75% 95%;
+  --status-warning-border: 36 52% 80%;
+  --status-danger: 4 63% 46%;
+  --status-danger-subtle: 4 60% 96%;
+  --status-danger-border: 4 42% 84%;
+
+  --color-ink: #121820;
+  --color-muted-strong: #556070;
+  --color-muted-accessible: #4a5568;
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef1f5;
+  --color-background-alt: #e8ecf2;
   --color-primary-rgb: 31, 58, 95;
   --color-seal-rgb: 196, 59, 44;
-  --grad-dot: radial-gradient(circle, rgba(var(--color-primary-rgb), 0.24) 1px, rgba(0, 0, 0, 0) 1.4px);
+  --grad-dot: radial-gradient(
+    circle,
+    rgba(var(--color-primary-rgb), 0.24) 1px,
+    rgba(0, 0, 0, 0) 1.4px
+  );
   --frame-max: 72rem;
   --frame-px: 3rem;
   --row-h: 4rem;

@@ -13,8 +13,7 @@ import {
   XCircle,
   type LucideIcon,
 } from 'lucide-react'
-import type { DeliveryStatus, Endpoint } from '@/api/types'
-import { formatDeliveryStatusLabel } from '@/components/console/CatalogDateStack'
+import type { Endpoint, EndpointLastDelivery } from '@/api/types'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,26 +21,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { copyToClipboard } from '@/lib/clipboard'
 import {
   formatCreatedStacked,
   formatDeliveryError,
   formatDeliveryTime,
+  formatStatusLabel,
   shortId,
 } from '@/lib/format'
-import { toast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
-
-async function copyValue(value: string, label: string) {
-  await navigator.clipboard.writeText(value)
-  toast.success(`${label} copied`)
-}
-
-export type EndpointRowLastDelivery = {
-  deliveryId: string
-  status: DeliveryStatus
-  updatedAt: string
-  error: string | null
-}
 
 type EndpointIconVariant = 'active' | 'disabled'
 
@@ -49,25 +37,14 @@ function getEndpointIconVariant(endpoint: Endpoint): EndpointIconVariant {
   return endpoint.status === 'disabled' ? 'disabled' : 'active'
 }
 
-const endpointIconConfig: Record<
-  EndpointIconVariant,
-  { icon: LucideIcon; label: string }
-> = {
+const endpointIconConfig: Record<EndpointIconVariant, { icon: LucideIcon; label: string }> = {
   active: { icon: Globe, label: 'Active endpoint' },
   disabled: { icon: PowerOff, label: 'Disabled endpoint' },
 }
 
-function TableActionButton({
-  className,
-  children,
-  ...props
-}: ComponentProps<'button'>) {
+function TableActionButton({ className, children, ...props }: ComponentProps<'button'>) {
   return (
-    <button
-      type="button"
-      className={cn('endpoint-catalog-row__action-btn', className)}
-      {...props}
-    >
+    <button type="button" className={cn('endpoint-catalog-row__action-btn', className)} {...props}>
       {children}
     </button>
   )
@@ -86,7 +63,7 @@ function LastDeliveryColumn({
   lastDelivery,
 }: {
   endpoint: Endpoint
-  lastDelivery: EndpointRowLastDelivery | null | undefined
+  lastDelivery: EndpointLastDelivery | null | undefined
 }) {
   if (!lastDelivery) {
     const isDisabled = endpoint.status === 'disabled'
@@ -119,8 +96,8 @@ function LastDeliveryColumn({
     )
   }
 
-  const statusLabel = formatDeliveryStatusLabel(lastDelivery.status)
-  const timeLabel = formatDeliveryTime(lastDelivery.updatedAt)
+  const statusLabel = formatStatusLabel(lastDelivery.status)
+  const timeLabel = formatDeliveryTime(lastDelivery.updated_at)
   const StatusIcon =
     lastDelivery.status === 'succeeded'
       ? CheckCircle2
@@ -138,11 +115,11 @@ function LastDeliveryColumn({
     <div className="endpoint-catalog-row__metric">
       <span className="endpoint-catalog-row__metric-label">Last delivery</span>
       <Link
-        to={`/deliveries/${lastDelivery.deliveryId}`}
+        to={`/deliveries/${lastDelivery.id}`}
         className="endpoint-catalog-row__metric-link"
         title={
-          lastDelivery.error
-            ? `${statusLabel} — ${formatDeliveryError(lastDelivery.error)}`
+          lastDelivery.last_error
+            ? `${statusLabel} — ${formatDeliveryError(lastDelivery.last_error)}`
             : statusLabel
         }
       >
@@ -160,10 +137,7 @@ function LastDeliveryColumn({
             {statusLabel}
           </span>
         </div>
-        <time
-          className="endpoint-catalog-row__metric-sub"
-          dateTime={lastDelivery.updatedAt}
-        >
+        <time className="endpoint-catalog-row__metric-sub" dateTime={lastDelivery.updated_at}>
           {timeLabel}
         </time>
       </Link>
@@ -186,7 +160,7 @@ function CreatedColumn({ createdAt }: { createdAt: string }) {
 
 type EndpointCatalogRowProps = {
   endpoint: Endpoint
-  lastDelivery?: EndpointRowLastDelivery | null
+  lastDelivery?: EndpointLastDelivery | null
   toggling: boolean
   onEdit: (endpoint: Endpoint) => void
   onToggle: (endpoint: Endpoint) => void
@@ -209,10 +183,7 @@ function EndpointCatalogRow({
       data-delivery-health={lastDelivery?.status ?? 'none'}
     >
       <div
-        className={cn(
-          'endpoint-catalog-row__icon',
-          `endpoint-catalog-row__icon--${iconVariant}`,
-        )}
+        className={cn('endpoint-catalog-row__icon', `endpoint-catalog-row__icon--${iconVariant}`)}
         title={iconLabel}
         aria-hidden="true"
       >
@@ -260,11 +231,11 @@ function EndpointCatalogRow({
               <Pencil className="size-3.5" aria-hidden="true" />
               Edit label
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => void copyValue(endpoint.url, 'URL')}>
+            <DropdownMenuItem onSelect={() => void copyToClipboard(endpoint.url, 'URL')}>
               <Copy className="size-3.5" aria-hidden="true" />
               Copy URL
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => void copyValue(endpoint.id, 'Endpoint ID')}>
+            <DropdownMenuItem onSelect={() => void copyToClipboard(endpoint.id, 'Endpoint ID')}>
               <Copy className="size-3.5" aria-hidden="true" />
               Copy endpoint ID
             </DropdownMenuItem>
@@ -290,7 +261,6 @@ function EndpointCatalogRow({
 
 type EndpointCatalogListProps = {
   endpoints: Endpoint[]
-  lastDeliveries?: Record<string, EndpointRowLastDelivery | null>
   togglingId: string | null
   onEdit: (endpoint: Endpoint) => void
   onToggle: (endpoint: Endpoint) => void
@@ -298,7 +268,6 @@ type EndpointCatalogListProps = {
 
 export function EndpointCatalogList({
   endpoints,
-  lastDeliveries = {},
   togglingId,
   onEdit,
   onToggle,
@@ -309,7 +278,7 @@ export function EndpointCatalogList({
         <EndpointCatalogRow
           key={endpoint.id}
           endpoint={endpoint}
-          lastDelivery={lastDeliveries[endpoint.id]}
+          lastDelivery={endpoint.last_delivery}
           toggling={togglingId === endpoint.id}
           onEdit={onEdit}
           onToggle={onToggle}

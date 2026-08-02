@@ -18,7 +18,11 @@ export function AuthFooterLink({ prompt, linkLabel, to, state }: AuthFooterLinkP
         className="group inline-flex items-center gap-1.5 font-medium text-primary transition-colors hover:text-[var(--color-primary-hover)]"
       >
         {linkLabel}
-        <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={2} aria-hidden />
+        <ArrowRight
+          className="size-3.5 transition-transform group-hover:translate-x-0.5"
+          strokeWidth={2}
+          aria-hidden
+        />
       </Link>
     </div>
   )

@@ -1,17 +1,17 @@
 import { Copy, KeyRound, ShieldCheck, TriangleAlert } from 'lucide-react'
 import type { ApiKey, ApiKeyWithSecret } from '@/api/types'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
+import { Button } from '@/components/ui/button'
 import {
-  CatalogDialog,
-  CatalogDialogContent,
-  CatalogDialogDescription,
-  CatalogDialogFooter,
-  CatalogDialogHeader,
-  CatalogDialogTitle,
-} from '@/components/catalog/CatalogDialog'
-import { CatalogSecretReveal } from '@/components/catalog/CatalogSecretReveal'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { SecretReveal } from '@/components/ui/secret-reveal'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { API_BASE } from '@/docs/constants'
+import { API_BASE } from '@/api/client'
 import { buildIngestCurl } from '@/lib/tenant-onboarding'
 import { toast } from '@/lib/toast'
 
@@ -41,7 +41,7 @@ export function SettingsApiKeyDialogs({
 
   return (
     <>
-      <CatalogDialog
+      <Dialog
         open={secretKey !== null}
         onOpenChange={(open) => {
           if (!open) {
@@ -49,22 +49,22 @@ export function SettingsApiKeyDialogs({
           }
         }}
       >
-        <CatalogDialogContent className="gap-0 overflow-hidden p-0 sm:max-w-lg">
+        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-lg">
           <div className="flex gap-3 border-b border-border bg-surface-muted/40 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5 pr-12">
             <div className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface text-primary">
               <KeyRound className="size-4" aria-hidden="true" />
             </div>
-            <CatalogDialogHeader className="gap-1.5 text-left">
-              <CatalogDialogTitle className="text-lg leading-tight">Your API key is ready</CatalogDialogTitle>
-              <CatalogDialogDescription className="text-muted-strong">
+            <DialogHeader className="gap-1.5 text-left">
+              <DialogTitle className="text-lg leading-tight">Your API key is ready</DialogTitle>
+              <DialogDescription className="text-muted-strong">
                 This is the only time the full key will be shown.
-              </CatalogDialogDescription>
-            </CatalogDialogHeader>
+              </DialogDescription>
+            </DialogHeader>
           </div>
 
           <div className="flex flex-col gap-4 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5">
             {secretKey ? (
-              <CatalogSecretReveal
+              <SecretReveal
                 value={secretKey.api_key}
                 hint="Use as a Bearer token for API requests."
                 onCopy={() => void copySecret(secretKey.api_key, 'API key')}
@@ -81,7 +81,7 @@ export function SettingsApiKeyDialogs({
                   </span>
                 </div>
                 <pre className="settings-ingest-curl__code">{ingestCurl}</pre>
-                <CatalogButton
+                <Button
                   size="sm"
                   type="button"
                   variant="secondary"
@@ -90,7 +90,7 @@ export function SettingsApiKeyDialogs({
                 >
                   <Copy className="size-3.5" aria-hidden="true" />
                   Copy curl
-                </CatalogButton>
+                </Button>
               </div>
             ) : null}
 
@@ -103,13 +103,15 @@ export function SettingsApiKeyDialogs({
             </Alert>
           </div>
 
-          <CatalogDialogFooter className="mx-0 mb-0 mt-0">
-            <CatalogButton size="sm" onClick={() => onSecretKeyChange(null)}>Done</CatalogButton>
-          </CatalogDialogFooter>
-        </CatalogDialogContent>
-      </CatalogDialog>
+          <DialogFooter className="mx-0 mb-0 mt-0">
+            <Button size="sm" onClick={() => onSecretKeyChange(null)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <CatalogDialog
+      <Dialog
         open={revokeTarget !== null}
         onOpenChange={(open) => {
           if (!open) {
@@ -117,17 +119,17 @@ export function SettingsApiKeyDialogs({
           }
         }}
       >
-        <CatalogDialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
           <div className="flex gap-3 border-b border-border bg-surface-muted/40 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5 pr-12">
             <div className="flex size-9 shrink-0 items-center justify-center border border-destructive/30 bg-destructive/10 text-destructive">
               <TriangleAlert className="size-4" aria-hidden="true" />
             </div>
-            <CatalogDialogHeader className="gap-1.5 text-left">
-              <CatalogDialogTitle className="text-lg leading-tight">Revoke API key?</CatalogDialogTitle>
-              <CatalogDialogDescription className="text-muted-strong">
+            <DialogHeader className="gap-1.5 text-left">
+              <DialogTitle className="text-lg leading-tight">Revoke API key?</DialogTitle>
+              <DialogDescription className="text-muted-strong">
                 Review the impact before you continue.
-              </CatalogDialogDescription>
-            </CatalogDialogHeader>
+              </DialogDescription>
+            </DialogHeader>
           </div>
 
           <div className="px-[clamp(1.25rem,4vw,var(--space-s2))] py-5">
@@ -135,26 +137,28 @@ export function SettingsApiKeyDialogs({
               <TriangleAlert aria-hidden="true" />
               <AlertTitle>This action cannot be undone</AlertTitle>
               <AlertDescription>
-                Requests using <code className="font-mono font-medium">{revokeTarget?.prefix}…</code>{' '}
-                will start failing immediately.
+                Requests using{' '}
+                <code className="font-mono font-medium">{revokeTarget?.prefix}…</code> will start
+                failing immediately.
               </AlertDescription>
             </Alert>
           </div>
 
-          <CatalogDialogFooter className="mx-0 mb-0 mt-0">
-            <CatalogButton size="sm"
+          <DialogFooter className="mx-0 mb-0 mt-0">
+            <Button
+              size="sm"
               variant="secondary"
               onClick={() => onRevokeTargetChange(null)}
               disabled={revokingId !== null}
             >
               Cancel
-            </CatalogButton>
-            <CatalogButton size="sm" onClick={onRevoke} disabled={revokingId !== null}>
+            </Button>
+            <Button size="sm" onClick={onRevoke} disabled={revokingId !== null}>
               {revokingId ? 'Revoking…' : 'Revoke key'}
-            </CatalogButton>
-          </CatalogDialogFooter>
-        </CatalogDialogContent>
-      </CatalogDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

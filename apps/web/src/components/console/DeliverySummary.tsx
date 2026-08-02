@@ -1,11 +1,4 @@
-import {
-  CheckCircle2,
-  Clock3,
-  Package,
-  PauseCircle,
-  XCircle,
-  type LucideIcon,
-} from 'lucide-react'
+import { CheckCircle2, Clock3, Package, XCircle, type LucideIcon } from 'lucide-react'
 import type { DeliveriesSummary } from '@/api/types'
 import { formatPercent } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -19,7 +12,7 @@ type SummaryMetric = {
   label: string
   hint: string
   icon: LucideIcon
-  tone: 'success' | 'danger' | 'neutral' | 'warning'
+  tone: 'success' | 'danger' | 'neutral'
   barClass: string
 }
 
@@ -48,28 +41,18 @@ const breakdownMetrics: SummaryMetric[] = [
     tone: 'neutral',
     barClass: 'delivery-summary__segment--pending',
   },
-  {
-    key: 'deferred',
-    label: 'Deferred',
-    hint: 'Rate-limited; will retry',
-    icon: PauseCircle,
-    tone: 'warning',
-    barClass: 'delivery-summary__segment--deferred',
-  },
 ]
 
 const toneIconClass: Record<SummaryMetric['tone'], string> = {
   success: 'dashboard-activity-row__icon--success',
   danger: 'dashboard-activity-row__icon--danger',
   neutral: 'dashboard-activity-row__icon--neutral',
-  warning: 'dashboard-activity-row__icon--warning',
 }
 
 const toneValueClass: Record<SummaryMetric['tone'], string> = {
   success: 'text-status-success',
   danger: 'text-status-danger',
   neutral: 'text-ink',
-  warning: 'text-status-warning',
 }
 
 function shareLabel(count: number, total: number): string {
@@ -136,11 +119,7 @@ export function DeliverySummary({ summary }: DeliverySummaryProps) {
         </div>
       </div>
 
-      <div
-        className="delivery-summary__bar"
-        role="img"
-        aria-label={buildBarAriaLabel(summary)}
-      >
+      <div className="delivery-summary__bar" role="img" aria-label={buildBarAriaLabel(summary)}>
         {activeSegments.map((metric) => (
           <div
             key={metric.key}

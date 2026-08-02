@@ -1,4 +1,4 @@
-import { useEffect, useReducer } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Lock, Mail, User } from 'lucide-react'
 import { ApiError, acceptInvite, validateInvite } from '@/api/client'
@@ -12,63 +12,6 @@ import { getDefaultHomePath } from '@/lib/auth-redirect'
 import { useSession } from '@/providers/session-context'
 
 const MIN_PASSWORD_LENGTH = 12
-
-type AcceptInviteState = {
-  invite: ValidateInviteResponse | null
-  loading: boolean
-  loadError: string | null
-  name: string
-  password: string
-  confirmPassword: string
-  submitError: string | null
-  submitting: boolean
-}
-
-type AcceptInviteAction =
-  | { type: 'load_success'; invite: ValidateInviteResponse }
-  | { type: 'load_failure'; error: string }
-  | { type: 'set_name'; name: string }
-  | { type: 'set_password'; password: string }
-  | { type: 'set_confirm_password'; confirmPassword: string }
-  | { type: 'submit_start' }
-  | { type: 'submit_failure'; error: string }
-  | { type: 'submit_finished' }
-  | { type: 'clear_submit_error' }
-
-function acceptInviteReducer(
-  state: AcceptInviteState,
-  action: AcceptInviteAction,
-): AcceptInviteState {
-  switch (action.type) {
-    case 'load_success':
-      return {
-        ...state,
-        invite: action.invite,
-        loading: false,
-        loadError: null,
-        name: action.invite.invited_name ?? state.name,
-      }
-    case 'load_failure':
-      return { ...state, loading: false, loadError: action.error }
-    case 'set_name':
-      return { ...state, name: action.name }
-    case 'set_password':
-      return { ...state, password: action.password }
-    case 'set_confirm_password':
-      return { ...state, confirmPassword: action.confirmPassword }
-    case 'submit_start':
-      return { ...state, submitError: null, submitting: true }
-    case 'submit_failure':
-      return { ...state, submitError: action.error, submitting: false }
-    case 'submit_finished':
-      return { ...state, submitting: false }
-    case 'clear_submit_error':
-      return { ...state, submitError: null }
-    default:
-      action satisfies never
-      return state
-  }
-}
 
 function resolveInviteLoadError(err: unknown): string {
   if (err instanceof ApiError) {
@@ -89,19 +32,16 @@ export function AcceptInvite() {
   const token = searchParams.get('token') ?? ''
   const { session, loading: sessionLoading } = useSession()
 
-  const [state, dispatch] = useReducer(acceptInviteReducer, {
-    invite: null,
-    loading: Boolean(token),
-    loadError: token ? null : 'This invite link is missing a token.',
-    name: '',
-    password: '',
-    confirmPassword: '',
-    submitError: null,
-    submitting: false,
-  })
-
-  const { invite, loading, loadError, name, password, confirmPassword, submitError, submitting } =
-    state
+  const [invite, setInvite] = useState<ValidateInviteResponse | null>(null)
+  const [loading, setLoading] = useState(Boolean(token))
+  const [loadError, setLoadError] = useState<string | null>(
+    token ? null : 'This invite link is missing a token.',
+  )
+  const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!sessionLoading && session) {
@@ -119,12 +59,16 @@ export function AcceptInvite() {
     validateInvite(token)
       .then((result) => {
         if (!cancelled) {
-          dispatch({ type: 'load_success', invite: result })
+          setInvite(result)
+          setLoading(false)
+          setLoadError(null)
+          setName(result.invited_name ?? '')
         }
       })
       .catch((err) => {
         if (!cancelled) {
-          dispatch({ type: 'load_failure', error: resolveInviteLoadError(err) })
+          setLoading(false)
+          setLoadError(resolveInviteLoadError(err))
         }
       })
 
@@ -135,14 +79,14 @@ export function AcceptInvite() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    dispatch({ type: 'clear_submit_error' })
+    setSubmitError(null)
 
     if (password !== confirmPassword) {
-      dispatch({ type: 'submit_failure', error: 'Passwords do not match.' })
+      setSubmitError('Passwords do not match.')
       return
     }
 
-    dispatch({ type: 'submit_start' })
+    setSubmitting(true)
 
     try {
       await acceptInvite({ token, name: name.trim(), password })
@@ -154,28 +98,23 @@ export function AcceptInvite() {
         },
       })
     } catch (err) {
-      dispatch({
-        type: 'submit_failure',
-        error: err instanceof ApiError ? err.message : 'Unable to accept invite. Try again.',
-      })
+      setSubmitError(
+        err instanceof ApiError ? err.message : 'Unable to accept invite. Try again.',
+      )
     } finally {
-      dispatch({ type: 'submit_finished' })
+      setSubmitting(false)
     }
   }
 
   const title =
     invite?.kind === 'tenant_owner'
       ? `Join ${invite.tenant_name ?? 'your organization'}`
-      : invite?.kind === 'platform_admin'
-        ? 'Join as platform admin'
-        : 'Accept your invite'
+      : 'Accept your invite'
 
   const description =
     invite?.kind === 'tenant_owner'
       ? 'Set your name and password to create your tenant owner account.'
-      : invite?.kind === 'platform_admin'
-        ? 'Set your name and password to create your platform admin account.'
-        : 'Set your name and password to join your team.'
+      : 'Set your name and password to join your team.'
 
   return (
     <AuthLayout
@@ -228,7 +167,7 @@ export function AcceptInvite() {
               icon={User}
               autoComplete="name"
               value={name}
-              onChange={(value) => dispatch({ type: 'set_name', name: value })}
+              onChange={(value) => setName(value)}
               required
             />
             <AuthFormField
@@ -239,7 +178,7 @@ export function AcceptInvite() {
               autoComplete="new-password"
               minLength={MIN_PASSWORD_LENGTH}
               value={password}
-              onChange={(value) => dispatch({ type: 'set_password', password: value })}
+              onChange={(value) => setPassword(value)}
               hint={`Use at least ${MIN_PASSWORD_LENGTH} characters.`}
               required
             />
@@ -252,7 +191,7 @@ export function AcceptInvite() {
               minLength={MIN_PASSWORD_LENGTH}
               value={confirmPassword}
               onChange={(value) =>
-                dispatch({ type: 'set_confirm_password', confirmPassword: value })
+                setConfirmPassword(value)
               }
               required
             />

@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, Send } from 'lucide-react'
-import { ApiError, listEvents } from '@/api/client'
+import { Send } from 'lucide-react'
+import { listEvents } from '@/api/client'
 import type { EventSummary } from '@/api/types'
-import { CatalogInput } from '@/components/catalog/CatalogInput'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
+import { Button } from '@/components/ui/button'
 import { ConsolePage } from '@/components/console/ConsolePage'
 import {
   DataTable,
@@ -22,123 +21,31 @@ import { shouldPaginate } from '@/components/console/pagination-utils'
 import { StatusBadge } from '@/components/console/StatusBadge'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { formatDateTime } from '@/lib/format'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 
 const PAGE_SIZE = 25
 
-function matchesSearch(event: EventSummary, query: string): boolean {
-  const normalized = query.trim().toLowerCase()
-  if (!normalized) return true
-  return (
-    event.type.toLowerCase().includes(normalized) ||
-    event.idempotency_key.toLowerCase().includes(normalized) ||
-    event.id.toLowerCase().includes(normalized)
-  )
-}
-
-type EventsListState = {
-  events: EventSummary[]
-  total: number
-  offset: number
-  isInitial: boolean
-  isRefreshing: boolean
-  error: string | null
-}
-
-type EventsListAction =
-  | { type: 'set_offset'; offset: number }
-  | { type: 'refresh_start' }
-  | { type: 'load_success'; events: EventSummary[]; total: number; offset: number }
-  | { type: 'load_failure'; error: string }
-  | { type: 'load_complete' }
-
-const initialEventsListState: EventsListState = {
-  events: [],
-  total: 0,
-  offset: 0,
-  isInitial: true,
-  isRefreshing: false,
-  error: null,
-}
-
-function eventsListReducer(state: EventsListState, action: EventsListAction): EventsListState {
-  switch (action.type) {
-    case 'set_offset':
-      return { ...state, offset: action.offset }
-    case 'refresh_start':
-      return { ...state, isRefreshing: true }
-    case 'load_success':
-      return {
-        ...state,
-        events: action.events,
-        total: action.total,
-        offset: action.offset,
-        error: null,
-      }
-    case 'load_failure':
-      return { ...state, error: action.error }
-    case 'load_complete':
-      return { ...state, isInitial: false, isRefreshing: false }
-    default: {
-      action satisfies never
-      return state
-    }
-  }
-}
-
 export function Events() {
   const navigate = useNavigate()
-  const [state, dispatch] = useReducer(eventsListReducer, initialEventsListState)
-  const { events, total, offset, isInitial, isRefreshing, error } = state
-  const hasDataRef = useRef(false)
-  const [searchQuery, setSearchQuery] = useState('')
+  const {
+    data: events,
+    total,
+    offset,
+    setOffset,
+    isInitial,
+    isRefreshing,
+    error,
+  } = usePaginatedList<EventSummary>({
+    pageSize: PAGE_SIZE,
+    fetchPage: listEvents,
+    fallbackError: 'Failed to load events',
+  })
 
-  const loadEvents = useCallback(async (nextOffset: number, background = false) => {
-    if (background) dispatch({ type: 'refresh_start' })
-    try {
-      const result = await listEvents({ limit: PAGE_SIZE, offset: nextOffset })
-      dispatch({
-        type: 'load_success',
-        events: result.data,
-        total: result.total,
-        offset: result.offset,
-      })
-      hasDataRef.current = true
-    } catch (err) {
-      dispatch({
-        type: 'load_failure',
-        error: err instanceof ApiError ? err.message : 'Failed to load events',
-      })
-    } finally {
-      dispatch({ type: 'load_complete' })
-    }
-  }, [])
+  const showEmpty = !isInitial && events.length === 0
+  const isDatasetEmpty = showEmpty && total === 0
 
-  useEffect(() => {
-    void loadEvents(offset, hasDataRef.current)
-  }, [loadEvents, offset])
-
-  const filteredEvents = useMemo(
-    () => events.filter((event) => matchesSearch(event, searchQuery)),
-    [events, searchQuery],
-  )
-
-  const hasSearch = searchQuery.trim().length > 0
-  const showEmpty = !isInitial && filteredEvents.length === 0
-  const isDatasetEmpty = showEmpty && !hasSearch && total === 0
-
-  const emptyState = useMemo(() => {
-    if (hasSearch) {
-      return (
-        <DataPanelEmpty
-          variant="inline"
-          icon={Search}
-          title="No matches on this page"
-          description="Only this page of results is searched. Try another page, or a different type, key, or ID."
-        />
-      )
-    }
-
-    return (
+  const emptyState = useMemo(
+    () => (
       <DataPanelEmpty
         icon={Send}
         title="No events yet"
@@ -153,30 +60,29 @@ export function Events() {
           </>
         }
       />
-    )
-  }, [hasSearch])
+    ),
+    [],
+  )
 
   const pageStart = total === 0 ? 0 : offset + 1
   const pageEnd = Math.min(offset + events.length, total)
   const canGoBack = offset > 0
   const canGoForward = offset + PAGE_SIZE < total
-  const showPagination = !isInitial && total > 0 && !hasSearch
-  const showFooter =
-    !isInitial && total > 0 && (shouldPaginate(total, PAGE_SIZE) || (hasSearch && events.length > 0))
+  const showFooter = !isInitial && total > 0 && shouldPaginate(total, PAGE_SIZE)
 
   return (
     <ConsolePage
       title="Events"
       description="Ingested events for this tenant. Open a row for payload and delivery outcomes."
       actions={
-        <CatalogButton size="sm" className="sm-btn-split" asChild>
+        <Button size="sm" className="sm-btn-split" asChild>
           <Link to="/events/send">
             <span className="sm-btn-split-label">Test event</span>
             <span className="sm-btn-split-icon">
               <Send className="size-3.5" aria-hidden="true" />
             </span>
           </Link>
-        </CatalogButton>
+        </Button>
       }
     >
       {error ? (
@@ -189,51 +95,23 @@ export function Events() {
         <DataPanel
           title={isDatasetEmpty ? undefined : 'Ingest log'}
           loading={isRefreshing}
-          actions={
-            isDatasetEmpty ? undefined : (
-            <div className="log-panel-search">
-              <Search
-                className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-strong"
-                aria-hidden="true"
-              />
-              <CatalogInput
-                type="search"
-                placeholder="Filter this page…"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                className="log-panel-search__input"
-                aria-label="Filter events on this page"
-              />
-            </div>
-            )
-          }
           footer={
             showFooter ? (
               <div className="pagination-bar-footer">
-                {showPagination ? (
-                  <PaginationBar
-                    pageStart={pageStart}
-                    pageEnd={pageEnd}
-                    total={total}
-                    pageSize={PAGE_SIZE}
-                    canGoBack={canGoBack}
-                    canGoForward={canGoForward}
-                    onPrevious={() =>
-                      dispatch({ type: 'set_offset', offset: Math.max(0, offset - PAGE_SIZE) })
-                    }
-                    onNext={() => dispatch({ type: 'set_offset', offset: offset + PAGE_SIZE })}
-                  />
-                ) : null}
-                {hasSearch && events.length > 0 ? (
-                  <p className="pagination-bar__note">
-                    Showing {filteredEvents.length} of {events.length} on this page
-                  </p>
-                ) : null}
+                <PaginationBar
+                  pageStart={pageStart}
+                  pageEnd={pageEnd}
+                  total={total}
+                  canGoBack={canGoBack}
+                  canGoForward={canGoForward}
+                  onPrevious={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+                  onNext={() => setOffset(offset + PAGE_SIZE)}
+                />
               </div>
             ) : undefined
           }
         >
-          {filteredEvents.length > 0 ? (
+          {events.length > 0 ? (
             <DataTable>
               <DataTableHeader>
                 <DataTableRow>
@@ -245,7 +123,7 @@ export function Events() {
                 </DataTableRow>
               </DataTableHeader>
               <DataTableBody>
-                {filteredEvents.map((event) => (
+                {events.map((event) => (
                   <DataTableRow
                     key={event.id}
                     className="cursor-pointer"

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { ApiError, getDelivery, replayDelivery } from '@/api/client'
@@ -15,24 +15,25 @@ import {
   SettingsCopyAction,
 } from '@/components/console/SettingsCatalog'
 import { StatusBadge } from '@/components/console/StatusBadge'
-import { LiveConnectionPill } from '@/components/layout/LiveConnectionPill'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
-import { CatalogChip, type CatalogChipTone } from '@/components/catalog/CatalogChip'
+import { LiveChip } from '@/components/console/LiveChip'
+import { Button } from '@/components/ui/button'
+import { Badge, type BadgeTone } from '@/components/ui/badge'
 import {
-  CatalogDialog,
-  CatalogDialogContent,
-  CatalogDialogDescription,
-  CatalogDialogFooter,
-  CatalogDialogHeader,
-  CatalogDialogTitle,
-} from '@/components/catalog/CatalogDialog'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
-import { useDeliveryLiveUpdates } from '@/hooks/useDeliveryLiveUpdates'
+import { usePolling } from '@/hooks/usePolling'
 import { formatDateTime, formatDeliveryError } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { toast } from '@/lib/toast'
+import { useDetailFetch } from '@/hooks/useDetailFetch'
 
-function httpStatusTone(status: number): CatalogChipTone {
+function httpStatusTone(status: number): BadgeTone {
   if (status >= 500) return 'danger'
   if (status >= 400) return 'warning'
   if (status >= 200 && status < 300) return 'success'
@@ -56,9 +57,9 @@ function AttemptTimelineItem({ attempt }: { attempt: DeliveryAttempt }) {
         </div>
         <div className="flex flex-col items-end gap-1">
           {attempt.http_status !== null ? (
-            <CatalogChip variant="status" tone={httpStatusTone(attempt.http_status)}>
+            <Badge variant="status" tone={httpStatusTone(attempt.http_status)}>
               HTTP {attempt.http_status}
-            </CatalogChip>
+            </Badge>
           ) : (
             <p className="text-sm font-medium text-muted-foreground">No response</p>
           )}
@@ -75,129 +76,20 @@ function AttemptTimelineItem({ attempt }: { attempt: DeliveryAttempt }) {
   )
 }
 
-type DeliveryLoadState = {
-  delivery: DeliveryDetailType | null
-  loading: boolean
-  error: string | null
-}
-
-type DeliveryLoadAction =
-  | { type: 'load_start' }
-  | { type: 'success'; delivery: DeliveryDetailType }
-  | { type: 'failure'; error: string }
-  | { type: 'load_end' }
-  | { type: 'missing_id' }
-
-function deliveryLoadReducer(
-  state: DeliveryLoadState,
-  action: DeliveryLoadAction,
-): DeliveryLoadState {
-  switch (action.type) {
-    case 'load_start':
-      return { ...state, loading: true }
-    case 'success':
-      return { ...state, delivery: action.delivery, error: null }
-    case 'failure':
-      return { ...state, error: action.error }
-    case 'load_end':
-      return { ...state, loading: false }
-    case 'missing_id':
-      return { delivery: null, error: 'Delivery ID is missing', loading: false }
-    default: {
-      action satisfies never
-      return state
-    }
-  }
-}
-
-type ReplayDialogState = {
-  replayOpen: boolean
-  replaying: boolean
-}
-
-type ReplayDialogAction =
-  | { type: 'set_replay_open'; open: boolean }
-  | { type: 'replay_start' }
-  | { type: 'replay_success' }
-  | { type: 'replay_end' }
-
-const initialReplayDialogState: ReplayDialogState = {
-  replayOpen: false,
-  replaying: false,
-}
-
-function replayDialogReducer(
-  state: ReplayDialogState,
-  action: ReplayDialogAction,
-): ReplayDialogState {
-  switch (action.type) {
-    case 'set_replay_open':
-      return { ...state, replayOpen: action.open }
-    case 'replay_start':
-      return { ...state, replaying: true }
-    case 'replay_success':
-      return { replayOpen: false, replaying: false }
-    case 'replay_end':
-      return { ...state, replaying: false }
-    default: {
-      action satisfies never
-      return state
-    }
-  }
-}
-
 export function DeliveryDetail() {
   const { id } = useParams<{ id: string }>()
-  const [{ delivery, loading, error }, loadDispatch] = useReducer(deliveryLoadReducer, {
-    delivery: null,
-    loading: true,
-    error: null,
+  const [replayOpen, setReplayOpen] = useState(false)
+  const [replaying, setReplaying] = useState(false)
+  const { data: delivery, loading, error, reload } = useDetailFetch<DeliveryDetailType>({
+    id,
+    fetchDetail: getDelivery,
+    missingError: 'Delivery ID is missing',
+    fallbackError: 'Failed to load delivery',
   })
-  const [replayState, replayDispatch] = useReducer(replayDialogReducer, initialReplayDialogState)
-  const { replayOpen, replaying } = replayState
-
-  const loadDelivery = useCallback(
-    async (showLoading = false) => {
-      if (!id) {
-        loadDispatch({ type: 'missing_id' })
-        return
-      }
-
-      if (showLoading) {
-        loadDispatch({ type: 'load_start' })
-      }
-
-      try {
-        const data = await getDelivery(id)
-        loadDispatch({ type: 'success', delivery: data })
-      } catch (err) {
-        loadDispatch({
-          type: 'failure',
-          error: err instanceof ApiError ? err.message : 'Failed to load delivery',
-        })
-      } finally {
-        if (showLoading) {
-          loadDispatch({ type: 'load_end' })
-        }
-      }
-    },
-    [id],
-  )
-
-  useEffect(() => {
-    void loadDelivery(true)
-  }, [loadDelivery])
-
-  const { mode } = useDeliveryLiveUpdates({
+  usePolling({
     enabled: Boolean(id),
-    onDeliveryUpdated: (updated) => {
-      if (updated.id !== id) {
-        return
-      }
-      void loadDelivery()
-    },
     onPoll: () => {
-      void loadDelivery()
+      void reload()
     },
   })
 
@@ -206,16 +98,17 @@ export function DeliveryDetail() {
       return
     }
 
-    replayDispatch({ type: 'replay_start' })
+    setReplaying(true)
 
     try {
       await replayDelivery(id)
-      replayDispatch({ type: 'replay_success' })
+      setReplayOpen(false)
+      setReplaying(false)
       toast.success('Delivery replay queued')
-      await loadDelivery()
+      await reload()
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Failed to replay delivery')
-      replayDispatch({ type: 'replay_end' })
+      setReplaying(false)
     }
   }
 
@@ -229,22 +122,20 @@ export function DeliveryDetail() {
       }
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <LiveConnectionPill mode={mode} />
-          <CatalogButton size="sm" variant="secondary" asChild>
+          <LiveChip />
+          <Button size="sm" variant="secondary" asChild>
             <Link to="/deliveries">
               <ArrowLeft className="size-3.5" aria-hidden="true" />
               Back to deliveries
             </Link>
-          </CatalogButton>
+          </Button>
           {delivery?.status === 'failed' ? (
-            <CatalogButton size="sm" className="sm-btn-split"
-              onClick={() => replayDispatch({ type: 'set_replay_open', open: true })}
-            >
+            <Button size="sm" className="sm-btn-split" onClick={() => setReplayOpen(true)}>
               <span className="sm-btn-split-label">Replay</span>
               <span className="sm-btn-split-icon">
                 <RotateCcw className="size-3.5" aria-hidden="true" />
               </span>
-            </CatalogButton>
+            </Button>
           ) : null}
         </div>
       }
@@ -281,7 +172,9 @@ export function DeliveryDetail() {
               </SettingsCatalogRow>
               <SettingsCatalogRow
                 label="Endpoint"
-                action={<SettingsCopyAction value={delivery.endpoint_url} copyLabel="Endpoint URL" />}
+                action={
+                  <SettingsCopyAction value={delivery.endpoint_url} copyLabel="Endpoint URL" />
+                }
               >
                 <code
                   className="min-w-0 truncate font-mono text-xs text-ink"
@@ -328,32 +221,30 @@ export function DeliveryDetail() {
         </div>
       ) : null}
 
-      <CatalogDialog
-        open={replayOpen}
-        onOpenChange={(open) => replayDispatch({ type: 'set_replay_open', open })}
-      >
-        <CatalogDialogContent className="sm:max-w-md">
-          <CatalogDialogHeader>
-            <CatalogDialogTitle>Replay delivery</CatalogDialogTitle>
-            <CatalogDialogDescription className="text-muted-foreground">
+      <Dialog open={replayOpen} onOpenChange={setReplayOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Replay delivery</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               This resets the delivery to pending, clears the terminal error, and re-enqueues a new
               worker job.
-            </CatalogDialogDescription>
-          </CatalogDialogHeader>
-          <CatalogDialogFooter>
-            <CatalogButton size="sm"
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              size="sm"
               variant="secondary"
-              onClick={() => replayDispatch({ type: 'set_replay_open', open: false })}
+              onClick={() => setReplayOpen(false)}
               disabled={replaying}
             >
               Cancel
-            </CatalogButton>
-            <CatalogButton size="sm" onClick={handleReplay} disabled={replaying}>
+            </Button>
+            <Button size="sm" onClick={handleReplay} disabled={replaying}>
               {replaying ? 'Replaying…' : 'Confirm replay'}
-            </CatalogButton>
-          </CatalogDialogFooter>
-        </CatalogDialogContent>
-      </CatalogDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ConsolePage>
   )
 }

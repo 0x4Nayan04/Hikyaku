@@ -1,12 +1,12 @@
-import { Navigate, Outlet, useLocation, useOutletContext } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { PageLoading } from '@/components/console/PageLoading'
-import type { AppOutletContext } from '@/layouts/app-context'
+import { useSession } from '@/providers/session-context'
 
 export function RequireSession() {
-  const { session, loadingSession } = useOutletContext<AppOutletContext>()
+  const { session, loading } = useSession()
   const location = useLocation()
 
-  if (loadingSession) {
+  if (loading) {
     return <PageLoading variant="detail" />
   }
 
@@ -14,5 +14,5 @@ export function RequireSession() {
     return <Navigate to="/login" replace state={{ from: location }} />
   }
 
-  return <Outlet context={{ session, loadingSession }} />
+  return <Outlet />
 }

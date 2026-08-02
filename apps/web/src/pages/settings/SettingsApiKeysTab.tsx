@@ -13,7 +13,7 @@ import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { PageBanner } from '@/components/console/PageBanner'
 import { PageLoading } from '@/components/console/PageLoading'
 import { StatusBadge } from '@/components/console/StatusBadge'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
+import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -54,13 +54,10 @@ export function SettingsApiKeysTab({
           loading={loadingKeys && apiKeys.length > 0}
           emptyFlush
           actions={
-            <CatalogButton size="sm"
-              onClick={onCreateKey}
-              disabled={creatingKey}
-            >
+            <Button size="sm" onClick={onCreateKey} disabled={creatingKey}>
               <Plus className="mr-1 size-3.5" aria-hidden="true" />
               {creatingKey ? 'Creating…' : 'Create API key'}
-            </CatalogButton>
+            </Button>
           }
           empty={
             !loadingKeys && apiKeys.length === 0 ? (
@@ -105,7 +102,7 @@ export function SettingsApiKeysTab({
                       <DataTableCell className="text-right">
                         {!revoked ? (
                           <div className="settings-row-actions">
-                            <CatalogButton
+                            <Button
                               size="sm"
                               variant="ghost"
                               disabled={rotatingId === apiKey.id}
@@ -113,15 +110,15 @@ export function SettingsApiKeysTab({
                             >
                               <RotateCcw className="mr-1 size-3" aria-hidden="true" />
                               Rotate
-                            </CatalogButton>
-                            <CatalogButton
+                            </Button>
+                            <Button
                               size="sm"
                               variant="ghost"
                               disabled={revokingId === apiKey.id}
                               onClick={() => onRevokeClick(apiKey)}
                             >
                               Revoke
-                            </CatalogButton>
+                            </Button>
                           </div>
                         ) : (
                           <span className="text-xs text-muted-strong">—</span>

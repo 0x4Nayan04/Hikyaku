@@ -1,13 +1,7 @@
 import { Link } from 'react-router-dom'
-import {
-  Activity,
-  ArrowRight,
-  ChevronRight,
-  Package,
-  RefreshCw,
-  Send,
-} from 'lucide-react'
+import { Activity, ArrowRight, ChevronRight, Package, RefreshCw, Send } from 'lucide-react'
 import { DataPanel } from '@/components/console/DataPanel'
+import { formatStatusLabel } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const fullFormatter = new Intl.DateTimeFormat(undefined, {
@@ -45,10 +39,6 @@ function formatTime(iso: string): string {
   return timeFormatter.format(new Date(iso))
 }
 
-function formatStatusLabel(value: string): string {
-  return value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
-}
-
 function formatActivityMeta(item: ActivityItem): string {
   const parts = [
     item.kind === 'event' ? 'Event' : 'Delivery',
@@ -57,11 +47,7 @@ function formatActivityMeta(item: ActivityItem): string {
   ]
 
   if (item.attemptCount != null) {
-    parts.splice(
-      2,
-      0,
-      `${item.attemptCount} attempt${item.attemptCount !== 1 ? 's' : ''}`,
-    )
+    parts.splice(2, 0, `${item.attemptCount} attempt${item.attemptCount !== 1 ? 's' : ''}`)
   }
 
   return parts.join(' · ')
@@ -75,7 +61,9 @@ function ActivityRow({ item }: { item: ActivityItem }) {
       <span
         className={cn(
           'dashboard-activity-row__icon',
-          isEvent ? 'dashboard-activity-row__icon--event' : 'dashboard-activity-row__icon--delivery',
+          isEvent
+            ? 'dashboard-activity-row__icon--event'
+            : 'dashboard-activity-row__icon--delivery',
         )}
         aria-hidden="true"
       >
@@ -109,11 +97,7 @@ function ActivityFooter({
 }) {
   return (
     <div className="dashboard-panel-footer">
-      <button
-        type="button"
-        onClick={onRefresh}
-        className="ra-refresh-btn"
-      >
+      <button type="button" onClick={onRefresh} className="ra-refresh-btn">
         <RefreshCw className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
         Refresh
       </button>
@@ -155,9 +139,7 @@ export function RecentActivity({ items, lastUpdated, isLive, onRefresh }: Recent
         ) : undefined
       }
       emptyFlush
-      footer={
-        <ActivityFooter isLive={isLive} lastUpdated={lastUpdated} onRefresh={onRefresh} />
-      }
+      footer={<ActivityFooter isLive={isLive} lastUpdated={lastUpdated} onRefresh={onRefresh} />}
     >
       {items.length > 0 ? (
         <div className="dashboard-activity-list">
