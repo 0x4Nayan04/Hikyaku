@@ -103,12 +103,14 @@ export function Login() {
             </div>
 
             <ul className="space-y-3 text-sm">
-              {([
-                'Delivery metrics and recent activity',
-                'Automatic retries with exponential backoff',
-                'Event payloads and attempt history',
-                'API keys and workspace members',
-              ] as const).map((item) => (
+              {(
+                [
+                  'Delivery metrics and recent activity',
+                  'Automatic retries with exponential backoff',
+                  'Event payloads and attempt history',
+                  'API keys and workspace members',
+                ] as const
+              ).map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
                   <Check className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />
                   <span className="text-muted-foreground">{item}</span>
@@ -118,9 +120,15 @@ export function Login() {
           </div>
 
           <div className="space-y-3">
-            <AuthFooterLink prompt="Need a workspace?" linkLabel="Request access" to="/signup" />
+            <p className="text-sm text-muted-strong">
+              Need a workspace? Ask the platform admin for an invite.
+            </p>
             {showBootstrapLink ? (
-              <AuthFooterLink prompt="First deploy?" linkLabel="Run one-time setup" to="/bootstrap" />
+              <AuthFooterLink
+                prompt="First deploy?"
+                linkLabel="Run one-time setup"
+                to="/bootstrap"
+              />
             ) : null}
           </div>
         </div>
@@ -128,7 +136,11 @@ export function Login() {
     >
       <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
         {banner ? (
-          <PageBanner variant={banner.variant} title={banner.title} description={banner.description} />
+          <PageBanner
+            variant={banner.variant}
+            title={banner.title}
+            description={banner.description}
+          />
         ) : null}
         {error ? <PageBanner variant="error" title="Sign in failed" description={error} /> : null}
         {showAccessHint ? (
@@ -170,11 +182,7 @@ export function Login() {
           </p>
         ) : null}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="sm-btn sm-btn-primary sm-btn-block"
-        >
+        <button type="submit" disabled={submitting} className="sm-btn sm-btn-primary sm-btn-block">
           {submitting ? 'Signing in…' : 'Sign in'}
           {!submitting ? <ArrowRight className="size-4" aria-hidden="true" /> : null}
         </button>

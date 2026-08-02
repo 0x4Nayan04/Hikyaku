@@ -27,7 +27,7 @@ const FAQ_ITEMS = [
   {
     id: 'limits',
     q: 'Are there rate limits?',
-    a: 'Yes. Outbound delivery is limited to 100 HTTP attempts per minute per tenant (configurable via RATE_LIMIT_PER_MINUTE). Over the limit, deliveries pause as deferred and retry without burning an attempt.',
+    a: 'Yes. Outbound delivery is limited to 100 HTTP attempts per minute per tenant (configurable via RATE_LIMIT_PER_MINUTE). Over the limit, deliveries stay pending and retry without burning an attempt.',
     category: 'Reliability',
   },
   {
@@ -51,7 +51,7 @@ const FAQ_ITEMS = [
   {
     id: 'pricing',
     q: 'Is there billing?',
-    a: 'No. This is a self-hosted project with no paid plans. Signup creates an access request that a platform admin must approve. Per-tenant rate limits still apply.',
+    a: 'No. This is a self-hosted project with no paid plans. A platform admin invites each tenant owner. Per-tenant rate limits still apply.',
     category: 'Access',
   },
   {
@@ -76,10 +76,7 @@ function FaqAnswerBody({ item }: { item: (typeof FAQ_ITEMS)[number] }) {
             </Link>{' '}
             (once)
           </li>
-          <li>
-            Prefer an admin invite to a tenant owner; signup is a secondary path that waits for
-            approval
-          </li>
+          <li>From Admin, create an invite link for the tenant owner and send it securely</li>
           <li>
             Sign in to the{' '}
             <Link to={PRODUCT_LINKS.console} className="lp-faq__link">
@@ -88,7 +85,9 @@ function FaqAnswerBody({ item }: { item: (typeof FAQ_ITEMS)[number] }) {
             , register an endpoint, then create an API key under Settings (tenant users only —
             super-admins have no API keys tab)
           </li>
-          <li>POST /v1/events with the key (or use Test event in the console), then watch Deliveries</li>
+          <li>
+            POST /v1/events with the key (or use Test event in the console), then watch Deliveries
+          </li>
         </ol>
         <p>
           See{' '}
@@ -117,10 +116,7 @@ function FaqAnswerBody({ item }: { item: (typeof FAQ_ITEMS)[number] }) {
       <ul className="lp-faq__bullets">
         <li>Tenant data is isolated by workspace</li>
         <li>API keys are hashed; endpoint secrets are shown once at creation</li>
-        <li>
-          The console uses session cookies. An optional endpoint-secrets vault keeps values in
-          memory for this browser session only — not localStorage, and not a durable backup
-        </li>
+        <li>The console uses session cookies; save one-time secrets in your secret manager</li>
         <li>Outbound deliveries use the endpoint URL you register (HTTPS recommended)</li>
       </ul>
     )
@@ -131,7 +127,8 @@ function FaqAnswerBody({ item }: { item: (typeof FAQ_ITEMS)[number] }) {
 
 export function LandingFaq() {
   const [selectedId, setSelectedId] = useState('what-does')
-  const [activeCategory, setActiveCategory] = useState<(typeof CATEGORIES)[number]>('Getting started')
+  const [activeCategory, setActiveCategory] =
+    useState<(typeof CATEGORIES)[number]>('Getting started')
 
   const filtered = FAQ_ITEMS.filter((item) => item.category === activeCategory)
 
@@ -164,10 +161,7 @@ export function LandingFaq() {
               type="button"
               role="tab"
               aria-selected={activeCategory === category}
-              className={cn(
-                'lp-faq__tab',
-                activeCategory === category && 'lp-faq__tab--active',
-              )}
+              className={cn('lp-faq__tab', activeCategory === category && 'lp-faq__tab--active')}
               onClick={() => handleCategorySelect(category)}
             >
               {category}
@@ -179,10 +173,7 @@ export function LandingFaq() {
           {filtered.map((item, index) => {
             const open = selectedId === item.id
             return (
-              <div
-                key={item.id}
-                className={cn('lp-faq__item', open && 'lp-faq__item--open')}
-              >
+              <div key={item.id} className={cn('lp-faq__item', open && 'lp-faq__item--open')}>
                 <button
                   type="button"
                   className="lp-faq__question"

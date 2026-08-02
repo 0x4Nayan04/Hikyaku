@@ -39,15 +39,12 @@ const FOOTER_GROUPS = [
     label: 'Developers',
     links: [
       { label: 'Documentation', href: PRODUCT_LINKS.docs },
-      { label: 'API reference', href: `${PRODUCT_LINKS.docs}/api-reference` },
+      { label: 'API reference', href: `${PRODUCT_LINKS.docs}#api-reference` },
     ],
   },
   {
     label: 'Account',
-    links: [
-      { label: 'Sign in', href: '/login' },
-      { label: 'Request access', href: '/signup' },
-    ],
+    links: [{ label: 'Sign in', href: '/login' }],
   },
 ]
 
@@ -134,7 +131,7 @@ export function LandingFooter() {
             © {year} {APP_NAME}
           </p>
           <div>
-            <a href={`${PRODUCT_LINKS.docs}/privacy`} className="focus-ring">
+            <a href={`${PRODUCT_LINKS.docs}#privacy`} className="focus-ring">
               Privacy
             </a>
             <span>Self-hosted webhook delivery.</span>

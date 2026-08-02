@@ -14,23 +14,12 @@ import { useSession } from '@/providers/session-context'
 
 type TenantAdminDetailsProps = {
   tenant: AdminTenant
-  existingUsers: User[]
-  createdUsers: User[]
+  users: User[]
   onUserDeleted: (userId: string) => void
 }
 
-export function TenantAdminDetails({
-  tenant,
-  existingUsers,
-  createdUsers,
-  onUserDeleted,
-}: TenantAdminDetailsProps) {
+export function TenantAdminDetails({ tenant, users, onUserDeleted }: TenantAdminDetailsProps) {
   const { session } = useSession()
-  // Merge existing API users with session-created users (deduped by id)
-  const existingIds = new Set(existingUsers.map((u) => u.id))
-  const sessionOnly = createdUsers.filter((u) => !existingIds.has(u.id))
-  const allUsers = [...sessionOnly, ...existingUsers]
-
   return (
     <div className="flex flex-col gap-8">
       <FormPanel title="Tenant details">
@@ -47,13 +36,12 @@ export function TenantAdminDetails({
       </FormPanel>
 
       <DataPanel
-        title={`Users (${allUsers.length})`}
+        title={`Users (${users.length})`}
         empty={
-          allUsers.length === 0 &&
-          'No users found for this tenant. Create a user or send an invite to get started.'
+          users.length === 0 && 'No users found for this tenant. Send an invite to get started.'
         }
       >
-        {allUsers.length > 0 && (
+        {users.length > 0 && (
           <DataTable>
             <DataTableHeader>
               <DataTableRow>
@@ -64,7 +52,7 @@ export function TenantAdminDetails({
               </DataTableRow>
             </DataTableHeader>
             <DataTableBody>
-              {allUsers.map((user) => (
+              {users.map((user) => (
                 <DataTableRow key={user.id}>
                   <DataTableCell className="font-medium text-ink">{user.name}</DataTableCell>
                   <DataTableCell className="text-sm text-muted-strong">{user.email}</DataTableCell>
@@ -78,7 +66,7 @@ export function TenantAdminDetails({
                     <TenantAdminUserActions
                       tenantId={tenant.id}
                       user={user}
-                      userCount={allUsers.length}
+                      userCount={users.length}
                       currentUserId={session?.user.id}
                       onDeleted={onUserDeleted}
                     />

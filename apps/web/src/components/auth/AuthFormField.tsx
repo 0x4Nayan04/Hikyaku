@@ -56,11 +56,7 @@ export function AuthFormField({
           onChange={(event) => onChange(event.target.value)}
           required={required}
           readOnly={readOnly}
-          className={cn(
-            'sm-input w-full text-ink',
-            Icon && 'pl-9',
-            isPassword && 'pr-9',
-          )}
+          className={cn('sm-input w-full text-ink', Icon && 'pl-9', isPassword && 'pr-9')}
         />
         {isPassword ? (
           <button

@@ -1,14 +1,14 @@
-import * as React from "react"
+import * as React from 'react'
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils'
 
-function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
+function Textarea({ className, ...props }: React.ComponentProps<'textarea'>) {
   return (
     <textarea
       data-slot="textarea"
       className={cn(
-        "catalog-focus sm-input field-sizing-content min-h-16 w-full rounded-none resize-y text-[15px] md:text-[15px]",
-        className
+        'catalog-focus sm-input min-h-[6rem] w-full resize-y rounded-none text-[15px]',
+        className,
       )}
       {...props}
     />

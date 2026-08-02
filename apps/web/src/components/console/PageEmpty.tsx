@@ -12,7 +12,9 @@ export function PageEmpty({ children, className, align = 'center' }: PageEmptyPr
     <div
       className={cn(
         'flex min-h-28 flex-col gap-1.5 px-5 py-5 text-sm text-muted-strong',
-        align === 'center' ? 'items-center justify-center px-6 py-8 text-center' : 'items-start justify-start',
+        align === 'center'
+          ? 'items-center justify-center px-6 py-8 text-center'
+          : 'items-start justify-start',
         className,
       )}
     >

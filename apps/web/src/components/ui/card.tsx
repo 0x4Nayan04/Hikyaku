@@ -37,7 +37,10 @@ function CardTitle({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="card-title"
-      className={cn('text-base leading-snug font-medium group-data-[size=sm]/card:text-sm', className)}
+      className={cn(
+        'text-base leading-snug font-medium group-data-[size=sm]/card:text-sm',
+        className,
+      )}
       {...props}
     />
   )
@@ -64,9 +67,7 @@ function CardAction({ className, ...props }: React.ComponentProps<'div'>) {
 }
 
 function CardContent({ className, ...props }: React.ComponentProps<'div'>) {
-  return (
-    <div data-slot="card-content" className={cn('p-(--card-spacing)', className)} {...props} />
-  )
+  return <div data-slot="card-content" className={cn('p-(--card-spacing)', className)} {...props} />
 }
 
 function CardFooter({ className, ...props }: React.ComponentProps<'div'>) {

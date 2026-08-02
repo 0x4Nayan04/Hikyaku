@@ -7,7 +7,7 @@ export type GuestLandingPrimaryCta =
   | { label: 'Run one-time setup'; path: '/bootstrap' }
   | { label: 'Sign in'; path: '/login' }
 
-/** Bootstrap/invite first; signup stays a secondary path. */
+/** Bootstrap the first admin; all tenant accounts are invitation-only. */
 export function resolveGuestLandingPrimaryCta(
   bootstrapAvailable: boolean | null,
 ): GuestLandingPrimaryCta {
@@ -19,9 +19,9 @@ export function resolveGuestLandingPrimaryCta(
 
 /** Soft hint after failed login — does not confirm whether the email exists. */
 export const LOGIN_PENDING_ACCESS_HINT =
-  'Waiting on access? If you requested a workspace, an admin must approve it first — or ask for an invite.'
+  'Waiting on access? Ask the platform admin for a tenant invite.'
 
-export type LoginBannerKind = 'bootstrap_complete' | 'request_received' | 'invite_accepted' | 'already_set_up'
+export type LoginBannerKind = 'bootstrap_complete' | 'invite_accepted' | 'already_set_up'
 
 export type LoginBanner = {
   title: string
@@ -36,8 +36,6 @@ export function resolveLoginBanner(
   switch (kind) {
     case 'bootstrap_complete':
       return { title: 'Setup complete', variant: 'success', description: message }
-    case 'request_received':
-      return { title: 'Request received', variant: 'info', description: message }
     case 'invite_accepted':
       return { title: 'Account ready', variant: 'success', description: message }
     case 'already_set_up':

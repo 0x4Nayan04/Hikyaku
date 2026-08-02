@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, ChevronDown, CirclePause, Pencil, Play, Trash2, Users } from 'lucide-react'
-import { ApiError, deleteAdminTenant, suspendAdminTenant, unsuspendAdminTenant } from '@/api/client'
+import { AlertTriangle, ChevronDown, Pencil, Trash2, Users } from 'lucide-react'
+import { ApiError, deleteAdminTenant } from '@/api/client'
 import type { AdminTenant } from '@/api/types'
 import {
   DataTable,
@@ -15,17 +15,16 @@ import { DataPanel } from '@/components/console/DataPanel'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
 import { SettingsCopyAction } from '@/components/console/SettingsCatalog'
-import { StatusBadge } from '@/components/console/StatusBadge'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
+import { Button } from '@/components/ui/button'
 import {
-  CatalogDialog,
-  CatalogDialogContent,
-  CatalogDialogDescription,
-  CatalogDialogFooter,
-  CatalogDialogHeader,
-  CatalogDialogTitle,
-} from '@/components/catalog/CatalogDialog'
-import { CatalogInput } from '@/components/catalog/CatalogInput'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,8 +59,6 @@ export function AdminTenantTable({
   searchQuery,
 }: AdminTenantTableProps) {
   const [renameTarget, setRenameTarget] = useState<AdminTenant | null>(null)
-  const [statusTarget, setStatusTarget] = useState<AdminTenant | null>(null)
-  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AdminTenant | null>(null)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -74,7 +71,7 @@ export function AdminTenantTable({
 
   const emptyMessage = isSearching
     ? `No tenants matching "${searchQuery}". Try a different search term.`
-    : 'No tenants yet. Create the first tenant and owner account.'
+    : 'No tenants yet. Invite the first tenant owner.'
 
   if (loading && tenants.length === 0) {
     return <PageLoading variant="table" />
@@ -91,7 +88,6 @@ export function AdminTenantTable({
             pageStart={pageStart}
             pageEnd={pageEnd}
             total={total}
-            pageSize={PAGE_SIZE}
             canGoBack={canGoBack}
             canGoForward={canGoForward}
             onPrevious={() => onOffsetChange(Math.max(0, offset - PAGE_SIZE))}
@@ -108,7 +104,6 @@ export function AdminTenantTable({
               <DataTableHead className="admin-tenant-table__col-id hidden md:table-cell">
                 Tenant ID
               </DataTableHead>
-              <DataTableHead className="admin-tenant-table__col-status">Status</DataTableHead>
               <DataTableHead className="admin-tenant-table__col-created hidden sm:table-cell">
                 Created
               </DataTableHead>
@@ -127,7 +122,8 @@ export function AdminTenantTable({
                 </DataTableCell>
                 <DataTableCell className="admin-tenant-table__col-id hidden md:table-cell">
                   <div className="flex min-w-0 items-center gap-1">
-                    <code className="truncate font-mono text-xs text-muted-strong"
+                    <code
+                      className="truncate font-mono text-xs text-muted-strong"
                       title={tenant.id}
                     >
                       {tenant.id.slice(0, 8)}…{tenant.id.slice(-4)}
@@ -135,20 +131,13 @@ export function AdminTenantTable({
                     <SettingsCopyAction value={tenant.id} copyLabel="Tenant ID" />
                   </div>
                 </DataTableCell>
-                <DataTableCell className="admin-tenant-table__col-status">
-                  <StatusBadge
-                    kind="label"
-                    label={tenant.status === 'active' ? 'Active' : 'Suspended'}
-                    tone={tenant.status === 'active' ? 'success' : 'warning'}
-                  />
-                </DataTableCell>
                 <DataTableCell className="admin-tenant-table__col-created hidden text-sm text-muted-foreground sm:table-cell">
                   {formatDateTime(tenant.created_at)}
                 </DataTableCell>
                 <DataTableCell className="admin-tenant-table__col-actions text-left">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <CatalogButton
+                      <Button
                         size="sm"
                         variant="secondary"
                         className="inline-flex items-center gap-1"
@@ -156,7 +145,7 @@ export function AdminTenantTable({
                       >
                         Manage
                         <ChevronDown className="size-3.5" aria-hidden="true" />
-                      </CatalogButton>
+                      </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="min-w-44">
                       <DropdownMenuItem onSelect={() => setRenameTarget(tenant)}>
@@ -168,14 +157,6 @@ export function AdminTenantTable({
                           <Users className="size-3.5" aria-hidden="true" />
                           Manage users
                         </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => setStatusTarget(tenant)}>
-                        {tenant.status === 'active' ? (
-                          <CirclePause className="size-3.5" aria-hidden="true" />
-                        ) : (
-                          <Play className="size-3.5" aria-hidden="true" />
-                        )}
-                        {tenant.status === 'active' ? 'Suspend tenant' : 'Reactivate tenant'}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -206,66 +187,7 @@ export function AdminTenantTable({
         onRenamed={() => onRefresh()}
       />
 
-      <CatalogDialog
-        open={statusTarget !== null}
-        onOpenChange={(open) => {
-          if (!open && statusUpdatingId === null) setStatusTarget(null)
-        }}
-      >
-        <CatalogDialogContent className="sm:max-w-md">
-          <CatalogDialogHeader>
-            <CatalogDialogTitle>
-              {statusTarget?.status === 'active' ? 'Suspend tenant' : 'Reactivate tenant'}
-            </CatalogDialogTitle>
-            <CatalogDialogDescription className="text-muted-foreground">
-              {statusTarget?.status === 'active'
-                ? `Suspend ${statusTarget.name}? Its users and API keys will be blocked until the tenant is reactivated.`
-                : `Reactivate ${statusTarget?.name}? Its users and API keys will regain access immediately.`}
-            </CatalogDialogDescription>
-          </CatalogDialogHeader>
-          <CatalogDialogFooter>
-            <CatalogButton size="sm"
-              variant="secondary"
-              onClick={() => setStatusTarget(null)}
-              disabled={statusUpdatingId !== null}
-            >
-              Cancel
-            </CatalogButton>
-            <CatalogButton size="sm"
-              disabled={statusTarget === null || statusUpdatingId !== null}
-              onClick={async () => {
-                if (!statusTarget) return
-                setStatusUpdatingId(statusTarget.id)
-                try {
-                  if (statusTarget.status === 'active') {
-                    await suspendAdminTenant(statusTarget.id)
-                    toast.success('Tenant suspended')
-                  } else {
-                    await unsuspendAdminTenant(statusTarget.id)
-                    toast.success('Tenant reactivated')
-                  }
-                  setStatusTarget(null)
-                  onRefresh()
-                } catch (err) {
-                  toast.error(
-                    err instanceof ApiError ? err.message : 'Failed to update tenant status',
-                  )
-                } finally {
-                  setStatusUpdatingId(null)
-                }
-              }}
-            >
-              {statusUpdatingId !== null
-                ? 'Updating…'
-                : statusTarget?.status === 'active'
-                  ? 'Suspend'
-                  : 'Reactivate'}
-            </CatalogButton>
-          </CatalogDialogFooter>
-        </CatalogDialogContent>
-      </CatalogDialog>
-
-      <CatalogDialog
+      <Dialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {
           if (!open && deletingId === null) {
@@ -274,28 +196,29 @@ export function AdminTenantTable({
           }
         }}
       >
-        <CatalogDialogContent className="sm:max-w-md"
+        <DialogContent
+          className="sm:max-w-md"
           onOpenAutoFocus={(event) => {
             event.preventDefault()
             cancelDeleteRef.current?.focus()
           }}
         >
-          <CatalogDialogHeader>
-            <CatalogDialogTitle className="flex items-center gap-2">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="size-5 text-status-danger" />
               Delete tenant
-            </CatalogDialogTitle>
-            <CatalogDialogDescription className="text-muted-foreground">
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This will
               permanently remove the tenant, all its users, API keys, endpoints, events, and
               delivery history. This cannot be undone.
-            </CatalogDialogDescription>
-          </CatalogDialogHeader>
+            </DialogDescription>
+          </DialogHeader>
           <div className="flex flex-col gap-2">
             <Label htmlFor="delete-tenant-confirmation">
               Type <strong>{deleteTarget?.name}</strong> to confirm
             </Label>
-            <CatalogInput
+            <Input
               id="delete-tenant-confirmation"
               value={deleteConfirmation}
               onChange={(event) => setDeleteConfirmation(event.target.value)}
@@ -303,8 +226,9 @@ export function AdminTenantTable({
               autoComplete="off"
             />
           </div>
-          <CatalogDialogFooter>
-            <CatalogButton size="sm"
+          <DialogFooter>
+            <Button
+              size="sm"
               ref={cancelDeleteRef}
               variant="secondary"
               onClick={() => {
@@ -314,8 +238,10 @@ export function AdminTenantTable({
               disabled={deletingId !== null}
             >
               Cancel
-            </CatalogButton>
-            <CatalogButton size="sm" className="bg-status-danger text-white hover:bg-status-danger/90"
+            </Button>
+            <Button
+              size="sm"
+              className="bg-status-danger text-white hover:bg-status-danger/90"
               disabled={
                 deletingId !== null ||
                 deleteTarget === null ||
@@ -338,10 +264,10 @@ export function AdminTenantTable({
               }}
             >
               {deletingId !== null ? 'Deleting…' : 'Delete tenant'}
-            </CatalogButton>
-          </CatalogDialogFooter>
-        </CatalogDialogContent>
-      </CatalogDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DataPanel>
   )
 }

@@ -1,13 +1,11 @@
 import type { LucideIcon } from 'lucide-react'
 import {
-  ClipboardList,
   LayoutDashboard,
   List,
   Package,
   Send,
   Settings,
   Shield,
-  Users,
   Webhook,
 } from 'lucide-react'
 
@@ -37,18 +35,6 @@ export function filterNavSections(isSuperAdmin: boolean): AppNavSection[] {
       }),
     }))
     .filter((section) => section.items.length > 0)
-}
-
-/** Nav paths that need `NavLink end` — another nav item lives under this prefix. */
-export function getNavEndPaths(items: AppNavItem[]): ReadonlySet<string> {
-  const paths = items.map((item) => item.to)
-  const endPaths = new Set<string>()
-  for (const path of paths) {
-    if (paths.some((other) => other !== path && other.startsWith(`${path}/`))) {
-      endPaths.add(path)
-    }
-  }
-  return endPaths
 }
 
 /** Whether a nav item should appear active for the current pathname. */
@@ -126,21 +112,7 @@ const appNavSections: AppNavSection[] = [
         title: 'Admin',
         to: '/admin',
         icon: Shield,
-        description: 'Tenants and signups',
-        superAdminOnly: true,
-      },
-      {
-        title: 'Admins',
-        to: '/admin/operators',
-        icon: Users,
-        description: 'Platform administrators',
-        superAdminOnly: true,
-      },
-      {
-        title: 'Audit log',
-        to: '/admin/audit',
-        icon: ClipboardList,
-        description: 'Platform activity',
+        description: 'Tenants and invitations',
         superAdminOnly: true,
       },
     ],

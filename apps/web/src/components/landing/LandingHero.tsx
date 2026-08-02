@@ -18,7 +18,12 @@ import { PRODUCT_LINKS } from '@/lib/app-meta'
 import { useSession } from '@/providers/session-context'
 
 const DESTINATIONS = [
-  { name: 'Billing service', endpoint: 'billing.acme.dev/events', status: 'Delivered', time: '142 ms' },
+  {
+    name: 'Billing service',
+    endpoint: 'billing.acme.dev/events',
+    status: 'Delivered',
+    time: '142 ms',
+  },
   { name: 'CRM sync', endpoint: 'hooks.partner.io/hikyaku', status: 'Delivered', time: '186 ms' },
   { name: 'Data archive', endpoint: 'archive.acme.dev/webhooks', status: 'Retrying', time: '8s' },
 ]
@@ -65,13 +70,16 @@ function DeliveryPreview() {
 
         <ul className="lp-route-map__destinations">
           {DESTINATIONS.map((destination) => (
-            <li key={destination.name} className={destination.status === 'Retrying' ? 'is-retrying' : undefined}>
+            <li
+              key={destination.name}
+              className={destination.status === 'Retrying' ? 'is-retrying' : undefined}
+            >
               {destination.status === 'Retrying' ? (
                 <RefreshCw className="size-4 lp-spin" aria-hidden="true" />
               ) : (
                 <CheckCircle2 className="size-4" aria-hidden="true" />
               )}
-            <div>
+              <div>
                 <strong>{destination.name}</strong>
                 <code>{destination.endpoint}</code>
               </div>
@@ -114,9 +122,7 @@ export function LandingHero() {
 
   const guestPrimary = resolveGuestLandingPrimaryCta(bootstrapAvailable)
   const guestSecondary =
-    guestPrimary.path === '/bootstrap'
-      ? { label: 'Sign in', path: '/login' as const }
-      : { label: 'Request access', path: '/signup' as const }
+    guestPrimary.path === '/bootstrap' ? { label: 'Sign in', path: '/login' as const } : null
 
   return (
     <section className="lp-hero" aria-labelledby="hero-heading">
@@ -152,9 +158,14 @@ export function LandingHero() {
                   {guestPrimary.label}
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </button>
-                <Link to={guestSecondary.path} className="lp-button lp-button--secondary focus-ring">
-                  {guestSecondary.label}
-                </Link>
+                {guestSecondary ? (
+                  <Link
+                    to={guestSecondary.path}
+                    className="lp-button lp-button--secondary focus-ring"
+                  >
+                    {guestSecondary.label}
+                  </Link>
+                ) : null}
               </>
             ) : null}
             <Link to={PRODUCT_LINKS.docs} className="lp-button lp-button--secondary focus-ring">

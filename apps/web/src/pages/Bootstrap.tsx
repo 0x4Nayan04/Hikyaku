@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, KeyRound, Lock, Mail, Shield, User } from 'lucide-react'
 import { ApiError, bootstrap, getBootstrapStatus } from '@/api/client'
@@ -9,64 +9,15 @@ import { AuthLayout } from '@/layouts/AuthLayout'
 import { getDefaultHomePath } from '@/lib/auth-redirect'
 import { useSession } from '@/providers/session-context'
 
-type BootstrapState = {
-  adminSecret: string
-  name: string
-  email: string
-  password: string
-  error: string | null
-  submitting: boolean
-}
-
-type BootstrapAction =
-  | { type: 'set_admin_secret'; value: string }
-  | { type: 'set_name'; value: string }
-  | { type: 'set_email'; value: string }
-  | { type: 'set_password'; value: string }
-  | { type: 'submit_start' }
-  | { type: 'submit_success' }
-  | { type: 'submit_failure'; error: string }
-  | { type: 'submit_end' }
-
-const initialBootstrapState: BootstrapState = {
-  adminSecret: '',
-  name: '',
-  email: '',
-  password: '',
-  error: null,
-  submitting: false,
-}
-
-function bootstrapReducer(state: BootstrapState, action: BootstrapAction): BootstrapState {
-  switch (action.type) {
-    case 'set_admin_secret':
-      return { ...state, adminSecret: action.value }
-    case 'set_name':
-      return { ...state, name: action.value }
-    case 'set_email':
-      return { ...state, email: action.value }
-    case 'set_password':
-      return { ...state, password: action.value }
-    case 'submit_start':
-      return { ...state, error: null, submitting: true }
-    case 'submit_success':
-      return { ...state, error: null }
-    case 'submit_failure':
-      return { ...state, error: action.error }
-    case 'submit_end':
-      return { ...state, submitting: false }
-    default: {
-      action satisfies never
-      return state
-    }
-  }
-}
-
 export function Bootstrap() {
   const navigate = useNavigate()
   const { session, loading } = useSession()
-  const [state, dispatch] = useReducer(bootstrapReducer, initialBootstrapState)
-  const { adminSecret, name, email, password, error, submitting } = state
+  const [adminSecret, setAdminSecret] = useState('')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const [checkingAvailability, setCheckingAvailability] = useState(true)
 
   useEffect(() => {
@@ -118,11 +69,11 @@ export function Bootstrap() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    dispatch({ type: 'submit_start' })
+    setError(null)
+    setSubmitting(true)
 
     try {
       await bootstrap(adminSecret, { name, email, password })
-      dispatch({ type: 'submit_success' })
       navigate('/login', {
         replace: true,
         state: {
@@ -133,18 +84,15 @@ export function Bootstrap() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === 'forbidden') {
-          dispatch({
-            type: 'submit_failure',
-            error: 'Bootstrap is disabled because a user already exists. Sign in instead.',
-          })
+          setError('Bootstrap is disabled because a user already exists. Sign in instead.')
         } else {
-          dispatch({ type: 'submit_failure', error: err.message })
+          setError(err.message)
         }
       } else {
-        dispatch({ type: 'submit_failure', error: 'Unable to complete setup. Try again.' })
+        setError('Unable to complete setup. Try again.')
       }
     } finally {
-      dispatch({ type: 'submit_end' })
+      setSubmitting(false)
     }
   }
 
@@ -175,17 +123,19 @@ export function Bootstrap() {
                 Delivery console
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-strong">
-                After bootstrap, use Admin to approve signups and provision tenants.
+                After bootstrap, use Admin to invite tenant owners.
               </p>
             </div>
 
             <ul className="space-y-3 text-sm">
-              {([
-                'Approve signups and invite tenant owners',
-                'Invite platform admins',
-                'Inspect platform audit activity',
-                'Tenant consoles are separate from Admin',
-              ] as const).map((item) => (
+              {(
+                [
+                  'Invite tenant owners',
+                  'Manage tenant users',
+                  'Rename or delete tenants',
+                  'Tenant consoles are separate from Admin',
+                ] as const
+              ).map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
                   <Check className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />
                   <span className="text-muted-foreground">{item}</span>
@@ -220,7 +170,7 @@ export function Bootstrap() {
             icon={Shield}
             autoComplete="off"
             value={adminSecret}
-            onChange={(value) => dispatch({ type: 'set_admin_secret', value })}
+            onChange={(value) => setAdminSecret(value)}
             required
           />
         </section>
@@ -237,7 +187,7 @@ export function Bootstrap() {
             icon={User}
             autoComplete="name"
             value={name}
-            onChange={(value) => dispatch({ type: 'set_name', value })}
+            onChange={(value) => setName(value)}
             required
           />
           <AuthFormField
@@ -247,7 +197,7 @@ export function Bootstrap() {
             icon={Mail}
             autoComplete="email"
             value={email}
-            onChange={(value) => dispatch({ type: 'set_email', value })}
+            onChange={(value) => setEmail(value)}
             required
           />
           <AuthFormField
@@ -258,7 +208,7 @@ export function Bootstrap() {
             autoComplete="new-password"
             minLength={12}
             value={password}
-            onChange={(value) => dispatch({ type: 'set_password', value })}
+            onChange={(value) => setPassword(value)}
             hint="Use at least 12 characters."
             required
           />

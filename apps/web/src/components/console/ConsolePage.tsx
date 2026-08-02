@@ -3,7 +3,6 @@ import { cn } from '@/lib/utils'
 
 type ConsolePageProps = {
   marker?: string
-  icon?: ReactNode
   title: string
   description?: string
   actions?: ReactNode
@@ -14,7 +13,6 @@ type ConsolePageProps = {
 
 export function ConsolePage({
   marker,
-  icon,
   title,
   description,
   actions,
@@ -27,7 +25,6 @@ export function ConsolePage({
       <header className="console-page-head">
         <div className="console-page-head-content">
           <div className="console-page-head-row">
-            {icon ? <span className="console-page-icon" aria-hidden="true">{icon}</span> : null}
             <div className="console-page-head-main">
               {marker ? <p className="console-section-marker">{marker}</p> : null}
               <h1 className="console-page-title">{title}</h1>

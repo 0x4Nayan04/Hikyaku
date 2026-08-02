@@ -7,9 +7,5 @@ type SettingsLayoutProps = {
 }
 
 export function SettingsLayout({ children, className }: SettingsLayoutProps) {
-  return (
-    <div className={cn('flex w-full flex-col gap-5', className)}>
-      {children}
-    </div>
-  )
+  return <div className={cn('flex w-full flex-col gap-5', className)}>{children}</div>
 }

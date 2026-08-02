@@ -31,10 +31,7 @@ describe('resolveGuestLandingPrimaryCta', () => {
 })
 
 describe('resolveLoginBanner', () => {
-  it('uses a distinct title for pending signup vs bootstrap', () => {
-    expect(resolveLoginBanner('request_received', 'Wait for approval.').title).toBe(
-      'Request received',
-    )
+  it('uses the setup title after bootstrap', () => {
     expect(resolveLoginBanner('bootstrap_complete', 'Super-admin created.').title).toBe(
       'Setup complete',
     )

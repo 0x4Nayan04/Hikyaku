@@ -1,34 +1,24 @@
-import type { DeliveryStatus, EndpointStatus, EventStatus, SignupRequestStatus } from '@/api/types'
-import { CatalogChip, type CatalogChipTone } from '@/components/catalog/CatalogChip'
+import type { DeliveryStatus, EndpointStatus, EventStatus } from '@/api/types'
+import { Badge, type BadgeTone } from '@/components/ui/badge'
+import { formatStatusLabel } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-const deliveryTone: Record<DeliveryStatus, CatalogChipTone> = {
+const deliveryTone: Record<DeliveryStatus, BadgeTone> = {
   pending: 'neutral',
   in_progress: 'info',
   succeeded: 'success',
   failed: 'danger',
-  deferred: 'warning',
 }
 
-const eventTone: Record<EventStatus, CatalogChipTone> = {
+const eventTone: Record<EventStatus, BadgeTone> = {
   pending: 'warning',
   completed: 'success',
   failed: 'danger',
 }
 
-const endpointTone: Record<EndpointStatus, CatalogChipTone> = {
+const endpointTone: Record<EndpointStatus, BadgeTone> = {
   active: 'success',
   disabled: 'muted',
-}
-
-const signupTone: Record<SignupRequestStatus, CatalogChipTone> = {
-  pending: 'warning',
-  approved: 'success',
-  rejected: 'danger',
-}
-
-function formatStatusLabel(value: string): string {
-  return value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
 type StatusBadgeProps = (
@@ -36,8 +26,7 @@ type StatusBadgeProps = (
   | { kind: 'event'; status: EventStatus }
   | { kind: 'endpoint'; status: EndpointStatus }
   | { kind: 'api-key'; revoked: boolean }
-  | { kind: 'signup'; status: SignupRequestStatus }
-  | { kind: 'label'; label: string; tone?: CatalogChipTone }
+  | { kind: 'label'; label: string; tone?: BadgeTone }
 ) & { className?: string }
 
 function getLabel(props: StatusBadgeProps): string {
@@ -46,7 +35,6 @@ function getLabel(props: StatusBadgeProps): string {
       return formatStatusLabel(props.status)
     case 'event':
     case 'endpoint':
-    case 'signup':
       return formatStatusLabel(props.status)
     case 'api-key':
       return props.revoked ? 'Revoked' : 'Active'
@@ -55,7 +43,7 @@ function getLabel(props: StatusBadgeProps): string {
   }
 }
 
-function getTone(props: StatusBadgeProps): CatalogChipTone {
+function getTone(props: StatusBadgeProps): BadgeTone {
   switch (props.kind) {
     case 'delivery':
       return deliveryTone[props.status]
@@ -65,8 +53,6 @@ function getTone(props: StatusBadgeProps): CatalogChipTone {
       return endpointTone[props.status]
     case 'api-key':
       return props.revoked ? 'muted' : 'success'
-    case 'signup':
-      return signupTone[props.status]
     case 'label':
       return props.tone ?? 'neutral'
   }
@@ -77,8 +63,8 @@ export function StatusBadge({ className, ...props }: StatusBadgeProps) {
   const label = getLabel(props)
 
   return (
-    <CatalogChip variant="status" tone={tone} className={cn(className)}>
+    <Badge variant="status" tone={tone} className={cn(className)}>
       {label}
-    </CatalogChip>
+    </Badge>
   )
 }

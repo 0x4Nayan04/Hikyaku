@@ -46,11 +46,7 @@ export function DashboardQuickActions() {
       {actions.map((action) => {
         const Icon = action.icon
         return (
-          <Link
-            key={action.to}
-            to={action.to}
-            className="dashboard-activity-row group"
-          >
+          <Link key={action.to} to={action.to} className="dashboard-activity-row group">
             <span
               className={cn('dashboard-activity-row__icon', toneIconClass[action.tone])}
               aria-hidden="true"

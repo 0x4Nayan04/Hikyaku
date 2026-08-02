@@ -44,7 +44,7 @@ export function LandingConsolePreview() {
               Sign in <ArrowRight className="size-4" aria-hidden="true" />
             </button>
             <Link
-              to={`${PRODUCT_LINKS.docs}/api-reference`}
+              to={`${PRODUCT_LINKS.docs}#api-reference`}
               className="lp-text-link lp-console__reference focus-ring"
             >
               <Search className="size-4" aria-hidden="true" /> API reference
@@ -72,9 +72,7 @@ export function LandingConsolePreview() {
           <div className="lp-product-shot__viewport">
             <img key={view.src} src={view.src} alt={view.alt} loading="lazy" />
           </div>
-          <figcaption>
-            Console screenshots with sample workspace data.
-          </figcaption>
+          <figcaption>Console screenshots with sample workspace data.</figcaption>
         </figure>
       </LandingFrameInner>
     </section>

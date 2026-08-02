@@ -9,7 +9,14 @@ import {
   Webhook,
   type LucideIcon,
 } from 'lucide-react'
-import { ApiError, getStats, listApiKeys, listDeliveries, listEndpoints, listEvents } from '@/api/client'
+import {
+  ApiError,
+  getStats,
+  listApiKeys,
+  listDeliveries,
+  listEndpoints,
+  listEvents,
+} from '@/api/client'
 import type { Stats } from '@/api/types'
 import { PageBanner } from '@/components/console/PageBanner'
 import { ConsolePage } from '@/components/console/ConsolePage'
@@ -19,6 +26,7 @@ import { LiveChip } from '@/components/console/LiveChip'
 import { LiveMetrics } from '@/components/console/LiveMetrics'
 import { RecentActivity, type ActivityItem } from '@/components/console/RecentActivity'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePolling } from '@/hooks/usePolling'
 import { formatPercent } from '@/lib/format'
 import {
   buildOnboardingSteps,
@@ -27,8 +35,6 @@ import {
   type OnboardingStepId,
 } from '@/lib/tenant-onboarding'
 import { cn } from '@/lib/utils'
-
-const POLL_INTERVAL_MS = 10_000
 
 type ActivityPreview = ActivityItem
 
@@ -93,20 +99,22 @@ export function Dashboard() {
   useEffect(() => {
     void load()
     void loadActivity()
-    const id = window.setInterval(() => {
-      void load()
-      void loadActivity()
-    }, POLL_INTERVAL_MS)
-    return () => window.clearInterval(id)
   }, [load, loadActivity])
 
-  const hasData = stats !== null && (
-    stats.events_today > 0 ||
-    stats.deliveries_active > 0 ||
-    stats.deliveries_deferred > 0 ||
-    stats.deliveries_succeeded_24h > 0 ||
-    stats.deliveries_failed_24h > 0
-  )
+  usePolling({
+    intervalMs: 10_000,
+    onPoll: () => {
+      void load()
+      void loadActivity()
+    },
+  })
+
+  const hasData =
+    stats !== null &&
+    (stats.events_today > 0 ||
+      stats.deliveries_active > 0 ||
+      stats.deliveries_succeeded_24h > 0 ||
+      stats.deliveries_failed_24h > 0)
 
   return (
     <ConsolePage
@@ -139,7 +147,10 @@ export function Dashboard() {
             items={activity}
             lastUpdated={lastUpdated}
             isLive={isLive}
-            onRefresh={() => { void load(); void loadActivity(); }}
+            onRefresh={() => {
+              void load()
+              void loadActivity()
+            }}
           />
         </div>
       ) : null}
@@ -235,9 +246,7 @@ function OnboardingStepRow({ step }: { step: OnboardingStep }) {
       <span
         className={cn(
           'dashboard-activity-row__icon',
-          step.done
-            ? 'dashboard-activity-row__icon--success'
-            : onboardingToneIconClass[meta.tone],
+          step.done ? 'dashboard-activity-row__icon--success' : onboardingToneIconClass[meta.tone],
         )}
         aria-hidden="true"
       >

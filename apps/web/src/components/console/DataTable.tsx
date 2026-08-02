@@ -33,10 +33,7 @@ export function DataTableRow({
 }: DataTableProps & React.ComponentProps<'tr'>) {
   return (
     <TableRow
-      className={cn(
-        'group transition-colors duration-150 hover:bg-muted/20',
-        className,
-      )}
+      className={cn('group transition-colors duration-150 hover:bg-muted/20', className)}
       {...props}
     >
       {children}
@@ -49,7 +46,11 @@ type DataTableHeadProps = {
   className?: string
 }
 
-export function DataTableHead({ children, className, ...props }: DataTableHeadProps & React.ComponentProps<'th'>) {
+export function DataTableHead({
+  children,
+  className,
+  ...props
+}: DataTableHeadProps & React.ComponentProps<'th'>) {
   return (
     <TableHead
       scope="col"
@@ -69,7 +70,11 @@ type DataTableCellProps = {
   className?: string
 }
 
-export function DataTableCell({ children, className, ...props }: DataTableCellProps & React.ComponentProps<'td'>) {
+export function DataTableCell({
+  children,
+  className,
+  ...props
+}: DataTableCellProps & React.ComponentProps<'td'>) {
   return (
     <TableCell className={cn('border-t border-border/60 px-5 py-3 text-sm', className)} {...props}>
       {children}

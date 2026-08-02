@@ -2,16 +2,16 @@ import { useEffect, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { ApiError, patchAdminTenant } from '@/api/client'
 import type { AdminTenant } from '@/api/types'
-import { CatalogButton } from '@/components/catalog/CatalogButton'
+import { Button } from '@/components/ui/button'
 import {
-  CatalogDialog,
-  CatalogDialogContent,
-  CatalogDialogDescription,
-  CatalogDialogFooter,
-  CatalogDialogHeader,
-  CatalogDialogTitle,
-} from '@/components/catalog/CatalogDialog'
-import { CatalogInput } from '@/components/catalog/CatalogInput'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/lib/toast'
 
@@ -61,22 +61,19 @@ export function AdminRenameTenantDialog({
   }
 
   return (
-    <CatalogDialog
-      open={open}
-      onOpenChange={handleOpenChange}
-    >
-      <CatalogDialogContent className="sm:max-w-md">
-        <CatalogDialogHeader>
-          <CatalogDialogTitle>Rename tenant</CatalogDialogTitle>
-          <CatalogDialogDescription className="text-muted-foreground">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Rename tenant</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             Update the display name for {tenant?.name}.
-          </CatalogDialogDescription>
-        </CatalogDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <form className="flex flex-col gap-4" onSubmit={handleRename}>
           <div className="flex flex-col gap-2">
             <Label htmlFor="rename-tenant-name">Tenant name</Label>
-            <CatalogInput
+            <Input
               id="rename-tenant-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -86,26 +83,30 @@ export function AdminRenameTenantDialog({
             />
           </div>
 
-          <CatalogDialogFooter>
-            <CatalogButton size="sm"
+          <DialogFooter>
+            <Button
+              size="sm"
               type="button"
               variant="secondary"
               onClick={() => handleOpenChange(false)}
               disabled={submitting}
             >
               Cancel
-            </CatalogButton>
-            <CatalogButton size="sm" type="submit" disabled={submitting || !name.trim()} className="sm-btn-split">
-              <span className="sm-btn-split-label">
-                {submitting ? 'Renaming…' : 'Rename'}
-              </span>
+            </Button>
+            <Button
+              size="sm"
+              type="submit"
+              disabled={submitting || !name.trim()}
+              className="sm-btn-split"
+            >
+              <span className="sm-btn-split-label">{submitting ? 'Renaming…' : 'Rename'}</span>
               <span className="sm-btn-split-icon">
                 <ArrowRight className="size-3.5" aria-hidden="true" />
               </span>
-            </CatalogButton>
-          </CatalogDialogFooter>
+            </Button>
+          </DialogFooter>
         </form>
-      </CatalogDialogContent>
-    </CatalogDialog>
+      </DialogContent>
+    </Dialog>
   )
 }
