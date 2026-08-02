@@ -194,7 +194,13 @@ describe('sweepOrphanDeliveries', () => {
 
     await sweepOrphanDeliveries(queue)
 
+    const [row] = await db
+      .select({ status: deliveries.status })
+      .from(deliveries)
+      .where(eq(deliveries.id, deliveryId))
+    expect(row?.status).toBe('pending')
+
     const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
-    expect(jobs.some((row) => row.id === deliveryId)).toBe(true)
+    expect(jobs.some((job) => job.id === deliveryId)).toBe(true)
   })
 })

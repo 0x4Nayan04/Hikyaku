@@ -48,6 +48,11 @@ describe('classifyDeliveryError', () => {
     expect(classifyDeliveryError(err)).toBe('timeout')
   })
 
+  it('classifies blocked redirect and too many redirects as terminal errors', () => {
+    expect(classifyDeliveryError(new Error('blocked_url: private'))).toBe('blocked_url')
+    expect(classifyDeliveryError(new Error('too_many_redirects'))).toBe('too_many_redirects')
+  })
+
   it('classifies other errors as network_error', () => {
     expect(classifyDeliveryError(new TypeError('fetch failed'))).toBe('network_error')
     expect(classifyDeliveryError(new Error('ECONNREFUSED'))).toBe('network_error')
@@ -980,5 +985,95 @@ describe('processor', () => {
 
     const [eventRow] = await db.select().from(events).where(eq(events.id, event.id))
     expect(eventRow.status).toBe('pending')
+  })
+
+  it('does not mutate a delivery already claimed by another worker', async () => {
+    const db = getDb()
+    const rateLimitSpy = vi.spyOn(rateLimit, 'takeRateLimitToken').mockResolvedValue(false)
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor Claimed' }).returning()
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: 'http://127.0.0.1:9/hook',
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-claimed-1',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({
+        tenantId: tenant.id,
+        eventId: event.id,
+        endpointId: endpoint.id,
+        status: 'in_progress',
+      })
+      .returning()
+
+    const job = makeJob(delivery.id)
+    await processor(job)
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    const attempts = await db
+      .select()
+      .from(deliveryAttempts)
+      .where(eq(deliveryAttempts.deliveryId, delivery.id))
+
+    expect(rateLimitSpy).not.toHaveBeenCalled()
+    expect(job.moveToDelayed).not.toHaveBeenCalled()
+    expect(updated.status).toBe('in_progress')
+    expect(attempts).toHaveLength(0)
+  })
+
+  it('fails fast when a redirect target is blocked', async () => {
+    const db = getDb()
+    vi.spyOn(httpClient, 'postWithTimeout').mockRejectedValue(
+      new Error('blocked_url: URL must not target a private or loopback address'),
+    )
+
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor BlockedRedirect' }).returning()
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: 'https://example.com/hook',
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-blocked-redirect-1',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({
+        tenantId: tenant.id,
+        eventId: event.id,
+        endpointId: endpoint.id,
+      })
+      .returning()
+
+    const job = makeJob(delivery.id)
+    await processor(job)
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    expect(updated.status).toBe('failed')
+    expect(updated.lastError).toBe('blocked_url')
+    expect(job.moveToDelayed).not.toHaveBeenCalled()
   })
 })

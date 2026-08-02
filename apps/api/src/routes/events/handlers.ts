@@ -1,6 +1,6 @@
 import { deliveries, events } from '@webhook/shared/schema'
 import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
-import { and, count, desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
 import { ingestFanout, eventColumns } from '../../ingest/fanout.js'
@@ -16,6 +16,21 @@ import {
   toIngestEventJson,
 } from './serialize.js'
 import { parseEventId, parseIngestBody } from './validation.js'
+
+/** Open deliveries for an event — used so idempotent ingest retries re-enqueue orphans. */
+async function listOpenDeliveryIds(eventId: string, tenantId: string): Promise<string[]> {
+  const rows = await getDb()
+    .select({ id: deliveries.id })
+    .from(deliveries)
+    .where(
+      and(
+        eq(deliveries.eventId, eventId),
+        eq(deliveries.tenantId, tenantId),
+        inArray(deliveries.status, ['pending', 'in_progress']),
+      ),
+    )
+  return rows.map((row) => row.id)
+}
 
 async function loadDeliveriesSummary(
   eventId: string,
@@ -58,7 +73,15 @@ export async function ingestEvent(req: Request, res: Response, next: NextFunctio
     const tenantId = getTenantId(req)
     const result = await ingestFanout(tenantId, body)
 
-    for (const deliveryId of result.newDeliveryIds) {
+    // Duplicate retries must re-enqueue open deliveries left behind by a prior enqueue 503.
+    const deliveryIds =
+      result.newDeliveryIds.length > 0
+        ? result.newDeliveryIds
+        : result.isDuplicate
+          ? await listOpenDeliveryIds(result.event.id, tenantId)
+          : []
+
+    for (const deliveryId of deliveryIds) {
       try {
         await enqueueDeliveryJob(queue, deliveryId)
       } catch (err) {

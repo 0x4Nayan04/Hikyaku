@@ -5,7 +5,7 @@ import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
 import { deliveryAttempts, deliveries, endpoints, events } from '@webhook/shared/schema'
 import { checkWebhookUrl } from '@webhook/shared/webhookUrl'
 import { DelayedError, type Job } from 'bullmq'
-import { eq, max } from 'drizzle-orm'
+import { and, eq, max } from 'drizzle-orm'
 import { calculateBackoffDelayMs } from './backoff.js'
 import { env } from './config.js'
 import { getDb } from './db/client.js'
@@ -116,13 +116,36 @@ export function isRetryableHttpStatus(status: number): boolean {
   return status === 408 || status === 429 || status >= 500
 }
 
-export type DeliveryTransportError = 'timeout' | 'network_error'
+export type DeliveryTransportError =
+  | 'timeout'
+  | 'network_error'
+  | 'blocked_url'
+  | 'too_many_redirects'
+
+export function isTerminalTransportError(
+  error: DeliveryTransportError,
+): error is 'blocked_url' | 'too_many_redirects' {
+  return error === 'blocked_url' || error === 'too_many_redirects'
+}
 
 export function classifyDeliveryError(err: unknown): DeliveryTransportError {
-  if (err instanceof Error && err.name === 'AbortError') {
-    return 'timeout'
+  if (err instanceof Error) {
+    if (err.name === 'AbortError') return 'timeout'
+    if (err.message.startsWith('blocked_url')) return 'blocked_url'
+    if (err.message === 'too_many_redirects') return 'too_many_redirects'
   }
   return 'network_error'
+}
+
+/** Claim a pending delivery so only one worker proceeds to HTTP. */
+async function claimPendingDelivery(deliveryId: string): Promise<boolean> {
+  const db = getDb()
+  const [claimed] = await db
+    .update(deliveries)
+    .set({ status: 'in_progress', updatedAt: new Date() })
+    .where(and(eq(deliveries.id, deliveryId), eq(deliveries.status, 'pending')))
+    .returning({ id: deliveries.id })
+  return claimed !== undefined
 }
 
 export async function processor(job: Job<DeliveryJobData>, token?: string): Promise<void> {
@@ -137,6 +160,12 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
 
   if (row.status === 'succeeded' || row.status === 'failed') {
     log.info({ status: row.status }, 'already_terminal')
+    return
+  }
+
+  const claimed = await claimPendingDelivery(row.id)
+  if (!claimed) {
+    log.info('claim_lost')
     return
   }
 
@@ -201,13 +230,11 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     'User-Agent': 'Hikyaku/1.0',
   }
 
-  await recordOutcome(row.id, row.eventId, { status: 'in_progress' })
-
   const start = Date.now()
   const attemptCountAfterHttp = row.attemptCount + 1
   let httpStatus: number | null = null
   let responseBody: string | null = null
-  let error: string | null = null
+  let error: DeliveryTransportError | null = null
 
   try {
     const result = await postWithTimeout(
@@ -222,6 +249,22 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
   } catch (err) {
     error = classifyDeliveryError(err)
     log.info({ error }, 'delivery_transport_failure')
+  }
+
+  if (error !== null && isTerminalTransportError(error)) {
+    await recordOutcome(
+      row.id,
+      row.eventId,
+      {
+        attemptCount: row.attemptCount + 1,
+        status: 'failed',
+        lastError: error,
+        nextRetryAt: null,
+      },
+      { httpStatus, responseBody, error, durationMs: Date.now() - start },
+    )
+    log.info({ last_error: error }, 'delivery_failed_fast')
+    return
   }
 
   if (httpStatus !== null) {

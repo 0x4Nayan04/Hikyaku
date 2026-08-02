@@ -77,6 +77,11 @@ export async function resolveWebhookUrl(
     return { ok: false, reason: 'URL must use http or https' }
   }
 
+  // Production (allowPrivate=false) requires HTTPS so payloads and signatures are not MITM'd.
+  if (!allowPrivate && url.protocol !== 'https:') {
+    return { ok: false, reason: 'URL must use https' }
+  }
+
   if (url.username || url.password) {
     return { ok: false, reason: 'URL must not include credentials' }
   }

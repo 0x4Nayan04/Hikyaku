@@ -5,6 +5,7 @@ import { createSessionMiddleware } from './auth/session.js'
 import { createCorsMiddleware } from './lib/cors.js'
 import { AppError } from './lib/errors.js'
 import { logger } from './lib/logger.js'
+import { serializeRequestForLog } from './lib/requestLog.js'
 import { readRequestId, requestIdMiddleware } from './lib/requestId.js'
 import { adminRouter } from './routes/admin/index.js'
 import { apiKeysRouter } from './routes/api-keys/index.js'
@@ -27,6 +28,7 @@ export function createApp(): Application {
     pinoHttp<Request, Response>({
       logger,
       genReqId: (req) => readRequestId(req),
+      serializers: { req: serializeRequestForLog },
     }),
   )
   app.use(createCorsMiddleware())
