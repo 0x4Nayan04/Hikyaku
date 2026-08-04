@@ -4,7 +4,7 @@
   <img src="apps/web/public/logo/hikyaku-lockup.png" alt="Hikyaku" width="420" />
 </p>
 
-Self-hosted, multi-tenant webhook delivery. Ingest an event once; the worker fans it out as HMAC-SHA256-signed HTTP POSTs, retries transient failures with exponential backoff, and keeps attempt history in an operator console.
+Self-hosted, multi-tenant webhook delivery. Ingest an event once; the API fans it out to one delivery per active endpoint, and the worker signs and delivers each HTTP POST, retries transient failures with exponential backoff, and keeps attempt history in an operator console.
 
 **Name:** 飛脚 (*hikyaku*) — Japan’s historic express couriers.
 
@@ -29,10 +29,10 @@ Bootstrap once at `/bootstrap`, invite a tenant owner from **Admin**, then use t
 ## Architecture
 
 ```
-Producer ──POST /v1/events──► API ──enqueue──► Redis (BullMQ)
+Producer ──POST /v1/events──► API ──fan-out + enqueue deliveries──► Redis (BullMQ)
                                                 │
                                                 ▼
-                                         Worker (fan-out)
+                                    Worker (sign + deliver)
                                                 │
                          ┌──────────────────────┼──────────────────────┐
                          ▼                      ▼                      ▼
@@ -103,8 +103,14 @@ pnpm --filter @webhook/web dev
 
 ```bash
 pnpm db:seed
-# Copy one of the printed API keys (whk_...)
 ```
+
+Seed prints login emails/passwords and one API key per tenant (local/dev only). Sign in at `/login`, or use the printed key for ingest. You can also create keys under **Settings → API keys**.
+
+| Tenant | Email             | Password                     |
+| ------ | ----------------- | ---------------------------- |
+| Acme   | `acme@localhost`  | `dev-password-min-12-chars`  |
+| Globex | `globex@localhost`| `dev-password-min-12-chars`  |
 
 Optional super-admin seed (only when no users exist):
 
@@ -147,7 +153,7 @@ curl http://localhost:3000/v1/ready
 
 ## Manual smoke test (webhook.site)
 
-Needs API, worker, and a tenant API key (`pnpm db:seed` or Settings).
+Needs API, worker, and a tenant API key (printed by `pnpm db:seed`, or create one under Settings).
 
 1. Open [webhook.site](https://webhook.site) and copy the URL.
 2. Create an endpoint with that URL. Save the `secret`.
@@ -165,6 +171,7 @@ Needs API, worker, and a tenant API key (`pnpm db:seed` or Settings).
 | `SESSION_SECRET`         | Session cookie signing (min 32 chars)     |
 | `WEB_APP_URL`            | Invite link base URL                      |
 | `CORS_ORIGIN`            | Allowed browser origins                   |
+| `TRUST_PROXY`            | Proxy hops for `X-Forwarded-*` (default 0)|
 | `VITE_API_URL`           | API base URL for the web app (build-time) |
 
 See `.env.example` for worker tuning (`DELIVERY_TIMEOUT_MS`, `MAX_DELIVERY_ATTEMPTS`, `RATE_LIMIT_PER_MINUTE`, etc.).
@@ -184,7 +191,7 @@ See `.env.example` for worker tuning (`DELIVERY_TIMEOUT_MS`, `MAX_DELIVERY_ATTEM
 | `pnpm docker:up`        | Start Postgres and Redis                |
 | `pnpm docker:down`      | Stop Docker services                    |
 | `pnpm db:migrate`       | Apply database migrations               |
-| `pnpm db:seed`          | Seed demo tenants + API keys            |
+| `pnpm db:seed`          | Seed demo tenants, users, and API keys  |
 | `pnpm db:generate`      | Generate Drizzle migrations             |
 
 ## Project layout
