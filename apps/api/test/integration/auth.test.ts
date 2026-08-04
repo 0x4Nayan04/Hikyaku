@@ -24,23 +24,29 @@ describe('auth', () => {
     await closeRedis()
   })
 
-  it('returns 200 for a valid api key on GET /v1/stats', async () => {
-    const res = await request(app).get('/v1/stats').set('Authorization', `Bearer ${acme.apiKey}`)
+  it('allows API keys only for event ingestion', async () => {
+    const managementResponses = await Promise.all(
+      ['/api-keys', '/endpoints', '/events', '/deliveries', '/stats'].map((path) =>
+        request(app).get(`/v1${path}`).set('Authorization', `Bearer ${acme.apiKey}`),
+      ),
+    )
 
-    expect(res.status).toBe(200)
-    expect(res.body).toEqual({
-      events_today: 0,
-      deliveries_active: 0,
-      deliveries_succeeded_24h: 0,
-      deliveries_failed_24h: 0,
-      success_rate_24h: null,
-    })
+    expect(managementResponses.map((response) => response.status)).toEqual([
+      401, 401, 401, 401, 401,
+    ])
+
+    const res = await request(app)
+      .post('/v1/events')
+      .set('Authorization', `Bearer ${acme.apiKey}`)
+      .send({ idempotency_key: 'api-key-ingest', type: 'test', payload: {} })
+
+    expect(res.status).toBe(202)
   })
 
-  it('returns 200 for a second tenant api key on GET /v1/stats', async () => {
+  it('rejects a second tenant API key on a management route', async () => {
     const res = await request(app).get('/v1/stats').set('Authorization', `Bearer ${globex.apiKey}`)
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(401)
   })
 
   it('returns 401 for an invalid api key on GET /v1/stats', async () => {

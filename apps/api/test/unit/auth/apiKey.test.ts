@@ -63,6 +63,22 @@ describe('resolveTenantId', () => {
     await deleteTenant(tenantId)
   })
 
+  it('does not update last_used_at again within an hour', async () => {
+    const { tenantId, apiKey } = await createTenantWithKey()
+    const lastUsedAt = new Date()
+
+    await getDb()
+      .update(apiKeys)
+      .set({ lastUsedAt })
+      .where(eq(apiKeys.keyHash, hashApiKey(apiKey)))
+
+    await expect(resolveTenantId(apiKey)).resolves.toBe(tenantId)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(await readLastUsedAt(apiKey)).toEqual(lastUsedAt)
+
+    await deleteTenant(tenantId)
+  })
+
   it('does not update last_used_at for an unknown api key', async () => {
     const unknownKey = 'whk_00000000000000000000000000000000'
 

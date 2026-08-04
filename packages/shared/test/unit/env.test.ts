@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { apiEnvSchema, workerEnvSchema } from '../../src/env.js'
 
 const baseEnv = {
@@ -27,6 +27,27 @@ describe('apiEnvSchema', () => {
     expect(env.INVITE_TTL_MS).toBe(7 * 24 * 60 * 60 * 1000)
     expect(env.INGEST_RATE_LIMIT_PER_MINUTE).toBe(120)
     expect(env.AUTH_RATE_LIMIT_PER_MINUTE).toBe(20)
+    expect(env.TRUST_PROXY).toBe(0)
+  })
+
+  it('coerces TRUST_PROXY from env', () => {
+    const env = apiEnvSchema.parse({
+      ...baseEnv,
+      ...apiSecrets,
+      TRUST_PROXY: '1',
+    })
+
+    expect(env.TRUST_PROXY).toBe(1)
+  })
+
+  it('rejects negative TRUST_PROXY', () => {
+    const result = apiEnvSchema.safeParse({
+      ...baseEnv,
+      ...apiSecrets,
+      TRUST_PROXY: '-1',
+    })
+
+    expect(result.success).toBe(false)
   })
 
   it('coerces SESSION_COOKIE_MAX_AGE from env', () => {
@@ -101,9 +122,45 @@ describe('apiEnvSchema', () => {
       NODE_ENV: 'production',
       ADMIN_BOOTSTRAP_SECRET: 'a'.repeat(32),
       SESSION_SECRET: 'b'.repeat(32),
+      TRUST_PROXY: '1',
     })
 
     expect(result.success).toBe(true)
+  })
+
+  it('parseApiEnv requires TRUST_PROXY in production', async () => {
+    const { parseApiEnv } = await import('../../src/env.js')
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`exit:${code ?? 0}`)
+    }) as never)
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    try {
+      expect(() =>
+        parseApiEnv({
+          ...baseEnv,
+          NODE_ENV: 'production',
+          ADMIN_BOOTSTRAP_SECRET: 'a'.repeat(32),
+          SESSION_SECRET: 'b'.repeat(32),
+        }),
+      ).toThrow(/exit:1/)
+      expect(errorSpy.mock.calls.some((c) => String(c[0]).includes('TRUST_PROXY'))).toBe(true)
+    } finally {
+      exitSpy.mockRestore()
+      errorSpy.mockRestore()
+    }
+  })
+
+  it('parseApiEnv accepts TRUST_PROXY=1 in production', async () => {
+    const { parseApiEnv } = await import('../../src/env.js')
+    const env = parseApiEnv({
+      ...baseEnv,
+      NODE_ENV: 'production',
+      ADMIN_BOOTSTRAP_SECRET: 'a'.repeat(32),
+      SESSION_SECRET: 'b'.repeat(32),
+      TRUST_PROXY: '1',
+    })
+    expect(env.TRUST_PROXY).toBe(1)
   })
 
   it('rejects short session secret', () => {

@@ -26,6 +26,7 @@ export const apiEnvSchema = baseSchema
     AUTH_RATE_LIMIT_PER_MINUTE: z.coerce
       .number()
       .default(CONFIG_DEFAULTS.AUTH_RATE_LIMIT_PER_MINUTE),
+    TRUST_PROXY: z.coerce.number().int().min(0).default(CONFIG_DEFAULTS.TRUST_PROXY),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV !== 'production') return
@@ -70,6 +71,19 @@ function formatZodError(error: z.ZodError): string {
 }
 
 export function parseApiEnv(source: NodeJS.ProcessEnv = process.env): ApiEnv {
+  // Production always uses Secure cookies. Behind Railway/nginx those only stick when
+  // Express trusts X-Forwarded-Proto — so TRUST_PROXY must be set on purpose (usually 1).
+  if (source.NODE_ENV === 'production') {
+    const raw = source.TRUST_PROXY
+    if (raw === undefined || raw.trim() === '') {
+      console.error(
+        'Invalid API environment:\nTRUST_PROXY: Must be set explicitly in production (1 behind a reverse proxy such as Railway/nginx; 0 only if the API terminates TLS itself)',
+      )
+      process.exit(1)
+      throw new Error('Invalid API environment')
+    }
+  }
+
   const result = apiEnvSchema.safeParse(source)
   if (!result.success) {
     console.error('Invalid API environment:\n' + formatZodError(result.error))

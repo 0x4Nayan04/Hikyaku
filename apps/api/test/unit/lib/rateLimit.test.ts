@@ -1,26 +1,40 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const incr = vi.fn()
-const pexpire = vi.fn()
+const exec = vi.fn()
+const transaction = {
+  incr: vi.fn(),
+  pexpire: vi.fn(),
+  exec,
+}
+transaction.incr.mockReturnValue(transaction)
+transaction.pexpire.mockReturnValue(transaction)
 
 vi.mock('../../../src/lib/redis.js', () => ({
-  getRedis: () => ({ incr, pexpire }),
+  getRedis: () => ({ multi: () => transaction }),
 }))
 
 describe('takeFixedWindowToken', () => {
   beforeEach(() => {
-    incr.mockReset()
-    pexpire.mockReset()
+    exec.mockReset()
+    transaction.incr.mockClear()
+    transaction.pexpire.mockClear()
   })
 
   it('allows requests under the limit and sets TTL on first hit', async () => {
-    incr.mockResolvedValueOnce(1).mockResolvedValueOnce(2)
-    pexpire.mockResolvedValue(1)
+    exec
+      .mockResolvedValueOnce([
+        [null, 1],
+        [null, 1],
+      ])
+      .mockResolvedValueOnce([
+        [null, 2],
+        [null, 1],
+      ])
 
     const { takeFixedWindowToken } = await import('../../../src/lib/rateLimit.js')
 
     await expect(takeFixedWindowToken('auth:ratelimit:ip:127.0.0.1', 2)).resolves.toBe(true)
-    expect(pexpire).toHaveBeenCalledWith(
+    expect(transaction.pexpire).toHaveBeenCalledWith(
       expect.stringMatching(/^auth:ratelimit:ip:127\.0\.0\.1:\d+$/),
       60_000,
     )
@@ -29,7 +43,10 @@ describe('takeFixedWindowToken', () => {
   })
 
   it('rejects once the fixed window is exhausted', async () => {
-    incr.mockResolvedValue(3)
+    exec.mockResolvedValue([
+      [null, 3],
+      [null, 1],
+    ])
 
     const { takeFixedWindowToken } = await import('../../../src/lib/rateLimit.js')
 

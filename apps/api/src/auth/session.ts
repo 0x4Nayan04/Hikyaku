@@ -6,7 +6,7 @@ import { getPool } from '../db/client.js'
 
 const PgSession = connectPgSimple(session)
 
-const SESSION_COOKIE_NAME = 'sid'
+export const SESSION_COOKIE_NAME = 'sid'
 
 declare module 'express-session' {
   interface SessionData {
