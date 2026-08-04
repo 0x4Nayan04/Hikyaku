@@ -4,14 +4,14 @@ Ingest events, HMAC-signed deliveries, retries, and the delivery console.
 
 ## Introduction
 
-{{APP_NAME}} is a multi-tenant webhook delivery system. You POST an event to the ingest API; the worker fans it out to each active endpoint for your tenant, signs every outbound POST with HMAC-SHA256, retries transient failures with exponential backoff, and stores attempt history for the console.
+{{APP_NAME}} is a multi-tenant webhook delivery system. You POST an event to the ingest API; the API fans it out to one delivery per active endpoint, and the worker signs and delivers each POST with HMAC-SHA256, retries transient failures with exponential backoff, and stores attempt history for the console.
 
 Each tenant is an isolated workspace. API keys, endpoints, events, and deliveries do not cross tenant boundaries.
 
 - **Endpoint** — a subscriber URL that receives signed POSTs, with its own signing secret.
 - **Event** — the JSON message you ingest, identified by an idempotency key.
 - **Delivery** — one event sent to one endpoint, including retries and attempt history.
-- **API key** — Bearer auth for ingest and management APIs, scoped to one tenant.
+- **API key** — Bearer auth for event ingest only, scoped to one tenant.
 
 ## Quick start
 
@@ -30,7 +30,7 @@ Pick a path below. Both need the API and worker running — `pnpm dev` starts th
 
 ### API-only path
 
-Run `pnpm db:seed`, copy a printed API key, then ingest:
+Create an API key under **Settings → API keys**, then ingest:
 
 ```bash
 curl -X POST "{{API_BASE}}/v1/events" \
@@ -95,19 +95,21 @@ Post an event to `POST /v1/events`. The body must include three fields and stay 
 | Status | When                                                               |
 | ------ | ------------------------------------------------------------------ |
 | `400`  | Missing or invalid fields — check the request body and rules above |
+| `409`  | The idempotency key was already used with a different event body   |
 | `429`  | Too many requests — wait and retry after a short delay             |
 
 An event’s status rolls up from its deliveries: `pending` while anything is still open, `failed` when every delivery failed, and `completed` once all deliveries are terminal and at least one succeeded. List events with `GET /v1/events`, or open a single event with `GET /v1/events/:id`.
 
-> **Idempotency:** Reusing the same `idempotency_key` for a tenant returns the existing event with `202` — no duplicate fan-out.
+> **Idempotency:** Reusing the same `idempotency_key` with the same type and payload returns the existing event with `202`. Reusing it with a different type or payload returns `409 idempotency_mismatch`. If active endpoints were added since the first request, the retry creates only the missing deliveries.
 
 ## API keys
 
 Create keys in **Settings → API keys** or via the API. The create response includes the full secret once — store it immediately.
 
+API key routes require the console session cookie, not an API key.
+
 ```bash
 curl -X POST "{{API_BASE}}/v1/api-keys" \
-  -H "Authorization: Bearer whk_your_api_key" \
   -H "Content-Type: application/json"
 ```
 
@@ -117,9 +119,10 @@ List responses show a short `prefix` for identification, never the full secret. 
 
 An endpoint is a subscriber URL that receives signed webhook POSTs. Create one with `POST /v1/endpoints` — the signing secret is returned once. Active endpoints receive fan-out; disabled endpoints do not.
 
+Endpoint routes require the console session cookie, not an API key.
+
 ```bash
 curl -X POST "{{API_BASE}}/v1/endpoints" \
-  -H "Authorization: Bearer whk_your_api_key" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com/webhooks",
@@ -171,19 +174,31 @@ Send `X-Webhook-Timestamp` (unix seconds) and sign the UTF-8 string `timestamp.r
 
 > **Verify before parsing:** Always verify against the raw body bytes before `JSON.parse`. Re-serializing JSON can change whitespace and break the signature.
 
+> **Reject stale timestamps:** Require `|now - timestamp| ≤ 300` seconds (5 minutes). Without this, a captured request stays valid forever.
+
 ### Node.js
 
 ```javascript
 import crypto from 'node:crypto'
 
+const TOLERANCE_SECONDS = 300
+
 function verifyWebhook(rawBody, signatureHeader, timestamp, secret) {
+  const ts = Number(timestamp)
+  if (!Number.isFinite(ts)) return false
+  const now = Math.floor(Date.now() / 1000)
+  if (Math.abs(now - ts) > TOLERANCE_SECONDS) return false
+
   const expected = crypto
     .createHmac('sha256', secret)
-    .update(`${timestamp}.${rawBody}`)
+    .update(`${ts}.${rawBody}`)
     .digest('hex')
 
   const received = signatureHeader.replace(/^sha256=/, '')
-  return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(received, 'hex'))
+  const a = Buffer.from(expected, 'hex')
+  const b = Buffer.from(received, 'hex')
+  if (a.length !== b.length) return false
+  return crypto.timingSafeEqual(a, b)
 }
 ```
 
@@ -192,11 +207,21 @@ function verifyWebhook(rawBody, signatureHeader, timestamp, secret) {
 ```python
 import hashlib
 import hmac
+import time
+
+TOLERANCE_SECONDS = 300
 
 def verify_webhook(raw_body: bytes, signature_header: str, timestamp: str, secret: str) -> bool:
+    try:
+        ts = int(timestamp)
+    except ValueError:
+        return False
+    if abs(int(time.time()) - ts) > TOLERANCE_SECONDS:
+        return False
+
     expected = hmac.new(
         secret.encode("utf-8"),
-        f"{timestamp}.".encode("utf-8") + raw_body,
+        f"{ts}.".encode("utf-8") + raw_body,
         hashlib.sha256,
     ).hexdigest()
     received = signature_header.removeprefix("sha256=")
@@ -211,6 +236,7 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 | ------ | --------------------------------------- | ---------------------------------------- |
 | GET    | `/v1/health`                            | Liveness probe                           |
 | GET    | `/v1/ready`                             | Postgres + Redis connectivity            |
+| GET    | `/v1/auth/bootstrap-status`             | Whether first-run bootstrap is still available |
 | POST   | `/v1/auth/bootstrap`                    | One-time super-admin bootstrap           |
 | GET    | `/v1/auth/invites/validate`             | Validate invite token                    |
 | POST   | `/v1/auth/accept-invite`                | Accept invite and create account         |
@@ -242,20 +268,20 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 
 List endpoints accept `?limit=50&offset=0` (default limit 50, max 100). Responses look like `{ data, total, limit, offset }`.
 
-Tenant routes accept a Bearer API key or a tenant session cookie. Admin routes require a super-admin session. Auth routes are public except logout, me, and change-password.
+Ingest (`POST /v1/events`) accepts a Bearer API key or a tenant session cookie. Every other tenant route requires a tenant session cookie. Admin routes require a super-admin session. Auth routes are public except logout, me, and change-password.
 
 ## Retries
 
 Transient failures retry automatically. Permanent client errors fail fast. After a delivery is exhausted, you can replay it from the API or the console.
 
-| Setting           | Value                                             |
-| ----------------- | ------------------------------------------------- |
-| Max HTTP attempts | 5 per delivery                                    |
-| Backoff           | Exponential + jitter (~1m → 2m → 4m → 8m, cap 1h) |
-| Success           | HTTP 2xx within 30s                               |
-| Retryable         | Network error, timeout, 408, 429, 5xx             |
-| Fail-fast         | 4xx (except 408, 429)                             |
-| Rate limit        | 100 HTTP delivery attempts / minute / tenant      |
+| Setting           | Value                                                |
+| ----------------- | ---------------------------------------------------- |
+| Max HTTP attempts | 5 per delivery                                       |
+| Backoff           | Exponential backoff (1m → 2m → 4m → 8m), no jitter, no cap |
+| Success           | HTTP 2xx within 30s                                  |
+| Retryable         | Network error, timeout, 408, 429, 5xx                |
+| Fail-fast         | 4xx (except 408, 429)                                |
+| Rate limit        | 100 HTTP delivery attempts / minute / tenant         |
 
 > When a tenant hits the rate limit, the delivery stays `pending` for about 60 seconds (`last_error: rate_limited`). That pause is not a failure and does not count toward the five-attempt cap.
 

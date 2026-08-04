@@ -36,4 +36,12 @@ describe('resolveLoginBanner', () => {
       'Setup complete',
     )
   })
+
+  it('uses the password-updated title after a password change', () => {
+    expect(resolveLoginBanner('password_updated', 'Sign in again.')).toEqual({
+      title: 'Password updated',
+      variant: 'success',
+      description: 'Sign in again.',
+    })
+  })
 })

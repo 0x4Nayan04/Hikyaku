@@ -105,7 +105,7 @@ function FaqAnswerBody({ item }: { item: (typeof FAQ_ITEMS)[number] }) {
       <ul className="lp-faq__bullets">
         <li>Automatic retries with exponential backoff (up to five HTTP attempts)</li>
         <li>Each attempt records status, timing, and response body</li>
-        <li>Filter delivery history by endpoint or status in the console</li>
+        <li>Filter delivery history by status or event in the console</li>
         <li>Replay a failed delivery after the endpoint recovers</li>
       </ul>
     )

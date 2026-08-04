@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { ArrowRight, Search } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
+import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
 import { PRODUCT_LINKS } from '@/lib/app-meta'
 import { cn } from '@/lib/utils'
+import { useSession } from '@/providers/session-context'
 
 const VIEWS = {
   deliveries: {
@@ -20,6 +22,7 @@ const VIEWS = {
 
 export function LandingConsolePreview() {
   const navigate = useNavigate()
+  const { session } = useSession()
   const [activeView, setActiveView] = useState<keyof typeof VIEWS>('deliveries')
   const view = VIEWS[activeView]
 
@@ -38,10 +41,12 @@ export function LandingConsolePreview() {
           <div className="lp-console__actions">
             <button
               type="button"
-              onClick={() => navigate('/login')}
+              onClick={() => navigate(session ? getDefaultHomePath(session.user) : '/login')}
+              aria-label={session ? `Open ${getHomeLabel(session.user)}` : undefined}
               className="lp-button lp-button--primary focus-ring"
             >
-              Sign in <ArrowRight className="size-4" aria-hidden="true" />
+              {session ? 'Open console' : 'Sign in'}{' '}
+              <ArrowRight className="size-4" aria-hidden="true" />
             </button>
             <Link
               to={`${PRODUCT_LINKS.docs}#api-reference`}

@@ -13,5 +13,9 @@ export function RequireTenantUser() {
     return <Navigate to={getDefaultHomePath(session.user)} replace />
   }
 
+  if (!loading && session && !session.tenant) {
+    return <Navigate to="/login" replace />
+  }
+
   return <Outlet />
 }

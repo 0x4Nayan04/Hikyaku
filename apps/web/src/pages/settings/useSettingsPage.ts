@@ -14,7 +14,8 @@ export function useSettingsPage(isSuperAdmin = false) {
   const [revokeTarget, setRevokeTarget] = useState<ApiKey | null>(null)
 
   const loadApiKeys = useCallback(async () => {
-    const result = await listApiKeys()
+    // Tenants with more than 100 keys need pagination UI.
+    const result = await listApiKeys({ limit: 100 })
     setApiKeys(result.data)
     setKeysError(null)
   }, [])

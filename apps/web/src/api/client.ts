@@ -21,7 +21,9 @@ import type {
   EventDetail,
   EventSummary,
   IngestEventResponse,
+  ListApiKeysParams,
   ListDeliveriesParams,
+  ListEndpointsParams,
   Paginated,
   PaginationParams,
   ReplayDeliveryResponse,
@@ -94,13 +96,11 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     },
   })
 
-  if (res.status === 401 && !skipAuthRedirect) {
-    window.location.assign('/login')
-    throw await parseErrorResponse(res)
-  }
-
   if (!res.ok) {
     const error = await parseErrorResponse(res)
+    if (res.status === 401 && error.code === 'unauthorized' && !skipAuthRedirect) {
+      window.location.assign('/login')
+    }
     throw error
   }
 
@@ -155,7 +155,7 @@ export function getStats(): Promise<Stats> {
   return apiFetch('/v1/stats')
 }
 
-export function listEndpoints(params: PaginationParams = {}): Promise<Paginated<Endpoint>> {
+export function listEndpoints(params: ListEndpointsParams = {}): Promise<Paginated<Endpoint>> {
   return apiFetch(`/v1/endpoints${buildQuery(params)}`)
 }
 
@@ -200,8 +200,8 @@ export function replayDelivery(id: string): Promise<ReplayDeliveryResponse> {
   return apiFetch(`/v1/deliveries/${id}/replay`, { method: 'POST' })
 }
 
-export function listApiKeys(): Promise<{ data: ApiKey[] }> {
-  return apiFetch('/v1/api-keys')
+export function listApiKeys(params: ListApiKeysParams = {}): Promise<Paginated<ApiKey>> {
+  return apiFetch(`/v1/api-keys${buildQuery(params)}`)
 }
 
 export function createApiKey(): Promise<ApiKeyWithSecret> {

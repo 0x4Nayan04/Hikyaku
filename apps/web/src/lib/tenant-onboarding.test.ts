@@ -1,26 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import {
-  buildIngestCurl,
-  buildOnboardingSteps,
-  hasActiveEndpoint,
-} from './tenant-onboarding'
-
-describe('hasActiveEndpoint', () => {
-  it('allows send only when an active endpoint exists', () => {
-    expect(hasActiveEndpoint([])).toBe(false)
-    expect(hasActiveEndpoint([{ status: 'disabled' }])).toBe(false)
-    expect(hasActiveEndpoint([{ status: 'disabled' }, { status: 'active' }])).toBe(true)
-  })
-})
+import { buildIngestCurl, buildOnboardingSteps } from './tenant-onboarding'
 
 describe('buildOnboardingSteps', () => {
-  it('marks endpoint and API key from real state', () => {
-    const steps = buildOnboardingSteps({ hasEndpoint: true, hasApiKey: false })
+  it('marks every step from real state', () => {
+    const steps = buildOnboardingSteps({
+      hasEndpoint: true,
+      hasApiKey: false,
+      hasTestEvent: true,
+      hasDeliveries: true,
+    })
     expect(steps.map((step) => [step.id, step.done])).toEqual([
       ['endpoint', true],
       ['api_key', false],
-      ['test_event', false],
-      ['deliveries', false],
+      ['test_event', true],
+      ['deliveries', true],
     ])
   })
 })

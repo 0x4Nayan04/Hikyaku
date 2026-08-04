@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ExternalLink, Lock, RotateCcw } from 'lucide-react'
 import { ApiError, changePassword } from '@/api/client'
 import { AuthFormField } from '@/components/auth/AuthFormField'
@@ -38,13 +38,13 @@ function strengthBarTone(score: number): string {
 }
 
 export function SettingsProfileTab() {
+  const navigate = useNavigate()
   const { session, loading } = useSession()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [passwordUpdated, setPasswordUpdated] = useState(false)
 
   const isSuperAdmin = session?.user.is_super_admin ?? false
   const roleLabel = isSuperAdmin ? 'Super admin' : 'Tenant operator'
@@ -71,18 +71,19 @@ export function SettingsProfileTab() {
     }
 
     setSubmitting(true)
-    setPasswordUpdated(false)
 
     try {
       await changePassword({
         current_password: currentPassword,
         new_password: newPassword,
       })
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-      setPasswordUpdated(true)
-      toast.success('Password updated successfully')
+      navigate('/login', {
+        replace: true,
+        state: {
+          banner: 'password_updated',
+          message: 'Password updated. Sign in again with your new password.',
+        },
+      })
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Failed to change password'
       setFormError(message)
@@ -97,7 +98,6 @@ export function SettingsProfileTab() {
     setCurrentPassword('')
     setNewPassword('')
     setConfirmPassword('')
-    setPasswordUpdated(false)
   }
 
   const strength = newPassword.length > 0 ? calculateStrength(newPassword) : null
@@ -141,14 +141,6 @@ export function SettingsProfileTab() {
         }
       >
         <div className="settings-form-stack">
-          {passwordUpdated ? (
-            <PageBanner
-              variant="success"
-              title="Password updated"
-              description="Your new password is active. Use it the next time you sign in."
-            />
-          ) : null}
-
           <form id="security-form" className="space-y-4" onSubmit={handleSubmit}>
             <fieldset className="m-0 space-y-4 border-0 p-0" disabled={submitting}>
               <legend className="sr-only">Change password</legend>
@@ -168,10 +160,7 @@ export function SettingsProfileTab() {
                 icon={Lock}
                 autoComplete="current-password"
                 value={currentPassword}
-                onChange={(value) => {
-                  setCurrentPassword(value)
-                  setPasswordUpdated(false)
-                }}
+                onChange={setCurrentPassword}
                 required
               />
 
@@ -180,7 +169,7 @@ export function SettingsProfileTab() {
 
                 {!strength ? (
                   <p className="settings-password-block__hint">
-                    At least {MIN_PASSWORD_LENGTH} characters with letters, numbers, and symbols.
+                    12–128 characters. No complexity rules — pick something long.
                   </p>
                 ) : null}
 
@@ -191,11 +180,9 @@ export function SettingsProfileTab() {
                     type="password"
                     icon={Lock}
                     autoComplete="new-password"
+                    maxLength={128}
                     value={newPassword}
-                    onChange={(value) => {
-                      setNewPassword(value)
-                      setPasswordUpdated(false)
-                    }}
+                    onChange={setNewPassword}
                     required
                   />
                   {strength ? (
@@ -228,11 +215,9 @@ export function SettingsProfileTab() {
                     type="password"
                     icon={Lock}
                     autoComplete="new-password"
+                    maxLength={128}
                     value={confirmPassword}
-                    onChange={(value) => {
-                      setConfirmPassword(value)
-                      setPasswordUpdated(false)
-                    }}
+                    onChange={setConfirmPassword}
                     required
                   />
                   {confirmPassword.length > 0 && !passwordsMatch ? (

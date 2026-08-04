@@ -13,6 +13,7 @@ type AuthFormFieldProps = {
   hint?: string
   autoComplete?: string
   minLength?: number
+  maxLength?: number
   required?: boolean
   readOnly?: boolean
 }
@@ -27,6 +28,7 @@ export function AuthFormField({
   hint,
   autoComplete,
   minLength,
+  maxLength,
   required,
   readOnly,
 }: AuthFormFieldProps) {
@@ -52,6 +54,7 @@ export function AuthFormField({
           type={inputType}
           autoComplete={autoComplete}
           minLength={minLength}
+          maxLength={maxLength}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           required={required}

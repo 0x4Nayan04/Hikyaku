@@ -9,7 +9,7 @@ import { AppError } from '../../lib/errors.js'
 import { parsePagination } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
 import { toEndpointJson, type EndpointLastDeliveryRow } from './serialize.js'
-import { parseCreateBody, parseEndpointId, parsePatchBody } from './validation.js'
+import { parseCreateBody, parseEndpointId, parseListQuery, parsePatchBody } from './validation.js'
 
 const endpointColumns = {
   id: endpoints.id,
@@ -96,9 +96,13 @@ export async function createEndpoint(req: Request, res: Response, next: NextFunc
 export async function listEndpoints(req: Request, res: Response, next: NextFunction) {
   try {
     const { limit, offset } = parsePagination(req.query)
+    const { status } = parseListQuery(req.query)
     const tenantId = getTenantId(req)
     const db = getDb()
-    const where = eq(endpoints.tenantId, tenantId)
+    const where = and(
+      eq(endpoints.tenantId, tenantId),
+      status === undefined ? undefined : eq(endpoints.status, status),
+    )
 
     const [countRow] = await db.select({ value: count() }).from(endpoints).where(where)
     const total = countRow?.value ?? 0

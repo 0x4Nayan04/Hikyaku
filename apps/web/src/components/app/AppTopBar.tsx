@@ -9,6 +9,7 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useFocusTrap } from '@/components/accessibility/Accessibility'
 import { useSession } from '@/providers/session-context'
 import { APP_HOME_LABEL, APP_NAME } from '@/lib/app-meta'
+import { toast } from '@/lib/toast'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 type AppTopBarProps = {
@@ -66,7 +67,11 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
   const { refresh } = useSession()
 
   async function handleLogout() {
-    await logout()
+    try {
+      await logout()
+    } catch {
+      toast.error('Failed to log out cleanly. Please sign in again.')
+    }
     await refresh()
     navigate('/login', { replace: true })
   }

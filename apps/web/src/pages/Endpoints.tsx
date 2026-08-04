@@ -123,7 +123,7 @@ export function Endpoints() {
 
     try {
       await patchEndpoint(editTarget.id, {
-        description: editDescription.trim() || undefined,
+        description: editDescription.trim(),
       })
       handleEditClose()
       await reload()

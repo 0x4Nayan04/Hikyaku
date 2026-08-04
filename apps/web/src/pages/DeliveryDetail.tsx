@@ -122,7 +122,7 @@ export function DeliveryDetail() {
       }
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <LiveChip />
+          <LiveChip active={error === null} />
           <Button size="sm" variant="secondary" asChild>
             <Link to="/deliveries">
               <ArrowLeft className="size-3.5" aria-hidden="true" />
@@ -226,8 +226,8 @@ export function DeliveryDetail() {
           <DialogHeader>
             <DialogTitle>Replay delivery</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              This resets the delivery to pending, clears the terminal error, and re-enqueues a new
-              worker job.
+              This resets the delivery to pending, clears prior attempt history and the terminal
+              error, and re-enqueues a new worker job.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
