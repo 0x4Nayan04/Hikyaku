@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { parseCreateBody, parsePatchBody } from '../../../src/routes/endpoints/validation.js'
+import {
+  parseCreateBody,
+  parseListQuery,
+  parsePatchBody,
+} from '../../../src/routes/endpoints/validation.js'
 import { AppError } from '../../../src/lib/errors.js'
 
 describe('parseCreateBody', () => {
@@ -38,6 +42,10 @@ describe('parseCreateBody', () => {
 describe('parsePatchBody', () => {
   it('accepts a status update', () => {
     expect(parsePatchBody({ status: 'disabled' })).toEqual({ status: 'disabled' })
+  })
+
+  it('accepts an empty description to clear the label', () => {
+    expect(parsePatchBody({ description: '' })).toEqual({ description: '' })
   })
 
   it('rejects an empty patch body', () => {
@@ -93,5 +101,16 @@ describe('parsePatchBody', () => {
     } catch (err) {
       expect(err).toMatchObject({ statusCode: 400, code: 'immutable_field' })
     }
+  })
+})
+
+describe('parseListQuery', () => {
+  it('accepts active and disabled status filters', () => {
+    expect(parseListQuery({ status: 'active' })).toEqual({ status: 'active' })
+    expect(parseListQuery({ status: ['disabled'] })).toEqual({ status: 'disabled' })
+  })
+
+  it('rejects an invalid status filter', () => {
+    expect(() => parseListQuery({ status: 'paused' })).toThrow(AppError)
   })
 })

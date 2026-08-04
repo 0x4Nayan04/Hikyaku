@@ -62,6 +62,7 @@ export function Deliveries() {
     onPoll: () => void reload(),
   })
 
+  const isLive = error === null
   const showEmpty = !isInitial && deliveries.length === 0
   const isDatasetEmpty = showEmpty && statusFilter === 'all' && !eventIdFilter && total === 0
   const emptyState = useMemo(() => {
@@ -152,7 +153,7 @@ export function Deliveries() {
     <ConsolePage
       title="Deliveries"
       description="Outbound webhook attempts. Open a row for request and response details."
-      actions={<LiveChip />}
+      actions={<LiveChip active={isLive} />}
     >
       {error ? (
         <PageBanner variant="error" title="Could not load deliveries" description={error} />

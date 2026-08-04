@@ -8,12 +8,14 @@ import { closeRedis } from '../../src/lib/redis.js'
 import { queue } from '../../src/queue/client.js'
 import { createApp } from '../../src/server.js'
 import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
+import { createTenantSession } from '../helpers/user.js'
 
 const app = createApp()
 
 describe('POST /v1/events idempotency', () => {
   let tenantId: string
   let apiKey: string
+  let agent: ReturnType<typeof request.agent>
 
   beforeAll(async () => {
     await queue.obliterate({ force: true })
@@ -21,11 +23,9 @@ describe('POST /v1/events idempotency', () => {
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
     apiKey = tenant.apiKey
+    agent = await createTenantSession(app, tenantId)
 
-    const endpointRes = await request(app)
-      .post('/v1/endpoints')
-      .set('Authorization', `Bearer ${apiKey}`)
-      .send({ url: 'https://webhook.site/test' })
+    const endpointRes = await agent.post('/v1/endpoints').send({ url: 'https://webhook.site/test' })
 
     expect(endpointRes.status).toBe(201)
   })
@@ -73,16 +73,51 @@ describe('POST /v1/events idempotency', () => {
       .from(deliveries)
       .where(tenantDeliveries)
 
-    const job = await queue.getJob(delivery.id)
-    expect(job).not.toBeNull()
-    expect(job?.id).toBe(delivery.id)
+    const jobs = await queue.getJobs(['waiting', 'active', 'delayed'])
+    const job = jobs.find((candidate) => candidate.data.deliveryId === delivery.id)
+    expect(job).toBeDefined()
     expect(job?.data).toEqual({ deliveryId: delivery.id })
   })
 
-  it('completes an event immediately when there are no active endpoints', async () => {
+  it('rejects an idempotency key reused with a different event body', async () => {
+    const original = {
+      idempotency_key: 'mismatched-body',
+      type: 'order.created',
+      payload: { order_id: '123' },
+    }
+
+    const created = await request(app)
+      .post('/v1/events')
+      .set('Authorization', `Bearer ${apiKey}`)
+      .send(original)
+
+    const changedType = await request(app)
+      .post('/v1/events')
+      .set('Authorization', `Bearer ${apiKey}`)
+      .send({ ...original, type: 'order.cancelled' })
+
+    const changedPayload = await request(app)
+      .post('/v1/events')
+      .set('Authorization', `Bearer ${apiKey}`)
+      .send({ ...original, payload: { order_id: '456' } })
+
+    expect(created.status).toBe(202)
+    for (const response of [changedType, changedPayload]) {
+      expect(response.status).toBe(409)
+      expect(response.body).toEqual({
+        error: {
+          code: 'idempotency_mismatch',
+          message: 'Idempotency key "mismatched-body" was already used with a different event body',
+        },
+      })
+    }
+  })
+
+  it('backfills deliveries when an event is retried after an endpoint is added', async () => {
     const tenantWithoutEndpoints = await createTenantWithKey()
 
     try {
+      const tenantAgent = await createTenantSession(app, tenantWithoutEndpoints.tenantId)
       const created = await request(app)
         .post('/v1/events')
         .set('Authorization', `Bearer ${tenantWithoutEndpoints.apiKey}`)
@@ -91,15 +126,41 @@ describe('POST /v1/events idempotency', () => {
       expect(created.status).toBe(202)
       expect(created.body.status).toBe('completed')
 
-      const detail = await request(app)
-        .get(`/v1/events/${created.body.id}`)
-        .set('Authorization', `Bearer ${tenantWithoutEndpoints.apiKey}`)
+      const detail = await tenantAgent.get(`/v1/events/${created.body.id}`)
 
       expect(detail.status).toBe(200)
       expect(detail.body).toMatchObject({
         status: 'completed',
         deliveries_summary: { total: 0 },
       })
+
+      const endpoint = await tenantAgent
+        .post('/v1/endpoints')
+        .send({ url: 'https://webhook.site/added-later' })
+      expect(endpoint.status).toBe(201)
+
+      const retried = await request(app)
+        .post('/v1/events')
+        .set('Authorization', `Bearer ${tenantWithoutEndpoints.apiKey}`)
+        .send({ idempotency_key: 'no-endpoints', type: 'test', payload: {} })
+
+      expect(retried.status).toBe(202)
+      expect(retried.body).toMatchObject({ id: created.body.id, status: 'pending' })
+
+      const updatedDetail = await tenantAgent.get(`/v1/events/${created.body.id}`)
+      expect(updatedDetail.status).toBe(200)
+      expect(updatedDetail.body).toMatchObject({
+        status: 'pending',
+        deliveries_summary: { total: 1, pending: 1 },
+      })
+
+      const [delivery] = await getDb()
+        .select({ id: deliveries.id })
+        .from(deliveries)
+        .where(eq(deliveries.eventId, created.body.id))
+      expect(delivery).toBeDefined()
+      const jobs = await queue.getJobs(['waiting', 'active', 'delayed'])
+      expect(jobs.some((job) => job.data.deliveryId === delivery.id)).toBe(true)
     } finally {
       await deleteTenant(tenantWithoutEndpoints.tenantId)
     }

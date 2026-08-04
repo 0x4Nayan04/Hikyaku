@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/format'
 import { useDetailFetch } from '@/hooks/useDetailFetch'
+import { usePolling } from '@/hooks/usePolling'
 
 function formatPayload(payload: Record<string, unknown>): string {
   return JSON.stringify(payload, null, 2)
@@ -24,12 +25,13 @@ function formatPayload(payload: Record<string, unknown>): string {
 
 export function EventDetail() {
   const { id } = useParams<{ id: string }>()
-  const { data: event, loading, error } = useDetailFetch<EventDetailType>({
+  const { data: event, loading, error, reload } = useDetailFetch<EventDetailType>({
     id,
     fetchDetail: getEvent,
     missingError: 'Event ID is missing',
     fallbackError: 'Failed to load event',
   })
+  usePolling({ enabled: Boolean(id), onPoll: () => void reload() })
 
   const payloadText = useMemo(() => (event ? formatPayload(event.payload) : ''), [event])
 

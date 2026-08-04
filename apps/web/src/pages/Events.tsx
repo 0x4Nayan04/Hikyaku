@@ -22,6 +22,7 @@ import { StatusBadge } from '@/components/console/StatusBadge'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { formatDateTime } from '@/lib/format'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { usePolling } from '@/hooks/usePolling'
 
 const PAGE_SIZE = 25
 
@@ -35,11 +36,13 @@ export function Events() {
     isInitial,
     isRefreshing,
     error,
+    reload,
   } = usePaginatedList<EventSummary>({
     pageSize: PAGE_SIZE,
     fetchPage: listEvents,
     fallbackError: 'Failed to load events',
   })
+  usePolling({ onPoll: () => void reload() })
 
   const showEmpty = !isInitial && events.length === 0
   const isDatasetEmpty = showEmpty && total === 0

@@ -8,17 +8,18 @@ import { closeRedis } from '../../src/lib/redis.js'
 import { loadTenantStats } from '../../src/routes/stats.js'
 import { createApp } from '../../src/server.js'
 import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
+import { createTenantSession } from '../helpers/user.js'
 
 const app = createApp()
 
 describe('GET /v1/stats', () => {
   let tenantId: string
   let otherTenantId: string
-  let apiKey: string
+  let agent: ReturnType<typeof request.agent>
   beforeAll(async () => {
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
-    apiKey = tenant.apiKey
+    agent = await createTenantSession(app, tenantId)
 
     const other = await createTenantWithKey()
     otherTenantId = other.tenantId
@@ -55,7 +56,8 @@ describe('GET /v1/stats', () => {
         endpointId: endpoint.id,
         status: statuses[index],
         attemptCount: statuses[index] === 'pending' ? 0 : 1,
-        updatedAt: statuses[index] === 'succeeded' || statuses[index] === 'failed' ? new Date() : undefined,
+        updatedAt:
+          statuses[index] === 'succeeded' || statuses[index] === 'failed' ? new Date() : undefined,
       })),
     )
 
@@ -76,7 +78,7 @@ describe('GET /v1/stats', () => {
   })
 
   it('returns tenant-scoped counts and success rate', async () => {
-    const res = await request(app).get('/v1/stats').set('Authorization', `Bearer ${apiKey}`)
+    const res = await agent.get('/v1/stats')
 
     expect(res.status).toBe(200)
     expect(res.body).toEqual({
@@ -104,7 +106,7 @@ describe('GET /v1/stats', () => {
     const db = getDb()
     await db.delete(deliveries).where(eq(deliveries.tenantId, tenantId))
 
-    const res = await request(app).get('/v1/stats').set('Authorization', `Bearer ${apiKey}`)
+    const res = await agent.get('/v1/stats')
 
     expect(res.status).toBe(200)
     expect(res.body.success_rate_24h).toBeNull()

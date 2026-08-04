@@ -132,7 +132,7 @@ export function AcceptInvite() {
         <AuthCard>
           <PageBanner variant="error" title="Invite unavailable" description={loadError} />
           <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-            <p>Need a new invite? Ask a workspace owner or platform admin to send another link.</p>
+            <p>Need a new invite? Ask the platform admin to send another link.</p>
             <AuthFooterLink prompt="Already have an account?" linkLabel="Sign in" to="/login" />
           </div>
         </AuthCard>
@@ -177,6 +177,7 @@ export function AcceptInvite() {
               icon={Lock}
               autoComplete="new-password"
               minLength={MIN_PASSWORD_LENGTH}
+              maxLength={128}
               value={password}
               onChange={(value) => setPassword(value)}
               hint={`Use at least ${MIN_PASSWORD_LENGTH} characters.`}
@@ -189,6 +190,7 @@ export function AcceptInvite() {
               icon={Lock}
               autoComplete="new-password"
               minLength={MIN_PASSWORD_LENGTH}
+              maxLength={128}
               value={confirmPassword}
               onChange={(value) =>
                 setConfirmPassword(value)

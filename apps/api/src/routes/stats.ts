@@ -2,7 +2,7 @@ import { deliveries, events } from '@webhook/shared/schema'
 import { and, count, eq, gte, inArray } from 'drizzle-orm'
 import { Router, type IRouter } from 'express'
 import type { NextFunction, Request, Response } from 'express'
-import { requireTenantAuth } from '../auth/middleware.js'
+import { requireTenantSessionAuth } from '../auth/middleware.js'
 import { getDb } from '../db/client.js'
 import { getTenantId } from '../lib/tenant.js'
 
@@ -76,4 +76,4 @@ async function getStats(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-statsRouter.get('/stats', requireTenantAuth, getStats)
+statsRouter.get('/stats', requireTenantSessionAuth, getStats)

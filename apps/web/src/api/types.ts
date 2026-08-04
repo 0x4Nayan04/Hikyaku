@@ -13,6 +13,10 @@ export type PaginationParams = {
   offset?: number
 }
 
+export type ListEndpointsParams = PaginationParams & {
+  status?: EndpointStatus
+}
+
 export type Paginated<T> = {
   data: T[]
   total: number
@@ -161,4 +165,8 @@ export type ApiKey = {
 
 export type ApiKeyWithSecret = ApiKey & {
   api_key: string
+}
+
+export type ListApiKeysParams = PaginationParams & {
+  status?: 'active' | 'revoked'
 }

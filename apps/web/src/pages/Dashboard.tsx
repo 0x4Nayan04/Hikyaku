@@ -30,7 +30,6 @@ import { usePolling } from '@/hooks/usePolling'
 import { formatPercent } from '@/lib/format'
 import {
   buildOnboardingSteps,
-  hasActiveEndpoint,
   type OnboardingStep,
   type OnboardingStepId,
 } from '@/lib/tenant-onboarding'
@@ -290,18 +289,30 @@ function OnboardingStepRow({ step }: { step: OnboardingStep }) {
 
 function EmptyDashboardCTA() {
   const [steps, setSteps] = useState<OnboardingStep[]>(() =>
-    buildOnboardingSteps({ hasEndpoint: false, hasApiKey: false }),
+    buildOnboardingSteps({
+      hasEndpoint: false,
+      hasApiKey: false,
+      hasTestEvent: false,
+      hasDeliveries: false,
+    }),
   )
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([listEndpoints({ limit: 100, offset: 0 }), listApiKeys()])
-      .then(([endpoints, keys]) => {
+    Promise.all([
+      listEndpoints({ status: 'active', limit: 1 }),
+      listApiKeys({ status: 'active', limit: 1 }),
+      listEvents({ limit: 1 }),
+      listDeliveries({ limit: 1 }),
+    ])
+      .then(([endpoints, keys, events, deliveries]) => {
         if (cancelled) return
         setSteps(
           buildOnboardingSteps({
-            hasEndpoint: hasActiveEndpoint(endpoints.data),
-            hasApiKey: keys.data.some((key) => !key.revoked_at),
+            hasEndpoint: endpoints.total > 0,
+            hasApiKey: keys.total > 0,
+            hasTestEvent: events.total > 0,
+            hasDeliveries: deliveries.total > 0,
           }),
         )
       })

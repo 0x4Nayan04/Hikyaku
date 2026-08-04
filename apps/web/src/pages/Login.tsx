@@ -108,7 +108,7 @@ export function Login() {
                   'Delivery metrics and recent activity',
                   'Automatic retries with exponential backoff',
                   'Event payloads and attempt history',
-                  'API keys and workspace members',
+                  'API keys and endpoint settings',
                 ] as const
               ).map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
@@ -177,8 +177,8 @@ export function Login() {
         </button>
         {showForgotHint ? (
           <p className="-mt-1 rounded-none border border-border bg-surface-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-            Ask a workspace owner or your platform admin to reset your password from Admin → the
-            tenant → Users. Fellow tenant members cannot reset peers.
+            Ask a platform admin to delete your user and send a fresh invite. There is no
+            self-serve or admin password reset.
           </p>
         ) : null}
 

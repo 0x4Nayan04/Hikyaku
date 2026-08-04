@@ -1,13 +1,13 @@
 import { generateApiKey, hashApiKey, prefixOf } from '@webhook/shared/crypto'
 import { apiKeys } from '@webhook/shared/schema'
-import { and, count, desc, eq, isNull } from 'drizzle-orm'
+import { and, count, desc, eq, isNotNull, isNull } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { parsePagination } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
 import { toApiKeyJson } from './serialize.js'
-import { parseApiKeyId } from './validation.js'
+import { parseApiKeyId, parseListQuery } from './validation.js'
 
 const apiKeyColumns = {
   id: apiKeys.id,
@@ -20,9 +20,17 @@ const apiKeyColumns = {
 export async function listApiKeys(req: Request, res: Response, next: NextFunction) {
   try {
     const { limit, offset } = parsePagination(req.query)
+    const { status } = parseListQuery(req.query)
     const tenantId = getTenantId(req)
     const db = getDb()
-    const where = eq(apiKeys.tenantId, tenantId)
+    const where = and(
+      eq(apiKeys.tenantId, tenantId),
+      status === 'active'
+        ? isNull(apiKeys.revokedAt)
+        : status === 'revoked'
+          ? isNotNull(apiKeys.revokedAt)
+          : undefined,
+    )
 
     const [countRow] = await db.select({ value: count() }).from(apiKeys).where(where)
     const total = countRow?.value ?? 0
@@ -122,10 +130,15 @@ export async function rotateApiKey(req: Request, res: Response, next: NextFuncti
 
     const apiKey = generateApiKey()
     const row = await db.transaction(async (tx) => {
-      await tx
+      const [revoked] = await tx
         .update(apiKeys)
         .set({ revokedAt: new Date() })
         .where(and(eq(apiKeys.id, id), eq(apiKeys.tenantId, tenantId), isNull(apiKeys.revokedAt)))
+        .returning({ id: apiKeys.id })
+
+      if (!revoked) {
+        throw new AppError(409, 'already_revoked', 'Cannot rotate a revoked API key')
+      }
 
       const [created] = await tx
         .insert(apiKeys)

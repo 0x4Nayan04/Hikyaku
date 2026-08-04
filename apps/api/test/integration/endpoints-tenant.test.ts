@@ -5,6 +5,7 @@ import { closePool } from '../../src/db/client.js'
 import { closeRedis } from '../../src/lib/redis.js'
 import { createApp } from '../../src/server.js'
 import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
+import { createTenantSession } from '../helpers/user.js'
 
 const app = createApp()
 
@@ -12,14 +13,17 @@ describe('endpoints tenant isolation', () => {
   let acme: { tenantId: string; apiKey: string }
   let globex: { tenantId: string; apiKey: string }
   let acmeEndpointId: string
+  let acmeAgent: ReturnType<typeof request.agent>
+  let globexAgent: ReturnType<typeof request.agent>
 
   beforeAll(async () => {
     acme = await createTenantWithKey()
     globex = await createTenantWithKey()
+    acmeAgent = await createTenantSession(app, acme.tenantId)
+    globexAgent = await createTenantSession(app, globex.tenantId)
 
-    const created = await request(app)
+    const created = await acmeAgent
       .post('/v1/endpoints')
-      .set('Authorization', `Bearer ${acme.apiKey}`)
       .send({ url: 'https://example.com/acme-hook', description: 'acme only' })
 
     acmeEndpointId = created.body.id
@@ -33,9 +37,8 @@ describe('endpoints tenant isolation', () => {
   })
 
   it('returns 404 when another tenant patches an endpoint by id', async () => {
-    const res = await request(app)
+    const res = await globexAgent
       .patch(`/v1/endpoints/${acmeEndpointId}`)
-      .set('Authorization', `Bearer ${globex.apiKey}`)
       .send({ status: 'disabled' })
 
     expect(res.status).toBe(404)
@@ -45,9 +48,7 @@ describe('endpoints tenant isolation', () => {
   })
 
   it('does not list another tenant endpoints', async () => {
-    const res = await request(app)
-      .get('/v1/endpoints')
-      .set('Authorization', `Bearer ${globex.apiKey}`)
+    const res = await globexAgent.get('/v1/endpoints')
 
     expect(res.status).toBe(200)
     expect(res.body.total).toBe(0)
@@ -55,9 +56,7 @@ describe('endpoints tenant isolation', () => {
   })
 
   it('still returns the endpoint for the owning tenant', async () => {
-    const res = await request(app)
-      .get('/v1/endpoints')
-      .set('Authorization', `Bearer ${acme.apiKey}`)
+    const res = await acmeAgent.get('/v1/endpoints')
 
     expect(res.status).toBe(200)
     expect(res.body.total).toBe(1)

@@ -21,7 +21,11 @@ export function resolveGuestLandingPrimaryCta(
 export const LOGIN_PENDING_ACCESS_HINT =
   'Waiting on access? Ask the platform admin for a tenant invite.'
 
-export type LoginBannerKind = 'bootstrap_complete' | 'invite_accepted' | 'already_set_up'
+export type LoginBannerKind =
+  | 'bootstrap_complete'
+  | 'invite_accepted'
+  | 'already_set_up'
+  | 'password_updated'
 
 export type LoginBanner = {
   title: string
@@ -40,6 +44,8 @@ export function resolveLoginBanner(
       return { title: 'Account ready', variant: 'success', description: message }
     case 'already_set_up':
       return { title: 'Already set up', variant: 'info', description: message }
+    case 'password_updated':
+      return { title: 'Password updated', variant: 'success', description: message }
     case undefined:
       return { title: 'Ready to sign in', variant: 'success', description: message }
     default: {

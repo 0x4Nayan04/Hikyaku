@@ -12,22 +12,23 @@ import {
   seedDeliveryRow,
 } from '../helpers/delivery.js'
 import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
+import { createTenantSession } from '../helpers/user.js'
 
 const app = createApp()
 
 describe('GET /v1/deliveries', () => {
   let tenantId: string
-  let apiKey: string
   let deliveryId: string
   let eventId: string
   let endpointId: string
+  let agent: ReturnType<typeof request.agent>
 
   beforeAll(async () => {
     await beginDeliveryTestIsolation()
 
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
-    apiKey = tenant.apiKey
+    agent = await createTenantSession(app, tenantId)
 
     const seeded = await seedDeliveryRow({
       tenantId,
@@ -57,7 +58,7 @@ describe('GET /v1/deliveries', () => {
   })
 
   it('lists deliveries for the authenticated tenant', async () => {
-    const res = await request(app).get('/v1/deliveries').set('Authorization', `Bearer ${apiKey}`)
+    const res = await agent.get('/v1/deliveries')
 
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({
@@ -81,17 +82,13 @@ describe('GET /v1/deliveries', () => {
   })
 
   it('filters deliveries by status', async () => {
-    const res = await request(app)
-      .get('/v1/deliveries?status=pending')
-      .set('Authorization', `Bearer ${apiKey}`)
+    const res = await agent.get('/v1/deliveries?status=pending')
 
     expect(res.status).toBe(200)
     expect(res.body.data).toHaveLength(1)
     expect(res.body.data[0].id).toBe(deliveryId)
 
-    const empty = await request(app)
-      .get('/v1/deliveries?status=succeeded')
-      .set('Authorization', `Bearer ${apiKey}`)
+    const empty = await agent.get('/v1/deliveries?status=succeeded')
 
     expect(empty.status).toBe(200)
     expect(empty.body.data).toHaveLength(0)
@@ -99,18 +96,14 @@ describe('GET /v1/deliveries', () => {
   })
 
   it('filters deliveries by event_id', async () => {
-    const res = await request(app)
-      .get(`/v1/deliveries?event_id=${eventId}`)
-      .set('Authorization', `Bearer ${apiKey}`)
+    const res = await agent.get(`/v1/deliveries?event_id=${eventId}`)
 
     expect(res.status).toBe(200)
     expect(res.body.data).toHaveLength(1)
     expect(res.body.data[0].id).toBe(deliveryId)
     expect(res.body.data[0].event_id).toBe(eventId)
 
-    const empty = await request(app)
-      .get('/v1/deliveries?event_id=880e8400-e29b-41d4-a716-446655440099')
-      .set('Authorization', `Bearer ${apiKey}`)
+    const empty = await agent.get('/v1/deliveries?event_id=880e8400-e29b-41d4-a716-446655440099')
 
     expect(empty.status).toBe(200)
     expect(empty.body.data).toHaveLength(0)
@@ -118,9 +111,7 @@ describe('GET /v1/deliveries', () => {
   })
 
   it('rejects an invalid event_id filter', async () => {
-    const res = await request(app)
-      .get('/v1/deliveries?event_id=not-a-uuid')
-      .set('Authorization', `Bearer ${apiKey}`)
+    const res = await agent.get('/v1/deliveries?event_id=not-a-uuid')
 
     expect(res.status).toBe(400)
     expect(res.body).toEqual({
@@ -129,9 +120,7 @@ describe('GET /v1/deliveries', () => {
   })
 
   it('returns delivery detail with attempt timeline', async () => {
-    const res = await request(app)
-      .get(`/v1/deliveries/${deliveryId}`)
-      .set('Authorization', `Bearer ${apiKey}`)
+    const res = await agent.get(`/v1/deliveries/${deliveryId}`)
 
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({
@@ -156,9 +145,7 @@ describe('GET /v1/deliveries', () => {
   })
 
   it('returns 404 for a missing delivery', async () => {
-    const res = await request(app)
-      .get('/v1/deliveries/880e8400-e29b-41d4-a716-446655440099')
-      .set('Authorization', `Bearer ${apiKey}`)
+    const res = await agent.get('/v1/deliveries/880e8400-e29b-41d4-a716-446655440099')
 
     expect(res.status).toBe(404)
     expect(res.body).toEqual({
@@ -167,9 +154,7 @@ describe('GET /v1/deliveries', () => {
   })
 
   it('does not expose the delivery SSE stream', async () => {
-    const res = await request(app)
-      .get('/v1/deliveries/stream')
-      .set('Authorization', `Bearer ${apiKey}`)
+    const res = await agent.get('/v1/deliveries/stream')
 
     expect(res.status).toBe(404)
   })

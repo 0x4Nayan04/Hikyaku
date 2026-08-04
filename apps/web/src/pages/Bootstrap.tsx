@@ -19,6 +19,8 @@ export function Bootstrap() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [checkingAvailability, setCheckingAvailability] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [availabilityAttempt, setAvailabilityAttempt] = useState(0)
 
   useEffect(() => {
     if (!loading && session) {
@@ -50,22 +52,27 @@ export function Bootstrap() {
         }
         setCheckingAvailability(false)
       })
-      .catch(() => {
+      .catch((err) => {
         if (!cancelled) {
-          navigate('/login', {
-            replace: true,
-            state: {
-              banner: 'already_set_up',
-              message: 'This deployment is already set up. Sign in with your account.',
-            },
-          })
+          setCheckingAvailability(false)
+          setLoadError(
+            err instanceof ApiError
+              ? err.message
+              : 'Unable to check setup availability. Check your connection and try again.',
+          )
         }
       })
 
     return () => {
       cancelled = true
     }
-  }, [loading, session, navigate])
+  }, [loading, session, navigate, availabilityAttempt])
+
+  function retryAvailabilityCheck() {
+    setLoadError(null)
+    setCheckingAvailability(true)
+    setAvailabilityAttempt((attempt) => attempt + 1)
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -105,6 +112,28 @@ export function Bootstrap() {
         description="Verifying whether first-deploy bootstrap is still available."
       >
         <p className="text-sm text-muted-foreground">Checking deployment status…</p>
+      </AuthLayout>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <AuthLayout
+        variant="split"
+        eyebrow="One-time setup"
+        title="Unable to check setup"
+        description="The setup status could not be loaded."
+      >
+        <div className="flex flex-col gap-3">
+          <PageBanner variant="error" title="Setup check failed" description={loadError} />
+          <button
+            type="button"
+            onClick={retryAvailabilityCheck}
+            className="sm-btn sm-btn-primary sm-btn-block"
+          >
+            Try again
+          </button>
+        </div>
       </AuthLayout>
     )
   }
@@ -207,6 +236,7 @@ export function Bootstrap() {
             icon={Lock}
             autoComplete="new-password"
             minLength={12}
+            maxLength={128}
             value={password}
             onChange={(value) => setPassword(value)}
             hint="Use at least 12 characters."

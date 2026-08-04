@@ -21,7 +21,6 @@ import {
   SettingsCopyValue,
 } from '@/components/console/SettingsCatalog'
 import { formatDateTime } from '@/lib/format'
-import { hasActiveEndpoint } from '@/lib/tenant-onboarding'
 
 const DEFAULT_PAYLOAD = `{
   "order_id": "123",
@@ -68,10 +67,10 @@ export function SendEvent() {
 
   useEffect(() => {
     let cancelled = false
-    listEndpoints({ limit: 100, offset: 0 })
+    listEndpoints({ status: 'active', limit: 1 })
       .then((result) => {
         if (!cancelled) {
-          setGate({ status: 'ready', canSend: hasActiveEndpoint(result.data) })
+          setGate({ status: 'ready', canSend: result.total > 0 })
         }
       })
       .catch((err) => {

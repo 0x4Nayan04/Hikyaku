@@ -1,8 +1,3 @@
-/** True when at least one endpoint can receive deliveries. */
-export function hasActiveEndpoint(endpoints: Array<{ status: string }>): boolean {
-  return endpoints.some((endpoint) => endpoint.status === 'active')
-}
-
 export type OnboardingStepId = 'endpoint' | 'api_key' | 'test_event' | 'deliveries'
 
 export type OnboardingStep = {
@@ -16,6 +11,8 @@ export type OnboardingStep = {
 export function buildOnboardingSteps(opts: {
   hasEndpoint: boolean
   hasApiKey: boolean
+  hasTestEvent: boolean
+  hasDeliveries: boolean
 }): OnboardingStep[] {
   return [
     {
@@ -34,13 +31,13 @@ export function buildOnboardingSteps(opts: {
       id: 'test_event',
       label: 'Send a test event',
       to: '/events/send',
-      done: false,
+      done: opts.hasTestEvent,
     },
     {
       id: 'deliveries',
       label: 'Watch deliveries',
       to: '/deliveries',
-      done: false,
+      done: opts.hasDeliveries,
     },
   ]
 }
