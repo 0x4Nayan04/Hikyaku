@@ -3,6 +3,7 @@ import { env } from './config.js'
 import { closePool } from './db/client.js'
 import { logger } from './lib/logger.js'
 import { closeRedis } from './lib/redis.js'
+import { queue } from './queue/client.js'
 import { createApp } from './server.js'
 
 const SHUTDOWN_TIMEOUT_MS = 25_000
@@ -36,6 +37,7 @@ async function shutdown(server: Server, signal: string): Promise<void> {
   })
 
   await closePool()
+  await queue.close()
   await closeRedis()
   logger.info('shutdown_complete')
   process.exit(0)

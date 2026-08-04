@@ -685,7 +685,7 @@ describe('processor', () => {
     expect(updated.lastError).toBe('max_attempts')
   })
 
-  it('does not increment attempt_count on max_attempts short-circuit', async () => {
+  it('does not count an attempt when max_attempts short-circuits HTTP', async () => {
     const db = getDb()
     let requestCount = 0
 
@@ -736,14 +736,12 @@ describe('processor', () => {
     expect(updated.status).toBe('failed')
     expect(updated.lastError).toBe('max_attempts')
     expect(updated.attemptCount).toBe(5)
-    expect(attempts).toHaveLength(1)
-    expect(attempts[0]?.error).toBe('max_attempts')
-    expect(attempts[0]?.httpStatus).toBeNull()
+    expect(attempts).toHaveLength(0)
 
     await mock.close()
   })
 
-  it('increments attempt_count only after a real HTTP round-trip', async () => {
+  it('increments attempt_count after a real HTTP round-trip', async () => {
     const db = getDb()
 
     const mock = await startMockServer((_req, res) => {
@@ -845,12 +843,53 @@ describe('processor', () => {
     expect(requestCount).toBe(0)
     expect(updated.status).toBe('failed')
     expect(updated.lastError).toBe('endpoint_disabled')
-    expect(updated.attemptCount).toBe(0)
+    expect(updated.attemptCount).toBe(1)
     expect(attempts).toHaveLength(1)
     expect(attempts[0]?.error).toBe('endpoint_disabled')
     expect(attempts[0]?.httpStatus).toBeNull()
 
     await mock.close()
+  })
+
+  it('counts a blocked URL rejected before HTTP', async () => {
+    const db = getDb()
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor BlockedUrl' }).returning()
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: 'ftp://example.com/hook',
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-blocked-url-1',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({ tenantId: tenant.id, eventId: event.id, endpointId: endpoint.id })
+      .returning()
+
+    await processor(makeJob(delivery.id))
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    const attempts = await db
+      .select()
+      .from(deliveryAttempts)
+      .where(eq(deliveryAttempts.deliveryId, delivery.id))
+
+    expect(updated.status).toBe('failed')
+    expect(updated.lastError).toBe('blocked_url')
+    expect(updated.attemptCount).toBe(1)
+    expect(attempts).toHaveLength(1)
+    expect(attempts[0]?.error).toBe('blocked_url')
   })
 
   it('processes a replayed delivery after attempt_count and status reset', async () => {
@@ -979,9 +1018,7 @@ describe('processor', () => {
     expect(updated.nextRetryAt!.getTime()).toBeGreaterThanOrEqual(
       before + RATE_LIMIT_DEFER_MS - 1_000,
     )
-    expect(attempts).toHaveLength(1)
-    expect(attempts[0]?.error).toBe('rate_limited')
-    expect(attempts[0]?.httpStatus).toBeNull()
+    expect(attempts).toHaveLength(0)
 
     const [eventRow] = await db.select().from(events).where(eq(events.id, event.id))
     expect(eventRow.status).toBe('pending')
@@ -1034,13 +1071,74 @@ describe('processor', () => {
     expect(attempts).toHaveLength(0)
   })
 
+  it('does not overwrite a newer in_progress lease after sweeper reclaim', async () => {
+    const db = getDb()
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor LeaseLost' }).returning()
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: 'http://127.0.0.1:9/hook',
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-lease-lost-1',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({
+        tenantId: tenant.id,
+        eventId: event.id,
+        endpointId: endpoint.id,
+        status: 'pending',
+      })
+      .returning()
+
+    vi.spyOn(httpClient, 'postWithTimeout').mockImplementation(async () => {
+      const reclaimedAt = new Date(Date.now() + 1_000)
+      await db
+        .update(deliveries)
+        .set({ status: 'pending', updatedAt: reclaimedAt })
+        .where(eq(deliveries.id, delivery.id))
+      await db
+        .update(deliveries)
+        .set({ status: 'in_progress', updatedAt: new Date(reclaimedAt.getTime() + 1) })
+        .where(eq(deliveries.id, delivery.id))
+      return { status: 500, body: 'fail' }
+    })
+
+    await processor(makeJob(delivery.id))
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    const attempts = await db
+      .select()
+      .from(deliveryAttempts)
+      .where(eq(deliveryAttempts.deliveryId, delivery.id))
+
+    expect(updated.status).toBe('in_progress')
+    expect(updated.lastError).toBeNull()
+    expect(updated.attemptCount).toBe(0)
+    expect(attempts).toHaveLength(0)
+  })
+
   it('fails fast when a redirect target is blocked', async () => {
     const db = getDb()
     vi.spyOn(httpClient, 'postWithTimeout').mockRejectedValue(
       new Error('blocked_url: URL must not target a private or loopback address'),
     )
 
-    const [tenant] = await db.insert(tenants).values({ name: 'Processor BlockedRedirect' }).returning()
+    const [tenant] = await db
+      .insert(tenants)
+      .values({ name: 'Processor BlockedRedirect' })
+      .returning()
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -1074,6 +1172,7 @@ describe('processor', () => {
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     expect(updated.status).toBe('failed')
     expect(updated.lastError).toBe('blocked_url')
+    expect(updated.attemptCount).toBe(1)
     expect(job.moveToDelayed).not.toHaveBeenCalled()
   })
 })

@@ -1,11 +1,29 @@
 import { createServer } from 'node:http'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const resolveWebhookUrl = vi.hoisted(() => vi.fn())
 
 vi.mock('@webhook/shared/webhookUrl', () => ({ resolveWebhookUrl }))
 
 import { postWithTimeout } from '../../src/httpClient.js'
+
+beforeEach(() => {
+  resolveWebhookUrl.mockReset()
+})
+
+describe('postWithTimeout DNS timeout', () => {
+  it('times out while URL resolution is still pending', async () => {
+    resolveWebhookUrl.mockReturnValue(new Promise(() => {}))
+
+    const startedAt = Date.now()
+    const error = await postWithTimeout('https://example.com/hook', '{}', {}, 30).catch(
+      (caught: unknown) => caught,
+    )
+
+    expect(error).toMatchObject({ name: 'AbortError' })
+    expect(Date.now() - startedAt).toBeLessThan(250)
+  })
+})
 
 describe('postWithTimeout SSRF protection', () => {
   let closeServer: (() => Promise<void>) | undefined

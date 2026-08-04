@@ -15,7 +15,7 @@ export async function sweepOrphanDeliveries(sweepQueue: Queue): Promise<void> {
   const now = new Date()
   const staleBefore = new Date(now.getTime() - SWEEP_INTERVAL_MS)
   const candidates = await db
-    .select({ id: deliveries.id, status: deliveries.status })
+    .select({ id: deliveries.id, status: deliveries.status, updatedAt: deliveries.updatedAt })
     .from(deliveries)
     .where(
       or(
@@ -33,10 +33,18 @@ export async function sweepOrphanDeliveries(sweepQueue: Queue): Promise<void> {
   for (const row of candidates) {
     // Reset stuck in_progress so the worker can claim (status must be pending).
     if (row.status === 'in_progress') {
-      await db
+      const [reclaimed] = await db
         .update(deliveries)
         .set({ status: 'pending', updatedAt: new Date() })
-        .where(and(eq(deliveries.id, row.id), eq(deliveries.status, 'in_progress')))
+        .where(
+          and(
+            eq(deliveries.id, row.id),
+            eq(deliveries.status, 'in_progress'),
+            eq(deliveries.updatedAt, row.updatedAt),
+          ),
+        )
+        .returning({ id: deliveries.id })
+      if (!reclaimed) continue
     }
     await enqueueDelivery(row.id, sweepQueue)
     logger.info({ delivery_id: row.id }, 'sweeper_re_enqueued')

@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { checkWebhookUrl, isPrivateIp, resolveWebhookUrl } from '../../src/webhookUrl.js'
+
+vi.mock('node:dns/promises', () => ({
+  lookup: vi.fn(async (host: string) => [
+    { address: host === '127.0.0.1' ? host : '93.184.216.34', family: 4 },
+  ]),
+}))
 
 describe('isPrivateIp', () => {
   it('flags common private and loopback IPv4 ranges', () => {

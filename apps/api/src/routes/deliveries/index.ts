@@ -1,9 +1,9 @@
 import { Router, type IRouter } from 'express'
-import { requireTenantAuth } from '../../auth/middleware.js'
+import { requireTenantSessionAuth } from '../../auth/middleware.js'
 import { getDelivery, listDeliveries, replayDelivery } from './handlers.js'
 
 export const deliveriesRouter: IRouter = Router()
 
-deliveriesRouter.get('/deliveries', requireTenantAuth, listDeliveries)
-deliveriesRouter.get('/deliveries/:id', requireTenantAuth, getDelivery)
-deliveriesRouter.post('/deliveries/:id/replay', requireTenantAuth, replayDelivery)
+deliveriesRouter.get('/deliveries', requireTenantSessionAuth, listDeliveries)
+deliveriesRouter.get('/deliveries/:id', requireTenantSessionAuth, getDelivery)
+deliveriesRouter.post('/deliveries/:id/replay', requireTenantSessionAuth, replayDelivery)

@@ -6,9 +6,7 @@ export async function takeRateLimitToken(tenantId: string): Promise<boolean> {
   const bucket = Math.floor(Date.now() / 60_000)
   const key = `ratelimit:tenant:${tenantId}:${bucket}`
   const redis = getRedis()
-  const count = await redis.incr(key)
-  if (count === 1) {
-    await redis.pexpire(key, 60_000)
-  }
+  const results = await redis.multi().incr(key).pexpire(key, 60_000).exec()
+  const count = Number(results?.[0]?.[1])
   return count <= env.RATE_LIMIT_PER_MINUTE
 }

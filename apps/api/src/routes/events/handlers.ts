@@ -3,7 +3,7 @@ import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
-import { ingestFanout, eventColumns } from '../../ingest/fanout.js'
+import { IdempotencyMismatchError, ingestFanout, eventColumns } from '../../ingest/fanout.js'
 import { AppError } from '../../lib/errors.js'
 import { logger } from '../../lib/logger.js'
 import { parsePagination } from '../../lib/pagination.js'
@@ -103,6 +103,10 @@ export async function ingestEvent(req: Request, res: Response, next: NextFunctio
 
     res.status(202).json(toIngestEventJson(result.event))
   } catch (err) {
+    if (err instanceof IdempotencyMismatchError) {
+      next(new AppError(409, 'idempotency_mismatch', err.message))
+      return
+    }
     next(err)
   }
 }

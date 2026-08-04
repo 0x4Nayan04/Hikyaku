@@ -12,6 +12,7 @@ import { closeRedis as closeApiRedis } from '../../../api/src/lib/redis.js'
 import { queue } from '../../../api/src/queue/client.js'
 import { createApp } from '../../../api/src/server.js'
 import { createTenantWithKey, deleteTenant } from '../../../api/test/helpers/tenant.js'
+import { createTenantSession } from '../../../api/test/helpers/user.js'
 import '../../src/config.js'
 import { env } from '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
@@ -28,6 +29,7 @@ type DeliveryCounts = {
   succeeded: number
   pending: number
   inProgress: number
+  rateLimited: number
 }
 
 function startCountingMockServer(): Promise<{
@@ -74,7 +76,7 @@ async function clearQueue(): Promise<void> {
 async function countDeliveriesByStatus(tenantId: string): Promise<DeliveryCounts> {
   const db = getDb()
   const rows = await db
-    .select({ status: deliveries.status })
+    .select({ status: deliveries.status, lastError: deliveries.lastError })
     .from(deliveries)
     .where(eq(deliveries.tenantId, tenantId))
 
@@ -82,12 +84,14 @@ async function countDeliveriesByStatus(tenantId: string): Promise<DeliveryCounts
     succeeded: 0,
     pending: 0,
     inProgress: 0,
+    rateLimited: 0,
   }
 
   for (const row of rows) {
     if (row.status === 'succeeded') counts.succeeded += 1
     else if (row.status === 'pending') counts.pending += 1
     else if (row.status === 'in_progress') counts.inProgress += 1
+    if (row.lastError === 'rate_limited') counts.rateLimited += 1
   }
 
   return counts
@@ -126,6 +130,7 @@ async function clearTenantRateLimit(tenantId: string): Promise<void> {
 describe('rate limit integration', () => {
   let tenantId: string
   let apiKey: string
+  let agent: ReturnType<typeof request.agent>
   let mockServer: Awaited<ReturnType<typeof startCountingMockServer>>
 
   beforeAll(async () => {
@@ -134,16 +139,14 @@ describe('rate limit integration', () => {
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
     apiKey = tenant.apiKey
+    agent = await createTenantSession(app, tenantId)
 
     mockServer = await startCountingMockServer()
 
-    const endpointRes = await request(app)
-      .post('/v1/endpoints')
-      .set('Authorization', `Bearer ${apiKey}`)
-      .send({
-        url: `http://127.0.0.1:${mockServer.port}/hook`,
-        description: 'rate limit burst',
-      })
+    const endpointRes = await agent.post('/v1/endpoints').send({
+      url: `http://127.0.0.1:${mockServer.port}/hook`,
+      description: 'rate limit burst',
+    })
 
     expect(endpointRes.status).toBe(201)
   })
@@ -191,6 +194,7 @@ describe('rate limit integration', () => {
         (counts) =>
           counts.succeeded >= limit &&
           counts.pending >= overLimit - 1 &&
+          counts.rateLimited >= overLimit - 1 &&
           counts.inProgress === 0 &&
           counts.succeeded + counts.pending === eventCount,
       )
@@ -223,9 +227,7 @@ describe('rate limit integration', () => {
           .from(deliveryAttempts)
           .where(eq(deliveryAttempts.deliveryId, delivery.id))
 
-        expect(attempts).toHaveLength(1)
-        expect(attempts[0]?.error).toBe('rate_limited')
-        expect(attempts[0]?.httpStatus).toBeNull()
+        expect(attempts).toHaveLength(0)
       }
 
       await clearTenantRateLimit(tenantId)

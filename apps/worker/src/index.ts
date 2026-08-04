@@ -7,7 +7,7 @@ import { closeRedis, getRedisConnectionOptions } from './lib/redis.js'
 import { processor } from './processor.js'
 import { startSweeper, stopSweeper } from './sweeper.js'
 
-const SHUTDOWN_TIMEOUT_MS = 25_000
+const SHUTDOWN_TIMEOUT_MS = WORKER_LOCK_DURATION_MS
 let shuttingDown = false
 
 const worker = new Worker(QUEUE_NAME, processor, {

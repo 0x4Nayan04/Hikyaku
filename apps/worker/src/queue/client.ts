@@ -7,7 +7,7 @@ export const queue = new Queue(QUEUE_NAME, {
   connection: getRedisConnectionOptions(),
 })
 
-/** Enqueue a delivery job, replacing any exhausted completed/failed job with the same id. */
+/** Enqueue a delivery job unless the same delivery already has a live job. */
 export async function enqueueDelivery(
   deliveryId: string,
   targetQueue: Queue = queue,
