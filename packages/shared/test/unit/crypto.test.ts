@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS } from '../../src/constants.js'
 import {
   generateApiKey,
   generateInviteToken,
@@ -12,28 +13,57 @@ describe('signPayload / verifyPayload', () => {
   const secret = 'whsec_f1e2d3c4b5a6978012345678abcdef02'
   const timestamp = 1_717_654_321
   const body = '{"id":"evt_123","type":"order.created","data":{"total":99}}'
+  const fresh = { nowSeconds: timestamp }
 
   it('round-trips sign and verify for the same inputs', () => {
     const signature = signPayload(secret, timestamp, body)
     expect(signature.startsWith('sha256=')).toBe(true)
-    expect(verifyPayload(secret, timestamp, body, signature)).toBe(true)
+    expect(verifyPayload(secret, timestamp, body, signature, fresh)).toBe(true)
   })
 
   it('rejects a tampered body', () => {
     const signature = signPayload(secret, timestamp, body)
-    expect(verifyPayload(secret, timestamp, `${body}x`, signature)).toBe(false)
+    expect(verifyPayload(secret, timestamp, `${body}x`, signature, fresh)).toBe(false)
   })
 
   it('rejects a tampered timestamp', () => {
     const signature = signPayload(secret, timestamp, body)
-    expect(verifyPayload(secret, timestamp + 1, body, signature)).toBe(false)
+    expect(verifyPayload(secret, timestamp + 1, body, signature, fresh)).toBe(false)
   })
 
   it('rejects the wrong secret', () => {
     const signature = signPayload(secret, timestamp, body)
     expect(
-      verifyPayload('whsec_wrongsecretwrongsecretwrongsecre', timestamp, body, signature),
+      verifyPayload('whsec_wrongsecretwrongsecretwrongsecre', timestamp, body, signature, fresh),
     ).toBe(false)
+  })
+
+  it('rejects a short or garbage signature without throwing', () => {
+    expect(verifyPayload(secret, timestamp, body, 'sha256=dead', fresh)).toBe(false)
+    expect(verifyPayload(secret, timestamp, body, 'not-a-sig', fresh)).toBe(false)
+  })
+
+  it('rejects timestamps outside the skew window', () => {
+    const signature = signPayload(secret, timestamp, body)
+    expect(
+      verifyPayload(secret, timestamp, body, signature, {
+        nowSeconds: timestamp + WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS + 1,
+      }),
+    ).toBe(false)
+    expect(
+      verifyPayload(secret, timestamp, body, signature, {
+        nowSeconds: timestamp - WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS - 1,
+      }),
+    ).toBe(false)
+  })
+
+  it('accepts timestamps within the skew window', () => {
+    const signature = signPayload(secret, timestamp, body)
+    expect(
+      verifyPayload(secret, timestamp, body, signature, {
+        nowSeconds: timestamp + WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS,
+      }),
+    ).toBe(true)
   })
 })
 

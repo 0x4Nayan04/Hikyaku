@@ -22,6 +22,11 @@ async function clearQueue(): Promise<void> {
   }
 }
 
+async function findDeliveryJob(deliveryId: string) {
+  const jobs = await queue.getJobs(['waiting', 'delayed', 'active', 'completed', 'failed'])
+  return jobs.find((job) => job.data.deliveryId === deliveryId)
+}
+
 async function seedPendingDeliveries(count = 1): Promise<string[]> {
   const db = getDb()
   const [tenant] = await db.insert(tenants).values({ name: 'sweeper-test' }).returning()
@@ -89,8 +94,7 @@ describe('sweepOrphanDeliveries', () => {
 
     await sweepOrphanDeliveries(queue)
 
-    const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
-    const job = jobs.find((row) => row.id === deliveryId)
+    const job = await findDeliveryJob(deliveryId)
     expect(job).toBeDefined()
     expect(job?.data).toEqual({ deliveryId })
   })
@@ -109,8 +113,8 @@ describe('sweepOrphanDeliveries', () => {
 
     await sweepOrphanDeliveries(queue)
 
-    expect(await queue.getJob(freshId)).toBeUndefined()
-    expect(await queue.getJob(futureRetryId)).toBeUndefined()
+    expect(await findDeliveryJob(freshId)).toBeUndefined()
+    expect(await findDeliveryJob(futureRetryId)).toBeUndefined()
   })
 
   it('limits each sweep to the 100 oldest eligible deliveries', async () => {
@@ -120,7 +124,7 @@ describe('sweepOrphanDeliveries', () => {
 
     const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
     expect(jobs).toHaveLength(100)
-    expect(jobs.map((job) => job.id)).not.toContain(deliveryIds[100])
+    expect(jobs.map((job) => job.data.deliveryId)).not.toContain(deliveryIds[100])
   })
 
   it('re-enqueues rate-limited pending deliveries when nextRetryAt has passed', async () => {
@@ -134,7 +138,7 @@ describe('sweepOrphanDeliveries', () => {
     await sweepOrphanDeliveries(queue)
 
     const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
-    expect(jobs.some((row) => row.id === deliveryId)).toBe(true)
+    expect(jobs.some((row) => row.data.deliveryId === deliveryId)).toBe(true)
   })
 
   it('skips deliveries that already have an in-flight queue job', async () => {
@@ -144,9 +148,7 @@ describe('sweepOrphanDeliveries', () => {
     await sweepOrphanDeliveries(queue)
 
     const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
-    const matching = jobs.filter(
-      (job) => job.id === deliveryId || job.data.deliveryId === deliveryId,
-    )
+    const matching = jobs.filter((job) => job.data.deliveryId === deliveryId)
     expect(matching).toHaveLength(1)
   })
 
@@ -158,10 +160,10 @@ describe('sweepOrphanDeliveries', () => {
     await sweepOrphanDeliveries(queue)
 
     const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
-    expect(jobs.some((row) => row.id === deliveryId)).toBe(false)
+    expect(jobs.some((row) => row.data.deliveryId === deliveryId)).toBe(false)
   })
 
-  it('re-enqueues when a failed BullMQ job still occupies the delivery jobId', async () => {
+  it('re-enqueues after a previous BullMQ job failed', async () => {
     const deliveryId = await seedPendingDelivery()
     await enqueueDelivery(deliveryId, queue)
 
@@ -182,7 +184,8 @@ describe('sweepOrphanDeliveries', () => {
 
     await sweepOrphanDeliveries(queue)
 
-    const requeued = await queue.getJob(deliveryId)
+    const jobs = await queue.getJobs(['waiting'])
+    const requeued = jobs.find((candidate) => candidate.data.deliveryId === deliveryId)
     expect(requeued).toBeDefined()
     expect(await requeued!.getState()).toBe('waiting')
   })
@@ -201,6 +204,6 @@ describe('sweepOrphanDeliveries', () => {
     expect(row?.status).toBe('pending')
 
     const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
-    expect(jobs.some((job) => job.id === deliveryId)).toBe(true)
+    expect(jobs.some((job) => job.data.deliveryId === deliveryId)).toBe(true)
   })
 })

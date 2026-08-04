@@ -3,7 +3,6 @@ import type { DeliveryJobData } from '@webhook/shared/constants'
 import { signPayload } from '@webhook/shared/crypto'
 import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
 import { deliveryAttempts, deliveries, endpoints, events } from '@webhook/shared/schema'
-import { checkWebhookUrl } from '@webhook/shared/webhookUrl'
 import { DelayedError, type Job } from 'bullmq'
 import { and, eq, max } from 'drizzle-orm'
 import { calculateBackoffDelayMs } from './backoff.js'
@@ -81,24 +80,40 @@ async function nextAttemptNumber(deliveryId: string): Promise<number> {
 async function recordOutcome(
   deliveryId: string,
   eventId: string,
+  leaseStartedAt: Date,
   delivery: DeliveryOutcome,
   attempt?: AttemptOutcome,
-): Promise<void> {
+): Promise<boolean> {
   const db = getDb()
   const attemptNumber = attempt ? await nextAttemptNumber(deliveryId) : null
 
-  await db.transaction(async (tx) => {
-    if (attempt && attemptNumber !== null) {
-      await tx.insert(deliveryAttempts).values({ deliveryId, attemptNumber, ...attempt })
-    }
-    await tx
+  return db.transaction(async (tx) => {
+    // Lease check: ignore stale writers after sweeper reclaim / another worker finished.
+    const [updated] = await tx
       .update(deliveries)
       .set({
         ...delivery,
         updatedAt: new Date(),
       })
-      .where(eq(deliveries.id, deliveryId))
+      .where(
+        and(
+          eq(deliveries.id, deliveryId),
+          eq(deliveries.status, 'in_progress'),
+          eq(deliveries.updatedAt, leaseStartedAt),
+        ),
+      )
+      .returning({ id: deliveries.id })
+
+    if (!updated) {
+      logger.info({ delivery_id: deliveryId }, 'outcome_lease_lost')
+      return false
+    }
+
+    if (attempt && attemptNumber !== null) {
+      await tx.insert(deliveryAttempts).values({ deliveryId, attemptNumber, ...attempt })
+    }
     await reevaluateEventStatus(eventId, tx)
+    return true
   })
 }
 
@@ -117,10 +132,7 @@ export function isRetryableHttpStatus(status: number): boolean {
 }
 
 export type DeliveryTransportError =
-  | 'timeout'
-  | 'network_error'
-  | 'blocked_url'
-  | 'too_many_redirects'
+  'timeout' | 'network_error' | 'blocked_url' | 'too_many_redirects'
 
 export function isTerminalTransportError(
   error: DeliveryTransportError,
@@ -138,14 +150,15 @@ export function classifyDeliveryError(err: unknown): DeliveryTransportError {
 }
 
 /** Claim a pending delivery so only one worker proceeds to HTTP. */
-async function claimPendingDelivery(deliveryId: string): Promise<boolean> {
+async function claimPendingDelivery(deliveryId: string): Promise<Date | null> {
   const db = getDb()
+  const leaseStartedAt = new Date()
   const [claimed] = await db
     .update(deliveries)
-    .set({ status: 'in_progress', updatedAt: new Date() })
+    .set({ status: 'in_progress', updatedAt: leaseStartedAt })
     .where(and(eq(deliveries.id, deliveryId), eq(deliveries.status, 'pending')))
-    .returning({ id: deliveries.id })
-  return claimed !== undefined
+    .returning({ updatedAt: deliveries.updatedAt })
+  return claimed?.updatedAt ?? null
 }
 
 export async function processor(job: Job<DeliveryJobData>, token?: string): Promise<void> {
@@ -163,8 +176,8 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     return
   }
 
-  const claimed = await claimPendingDelivery(row.id)
-  if (!claimed) {
+  const leaseStartedAt = await claimPendingDelivery(row.id)
+  if (!leaseStartedAt) {
     log.info('claim_lost')
     return
   }
@@ -173,7 +186,13 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     await recordOutcome(
       row.id,
       row.eventId,
-      { status: 'failed', lastError: 'endpoint_disabled', nextRetryAt: null },
+      leaseStartedAt,
+      {
+        status: 'failed',
+        attemptCount: row.attemptCount + 1,
+        lastError: 'endpoint_disabled',
+        nextRetryAt: null,
+      },
       { error: 'endpoint_disabled' },
     )
     log.info('endpoint_disabled')
@@ -181,25 +200,12 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
   }
 
   const allowPrivate = env.NODE_ENV !== 'production'
-  const urlCheck = await checkWebhookUrl(row.url, allowPrivate)
-  if (!urlCheck.ok) {
-    await recordOutcome(
-      row.id,
-      row.eventId,
-      { status: 'failed', lastError: 'blocked_url', nextRetryAt: null },
-      { error: 'blocked_url' },
-    )
-    log.info({ reason: urlCheck.reason }, 'blocked_url')
-    return
-  }
-
   if (row.attemptCount >= env.MAX_DELIVERY_ATTEMPTS) {
-    await recordOutcome(
-      row.id,
-      row.eventId,
-      { status: 'failed', lastError: 'max_attempts', nextRetryAt: null },
-      { error: 'max_attempts' },
-    )
+    await recordOutcome(row.id, row.eventId, leaseStartedAt, {
+      status: 'failed',
+      lastError: 'max_attempts',
+      nextRetryAt: null,
+    })
     log.info('max_attempts')
     return
   }
@@ -207,12 +213,12 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
   const allowed = await takeRateLimitToken(row.tenantId)
   if (!allowed) {
     const retryAt = new Date(Date.now() + RATE_LIMIT_DEFER_MS)
-    await recordOutcome(
-      row.id,
-      row.eventId,
-      { status: 'pending', lastError: 'rate_limited', nextRetryAt: retryAt },
-      { error: 'rate_limited' },
-    )
+    const wrote = await recordOutcome(row.id, row.eventId, leaseStartedAt, {
+      status: 'pending',
+      lastError: 'rate_limited',
+      nextRetryAt: retryAt,
+    })
+    if (!wrote) return
     await job.moveToDelayed(retryAt.getTime(), token)
     log.info('rate_limited')
     throw new DelayedError()
@@ -255,6 +261,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     await recordOutcome(
       row.id,
       row.eventId,
+      leaseStartedAt,
       {
         attemptCount: row.attemptCount + 1,
         status: 'failed',
@@ -272,6 +279,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
       await recordOutcome(
         row.id,
         row.eventId,
+        leaseStartedAt,
         {
           attemptCount: row.attemptCount + 1,
           status: 'succeeded',
@@ -290,6 +298,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
       await recordOutcome(
         row.id,
         row.eventId,
+        leaseStartedAt,
         {
           attemptCount: row.attemptCount + 1,
           status: 'failed',
@@ -314,6 +323,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     await recordOutcome(
       row.id,
       row.eventId,
+      leaseStartedAt,
       {
         attemptCount: row.attemptCount + 1,
         status: 'failed',
@@ -328,9 +338,10 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
 
   const lastError = error ?? `http_${httpStatus}`
   const retryAt = new Date(Date.now() + calculateBackoffDelayMs(attemptCountAfterHttp))
-  await recordOutcome(
+  const wrote = await recordOutcome(
     row.id,
     row.eventId,
+    leaseStartedAt,
     {
       attemptCount: row.attemptCount + 1,
       status: 'pending',
@@ -339,6 +350,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     },
     attempt,
   )
+  if (!wrote) return
   await job.moveToDelayed(retryAt.getTime(), token)
   log.info({ last_error: lastError, attempt_count: attemptCountAfterHttp }, 'delivery_retrying')
   throw new DelayedError()

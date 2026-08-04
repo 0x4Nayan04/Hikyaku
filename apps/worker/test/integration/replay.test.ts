@@ -9,15 +9,16 @@ import { closePool as closeApiPool } from '../../../api/src/db/client.js'
 import { closeRedis } from '../../../api/src/lib/redis.js'
 import { queue } from '../../../api/src/queue/client.js'
 import { createApp } from '../../../api/src/server.js'
+import { seedDeliveryRow } from '../../../api/test/helpers/delivery.js'
 import { createTenantWithKey, deleteTenant } from '../../../api/test/helpers/tenant.js'
+import { createTenantSession } from '../../../api/test/helpers/user.js'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
 import { processor } from '../../src/processor.js'
 
-vi.mock('../../../api/src/queue/client.js', async (importOriginal) => ({
-  ...(await importOriginal()),
-  enqueueDelivery: vi.fn().mockResolvedValue(undefined),
-  reEnqueueDelivery: vi.fn().mockResolvedValue(undefined),
+// Replay still calls enqueue; keep jobs off Redis so a local worker cannot race processor().
+vi.mock('@webhook/shared/enqueueDelivery', () => ({
+  enqueueDeliveryJob: vi.fn().mockResolvedValue(undefined),
 }))
 
 const app = createApp()
@@ -46,7 +47,7 @@ function startSwitchableMockServer(initialStatus: number): Promise<{
       const port = typeof address === 'object' && address ? address.port : 0
       resolve({
         port,
-        setStatus: (status: number) => {
+        setStatus: (status) => {
           responseStatus = status
         },
         getRequestCount: () => requestCount,
@@ -65,13 +66,13 @@ function makeJob(deliveryId: string): Job<{ deliveryId: string }> {
 
 describe('delivery replay', () => {
   let tenantId: string
-  let apiKey: string
+  let agent: ReturnType<typeof request.agent>
 
   beforeEach(async () => {
     await queue.obliterate({ force: true })
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
-    apiKey = tenant.apiKey
+    agent = await createTenantSession(app, tenantId)
   })
 
   afterEach(async () => {
@@ -88,42 +89,22 @@ describe('delivery replay', () => {
 
   it('reprocesses a replayed failed delivery after status reset', async () => {
     const mock = await startSwitchableMockServer(400)
-
-    const endpointRes = await request(app)
-      .post('/v1/endpoints')
-      .set('Authorization', `Bearer ${apiKey}`)
-      .send({
-        url: `http://127.0.0.1:${mock.port}/hook`,
-        description: 'replay test',
-      })
-
-    expect(endpointRes.status).toBe(201)
-
-    const ingestRes = await request(app)
-      .post('/v1/events')
-      .set('Authorization', `Bearer ${apiKey}`)
-      .send({
-        idempotency_key: 'replay-worker-test',
-        type: 'order.created',
-        payload: { order_id: 'ord_replay' },
-      })
-
-    expect(ingestRes.status).toBe(202)
-
     const db = getDb()
-    const eventId = ingestRes.body.id as string
 
-    const [delivery] = await db
-      .select()
-      .from(deliveries)
-      .where(eq(deliveries.eventId, eventId))
+    const { deliveryId, eventId } = await seedDeliveryRow({
+      tenantId,
+      idempotencyKey: 'replay-worker-test',
+      endpointUrl: `http://127.0.0.1:${mock.port}/hook`,
+      eventType: 'order.created',
+      payload: { order_id: 'ord_replay' },
+    })
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(deliveryId))
 
     const [failedDelivery] = await db
       .select()
       .from(deliveries)
-      .where(eq(deliveries.id, delivery.id))
+      .where(eq(deliveries.id, deliveryId))
 
     expect(failedDelivery.status).toBe('failed')
     expect(failedDelivery.attemptCount).toBe(1)
@@ -131,17 +112,15 @@ describe('delivery replay', () => {
 
     mock.setStatus(200)
 
-    const replayRes = await request(app)
-      .post(`/v1/deliveries/${delivery.id}/replay`)
-      .set('Authorization', `Bearer ${apiKey}`)
+    const replayRes = await agent.post(`/v1/deliveries/${deliveryId}/replay`)
 
     expect(replayRes.status).toBe(202)
-    expect(replayRes.body).toEqual({ id: delivery.id, status: 'pending' })
+    expect(replayRes.body).toEqual({ id: deliveryId, status: 'pending' })
 
     const [resetDelivery] = await db
       .select()
       .from(deliveries)
-      .where(eq(deliveries.id, delivery.id))
+      .where(eq(deliveries.id, deliveryId))
 
     expect(resetDelivery).toMatchObject({
       status: 'pending',
@@ -153,17 +132,17 @@ describe('delivery replay', () => {
     const [eventBefore] = await db.select().from(events).where(eq(events.id, eventId))
     expect(eventBefore.status).toBe('pending')
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(deliveryId))
 
     const [succeededDelivery] = await db
       .select()
       .from(deliveries)
-      .where(eq(deliveries.id, delivery.id))
+      .where(eq(deliveries.id, deliveryId))
 
     const attempts = await db
       .select()
       .from(deliveryAttempts)
-      .where(eq(deliveryAttempts.deliveryId, delivery.id))
+      .where(eq(deliveryAttempts.deliveryId, deliveryId))
       .orderBy(asc(deliveryAttempts.attemptNumber))
 
     const [eventAfter] = await db.select().from(events).where(eq(events.id, eventId))
@@ -172,10 +151,9 @@ describe('delivery replay', () => {
     expect(succeededDelivery.status).toBe('succeeded')
     expect(succeededDelivery.attemptCount).toBe(1)
     expect(succeededDelivery.lastError).toBeNull()
-    expect(attempts).toHaveLength(2)
-    expect(attempts[0]?.httpStatus).toBe(400)
-    expect(attempts[1]?.httpStatus).toBe(200)
-    expect(attempts[1]?.attemptNumber).toBe(2)
+    expect(attempts).toHaveLength(1)
+    expect(attempts[0]?.httpStatus).toBe(200)
+    expect(attempts[0]?.attemptNumber).toBe(1)
     expect(eventAfter.status).toBe('completed')
 
     await mock.close()

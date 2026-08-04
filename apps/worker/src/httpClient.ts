@@ -9,6 +9,30 @@ const MAX_RESPONSE_BODY_BYTES = 1024
 
 type PinnedTarget = { url: URL; addresses: LookupAddress[] }
 
+function timeoutError(): DOMException {
+  return new DOMException('The operation was aborted', 'AbortError')
+}
+
+async function resolveWithTimeout(
+  url: string,
+  allowPrivate: boolean,
+  timeoutMs: number,
+): ReturnType<typeof resolveWebhookUrl> {
+  if (timeoutMs <= 0) throw timeoutError()
+
+  let timer: NodeJS.Timeout | undefined
+  try {
+    return await Promise.race([
+      resolveWebhookUrl(url, allowPrivate),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(timeoutError()), timeoutMs)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 function pinnedLookup(addresses: LookupAddress[]): LookupFunction {
   return (_hostname, options, callback) => {
     if (options.all) {
@@ -95,7 +119,8 @@ export async function postWithTimeout(
   let currentUrl = url
 
   for (let redirects = 0; ; redirects += 1) {
-    const target = await resolveWebhookUrl(currentUrl, allowPrivate)
+    const remainingMs = Math.max(0, timeoutMs - (Date.now() - start))
+    const target = await resolveWithTimeout(currentUrl, allowPrivate, remainingMs)
     if (!target.ok) {
       throw new Error(`blocked_url: ${target.reason}`)
     }

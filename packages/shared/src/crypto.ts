@@ -1,10 +1,16 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS } from './constants.js'
 
 const API_KEY_PREFIX = 'whk_'
 const ENDPOINT_SECRET_PREFIX = 'whsec_'
 const API_KEY_RANDOM_BYTES = 16
 const ENDPOINT_SECRET_RANDOM_BYTES = 16
 const API_KEY_PREFIX_LENGTH = 8
+
+export type VerifyPayloadOptions = {
+  nowSeconds?: number
+  toleranceSeconds?: number
+}
 
 export function generateApiKey(): string {
   return `${API_KEY_PREFIX}${randomBytes(API_KEY_RANDOM_BYTES).toString('hex')}`
@@ -43,7 +49,14 @@ export function verifyPayload(
   timestamp: number,
   body: string,
   signature: string,
+  options: VerifyPayloadOptions = {},
 ): boolean {
+  const tolerance = options.toleranceSeconds ?? WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS
+  const now = options.nowSeconds ?? Math.floor(Date.now() / 1000)
+  if (!Number.isFinite(timestamp) || Math.abs(now - timestamp) > tolerance) {
+    return false
+  }
+
   const expected = signPayload(secret, timestamp, body)
   const a = Buffer.from(expected)
   const b = Buffer.from(signature)

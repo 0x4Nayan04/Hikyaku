@@ -13,6 +13,7 @@ import { closeRedis } from '../../../api/src/lib/redis.js'
 import { queue } from '../../../api/src/queue/client.js'
 import { createApp } from '../../../api/src/server.js'
 import { createTenantWithKey, deleteTenant } from '../../../api/test/helpers/tenant.js'
+import { createTenantSession } from '../../../api/test/helpers/user.js'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
 import { getRedisConnectionOptions } from '../../src/lib/redis.js'
@@ -88,6 +89,7 @@ describe('e2e pipeline', () => {
   let tenantId: string
   let apiKey: string
   let endpointSecret: string
+  let agent: ReturnType<typeof request.agent>
   let worker: Worker
   let mockServer: Awaited<ReturnType<typeof startMockServer>>
 
@@ -97,12 +99,12 @@ describe('e2e pipeline', () => {
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
     apiKey = tenant.apiKey
+    agent = await createTenantSession(app, tenantId)
 
     mockServer = await startMockServer()
 
-    const endpointRes = await request(app)
+    const endpointRes = await agent
       .post('/v1/endpoints')
-      .set('Authorization', `Bearer ${apiKey}`)
       .send({
         url: `http://127.0.0.1:${mockServer.port}/hook`,
         description: 'e2e pipeline',

@@ -116,6 +116,8 @@ export async function replayDelivery(req: Request, res: Response, next: NextFunc
         id: deliveries.id,
         eventId: deliveries.eventId,
         status: deliveries.status,
+        attemptCount: deliveries.attemptCount,
+        nextRetryAt: deliveries.nextRetryAt,
       })
       .from(deliveries)
       .where(and(eq(deliveries.id, id), eq(deliveries.tenantId, tenantId)))
@@ -125,7 +127,26 @@ export async function replayDelivery(req: Request, res: Response, next: NextFunc
       throw new AppError(404, 'not_found', 'Delivery not found')
     }
 
+    if (existing.status === 'pending' || existing.status === 'in_progress') {
+      res.status(202).json({ id, status: existing.status })
+      return
+    }
+
     assertReplayableStatus(existing.status)
+
+    // Snapshot history before clear so enqueue failure can restore the timeline.
+    const priorAttempts = await db
+      .select({
+        deliveryId: deliveryAttempts.deliveryId,
+        attemptNumber: deliveryAttempts.attemptNumber,
+        httpStatus: deliveryAttempts.httpStatus,
+        responseBody: deliveryAttempts.responseBody,
+        error: deliveryAttempts.error,
+        durationMs: deliveryAttempts.durationMs,
+        createdAt: deliveryAttempts.createdAt,
+      })
+      .from(deliveryAttempts)
+      .where(eq(deliveryAttempts.deliveryId, id))
 
     const replayed = await db.transaction(async (tx) => {
       const [updated] = await tx
@@ -150,21 +171,26 @@ export async function replayDelivery(req: Request, res: Response, next: NextFunc
         throw new AppError(400, 'invalid_state', 'Only failed deliveries can be replayed')
       }
 
+      // Clear history so attempt numbers stay aligned with the reset attemptCount.
+      await tx.delete(deliveryAttempts).where(eq(deliveryAttempts.deliveryId, id))
+
       await reevaluateEventStatus(updated.eventId, tx)
       return updated
     })
 
     try {
-      await enqueueDeliveryJob(queue, id, { force: true })
+      await enqueueDeliveryJob(queue, id)
     } catch (err) {
       logger.error({ delivery_id: id, err }, 'replay_enqueue_failed')
-      // Revert to failed so the client can retry replay (only failed is replayable).
+      // Revert to failed + restore history so the client can retry replay.
       await db.transaction(async (tx) => {
-        await tx
+        const [rolledBack] = await tx
           .update(deliveries)
           .set({
             status: 'failed',
             lastError: 'enqueue_failed',
+            attemptCount: existing.attemptCount,
+            nextRetryAt: existing.nextRetryAt,
             updatedAt: new Date(),
           })
           .where(
@@ -174,6 +200,12 @@ export async function replayDelivery(req: Request, res: Response, next: NextFunc
               eq(deliveries.status, 'pending'),
             ),
           )
+          .returning({ id: deliveries.id })
+        if (!rolledBack) return
+
+        if (priorAttempts.length > 0) {
+          await tx.insert(deliveryAttempts).values(priorAttempts)
+        }
         await reevaluateEventStatus(replayed.eventId, tx)
       })
       throw new AppError(503, 'service_unavailable', 'Service temporarily unavailable')

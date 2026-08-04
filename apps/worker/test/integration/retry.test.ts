@@ -10,6 +10,7 @@ import { closeRedis } from '../../../api/src/lib/redis.js'
 import { queue } from '../../../api/src/queue/client.js'
 import { createApp } from '../../../api/src/server.js'
 import { createTenantWithKey, deleteTenant } from '../../../api/test/helpers/tenant.js'
+import { createTenantSession } from '../../../api/test/helpers/user.js'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
 import { processor } from '../../src/processor.js'
@@ -128,12 +129,14 @@ async function runProcessorUntilSettled(deliveryId: string, maxRuns: number): Pr
 describe('retry integration', () => {
   let tenantId: string
   let apiKey: string
+  let agent: ReturnType<typeof request.agent>
 
   beforeEach(async () => {
     await queue.obliterate({ force: true })
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
     apiKey = tenant.apiKey
+    agent = await createTenantSession(app, tenantId)
   })
 
   afterEach(async () => {
@@ -151,9 +154,8 @@ describe('retry integration', () => {
   it('succeeds after three 503 responses then 200 (#2)', async () => {
     const mock = await startFlakyMockServer(3, 503)
 
-    const endpointRes = await request(app)
+    const endpointRes = await agent
       .post('/v1/endpoints')
-      .set('Authorization', `Bearer ${apiKey}`)
       .send({
         url: `http://127.0.0.1:${mock.port}/hook`,
         description: 'retry test',
@@ -208,9 +210,8 @@ describe('retry integration', () => {
   it('fails fast on 400 with a single attempt (#3)', async () => {
     const mock = await startFixedStatusMockServer(400)
 
-    const endpointRes = await request(app)
+    const endpointRes = await agent
       .post('/v1/endpoints')
-      .set('Authorization', `Bearer ${apiKey}`)
       .send({
         url: `http://127.0.0.1:${mock.port}/hook`,
         description: 'fail-fast test',
