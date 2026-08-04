@@ -115,17 +115,98 @@ describe('invitation-only onboarding', () => {
     expect(user?.tenantId).toBe(existingTenantId)
   })
 
+  it('creates only one pending invite for concurrent requests', async () => {
+    const email = `duplicate-invite-${randomUUID()}@test.com`
+    cleanupEmails.push(email)
+    const agent = await loginSuperAdmin()
+
+    const results = await Promise.all(
+      [1, 2].map(() =>
+        agent.post('/v1/admin/invites').send({
+          kind: 'tenant_owner',
+          tenant_name: `Invite Co ${randomUUID().slice(0, 8)}`,
+          owner_email: email,
+        }),
+      ),
+    )
+
+    expect(results.map((result) => result.status).sort()).toEqual([201, 409])
+    expect(results.find((result) => result.status === 409)?.body.error.code).toBe('conflict')
+
+    const rows = await getDb()
+      .select({ id: invites.id })
+      .from(invites)
+      .where(eq(invites.email, email))
+    expect(rows).toHaveLength(1)
+  })
+
+  it('allows only one concurrent acceptance of an invite', async () => {
+    const email = `concurrent-${randomUUID()}@test.com`
+    cleanupEmails.push(email)
+    const inviteResponse = await (await loginSuperAdmin()).post('/v1/admin/invites').send({
+      kind: 'tenant_owner',
+      tenant_name: `Concurrent Co ${randomUUID().slice(0, 8)}`,
+      owner_email: email,
+    })
+    const token = new URL(inviteResponse.body.invite_url).searchParams.get('token')
+
+    const results = await Promise.all(
+      [1, 2].map(() =>
+        request(app)
+          .post('/v1/auth/accept-invite')
+          .send({ token, name: 'Owner', password: PASSWORD }),
+      ),
+    )
+
+    expect(results.map((result) => result.status).sort()).toEqual([201, 410])
+    expect(results.find((result) => result.status === 410)?.body.error.code).toBe('invite_used')
+
+    const [user] = await getDb()
+      .select({ tenantId: users.tenantId })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1)
+    if (user?.tenantId) await deleteTenant(user.tenantId)
+  })
+
+  it('rejects accepting an expired invite', async () => {
+    const email = `accept-expired-${randomUUID()}@test.com`
+    cleanupEmails.push(email)
+    const inviteResponse = await (await loginSuperAdmin()).post('/v1/admin/invites').send({
+      kind: 'tenant_owner',
+      tenant_name: `Expired Accept Co ${randomUUID().slice(0, 8)}`,
+      owner_email: email,
+    })
+    expect(inviteResponse.status).toBe(201)
+    const token = new URL(inviteResponse.body.invite_url).searchParams.get('token')
+
+    await getDb()
+      .update(invites)
+      .set({ expiresAt: new Date(Date.now() - 1) })
+      .where(eq(invites.email, email))
+
+    const acceptResponse = await request(app).post('/v1/auth/accept-invite').send({
+      token,
+      name: 'Owner',
+      password: PASSWORD,
+    })
+    expect(acceptResponse.status).toBe(410)
+    expect(acceptResponse.body.error.code).toBe('invite_expired')
+  })
+
   it('allows a replacement invite after the old invite expires', async () => {
     const email = `expired-${randomUUID()}@test.com`
     cleanupEmails.push(email)
-    await getDb().insert(invites).values({
-      tokenHash: `expired-${randomUUID()}`,
-      kind: 'tenant_owner',
-      email,
-      tenantName: 'Expired Co',
-      createdByUserId: superAdminId,
-      expiresAt: new Date(Date.now() - 60_000),
-    })
+    await getDb()
+      .insert(invites)
+      .values({
+        tokenHash: `expired-${randomUUID()}`,
+        kind: 'tenant_owner',
+        email,
+        tenantName: 'Expired Co',
+        createdByUserId: superAdminId,
+        expiresAt: new Date(Date.now() - 60_000),
+      })
 
     const response = await (await loginSuperAdmin()).post('/v1/admin/invites').send({
       kind: 'tenant_owner',

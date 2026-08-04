@@ -1,5 +1,5 @@
 import { invites, tenants, users } from '@webhook/shared/schema'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, gt, isNull } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { hashPassword } from '@webhook/shared/password'
 import { getDb } from '../../db/client.js'
@@ -49,6 +49,38 @@ export async function acceptInvite(req: Request, res: Response, next: NextFuncti
     const db = getDb()
 
     const user = await db.transaction(async (tx) => {
+      // Expiry is enforced here too so an invite cannot be consumed after assertInviteUsable.
+      const [consumed] = await tx
+        .update(invites)
+        .set({ acceptedAt: new Date() })
+        .where(
+          and(
+            eq(invites.id, invite.id),
+            isNull(invites.acceptedAt),
+            gt(invites.expiresAt, new Date()),
+          ),
+        )
+        .returning({ id: invites.id })
+
+      if (!consumed) {
+        const [current] = await tx
+          .select({
+            acceptedAt: invites.acceptedAt,
+            expiresAt: invites.expiresAt,
+          })
+          .from(invites)
+          .where(eq(invites.id, invite.id))
+          .limit(1)
+        if (current) {
+          assertInviteUsable({
+            ...invite,
+            acceptedAt: current.acceptedAt,
+            expiresAt: current.expiresAt,
+          })
+        }
+        throw new AppError(410, 'invite_used', 'Invite has already been used')
+      }
+
       await assertEmailAvailable(invite.email, tx)
 
       let createdUser
@@ -100,16 +132,6 @@ export async function acceptInvite(req: Request, res: Response, next: NextFuncti
           .returning(userColumns)
       } else {
         throw new AppError(500, 'internal_error', 'Unknown invite kind')
-      }
-
-      const [consumed] = await tx
-        .update(invites)
-        .set({ acceptedAt: new Date() })
-        .where(and(eq(invites.id, invite.id), isNull(invites.acceptedAt)))
-        .returning({ id: invites.id })
-
-      if (!consumed) {
-        throw new AppError(410, 'invite_used', 'Invite has already been used')
       }
 
       return createdUser

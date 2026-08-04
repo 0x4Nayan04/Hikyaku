@@ -8,6 +8,12 @@ describe('loginSchema', () => {
     ).toBe(true)
   })
 
+  it('normalizes email addresses', () => {
+    expect(loginSchema.parse({ email: ' Owner@Acme.com ', password: 'any-password' }).email).toBe(
+      'owner@acme.com',
+    )
+  })
+
   it('rejects a missing email', () => {
     expect(loginSchema.safeParse({ password: 'secret' }).success).toBe(false)
   })
