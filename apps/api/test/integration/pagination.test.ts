@@ -6,17 +6,20 @@ import { closePool, getDb } from '../../src/db/client.js'
 import { closeRedis } from '../../src/lib/redis.js'
 import { createApp } from '../../src/server.js'
 import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
+import { createTenantSession } from '../helpers/user.js'
 
 const app = createApp()
 
 describe('list endpoint pagination', () => {
   let tenantId: string
   let apiKey: string
+  let agent: ReturnType<typeof request.agent>
 
   beforeAll(async () => {
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
     apiKey = tenant.apiKey
+    agent = await createTenantSession(app, tenantId)
 
     const db = getDb()
     await db.insert(endpoints).values(
@@ -35,9 +38,7 @@ describe('list endpoint pagination', () => {
   })
 
   it('paginates GET /v1/endpoints', async () => {
-    const res = await request(app)
-      .get('/v1/endpoints?limit=2&offset=1')
-      .set('Authorization', `Bearer ${apiKey}`)
+    const res = await agent.get('/v1/endpoints?limit=2&offset=1')
 
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({
@@ -59,9 +60,7 @@ describe('list endpoint pagination', () => {
       expect(ingest.status).toBe(202)
     }
 
-    const res = await request(app)
-      .get('/v1/events?limit=1&offset=2')
-      .set('Authorization', `Bearer ${apiKey}`)
+    const res = await agent.get('/v1/events?limit=1&offset=2')
 
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({
@@ -73,9 +72,7 @@ describe('list endpoint pagination', () => {
   })
 
   it('paginates GET /v1/deliveries', async () => {
-    const res = await request(app)
-      .get('/v1/deliveries?limit=2&offset=0')
-      .set('Authorization', `Bearer ${apiKey}`)
+    const res = await agent.get('/v1/deliveries?limit=2&offset=0')
 
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({

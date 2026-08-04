@@ -10,3 +10,14 @@ export async function revokeUserSessions(userId: string, executor?: DbExecutor):
   const db = executor ?? getDb()
   await db.execute(sql`DELETE FROM sessions WHERE sess->>'userId' = ${userId}`)
 }
+
+/** Drops every persisted session for users in the tenant before tenant deletion. */
+export async function revokeTenantSessions(tenantId: string, executor?: DbExecutor): Promise<void> {
+  const db = executor ?? getDb()
+  await db.execute(sql`
+    DELETE FROM sessions
+    WHERE sess->>'userId' IN (
+      SELECT id::text FROM users WHERE tenant_id = ${tenantId}
+    )
+  `)
+}

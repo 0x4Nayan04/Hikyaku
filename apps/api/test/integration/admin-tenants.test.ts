@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import request from 'supertest'
 import { eq } from 'drizzle-orm'
-import { tenants, users } from '@webhook/shared/schema'
+import { sessions, users } from '@webhook/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
@@ -60,12 +60,16 @@ describe('minimal super-admin tenant management', () => {
       .get('/v1/admin/tenants')
       .query({ search: existingTenantId.slice(0, 8) })
     expect(searchResponse.status).toBe(200)
-    expect(searchResponse.body.data.some((row: { id: string }) => row.id === existingTenantId)).toBe(true)
+    expect(
+      searchResponse.body.data.some((row: { id: string }) => row.id === existingTenantId),
+    ).toBe(true)
   })
 
   it('renames a tenant', async () => {
     const name = `Renamed-${randomUUID().slice(0, 8)}`
-    const response = await (await loginSuperAdmin())
+    const response = await (
+      await loginSuperAdmin()
+    )
       .patch(`/v1/admin/tenants/${existingTenantId}`)
       .send({ tenant_name: name })
     expect(response.status).toBe(200)
@@ -75,7 +79,9 @@ describe('minimal super-admin tenant management', () => {
   it('does not expose direct tenant or user creation and password reset', async () => {
     const agent = await loginSuperAdmin()
     expect((await agent.post('/v1/admin/tenants').send({})).status).toBe(404)
-    expect((await agent.post(`/v1/admin/tenants/${existingTenantId}/users`).send({})).status).toBe(404)
+    expect((await agent.post(`/v1/admin/tenants/${existingTenantId}/users`).send({})).status).toBe(
+      404,
+    )
     expect(
       (
         await agent
@@ -88,10 +94,19 @@ describe('minimal super-admin tenant management', () => {
   it('deletes a tenant user but protects the last tenant user', async () => {
     const agent = await loginSuperAdmin()
     const deletable = await createUser({ tenantId: existingTenantId })
+    const deletableSessionId = `admin-delete-user-${deletable.userId}`
     const singleUserTenant = await createTenantWithKey()
     const lastUser = await createUser({ tenantId: singleUserTenant.tenantId })
 
     try {
+      await getDb()
+        .insert(sessions)
+        .values({
+          sid: deletableSessionId,
+          sess: { cookie: {}, userId: deletable.userId },
+          expire: new Date(Date.now() + 60_000),
+        })
+
       const protectedResponse = await agent.delete(
         `/v1/admin/tenants/${singleUserTenant.tenantId}/users/${lastUser.userId}`,
       )
@@ -106,7 +121,14 @@ describe('minimal super-admin tenant management', () => {
         .from(users)
         .where(eq(users.id, deletable.userId))
       expect(deleted).toBeUndefined()
+
+      const revokedSessions = await getDb()
+        .select({ sid: sessions.sid })
+        .from(sessions)
+        .where(eq(sessions.sid, deletableSessionId))
+      expect(revokedSessions).toEqual([])
     } finally {
+      await getDb().delete(sessions).where(eq(sessions.sid, deletableSessionId))
       await deleteUser(deletable.userId)
       await deleteUser(lastUser.userId)
       await deleteTenant(singleUserTenant.tenantId)
@@ -114,11 +136,33 @@ describe('minimal super-admin tenant management', () => {
   })
 
   it('deletes a tenant', async () => {
-    const tenant = await getDb()
-      .insert(tenants)
-      .values({ name: `Delete-${randomUUID()}` })
-      .returning({ id: tenants.id })
-    const response = await (await loginSuperAdmin()).delete(`/v1/admin/tenants/${tenant[0].id}`)
-    expect(response.status).toBe(204)
+    const tenant = await createTenantWithKey()
+    const user = await createUser({ tenantId: tenant.tenantId })
+    const sessionId = `admin-delete-tenant-${user.userId}`
+
+    try {
+      await getDb()
+        .insert(sessions)
+        .values({
+          sid: sessionId,
+          sess: { cookie: {}, userId: user.userId },
+          expire: new Date(Date.now() + 60_000),
+        })
+
+      const response = await (
+        await loginSuperAdmin()
+      ).delete(`/v1/admin/tenants/${tenant.tenantId}`)
+      expect(response.status).toBe(204)
+
+      const revokedSessions = await getDb()
+        .select({ sid: sessions.sid })
+        .from(sessions)
+        .where(eq(sessions.sid, sessionId))
+      expect(revokedSessions).toEqual([])
+    } finally {
+      await getDb().delete(sessions).where(eq(sessions.sid, sessionId))
+      await deleteUser(user.userId)
+      await deleteTenant(tenant.tenantId)
+    }
   })
 })

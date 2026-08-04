@@ -28,6 +28,18 @@ function saveSession(req: Request): Promise<void> {
   })
 }
 
+function regenerateSession(req: Request): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((err) => {
+      if (err) {
+        reject(err)
+        return
+      }
+      resolve()
+    })
+  })
+}
+
 function destroySession(req: Request): Promise<void> {
   return new Promise((resolve, reject) => {
     req.session.destroy((err) => {
@@ -115,6 +127,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       throw new AppError(401, 'unauthorized', 'Invalid email or password')
     }
 
+    await regenerateSession(req)
     req.session.userId = user.id
     await saveSession(req)
 
@@ -210,7 +223,7 @@ export async function changePassword(req: Request, res: Response, next: NextFunc
 
     const user = rows[0]
     if (!user || !(await verifyPassword(body.current_password, user.passwordHash))) {
-      throw new AppError(401, 'unauthorized', 'Current password is incorrect')
+      throw new AppError(401, 'invalid_credentials', 'Current password is incorrect')
     }
 
     const passwordHash = await hashPassword(body.new_password)

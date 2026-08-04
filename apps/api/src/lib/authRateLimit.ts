@@ -13,12 +13,9 @@ function readAuthEmail(req: Request): string | undefined {
   return typeof email === 'string' && email.length > 0 ? email.toLowerCase() : undefined
 }
 
-/** Client IP for auth throttling: direct socket in dev; trusted proxy IP in production. */
+/** Client IP for auth throttling. Honors X-Forwarded-For only when TRUST_PROXY > 0. */
 export function readAuthRateLimitIp(req: Request): string {
-  if (env.NODE_ENV === 'production') {
-    return req.ip || req.socket.remoteAddress || 'unknown'
-  }
-  return req.socket.remoteAddress || req.ip || 'unknown'
+  return req.ip || req.socket.remoteAddress || 'unknown'
 }
 
 export const authRateLimit = asyncHandler(

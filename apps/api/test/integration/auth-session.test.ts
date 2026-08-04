@@ -61,11 +61,23 @@ describe('session auth on tenant routes', () => {
     expect(statsRes.body).toEqual(emptyStats)
   })
 
-  it('returns 200 for GET /v1/stats with a valid Bearer token', async () => {
+  it('regenerates the session ID after a successful login', async () => {
+    const agent = request.agent(app)
+
+    const firstLogin = await agent.post('/v1/auth/login').send({ email, password })
+    const secondLogin = await agent.post('/v1/auth/login').send({ email, password })
+
+    expect(firstLogin.status).toBe(200)
+    expect(secondLogin.status).toBe(200)
+    expect(firstLogin.headers['set-cookie']?.[0]).not.toEqual(
+      secondLogin.headers['set-cookie']?.[0],
+    )
+  })
+
+  it('returns 401 for GET /v1/stats with a valid Bearer token', async () => {
     const res = await request(app).get('/v1/stats').set('Authorization', `Bearer ${apiKey}`)
 
-    expect(res.status).toBe(200)
-    expect(res.body).toEqual(emptyStats)
+    expect(res.status).toBe(401)
   })
 
   it('returns 401 for GET /v1/stats without auth', async () => {

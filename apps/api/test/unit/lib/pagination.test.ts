@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { AppError } from '../../../src/lib/errors.js'
 import { parsePagination } from '../../../src/lib/pagination.js'
 
 describe('parsePagination', () => {
@@ -21,4 +22,11 @@ describe('parsePagination', () => {
   it('parses explicit limit and offset', () => {
     expect(parsePagination({ limit: '25', offset: '10' })).toEqual({ limit: 25, offset: 10 })
   })
+
+  it.each([{ limit: '10abc' }, { limit: '1.5' }, { offset: '1e2' }])(
+    'rejects invalid values',
+    (query) => {
+      expect(() => parsePagination(query)).toThrow(AppError)
+    },
+  )
 })

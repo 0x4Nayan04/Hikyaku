@@ -16,6 +16,28 @@ function parseBearerToken(header: string | undefined): string | null {
   return token.length > 0 ? token : null
 }
 
+async function requireTenantSession(req: Request): Promise<void> {
+  try {
+    await attachSessionUser(req)
+  } catch (err) {
+    if (err instanceof AppError && err.statusCode === 401) {
+      throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
+    }
+    throw err
+  }
+
+  if (!req.tenantId || req.isSuperAdmin) {
+    throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
+  }
+}
+
+export const requireTenantSessionAuth = asyncHandler(
+  async (req: Request, _res: Response, next: NextFunction) => {
+    await requireTenantSession(req)
+    next()
+  },
+)
+
 export const requireTenantAuth = asyncHandler(
   async (req: Request, _res: Response, next: NextFunction) => {
     const token = parseBearerToken(req.get('authorization') ?? undefined)
@@ -30,19 +52,7 @@ export const requireTenantAuth = asyncHandler(
       return
     }
 
-    try {
-      await attachSessionUser(req)
-    } catch (err) {
-      if (err instanceof AppError && err.statusCode === 401) {
-        throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
-      }
-      throw err
-    }
-
-    if (!req.tenantId || req.isSuperAdmin) {
-      throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
-    }
-
+    await requireTenantSession(req)
     next()
   },
 )

@@ -8,6 +8,7 @@ import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { assertEmailAvailable, assertNoPendingInvite } from '../../lib/invites.js'
 import { parsePagination } from '../../lib/pagination.js'
+import { revokeTenantSessions, revokeUserSessions } from '../../lib/revokeSessions.js'
 import { isUuid, parseSchema } from '../../lib/validation.js'
 import { toAdminTenantJson } from './serialize.js'
 import { parsePatchTenantBody, parseTenantId, parseUserId } from './validation.js'
@@ -90,17 +91,20 @@ export async function deleteTenant(req: Request, res: Response, next: NextFuncti
 
     const db = getDb()
 
-    const [tenant] = await db
-      .select({ id: tenants.id, name: tenants.name })
-      .from(tenants)
-      .where(eq(tenants.id, id))
-      .limit(1)
+    await db.transaction(async (tx) => {
+      const [tenant] = await tx
+        .select({ id: tenants.id })
+        .from(tenants)
+        .where(eq(tenants.id, id))
+        .limit(1)
 
-    if (!tenant) {
-      throw new AppError(404, 'not_found', 'Tenant not found')
-    }
+      if (!tenant) {
+        throw new AppError(404, 'not_found', 'Tenant not found')
+      }
 
-    await db.delete(tenants).where(eq(tenants.id, id))
+      await revokeTenantSessions(id, tx)
+      await tx.delete(tenants).where(eq(tenants.id, id))
+    })
 
     res.status(204).send()
   } catch (err) {
@@ -165,6 +169,7 @@ export async function deleteTenantUser(req: Request, res: Response, next: NextFu
         throw new AppError(409, 'last_tenant_user', 'Cannot delete the last user in a tenant')
       }
 
+      await revokeUserSessions(target.id, tx)
       await tx.delete(users).where(eq(users.id, target.id))
     })
 
@@ -226,47 +231,49 @@ export async function createInvite(req: Request, res: Response, next: NextFuncti
     const rawToken = generateInviteToken()
     const tokenHash = hashInviteToken(rawToken)
     const expiresAt = new Date(Date.now() + env.INVITE_TTL_MS)
+    const email = body.kind === 'tenant_owner' ? body.owner_email : body.email
 
-    if (body.kind === 'tenant_owner') {
-      await assertEmailAvailable(body.owner_email)
-      await assertNoPendingInvite(body.owner_email)
+    await db.transaction(async (tx) => {
+      // Serializes check-and-create for this email; released automatically on commit or rollback.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${email}))`)
+      await assertEmailAvailable(email, tx)
+      await assertNoPendingInvite(email, tx)
 
-      await db.insert(invites).values({
-        tokenHash,
-        kind: body.kind,
-        email: body.owner_email,
-        tenantName: body.tenant_name,
-        invitedName: body.owner_name ?? null,
-        createdByUserId,
-        expiresAt,
-      })
-    } else if (body.kind === 'tenant_user') {
-      await assertEmailAvailable(body.email)
-      await assertNoPendingInvite(body.email)
+      if (body.kind === 'tenant_owner') {
+        await tx.insert(invites).values({
+          tokenHash,
+          kind: body.kind,
+          email,
+          tenantName: body.tenant_name,
+          invitedName: body.owner_name ?? null,
+          createdByUserId,
+          expiresAt,
+        })
+      } else if (body.kind === 'tenant_user') {
+        const [tenant] = await tx
+          .select({ id: tenants.id })
+          .from(tenants)
+          .where(eq(tenants.id, body.tenant_id))
+          .limit(1)
 
-      const [tenant] = await db
-        .select({ id: tenants.id })
-        .from(tenants)
-        .where(eq(tenants.id, body.tenant_id))
-        .limit(1)
+        if (!tenant) {
+          throw new AppError(404, 'not_found', 'Tenant not found')
+        }
 
-      if (!tenant) {
-        throw new AppError(404, 'not_found', 'Tenant not found')
+        await tx.insert(invites).values({
+          tokenHash,
+          kind: body.kind,
+          email,
+          tenantId: body.tenant_id,
+          invitedName: body.name ?? null,
+          createdByUserId,
+          expiresAt,
+        })
+      } else {
+        const _exhaustive: never = body
+        throw new AppError(500, 'internal_error', `Unknown invite kind: ${String(_exhaustive)}`)
       }
-
-      await db.insert(invites).values({
-        tokenHash,
-        kind: body.kind,
-        email: body.email,
-        tenantId: body.tenant_id,
-        invitedName: body.name ?? null,
-        createdByUserId,
-        expiresAt,
-      })
-    } else {
-      const _exhaustive: never = body
-      throw new AppError(500, 'internal_error', `Unknown invite kind: ${String(_exhaustive)}`)
-    }
+    })
 
     const inviteUrl = `${env.WEB_APP_URL}/accept-invite?token=${encodeURIComponent(rawToken)}`
 

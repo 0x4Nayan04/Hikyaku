@@ -3,9 +3,10 @@ import { pinoHttp } from 'pino-http'
 import { env } from './config.js'
 import { createSessionMiddleware } from './auth/session.js'
 import { createCorsMiddleware } from './lib/cors.js'
+import { createSessionCsrfMiddleware } from './lib/csrf.js'
 import { AppError } from './lib/errors.js'
 import { logger } from './lib/logger.js'
-import { serializeRequestForLog } from './lib/requestLog.js'
+import { serializeRequestForLog, serializeResponseForLog } from './lib/requestLog.js'
 import { readRequestId, requestIdMiddleware } from './lib/requestId.js'
 import { adminRouter } from './routes/admin/index.js'
 import { apiKeysRouter } from './routes/api-keys/index.js'
@@ -18,9 +19,11 @@ import { statsRouter } from './routes/stats.js'
 
 export function createApp(): Application {
   const app = express()
+  app.disable('x-powered-by')
 
-  if (env.NODE_ENV === 'production') {
-    app.set('trust proxy', 1)
+  // Only trust X-Forwarded-* when explicitly configured (e.g. TRUST_PROXY=1 behind nginx).
+  if (env.TRUST_PROXY > 0) {
+    app.set('trust proxy', env.TRUST_PROXY)
   }
 
   app.use(requestIdMiddleware)
@@ -28,11 +31,12 @@ export function createApp(): Application {
     pinoHttp<Request, Response>({
       logger,
       genReqId: (req) => readRequestId(req),
-      serializers: { req: serializeRequestForLog },
+      serializers: { req: serializeRequestForLog, res: serializeResponseForLog },
     }),
   )
   app.use(createCorsMiddleware())
   app.use(createSessionMiddleware())
+  app.use(createSessionCsrfMiddleware())
   app.use(express.json({ limit: '256kb' }))
 
   app.use('/v1', healthRouter)
@@ -54,6 +58,17 @@ export function createApp(): Application {
     if (err instanceof AppError) {
       res.status(err.statusCode).json({
         error: { code: err.code, message: err.message },
+      })
+      return
+    }
+
+    if (
+      err !== null &&
+      typeof err === 'object' &&
+      (err as { type?: string }).type === 'entity.too.large'
+    ) {
+      res.status(413).json({
+        error: { code: 'payload_too_large', message: 'Request body too large' },
       })
       return
     }

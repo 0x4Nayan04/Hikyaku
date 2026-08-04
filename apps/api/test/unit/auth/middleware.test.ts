@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
 import { afterAll, describe, expect, it } from 'vitest'
 import '../../../src/config.js'
-import { requireTenantAuth } from '../../../src/auth/middleware.js'
+import { requireTenantAuth, requireTenantSessionAuth } from '../../../src/auth/middleware.js'
 import { closePool } from '../../../src/db/client.js'
 import { AppError } from '../../../src/lib/errors.js'
 import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
@@ -35,6 +35,22 @@ async function runRequireTenantAuth(
     }
 
     requireTenantAuth(req, {} as Response, next)
+  })
+}
+
+async function runRequireTenantSessionAuth(
+  req: Request,
+): Promise<{ error?: unknown; tenantId?: string; userId?: string }> {
+  return new Promise((resolve) => {
+    const next: NextFunction = (err?: unknown) => {
+      if (err) {
+        resolve({ error: err })
+        return
+      }
+      resolve({ tenantId: req.tenantId, userId: req.userId })
+    }
+
+    requireTenantSessionAuth(req, {} as Response, next)
   })
 }
 
@@ -79,6 +95,18 @@ describe('requireTenantAuth', () => {
 
     expect(result.error).toBeUndefined()
     expect(result.tenantId).toBe(tenantId)
+
+    await deleteTenant(tenantId)
+  })
+
+  it('rejects an API key when a tenant session is required', async () => {
+    const { tenantId, apiKey } = await createTenantWithKey()
+
+    const result = await runRequireTenantSessionAuth(
+      createRequest({ authorization: `Bearer ${apiKey}` }),
+    )
+
+    expect(result.error).toMatchObject({ statusCode: 401, code: 'unauthorized' })
 
     await deleteTenant(tenantId)
   })

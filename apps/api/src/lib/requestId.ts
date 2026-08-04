@@ -6,9 +6,8 @@ export function readRequestId(req: Request): string {
 }
 
 export function requestIdMiddleware(req: Request, res: Response, next: NextFunction): void {
-  const incoming = req.headers['x-request-id']
-  const requestId = typeof incoming === 'string' && incoming.length > 0 ? incoming : randomUUID()
-
+  // Always mint our own id — never echo client-supplied values into logs/headers.
+  const requestId = randomUUID()
   req.requestId = requestId
   res.setHeader('X-Request-Id', requestId)
   next()
