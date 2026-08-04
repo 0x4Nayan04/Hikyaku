@@ -113,6 +113,13 @@
       "when": 1785681000000,
       "tag": "0016_drop_deferred_status",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1785747449288,
+      "tag": "0017_normalize_emails",
+      "breakpoints": true
     }
   ]
 }

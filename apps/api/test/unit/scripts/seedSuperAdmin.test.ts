@@ -1,5 +1,5 @@
 import { count, eq } from 'drizzle-orm'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { users } from '@webhook/shared/schema'
 import '../../../src/config.js'
 import { maybeSeedSuperAdmin } from '../../../src/scripts/seedSuperAdmin.js'
@@ -28,7 +28,11 @@ describe('maybeSeedSuperAdmin', () => {
       return
     }
 
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined)
     await expect(maybeSeedSuperAdmin(db, seedEnv)).resolves.toBe(true)
+    expect(log).toHaveBeenCalledWith('Super-admin seeded')
+    expect(log.mock.calls.flat()).not.toContain(seedEnv.SEED_SUPER_ADMIN_PASSWORD)
+    log.mockRestore()
 
     const [row] = await db
       .select({

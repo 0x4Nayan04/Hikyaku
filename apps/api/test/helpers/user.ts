@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
+import type { Application } from 'express'
+import request from 'supertest'
 import { hashPassword } from '@webhook/shared/password'
 import { users } from '@webhook/shared/schema'
 import { getDb } from '../../src/db/client.js'
@@ -33,4 +35,18 @@ export async function createUser(options: {
 
 export async function deleteUser(userId: string): Promise<void> {
   await getDb().delete(users).where(eq(users.id, userId))
+}
+
+export async function createTenantSession(app: Application, tenantId: string) {
+  const user = await createUser({ tenantId })
+  const agent = request.agent(app)
+  const response = await agent
+    .post('/v1/auth/login')
+    .send({ email: user.email, password: user.password })
+
+  if (response.status !== 200) {
+    throw new Error('Failed to create tenant session')
+  }
+
+  return agent
 }

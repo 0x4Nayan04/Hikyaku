@@ -23,13 +23,14 @@ export const users = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
-    email: text('email').notNull().unique(),
+    email: text('email').notNull(),
     passwordHash: text('password_hash').notNull(),
     name: text('name').notNull(),
     isSuperAdmin: boolean('is_super_admin').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    uniqueIndex('users_email_ci_uidx').on(sql`lower(${t.email})`),
     index('users_tenant_id_idx')
       .on(t.tenantId)
       .where(sql`${t.tenantId} IS NOT NULL`),

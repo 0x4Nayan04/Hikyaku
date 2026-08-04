@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ENDPOINT_STATUSES, MAX_INGEST_BODY_BYTES } from './constants.js'
 
-const emailSchema = z.string().email().max(320)
+const emailSchema = z.string().trim().toLowerCase().email().max(320)
 const userNameSchema = z.string().trim().min(1).max(256)
 const newPasswordSchema = z.string().min(12).max(128)
 

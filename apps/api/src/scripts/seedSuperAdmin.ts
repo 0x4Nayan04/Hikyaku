@@ -47,6 +47,6 @@ export async function maybeSeedSuperAdmin(
     tenantId: null,
   })
 
-  console.log(`Super-admin: ${parsed.data.email}\nPassword: ${parsed.data.password}\n`)
+  console.log('Super-admin seeded')
   return true
 }
