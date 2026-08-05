@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { PageBanner } from '@/components/console/PageBanner'
 import { Label } from '@/components/ui/label'
 import { formatDateTime } from '@/lib/format'
+import { copyToClipboard } from '@/lib/clipboard'
 import { toast } from '@/lib/toast'
 
 type TenantAdminInviteUserDialogProps = {
@@ -71,8 +72,7 @@ export function TenantAdminInviteUserDialog({
 
   async function copyInviteUrl() {
     if (!inviteResult) return
-    await navigator.clipboard.writeText(inviteResult.inviteUrl)
-    toast.success('Invite link copied')
+    await copyToClipboard(inviteResult.inviteUrl, 'Invite link')
   }
 
   return (

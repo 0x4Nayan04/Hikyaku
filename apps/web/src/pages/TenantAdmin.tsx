@@ -10,14 +10,34 @@ import { PageLoading } from '@/components/console/PageLoading'
 import { formatDateTime } from '@/lib/format'
 import { TenantAdminDetails } from '@/pages/tenant-admin/TenantAdminDetails'
 import { TenantAdminInviteUserDialog } from '@/pages/tenant-admin/TenantAdminInviteUserDialog'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
+
+const USER_PAGE_SIZE = 25
 
 export function TenantAdmin() {
   const { id } = useParams<{ id: string }>()
   const [tenant, setTenant] = useState<AdminTenant | null>(null)
-  const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const {
+    data: users,
+    total: userTotal,
+    offset: userOffset,
+    setOffset: setUserOffset,
+    isInitial: loadingUsers,
+    isRefreshing: refreshingUsers,
+    error: usersError,
+    reload: reloadUsers,
+  } = usePaginatedList<User>({
+    pageSize: USER_PAGE_SIZE,
+    fetchPage: ({ limit, offset, signal }) =>
+      id
+        ? listTenantUsers(id, { limit, offset }, { signal })
+        : Promise.resolve({ data: [], total: 0, limit, offset: 0 }),
+    fallbackError: 'Failed to load tenant users',
+    queryKey: id,
+  })
 
   useEffect(() => {
     if (!id) {
@@ -27,11 +47,10 @@ export function TenantAdmin() {
     }
 
     let cancelled = false
-    Promise.all([getAdminTenant(id), listTenantUsers(id, { limit: 100, offset: 0 })])
-      .then(([tenantResult, usersResult]) => {
+    getAdminTenant(id)
+      .then((tenantResult) => {
         if (cancelled) return
         setTenant(tenantResult)
-        setUsers(usersResult.data)
         setError(null)
       })
       .catch((err) => {
@@ -76,14 +95,22 @@ export function TenantAdmin() {
       {error ? (
         <PageBanner variant="error" title="Could not load tenant" description={error} />
       ) : null}
+      {usersError ? (
+        <PageBanner variant="error" title="Could not load tenant users" description={usersError} />
+      ) : null}
 
-      {loading ? (
+      {loading || loadingUsers ? (
         <PageLoading variant="detail-metrics" />
       ) : tenant ? (
         <TenantAdminDetails
           tenant={tenant}
           users={users}
-          onUserDeleted={(userId) => setUsers((current) => current.filter((u) => u.id !== userId))}
+          total={userTotal}
+          offset={userOffset}
+          pageSize={USER_PAGE_SIZE}
+          loading={refreshingUsers}
+          onOffsetChange={setUserOffset}
+          onUserDeleted={() => void reloadUsers()}
         />
       ) : null}
 

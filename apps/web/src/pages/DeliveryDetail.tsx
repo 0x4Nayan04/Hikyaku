@@ -87,10 +87,8 @@ export function DeliveryDetail() {
     fallbackError: 'Failed to load delivery',
   })
   usePolling({
-    enabled: Boolean(id),
-    onPoll: () => {
-      void reload()
-    },
+    enabled: delivery?.status === 'pending' || delivery?.status === 'in_progress',
+    onPoll: reload,
   })
 
   async function handleReplay() {

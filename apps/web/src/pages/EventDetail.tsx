@@ -31,7 +31,7 @@ export function EventDetail() {
     missingError: 'Event ID is missing',
     fallbackError: 'Failed to load event',
   })
-  usePolling({ enabled: Boolean(id), onPoll: () => void reload() })
+  usePolling({ enabled: event?.status === 'pending', onPoll: reload })
 
   const payloadText = useMemo(() => (event ? formatPayload(event.payload) : ''), [event])
 

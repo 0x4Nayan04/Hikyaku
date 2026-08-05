@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "preview": "vite preview",
-    "test:unit": "vitest run --passWithNoTests"
+    "test:unit": "vitest run --passWithNoTests",
+    "test:browser": "pnpm --dir ../.. test:smoke",
+    "lint": "eslint src --ext .ts,.tsx"
   },
   "dependencies": {
     "@fontsource/dm-mono": "^5.2.7",
@@ -35,6 +37,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "jsdom": "^30.0.1",
     "react-grab": "^0.1.48",
     "typescript": "^5.7.2",
     "vite": "^8.0.12",

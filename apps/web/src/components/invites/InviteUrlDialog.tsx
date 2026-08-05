@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { formatDateTime } from '@/lib/format'
-import { toast } from '@/lib/toast'
+import { copyToClipboard } from '@/lib/clipboard'
 
 type InviteUrlDialogProps = {
   open: boolean
@@ -30,8 +30,7 @@ export function InviteUrlDialog({
       return
     }
 
-    await navigator.clipboard.writeText(inviteUrl)
-    toast.success('Invite link copied')
+    await copyToClipboard(inviteUrl, 'Invite link')
   }
 
   return (

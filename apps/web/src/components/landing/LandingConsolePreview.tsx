@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ArrowRight, Search } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
@@ -24,7 +24,30 @@ export function LandingConsolePreview() {
   const navigate = useNavigate()
   const { session } = useSession()
   const [activeView, setActiveView] = useState<keyof typeof VIEWS>('deliveries')
+  const viewRefs = useRef<Array<HTMLButtonElement | null>>([])
   const view = VIEWS[activeView]
+
+  function handleViewKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) {
+    const views = Object.keys(VIEWS) as Array<keyof typeof VIEWS>
+    let nextIndex: number | null = null
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (index + 1) % views.length
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (index - 1 + views.length) % views.length
+    } else if (event.key === 'Home') {
+      nextIndex = 0
+    } else if (event.key === 'End') {
+      nextIndex = views.length - 1
+    }
+    if (nextIndex === null) return
+
+    event.preventDefault()
+    setActiveView(views[nextIndex])
+    viewRefs.current[nextIndex]?.focus()
+  }
 
   return (
     <section id="console" className="lp-console" aria-labelledby="console-heading">
@@ -60,21 +83,34 @@ export function LandingConsolePreview() {
         <figure className="lp-product-shot">
           <div className="lp-product-shot__toolbar">
             <div className="lp-product-shot__tabs" role="tablist" aria-label="Console screenshots">
-              {(Object.keys(VIEWS) as Array<keyof typeof VIEWS>).map((key) => (
+              {(Object.keys(VIEWS) as Array<keyof typeof VIEWS>).map((key, index) => (
                 <button
                   key={key}
                   type="button"
                   role="tab"
+                  ref={(element) => {
+                    viewRefs.current[index] = element
+                  }}
+                  id={`console-tab-${key}`}
+                  aria-controls="console-panel"
                   aria-selected={activeView === key}
+                  tabIndex={activeView === key ? 0 : -1}
                   className={cn(activeView === key && 'is-active')}
                   onClick={() => setActiveView(key)}
+                  onKeyDown={(event) => handleViewKeyDown(event, index)}
                 >
                   {VIEWS[key].label}
                 </button>
               ))}
             </div>
           </div>
-          <div className="lp-product-shot__viewport">
+          <div
+            id="console-panel"
+            role="tabpanel"
+            aria-labelledby={`console-tab-${activeView}`}
+            tabIndex={0}
+            className="lp-product-shot__viewport"
+          >
             <img key={view.src} src={view.src} alt={view.alt} loading="lazy" />
           </div>
           <figcaption>Console screenshots with sample workspace data.</figcaption>

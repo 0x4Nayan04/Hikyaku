@@ -1,8 +1,5 @@
 /** Product brand — single source for UI naming. */
 export const APP_NAME = 'Hikyaku'
-export const APP_TAGLINE = 'Signed webhook delivery with retries and attempt logs.'
-export const APP_DESCRIPTION =
-  'Multi-tenant webhook delivery: HMAC-signed HTTP, automatic retries, and a console for events and deliveries.'
 /** Home link aria-label pattern. */
 export const APP_HOME_LABEL = `${APP_NAME} — home`
 

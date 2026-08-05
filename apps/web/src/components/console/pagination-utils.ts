@@ -12,3 +12,7 @@ export function paginationButtonVariant(canNavigate: boolean): ButtonVariant {
 export function shouldPaginate(total: number, pageSize: number): boolean {
   return total > pageSize
 }
+
+export function lastPageOffset(total: number, pageSize: number): number {
+  return Math.max(0, Math.floor((total - 1) / pageSize) * pageSize)
+}

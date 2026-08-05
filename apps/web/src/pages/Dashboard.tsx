@@ -43,7 +43,7 @@ export function Dashboard() {
   const [error, setError] = useState<string | null>(null)
   const [isInitial, setIsInitial] = useState(true)
   const [isLive, setIsLive] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<string>(new Date().toISOString())
+  const [lastUpdated, setLastUpdated] = useState(() => new Date().toISOString())
 
   const load = useCallback(async () => {
     try {
@@ -102,9 +102,8 @@ export function Dashboard() {
 
   usePolling({
     intervalMs: 10_000,
-    onPoll: () => {
-      void load()
-      void loadActivity()
+    onPoll: async () => {
+      await Promise.all([load(), loadActivity()])
     },
   })
 

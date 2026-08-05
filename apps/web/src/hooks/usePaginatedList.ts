@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/api/client'
 import type { Paginated } from '@/api/types'
+import { lastPageOffset } from '@/components/console/pagination-utils'
 
 type UsePaginatedListOptions<T> = {
   pageSize: number
-  fetchPage: (params: { limit: number; offset: number }) => Promise<Paginated<T>>
+  fetchPage: (params: { limit: number; offset: number; signal: AbortSignal }) => Promise<Paginated<T>>
   fallbackError: string
   queryKey?: string
+  enabled?: boolean
 }
 
 export function usePaginatedList<T>({
@@ -14,6 +16,7 @@ export function usePaginatedList<T>({
   fetchPage,
   fallbackError,
   queryKey,
+  enabled = true,
 }: UsePaginatedListOptions<T>) {
   const [data, setData] = useState<T[]>([])
   const [total, setTotal] = useState(0)
@@ -21,43 +24,72 @@ export function usePaginatedList<T>({
   const [isInitial, setIsInitial] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const fetchPageRef = useRef(fetchPage)
+  const fetchPageRef = useRef<typeof fetchPage | null>(null)
   const offsetRef = useRef(offset)
   const queryKeyRef = useRef(queryKey)
   const previousQueryKeyRef = useRef(queryKey)
   const requestRef = useRef(0)
+  const abortRef = useRef<AbortController | null>(null)
   const initializedRef = useRef(false)
-  const queryChanged = previousQueryKeyRef.current !== queryKey
-
-  fetchPageRef.current = fetchPage
-  offsetRef.current = queryChanged ? 0 : offset
-  queryKeyRef.current = queryKey
-
-  async function load(nextOffset: number, requestQueryKey: string | undefined): Promise<void> {
-    const request = ++requestRef.current
-    if (initializedRef.current) setIsRefreshing(true)
-
-    try {
-      const result = await fetchPageRef.current({ limit: pageSize, offset: nextOffset })
-      if (request !== requestRef.current || requestQueryKey !== queryKeyRef.current) return
-      setData(result.data)
-      setTotal(result.total)
-      setOffset(result.offset)
-      setError(null)
-    } catch (err) {
-      if (request !== requestRef.current || requestQueryKey !== queryKeyRef.current) return
-      setError(err instanceof ApiError ? err.message : fallbackError)
-    } finally {
-      if (request === requestRef.current && requestQueryKey === queryKeyRef.current) {
-        initializedRef.current = true
-        setIsInitial(false)
-        setIsRefreshing(false)
-      }
-    }
-  }
 
   useEffect(() => {
-    if (queryChanged) {
+    fetchPageRef.current = fetchPage
+  }, [fetchPage])
+
+  useEffect(() => {
+    offsetRef.current = offset
+    queryKeyRef.current = queryKey
+  }, [offset, queryKey])
+
+  const isStale = (request: number, requestQueryKey: string | undefined) =>
+    request !== requestRef.current || requestQueryKey !== queryKeyRef.current
+
+  const load = useCallback(
+    async (): Promise<boolean | undefined> => {
+      const request = ++requestRef.current
+      const fetch = fetchPageRef.current
+      if (!fetch) return undefined
+      abortRef.current?.abort()
+      const controller = new AbortController()
+      abortRef.current = controller
+      if (initializedRef.current) setIsRefreshing(true)
+      const nextOffset = offsetRef.current
+      const requestQueryKey = queryKeyRef.current
+
+      try {
+        const result = await fetch({ limit: pageSize, offset: nextOffset, signal: controller.signal })
+        if (isStale(request, requestQueryKey)) return undefined
+        const lastOffset = lastPageOffset(result.total, pageSize)
+        if (result.offset > lastOffset) {
+          setOffset(lastOffset)
+          return true
+        }
+        setData(result.data)
+        setTotal(result.total)
+        setOffset(result.offset)
+        setError(null)
+        return true
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return undefined
+        if (isStale(request, requestQueryKey)) return undefined
+        setError(err instanceof ApiError ? err.message : fallbackError)
+        return false
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null
+        const stale = isStale(request, requestQueryKey)
+        if (!stale) initializedRef.current = true
+        setIsInitial((initial) => (stale ? initial : false))
+        setIsRefreshing((refreshing) => (stale ? refreshing : false))
+      }
+    },
+    [fallbackError, pageSize],
+  )
+
+  useEffect(() => {
+    if (!enabled) {
+      return
+    }
+    if (previousQueryKeyRef.current !== queryKey) {
       previousQueryKeyRef.current = queryKey
       requestRef.current += 1
       if (offset !== 0) {
@@ -65,12 +97,12 @@ export function usePaginatedList<T>({
         return
       }
     }
-
-    void load(offset, queryKey)
+    void load()
     return () => {
       requestRef.current += 1
+      abortRef.current?.abort()
     }
-  }, [offset, pageSize, queryKey])
+  }, [offset, pageSize, queryKey, load, enabled])
 
   return {
     data,
@@ -80,6 +112,6 @@ export function usePaginatedList<T>({
     isInitial,
     isRefreshing,
     error,
-    reload: () => load(offsetRef.current, queryKeyRef.current),
+    reload: load,
   }
 }

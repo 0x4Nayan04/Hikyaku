@@ -23,6 +23,7 @@ import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { formatDateTime } from '@/lib/format'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { usePolling } from '@/hooks/usePolling'
+import { hasPendingEventWork } from '@/lib/polling-utils'
 
 const PAGE_SIZE = 25
 
@@ -39,10 +40,10 @@ export function Events() {
     reload,
   } = usePaginatedList<EventSummary>({
     pageSize: PAGE_SIZE,
-    fetchPage: listEvents,
+    fetchPage: ({ limit, offset, signal }) => listEvents({ limit, offset }, { signal }),
     fallbackError: 'Failed to load events',
   })
-  usePolling({ onPoll: () => void reload() })
+  usePolling({ enabled: hasPendingEventWork(events), onPoll: reload })
 
   const showEmpty = !isInitial && events.length === 0
   const isDatasetEmpty = showEmpty && total === 0

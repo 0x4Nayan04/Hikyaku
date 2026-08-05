@@ -12,13 +12,8 @@ import {
 import { SecretReveal } from '@/components/ui/secret-reveal'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { API_BASE } from '@/api/client'
+import { copyToClipboard } from '@/lib/clipboard'
 import { buildIngestCurl } from '@/lib/tenant-onboarding'
-import { toast } from '@/lib/toast'
-
-async function copySecret(value: string, label: string) {
-  await navigator.clipboard.writeText(value)
-  toast.success(`${label} copied`)
-}
 
 type SettingsApiKeyDialogsProps = {
   secretKey: ApiKeyWithSecret | null
@@ -67,7 +62,7 @@ export function SettingsApiKeyDialogs({
               <SecretReveal
                 value={secretKey.api_key}
                 hint="Use as a Bearer token for API requests."
-                onCopy={() => void copySecret(secretKey.api_key, 'API key')}
+                onCopy={() => void copyToClipboard(secretKey.api_key, 'API key')}
                 copyLabel="Copy key"
               />
             ) : null}
@@ -86,7 +81,7 @@ export function SettingsApiKeyDialogs({
                   type="button"
                   variant="secondary"
                   className="self-start"
-                  onClick={() => void copySecret(ingestCurl, 'curl command')}
+                  onClick={() => void copyToClipboard(ingestCurl, 'curl command')}
                 >
                   <Copy className="size-3.5" aria-hidden="true" />
                   Copy curl

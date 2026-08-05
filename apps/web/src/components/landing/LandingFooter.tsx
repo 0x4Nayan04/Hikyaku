@@ -116,9 +116,9 @@ export function LandingFooter() {
               <ul>
                 {group.links.map((link) => (
                   <li key={link.label}>
-                    <a href={link.href} className="focus-ring">
+                    <Link to={link.href} className="focus-ring">
                       {link.label}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -131,9 +131,9 @@ export function LandingFooter() {
             © {year} {APP_NAME}
           </p>
           <div>
-            <a href={`${PRODUCT_LINKS.docs}#privacy`} className="focus-ring">
+            <Link to={`${PRODUCT_LINKS.docs}#privacy`} className="focus-ring">
               Privacy
-            </a>
+            </Link>
             <span>Self-hosted webhook delivery.</span>
           </div>
           <button
