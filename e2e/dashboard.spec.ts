@@ -60,5 +60,39 @@ test.describe('dashboard smoke', () => {
 
     await apiKeyDialog.getByRole('button', { name: 'Done' }).click()
     await expect(page.getByText(`${apiKey!.slice(4, 12)}…`)).toBeVisible()
+
+    const updatedPassword = 'smoke-owner-updated-12'
+    await page.goto('/settings?tab=profile')
+    await page.getByLabel('Current password').fill(owner.password)
+    await page.getByLabel('New password', { exact: true }).fill(updatedPassword)
+    await page.getByLabel('Confirm new password').fill(updatedPassword)
+    await page.getByRole('button', { name: 'Update password' }).click()
+    await expect(page).toHaveURL('/login')
+    await expect(page.getByText('Password updated')).toBeVisible()
+
+    await page.getByLabel('Email').fill(owner.email)
+    await page.getByRole('textbox', { name: 'Password' }).fill(updatedPassword)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect(page).toHaveURL('/dashboard')
+    owner.password = updatedPassword
+  })
+
+  test('supports keyboard navigation for landing tabs and the account menu', async ({ page }) => {
+    await page.goto('/')
+    const faqTabs = page.getByRole('tablist', { name: 'FAQ topics' })
+    await faqTabs.getByRole('tab', { name: 'Getting started' }).focus()
+    await page.keyboard.press('End')
+    await expect(faqTabs.getByRole('tab', { name: 'Access' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+
+    await page.goto('/login')
+    await page.getByLabel('Email').fill(owner.email)
+    await page.getByRole('textbox', { name: 'Password' }).fill(owner.password)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await page.getByRole('button', { name: 'Open account menu' }).click()
+    await page.getByRole('menuitem', { name: 'Profile' }).press('End')
+    await expect(page.getByRole('menuitem', { name: 'Log out' })).toBeFocused()
   })
 })

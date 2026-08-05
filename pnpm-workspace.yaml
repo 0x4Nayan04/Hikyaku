@@ -5,3 +5,6 @@ allowBuilds:
   bcrypt: true
   esbuild: true
   msgpackr-extract: true
+overrides:
+  body-parser: 1.20.6
+  postcss: 8.5.23
