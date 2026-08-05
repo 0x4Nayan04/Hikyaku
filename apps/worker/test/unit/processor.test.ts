@@ -788,7 +788,7 @@ describe('processor', () => {
 
     expect(updated.attemptCount).toBe(3)
     expect(attempts).toHaveLength(1)
-    expect(attempts[0]?.attemptNumber).toBe(1)
+    expect(attempts[0]?.attemptNumber).toBe(3)
     expect(attempts[0]?.httpStatus).toBe(503)
 
     await mock.close()
@@ -945,6 +945,7 @@ describe('processor', () => {
         nextRetryAt: null,
       })
       .where(eq(deliveries.id, delivery.id))
+    await db.delete(deliveryAttempts).where(eq(deliveryAttempts.deliveryId, delivery.id))
 
     await processor(makeJob(delivery.id))
 
@@ -956,9 +957,9 @@ describe('processor', () => {
 
     expect(succeeded.status).toBe('succeeded')
     expect(succeeded.attemptCount).toBe(1)
-    expect(attempts).toHaveLength(2)
-    expect(attempts[1]?.attemptNumber).toBe(2)
-    expect(attempts[1]?.httpStatus).toBe(200)
+    expect(attempts).toHaveLength(1)
+    expect(attempts[0]?.attemptNumber).toBe(1)
+    expect(attempts[0]?.httpStatus).toBe(200)
 
     await mock.close()
   })

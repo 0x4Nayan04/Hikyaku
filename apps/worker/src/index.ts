@@ -1,10 +1,11 @@
 import { Worker } from 'bullmq'
 import { QUEUE_NAME } from '@webhook/shared/constants'
-import { closePool } from './db/client.js'
+import { closePool, getPool } from './db/client.js'
 import { env, WORKER_LOCK_DURATION_MS } from './config.js'
 import { logger } from './lib/logger.js'
 import { closeRedis, getRedisConnectionOptions } from './lib/redis.js'
 import { processor } from './processor.js'
+import { queue } from './queue/client.js'
 import { startSweeper, stopSweeper } from './sweeper.js'
 
 const SHUTDOWN_TIMEOUT_MS = WORKER_LOCK_DURATION_MS
@@ -17,6 +18,28 @@ const worker = new Worker(QUEUE_NAME, processor, {
 })
 
 startSweeper()
+
+const metricsTimer = setInterval(() => {
+  const pool = getPool()
+  void queue
+    .getJobCounts('waiting', 'active', 'delayed', 'failed')
+    .then((counts) => {
+      logger.info(
+        {
+          db_pool_total: pool.totalCount,
+          db_pool_idle: pool.idleCount,
+          db_pool_waiting: pool.waitingCount,
+          queue_waiting: counts.waiting,
+          queue_active: counts.active,
+          queue_delayed: counts.delayed,
+          queue_failed: counts.failed,
+        },
+        'worker_runtime_stats',
+      )
+    })
+    .catch((err) => logger.warn({ err }, 'worker_runtime_stats_failed'))
+}, 60_000)
+metricsTimer.unref()
 
 worker.on('ready', () => {
   logger.info({ queue: QUEUE_NAME, concurrency: env.WORKER_CONCURRENCY }, 'worker_started')
@@ -31,6 +54,7 @@ async function shutdown(signal: string): Promise<void> {
   shuttingDown = true
 
   logger.info({ signal }, 'shutting_down')
+  clearInterval(metricsTimer)
 
   stopSweeper()
 
