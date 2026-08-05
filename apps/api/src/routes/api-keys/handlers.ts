@@ -32,16 +32,18 @@ export async function listApiKeys(req: Request, res: Response, next: NextFunctio
           : undefined,
     )
 
-    const [countRow] = await db.select({ value: count() }).from(apiKeys).where(where)
+    const [countResult, rows] = await Promise.all([
+      db.select({ value: count() }).from(apiKeys).where(where),
+      db
+        .select(apiKeyColumns)
+        .from(apiKeys)
+        .where(where)
+        .orderBy(desc(apiKeys.createdAt))
+        .limit(limit)
+        .offset(offset),
+    ])
+    const [countRow] = countResult
     const total = countRow?.value ?? 0
-
-    const rows = await db
-      .select(apiKeyColumns)
-      .from(apiKeys)
-      .where(where)
-      .orderBy(desc(apiKeys.createdAt))
-      .limit(limit)
-      .offset(offset)
 
     res.json({
       data: rows.map((row) => toApiKeyJson(row)),
@@ -98,8 +100,12 @@ export async function revokeApiKey(req: Request, res: Response, next: NextFuncti
     const [row] = await db
       .update(apiKeys)
       .set({ revokedAt: new Date() })
-      .where(and(eq(apiKeys.id, id), eq(apiKeys.tenantId, tenantId)))
+      .where(and(eq(apiKeys.id, id), eq(apiKeys.tenantId, tenantId), isNull(apiKeys.revokedAt)))
       .returning(apiKeyColumns)
+
+    if (!row) {
+      throw new AppError(409, 'already_revoked', 'API key is already revoked')
+    }
 
     res.json(toApiKeyJson(row))
   } catch (err) {

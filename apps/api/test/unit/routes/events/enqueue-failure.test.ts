@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { NextFunction, Request, Response } from 'express'
 import { and, eq } from 'drizzle-orm'
 import { deliveries, endpoints, events } from '@webhook/shared/schema'
-import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
+import { enqueueDeliveryJobs } from '@webhook/shared/enqueueDelivery'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import '../../../../src/config.js'
 import { closePool, getDb } from '../../../../src/db/client.js'
@@ -11,12 +11,12 @@ import { ingestEvent } from '../../../../src/routes/events/handlers.js'
 import { createTenantWithKey, deleteTenant } from '../../../helpers/tenant.js'
 
 vi.mock('@webhook/shared/enqueueDelivery', () => ({
-  enqueueDeliveryJob: vi.fn(),
+  enqueueDeliveryJobs: vi.fn(),
 }))
 
 vi.mock('../../../../src/queue/client.js', () => ({ queue: {} }))
 
-const enqueueMock = vi.mocked(enqueueDeliveryJob)
+const enqueueMock = vi.mocked(enqueueDeliveryJobs)
 
 function createMockRes() {
   const res = {
@@ -144,7 +144,8 @@ describe('ingestEvent enqueue failure', () => {
 
     expect(retry.error).toBeUndefined()
     expect(retry.statusCode).toBe(202)
-    expect(enqueueMock.mock.calls.map((call) => call[1])).toEqual(
+    expect(enqueueMock).toHaveBeenCalledWith(
+      expect.anything(),
       expect.arrayContaining(open.map((row) => row.id)),
     )
   })

@@ -58,24 +58,23 @@ async function insertDeliveries(
     .from(endpoints)
     .where(and(eq(endpoints.tenantId, tenantId), eq(endpoints.status, 'active')))
 
-  const newDeliveryIds: string[] = []
-  for (const endpoint of activeEndpoints) {
-    const [delivery] = await executor
-      .insert(deliveries)
-      .values({
+  if (activeEndpoints.length === 0) {
+    return []
+  }
+
+  const inserted = await executor
+    .insert(deliveries)
+    .values(
+      activeEndpoints.map((endpoint) => ({
         tenantId,
         eventId,
         endpointId: endpoint.id,
-      })
-      .onConflictDoNothing({ target: [deliveries.eventId, deliveries.endpointId] })
-      .returning({ id: deliveries.id })
+      })),
+    )
+    .onConflictDoNothing({ target: [deliveries.eventId, deliveries.endpointId] })
+    .returning({ id: deliveries.id })
 
-    if (delivery) {
-      newDeliveryIds.push(delivery.id)
-    }
-  }
-
-  return newDeliveryIds
+  return inserted.map((row) => row.id)
 }
 
 export async function ingestFanout(

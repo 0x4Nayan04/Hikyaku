@@ -10,7 +10,9 @@ function readAuthEmail(req: Request): string | undefined {
     return undefined
   }
   const email = body.email
-  return typeof email === 'string' && email.length > 0 ? email.toLowerCase() : undefined
+  return typeof email === 'string' && email.trim().length > 0
+    ? email.trim().toLowerCase()
+    : undefined
 }
 
 /** Client IP for auth throttling. Honors X-Forwarded-For only when TRUST_PROXY > 0. */

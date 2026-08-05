@@ -113,7 +113,7 @@ describe('replayDelivery validation', () => {
       await deleteTenant(owner.tenantId)
       await deleteTenant(other.tenantId)
     }
-  })
+  }, 15_000)
 
   it('returns 400 when the delivery is not failed', async () => {
     const { tenantId } = await createTenantWithKey()

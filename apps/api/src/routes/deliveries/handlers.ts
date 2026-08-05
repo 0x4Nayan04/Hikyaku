@@ -50,17 +50,19 @@ export async function listDeliveries(req: Request, res: Response, next: NextFunc
     }
     const where = and(...conditions)
 
-    const [countRow] = await db.select({ value: count() }).from(deliveries).where(where)
+    const [countResult, rows] = await Promise.all([
+      db.select({ value: count() }).from(deliveries).where(where),
+      db
+        .select(deliverySelect)
+        .from(deliveries)
+        .innerJoin(endpoints, eq(deliveries.endpointId, endpoints.id))
+        .where(where)
+        .orderBy(desc(deliveries.createdAt))
+        .limit(limit)
+        .offset(offset),
+    ])
+    const [countRow] = countResult
     const total = countRow?.value ?? 0
-
-    const rows = await db
-      .select(deliverySelect)
-      .from(deliveries)
-      .innerJoin(endpoints, eq(deliveries.endpointId, endpoints.id))
-      .where(where)
-      .orderBy(desc(deliveries.createdAt))
-      .limit(limit)
-      .offset(offset)
 
     res.json({
       data: rows.map((row) => toDeliveryListJson(row)),

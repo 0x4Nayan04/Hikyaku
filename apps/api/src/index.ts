@@ -1,6 +1,6 @@
 import type { Server } from 'node:http'
 import { env } from './config.js'
-import { closePool } from './db/client.js'
+import { closePool, getPool } from './db/client.js'
 import { logger } from './lib/logger.js'
 import { closeRedis } from './lib/redis.js'
 import { queue } from './queue/client.js'
@@ -26,6 +26,7 @@ async function shutdown(server: Server, signal: string): Promise<void> {
   shuttingDown = true
 
   logger.info({ signal }, 'shutting_down')
+  clearInterval(poolMetricsTimer)
 
   await Promise.race([
     closeServer(server),
@@ -47,6 +48,15 @@ const app = createApp()
 const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'server_started')
 })
+
+const poolMetricsTimer = setInterval(() => {
+  const pool = getPool()
+  logger.info(
+    { total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount },
+    'db_pool_stats',
+  )
+}, 60_000)
+poolMetricsTimer.unref()
 
 process.on('SIGTERM', () => {
   void shutdown(server, 'SIGTERM')
