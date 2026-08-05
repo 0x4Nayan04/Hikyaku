@@ -4,7 +4,7 @@ import { signPayload } from '@webhook/shared/crypto'
 import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
 import { deliveryAttempts, deliveries, endpoints, events } from '@webhook/shared/schema'
 import { DelayedError, type Job } from 'bullmq'
-import { and, eq, max } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { calculateBackoffDelayMs } from './backoff.js'
 import { env } from './config.js'
 import { getDb } from './db/client.js'
@@ -67,25 +67,15 @@ async function loadDeliveryContext(deliveryId: string): Promise<DeliveryContext 
   return row ?? null
 }
 
-async function nextAttemptNumber(deliveryId: string): Promise<number> {
-  const db = getDb()
-  const [result] = await db
-    .select({ value: max(deliveryAttempts.attemptNumber) })
-    .from(deliveryAttempts)
-    .where(eq(deliveryAttempts.deliveryId, deliveryId))
-
-  return (result?.value ?? 0) + 1
-}
-
 async function recordOutcome(
   deliveryId: string,
   eventId: string,
   leaseStartedAt: Date,
   delivery: DeliveryOutcome,
   attempt?: AttemptOutcome,
+  attemptNumber?: number,
 ): Promise<boolean> {
   const db = getDb()
-  const attemptNumber = attempt ? await nextAttemptNumber(deliveryId) : null
 
   return db.transaction(async (tx) => {
     // Lease check: ignore stale writers after sweeper reclaim / another worker finished.
@@ -109,7 +99,7 @@ async function recordOutcome(
       return false
     }
 
-    if (attempt && attemptNumber !== null) {
+    if (attempt && attemptNumber !== undefined) {
       await tx.insert(deliveryAttempts).values({ deliveryId, attemptNumber, ...attempt })
     }
     await reevaluateEventStatus(eventId, tx)
@@ -194,6 +184,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
         nextRetryAt: null,
       },
       { error: 'endpoint_disabled' },
+      row.attemptCount + 1,
     )
     log.info('endpoint_disabled')
     return
@@ -269,6 +260,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
         nextRetryAt: null,
       },
       { httpStatus, responseBody, error, durationMs: Date.now() - start },
+      attemptCountAfterHttp,
     )
     log.info({ last_error: error }, 'delivery_failed_fast')
     return
@@ -287,6 +279,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
           nextRetryAt: null,
         },
         { httpStatus, responseBody, durationMs: Date.now() - start },
+        attemptCountAfterHttp,
       )
       log.info({ http_status: httpStatus }, 'delivery_succeeded')
       return
@@ -306,6 +299,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
           nextRetryAt: null,
         },
         { httpStatus, responseBody, error: null, durationMs: Date.now() - start },
+        attemptCountAfterHttp,
       )
       log.info({ last_error: `http_${httpStatus}` }, 'delivery_failed_fast')
       return
@@ -331,6 +325,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
         nextRetryAt: null,
       },
       attempt,
+      attemptCountAfterHttp,
     )
     log.info({ attempt_count: attemptCountAfterHttp }, 'delivery_dead_letter')
     return
@@ -349,6 +344,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
       nextRetryAt: retryAt,
     },
     attempt,
+    attemptCountAfterHttp,
   )
   if (!wrote) return
   await job.moveToDelayed(retryAt.getTime(), token)
