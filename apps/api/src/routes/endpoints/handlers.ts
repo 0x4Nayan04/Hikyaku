@@ -1,7 +1,7 @@
 import { generateEndpointSecret } from '@webhook/shared/crypto'
 import { deliveries, endpoints } from '@webhook/shared/schema'
 import { checkWebhookUrl } from '@webhook/shared/webhookUrl'
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { env } from '../../config.js'
 import { getDb } from '../../db/client.js'
@@ -27,32 +27,17 @@ async function loadLastDeliveries(
   if (endpointIds.length === 0) return map
 
   const db = getDb()
-  const ranked = db
-    .select({
+  const rows = await db
+    .selectDistinctOn([deliveries.endpointId], {
       endpointId: deliveries.endpointId,
       id: deliveries.id,
       status: deliveries.status,
       updatedAt: deliveries.updatedAt,
       lastError: deliveries.lastError,
-      rn: sql<number>`row_number() over (
-        partition by ${deliveries.endpointId}
-        order by ${deliveries.createdAt} desc
-      )`.as('rn'),
     })
     .from(deliveries)
     .where(and(eq(deliveries.tenantId, tenantId), inArray(deliveries.endpointId, endpointIds)))
-    .as('ranked')
-
-  const rows = await db
-    .select({
-      endpointId: ranked.endpointId,
-      id: ranked.id,
-      status: ranked.status,
-      updatedAt: ranked.updatedAt,
-      lastError: ranked.lastError,
-    })
-    .from(ranked)
-    .where(eq(ranked.rn, 1))
+    .orderBy(deliveries.endpointId, desc(deliveries.createdAt), desc(deliveries.id))
 
   for (const row of rows) {
     map.set(row.endpointId, {
@@ -104,16 +89,18 @@ export async function listEndpoints(req: Request, res: Response, next: NextFunct
       status === undefined ? undefined : eq(endpoints.status, status),
     )
 
-    const [countRow] = await db.select({ value: count() }).from(endpoints).where(where)
+    const [countResult, rows] = await Promise.all([
+      db.select({ value: count() }).from(endpoints).where(where),
+      db
+        .select(endpointColumns)
+        .from(endpoints)
+        .where(where)
+        .orderBy(desc(endpoints.createdAt))
+        .limit(limit)
+        .offset(offset),
+    ])
+    const [countRow] = countResult
     const total = countRow?.value ?? 0
-
-    const rows = await db
-      .select(endpointColumns)
-      .from(endpoints)
-      .where(where)
-      .orderBy(desc(endpoints.createdAt))
-      .limit(limit)
-      .offset(offset)
 
     const lastByEndpoint = await loadLastDeliveries(
       tenantId,

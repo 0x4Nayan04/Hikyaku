@@ -108,6 +108,16 @@ describe('api-keys', () => {
     expect(res.body.error.code).toBe('already_revoked')
   })
 
+  it('allows only one concurrent revocation of the same key', async () => {
+    const createRes = await agent.post('/v1/api-keys')
+    const keyId = createRes.body.id
+
+    const results = await Promise.all([1, 2].map(() => agent.post(`/v1/api-keys/${keyId}/revoke`)))
+
+    expect(results.map((result) => result.status).sort()).toEqual([200, 409])
+    expect(results.find((result) => result.status === 409)?.body.error.code).toBe('already_revoked')
+  })
+
   it('rotates an API key and returns the new plaintext once', async () => {
     const createRes = await agent.post('/v1/api-keys')
 

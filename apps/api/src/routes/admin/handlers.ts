@@ -41,19 +41,21 @@ export async function listTenants(req: Request, res: Response, next: NextFunctio
     const nameFilter = escaped ? ilike(tenants.name, `%${escaped}%`) : undefined
     const filter = nameFilter && idFilter ? or(nameFilter, idFilter) : (nameFilter ?? idFilter)
 
-    const [countRow] = searchQuery
-      ? await db.select({ value: count() }).from(tenants).where(filter)
-      : await db.select({ value: count() }).from(tenants)
-    const total = countRow?.value ?? 0
-
+    const countQuery = searchQuery
+      ? db.select({ value: count() }).from(tenants).where(filter)
+      : db.select({ value: count() }).from(tenants)
     const query = db
       .select(tenantColumns)
       .from(tenants)
       .orderBy(desc(tenants.createdAt))
       .limit(limit)
       .offset(offset)
-
-    const rows = searchQuery ? await query.where(filter) : await query
+    const [countResult, rows] = await Promise.all([
+      countQuery,
+      searchQuery ? query.where(filter) : query,
+    ])
+    const [countRow] = countResult
+    const total = countRow?.value ?? 0
 
     res.json({
       data: rows.map((row) => toAdminTenantJson(row)),
@@ -197,16 +199,18 @@ export async function listTenantUsers(req: Request, res: Response, next: NextFun
       throw new AppError(404, 'not_found', 'Tenant not found')
     }
 
-    const [countRow] = await db.select({ value: count() }).from(users).where(eq(users.tenantId, id))
+    const [countResult, rows] = await Promise.all([
+      db.select({ value: count() }).from(users).where(eq(users.tenantId, id)),
+      db
+        .select(userColumns)
+        .from(users)
+        .where(eq(users.tenantId, id))
+        .orderBy(desc(users.createdAt))
+        .limit(limit)
+        .offset(offset),
+    ])
+    const [countRow] = countResult
     const total = countRow?.value ?? 0
-
-    const rows = await db
-      .select(userColumns)
-      .from(users)
-      .where(eq(users.tenantId, id))
-      .orderBy(desc(users.createdAt))
-      .limit(limit)
-      .offset(offset)
 
     res.json({
       data: rows.map((row) => toUserJson(row)),

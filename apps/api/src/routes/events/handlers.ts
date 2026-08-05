@@ -1,5 +1,5 @@
 import { deliveries, events } from '@webhook/shared/schema'
-import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
+import { enqueueDeliveryJobs } from '@webhook/shared/enqueueDelivery'
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
@@ -81,13 +81,11 @@ export async function ingestEvent(req: Request, res: Response, next: NextFunctio
           ? await listOpenDeliveryIds(result.event.id, tenantId)
           : []
 
-    for (const deliveryId of deliveryIds) {
-      try {
-        await enqueueDeliveryJob(queue, deliveryId)
-      } catch (err) {
-        logger.error({ delivery_id: deliveryId, err }, 'enqueue_failed')
-        throw new AppError(503, 'service_unavailable', 'Service temporarily unavailable')
-      }
+    try {
+      await enqueueDeliveryJobs(queue, deliveryIds)
+    } catch (err) {
+      logger.error({ delivery_ids: deliveryIds, err }, 'enqueue_failed')
+      throw new AppError(503, 'service_unavailable', 'Service temporarily unavailable')
     }
 
     if (!result.isDuplicate) {
@@ -118,16 +116,18 @@ export async function listEvents(req: Request, res: Response, next: NextFunction
     const db = getDb()
     const where = eq(events.tenantId, tenantId)
 
-    const [countRow] = await db.select({ value: count() }).from(events).where(where)
+    const [countResult, rows] = await Promise.all([
+      db.select({ value: count() }).from(events).where(where),
+      db
+        .select(eventColumns)
+        .from(events)
+        .where(where)
+        .orderBy(desc(events.createdAt))
+        .limit(limit)
+        .offset(offset),
+    ])
+    const [countRow] = countResult
     const total = countRow?.value ?? 0
-
-    const rows = await db
-      .select(eventColumns)
-      .from(events)
-      .where(where)
-      .orderBy(desc(events.createdAt))
-      .limit(limit)
-      .offset(offset)
 
     res.json({
       data: rows.map((row) => toEventListJson(row)),

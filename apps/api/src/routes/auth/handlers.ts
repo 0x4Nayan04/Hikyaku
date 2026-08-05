@@ -1,7 +1,7 @@
 import { count, eq, sql } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { tenants, users } from '@webhook/shared/schema'
-import { hashPassword, verifyPassword } from '@webhook/shared/password'
+import { hashPassword, INVALID_PASSWORD_HASH, verifyPassword } from '@webhook/shared/password'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { revokeUserSessions } from '../../lib/revokeSessions.js'
@@ -122,8 +122,12 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       .limit(1)
 
     const user = rows[0]
-    // Keep the same response for missing users and wrong passwords.
-    if (!user || !(await verifyPassword(body.password, user.passwordHash))) {
+    // Always perform bcrypt work so unknown users are not distinguishable by timing.
+    const passwordMatches = await verifyPassword(
+      body.password,
+      user?.passwordHash ?? INVALID_PASSWORD_HASH,
+    )
+    if (!user || !passwordMatches) {
       throw new AppError(401, 'unauthorized', 'Invalid email or password')
     }
 
