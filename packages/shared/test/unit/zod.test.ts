@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { bootstrapSchema, changePasswordSchema, loginSchema } from '../../src/zod.js'
+import {
+  bootstrapSchema,
+  changePasswordSchema,
+  ingestEventSchema,
+  loginSchema,
+} from '../../src/zod.js'
 
 describe('loginSchema', () => {
   it('accepts a valid login payload', () => {
@@ -19,13 +24,19 @@ describe('loginSchema', () => {
   })
 
   it('rejects an invalid email', () => {
-    expect(loginSchema.safeParse({ email: 'not-an-email', password: 'secret' }).success).toBe(
-      false,
-    )
+    expect(loginSchema.safeParse({ email: 'not-an-email', password: 'secret' }).success).toBe(false)
   })
 
   it('rejects an empty password', () => {
     expect(loginSchema.safeParse({ email: 'owner@acme.com', password: '' }).success).toBe(false)
+  })
+})
+
+describe('ingestEventSchema', () => {
+  const event = { idempotency_key: 'event-1', type: 'test.event', payload: { value: 1 } }
+
+  it.each([{ value: Infinity }, { value: -0 }])('rejects non-canonical JSON numbers', (payload) => {
+    expect(ingestEventSchema.safeParse({ ...event, payload }).success).toBe(false)
   })
 })
 
@@ -45,6 +56,16 @@ describe('bootstrapSchema', () => {
       bootstrapSchema.safeParse({
         email: 'admin@example.com',
         password: 'short',
+        name: 'Platform Admin',
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects passwords longer than 128 UTF-8 bytes', () => {
+    expect(
+      bootstrapSchema.safeParse({
+        email: 'admin@example.com',
+        password: '😀'.repeat(33),
         name: 'Platform Admin',
       }).success,
     ).toBe(false)

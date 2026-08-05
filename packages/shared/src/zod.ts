@@ -3,7 +3,29 @@ import { ENDPOINT_STATUSES, MAX_INGEST_BODY_BYTES } from './constants.js'
 
 const emailSchema = z.string().trim().toLowerCase().email().max(320)
 const userNameSchema = z.string().trim().min(1).max(256)
-const newPasswordSchema = z.string().min(12).max(128)
+const newPasswordByteLimit = (value: string) => Buffer.byteLength(value, 'utf8') <= 128
+const newPasswordSchema = z.string().min(12).refine(newPasswordByteLimit, {
+  message: 'Password must be 128 UTF-8 bytes or fewer',
+})
+
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+
+const jsonNumberSchema = z
+  .number()
+  .finite()
+  .refine((value) => !Object.is(value, -0), {
+    message: 'JSON numbers must be finite and cannot be negative zero',
+  })
+const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
+  z.union([
+    z.string(),
+    jsonNumberSchema,
+    z.boolean(),
+    z.null(),
+    z.array(jsonValueSchema),
+    z.record(jsonValueSchema),
+  ]),
+)
 
 export const createEndpointSchema = z.object({
   url: z.string().url().max(2048),
@@ -29,7 +51,7 @@ export const ingestEventSchema = z
       .string({ required_error: 'type is required' })
       .min(1, { message: 'type is required' })
       .max(128),
-    payload: z.record(z.string(), z.unknown()),
+    payload: z.record(z.string(), jsonValueSchema),
   })
   .refine((data) => JSON.stringify(data).length <= MAX_INGEST_BODY_BYTES, {
     message: 'Request body must be 256 KiB or less',

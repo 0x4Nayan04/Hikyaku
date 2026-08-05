@@ -9,6 +9,7 @@ const baseSchema = z.object({
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().min(1),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default(CONFIG_DEFAULTS.LOG_LEVEL),
+  DB_POOL_MAX: z.coerce.number().int().min(1).max(100).default(CONFIG_DEFAULTS.DB_POOL_MAX),
 })
 
 export const apiEnvSchema = baseSchema

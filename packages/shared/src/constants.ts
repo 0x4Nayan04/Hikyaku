@@ -22,6 +22,7 @@ export const CONFIG_DEFAULTS = {
   MAX_DELIVERY_ATTEMPTS: 5,
   RATE_LIMIT_PER_MINUTE: 100,
   WORKER_CONCURRENCY: 5,
+  DB_POOL_MAX: 10,
 } as const
 
 export const RATE_LIMIT_DEFER_MS = 60_000
@@ -37,12 +38,7 @@ export const DELIVERY_JOB_OPTIONS = {
 export const EVENT_STATUSES = ['pending', 'completed', 'failed'] as const
 export type EventStatus = (typeof EVENT_STATUSES)[number]
 
-export const DELIVERY_STATUSES = [
-  'pending',
-  'in_progress',
-  'succeeded',
-  'failed',
-] as const
+export const DELIVERY_STATUSES = ['pending', 'in_progress', 'succeeded', 'failed'] as const
 export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number]
 
 export const ENDPOINT_STATUSES = ['active', 'disabled'] as const

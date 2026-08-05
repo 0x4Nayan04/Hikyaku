@@ -28,6 +28,7 @@ describe('apiEnvSchema', () => {
     expect(env.INGEST_RATE_LIMIT_PER_MINUTE).toBe(120)
     expect(env.AUTH_RATE_LIMIT_PER_MINUTE).toBe(20)
     expect(env.TRUST_PROXY).toBe(0)
+    expect(env.DB_POOL_MAX).toBe(10)
   })
 
   it('coerces TRUST_PROXY from env', () => {
@@ -182,6 +183,7 @@ describe('workerEnvSchema', () => {
     expect(env.MAX_DELIVERY_ATTEMPTS).toBe(5)
     expect(env.RATE_LIMIT_PER_MINUTE).toBe(100)
     expect(env.WORKER_CONCURRENCY).toBe(5)
+    expect(env.DB_POOL_MAX).toBe(10)
   })
 
   it('coerces custom RATE_LIMIT_PER_MINUTE from env', () => {
