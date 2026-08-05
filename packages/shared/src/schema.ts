@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 import {
   boolean,
+  foreignKey,
   index,
   integer,
   json,
@@ -66,7 +67,10 @@ export const endpoints = pgTable(
     status: text('status').notNull().default('active'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('endpoints_tenant_id_idx').on(t.tenantId)],
+  (t) => [
+    uniqueIndex('endpoints_tenant_id_id_uidx').on(t.tenantId, t.id),
+    index('endpoints_tenant_id_idx').on(t.tenantId),
+  ],
 )
 
 export const events = pgTable(
@@ -84,6 +88,7 @@ export const events = pgTable(
   },
   (t) => [
     uniqueIndex('events_tenant_idempotency_key_idx').on(t.tenantId, t.idempotencyKey),
+    uniqueIndex('events_tenant_id_id_uidx').on(t.tenantId, t.id),
     index('events_tenant_id_created_at_idx').on(t.tenantId, t.createdAt),
   ],
 )
@@ -112,6 +117,16 @@ export const deliveries = pgTable(
     uniqueIndex('deliveries_event_id_endpoint_id_idx').on(t.eventId, t.endpointId),
     index('deliveries_tenant_id_created_at_idx').on(t.tenantId, t.createdAt),
     index('deliveries_status_idx').on(t.status),
+    foreignKey({
+      columns: [t.tenantId, t.eventId],
+      foreignColumns: [events.tenantId, events.id],
+      name: 'deliveries_tenant_id_event_id_events_tenant_id_id_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.tenantId, t.endpointId],
+      foreignColumns: [endpoints.tenantId, endpoints.id],
+      name: 'deliveries_tenant_id_endpoint_id_endpoints_tenant_id_id_fk',
+    }).onDelete('cascade'),
   ],
 )
 

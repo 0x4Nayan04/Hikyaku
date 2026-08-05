@@ -11,13 +11,13 @@ export type DbClient = {
   closePool(): Promise<void>
 }
 
-export function createDbClient(connectionString: string): DbClient {
+export function createDbClient(connectionString: string, maxPoolSize = 10): DbClient {
   let pool: pg.Pool | undefined
   let db: NodePgDatabase<typeof schema> | undefined
 
   function getPool(): pg.Pool {
     if (!pool) {
-      pool = new Pool({ connectionString })
+      pool = new Pool({ connectionString, max: maxPoolSize })
     }
     return pool
   }
