@@ -23,7 +23,43 @@ export function usePolling({
     if (!enabled) {
       return
     }
-    const timer = setInterval(() => onPollRef.current(), intervalMs)
-    return () => clearInterval(timer)
+
+    let polling = false
+    const poll = async () => {
+      if (document.hidden || polling) return
+      polling = true
+      try {
+        await onPollRef.current()
+      } catch {
+        // Poll callbacks surface their own errors in the UI.
+      } finally {
+        polling = false
+      }
+    }
+
+    let timer: ReturnType<typeof setInterval> | null = null
+    const stop = () => {
+      if (timer) {
+        clearInterval(timer)
+        timer = null
+      }
+    }
+    const start = () => {
+      if (!timer) {
+        timer = setInterval(() => void poll(), intervalMs)
+      }
+    }
+    const handleVisibilityChange = () => {
+      if (document.hidden) stop()
+      else start()
+    }
+
+    start()
+    if (document.hidden) stop()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [enabled, intervalMs])
 }

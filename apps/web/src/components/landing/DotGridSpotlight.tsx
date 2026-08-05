@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type DotGridSpotlightProps = {
   dotColor?: string
@@ -27,6 +27,25 @@ export function DotGridSpotlight({
 }: DotGridSpotlightProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const mouse = useRef({ x: -1000, y: -1000, isActive: false })
+  const [reducedMotion, setReducedMotion] = useState(false)
+  const [interactive, setInteractive] = useState(true)
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const pointerMedia = window.matchMedia('(pointer: coarse), (max-width: 640px)')
+    const update = () => setReducedMotion(media.matches)
+    const updatePointer = () => setInteractive(!media.matches && !pointerMedia.matches)
+    update()
+    updatePointer()
+    media.addEventListener('change', update)
+    media.addEventListener('change', updatePointer)
+    pointerMedia.addEventListener('change', updatePointer)
+    return () => {
+      media.removeEventListener('change', update)
+      media.removeEventListener('change', updatePointer)
+      pointerMedia.removeEventListener('change', updatePointer)
+    }
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -35,31 +54,32 @@ export function DotGridSpotlight({
     const ctx = canvas.getContext('2d')
     if (!ctx) return undefined
 
-    const trackEl = interactionRef?.current ?? canvas
-    if (!trackEl) return undefined
+    const trackEl = interactive ? (interactionRef?.current ?? canvas) : null
 
     let width = 0
     let height = 0
     let renderFrameId: number | null = null
+    const interactionRadiusSquared = interactionRadius * interactionRadius
 
     const draw = () => {
       ctx.clearRect(0, 0, width, height)
 
-      const offsetX = (width % spacing) / 2
-      const offsetY = (height % spacing) / 2
+      const gridSpacing = Math.max(spacing, Math.ceil(Math.max(width, height) / 160))
+      const offsetX = (width % gridSpacing) / 2
+      const offsetY = (height % gridSpacing) / 2
 
-      for (let x = offsetX; x <= width; x += spacing) {
-        for (let y = offsetY; y <= height; y += spacing) {
+      for (let x = offsetX; x <= width; x += gridSpacing) {
+        for (let y = offsetY; y <= height; y += gridSpacing) {
           const dx = x - mouse.current.x
           const dy = y - mouse.current.y
-          const distance = Math.sqrt(dx * dx + dy * dy)
+          const distanceSquared = dx * dx + dy * dy
 
           let currentRadius = baseRadius
           let currentColor = dotColor
           let currentAlpha = 1.0
 
-          if (mouse.current.isActive && distance < interactionRadius) {
-            const factor = 1 - distance / interactionRadius
+          if (interactive && mouse.current.isActive && distanceSquared < interactionRadiusSquared) {
+            const factor = 1 - Math.sqrt(distanceSquared) / interactionRadius
             currentRadius = baseRadius + (activeRadius - baseRadius) * factor
             currentColor = activeDotColor
             currentAlpha = activeMinAlpha + (activeMaxAlpha - activeMinAlpha) * factor
@@ -123,8 +143,8 @@ export function DotGridSpotlight({
       }
     }
 
-    trackEl.addEventListener('mousemove', handleMouseMove)
-    trackEl.addEventListener('mouseleave', handleMouseLeave)
+    trackEl?.addEventListener('mousemove', handleMouseMove)
+    trackEl?.addEventListener('mouseleave', handleMouseLeave)
 
     const resizeObserver = new ResizeObserver(() => resizeCanvas())
     if (canvas.parentElement) resizeObserver.observe(canvas.parentElement)
@@ -132,12 +152,14 @@ export function DotGridSpotlight({
     resizeCanvas()
 
     return () => {
-      trackEl.removeEventListener('mousemove', handleMouseMove)
-      trackEl.removeEventListener('mouseleave', handleMouseLeave)
+      trackEl?.removeEventListener('mousemove', handleMouseMove)
+      trackEl?.removeEventListener('mouseleave', handleMouseLeave)
       resizeObserver.disconnect()
       if (renderFrameId !== null) cancelAnimationFrame(renderFrameId)
     }
   }, [
+    reducedMotion,
+    interactive,
     spacing,
     baseRadius,
     activeRadius,

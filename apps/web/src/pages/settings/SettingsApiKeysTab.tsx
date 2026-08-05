@@ -12,6 +12,8 @@ import { DataPanel } from '@/components/console/DataPanel'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { PageBanner } from '@/components/console/PageBanner'
 import { PageLoading } from '@/components/console/PageLoading'
+import { PaginationBar } from '@/components/console/PaginationBar'
+import { shouldPaginate } from '@/components/console/pagination-utils'
 import { StatusBadge } from '@/components/console/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/format'
@@ -19,6 +21,9 @@ import { cn } from '@/lib/utils'
 
 type SettingsApiKeysTabProps = {
   apiKeys: ApiKey[]
+  total: number
+  offset: number
+  pageSize: number
   loadingKeys: boolean
   keysError: string | null
   creatingKey: boolean
@@ -27,10 +32,14 @@ type SettingsApiKeysTabProps = {
   onCreateKey: () => void
   onRotate: (id: string) => void
   onRevokeClick: (apiKey: ApiKey) => void
+  onOffsetChange: (offset: number) => void
 }
 
 export function SettingsApiKeysTab({
   apiKeys,
+  total,
+  offset,
+  pageSize,
   loadingKeys,
   keysError,
   creatingKey,
@@ -39,7 +48,13 @@ export function SettingsApiKeysTab({
   onCreateKey,
   onRotate,
   onRevokeClick,
+  onOffsetChange,
 }: SettingsApiKeysTabProps) {
+  const pageStart = total === 0 ? 0 : offset + 1
+  const pageEnd = Math.min(offset + apiKeys.length, total)
+  const canGoBack = offset > 0
+  const canGoForward = offset + pageSize < total
+
   return (
     <>
       {keysError ? (
@@ -58,6 +73,21 @@ export function SettingsApiKeysTab({
               <Plus className="mr-1 size-3.5" aria-hidden="true" />
               {creatingKey ? 'Creating…' : 'Create API key'}
             </Button>
+          }
+          footer={
+            shouldPaginate(total, pageSize) ? (
+              <div className="pagination-bar-footer">
+                <PaginationBar
+                  pageStart={pageStart}
+                  pageEnd={pageEnd}
+                  total={total}
+                  canGoBack={canGoBack}
+                  canGoForward={canGoForward}
+                  onPrevious={() => onOffsetChange(Math.max(0, offset - pageSize))}
+                  onNext={() => onOffsetChange(offset + pageSize)}
+                />
+              </div>
+            ) : undefined
           }
           empty={
             !loadingKeys && apiKeys.length === 0 ? (

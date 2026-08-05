@@ -61,7 +61,7 @@ Authorization: Bearer whk_your_api_key
 
 Keys belong to one tenant. The tenant is resolved from the key, never from the request body. The full secret is shown once on create or rotate; only a SHA-256 hash is stored.
 
-Passwords must be 12–128 characters. Browser login and API keys are separate credentials that resolve to the same tenant for tenant users.
+Passwords must be 12–128 characters. Browser login and API keys are separate credentials that resolve to the same tenant for tenant users. Changing your password signs you out of all sessions.
 
 - **Bootstrap** — create the first super-admin once via `POST /v1/auth/bootstrap` (requires `ADMIN_BOOTSTRAP_SECRET`).
 - **Invite** — the super-admin creates a tenant-owner or tenant-user link via `POST /v1/admin/invites`; the recipient accepts at [/accept-invite](/accept-invite).
@@ -96,9 +96,9 @@ Post an event to `POST /v1/events`. The body must include three fields and stay 
 | ------ | ------------------------------------------------------------------ |
 | `400`  | Missing or invalid fields — check the request body and rules above |
 | `409`  | The idempotency key was already used with a different event body   |
-| `429`  | Too many requests — wait and retry after a short delay             |
+| `429`  | Too many requests — wait and retry after a short delay (default 120 per minute per tenant) |
 
-An event’s status rolls up from its deliveries: `pending` while anything is still open, `failed` when every delivery failed, and `completed` once all deliveries are terminal and at least one succeeded. List events with `GET /v1/events`, or open a single event with `GET /v1/events/:id`.
+An event’s status rolls up from its deliveries: `pending` while anything is still open, `failed` when every delivery failed, and `completed` once all deliveries are terminal and at least one succeeded. An event with no active endpoints has no deliveries and completes immediately. List events with `GET /v1/events`, or open a single event with `GET /v1/events/:id`.
 
 > **Idempotency:** Reusing the same `idempotency_key` with the same type and payload returns the existing event with `202`. Reusing it with a different type or payload returns `409 idempotency_mismatch`. If active endpoints were added since the first request, the retry creates only the missing deliveries.
 
@@ -164,7 +164,7 @@ User-Agent: Hikyaku/1.0
 - `succeeded` — subscriber returned 2xx
 - `failed` — retries exhausted or fail-fast 4xx
 
-List deliveries with `GET /v1/deliveries` (optional `?status=failed`), or open one with `GET /v1/deliveries/:id` for the attempt timeline. Attempts may include a truncated response body (~1KB). The console polls these endpoints every few seconds.
+List deliveries with `GET /v1/deliveries` (`?status=` any delivery status, `?event_id=`, `?limit`, `?offset`), or open one with `GET /v1/deliveries/:id` for the attempt timeline. Attempts may include a truncated response body (~1KB). The console polls while deliveries are in flight (and pauses in hidden tabs).
 
 ## Signing
 
@@ -266,7 +266,7 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 | DELETE | `/v1/admin/tenants/:id/users/:userId`   | Delete a user from a tenant              |
 | POST   | `/v1/admin/invites`                     | Create tenant-owner or user invite       |
 
-List endpoints accept `?limit=50&offset=0` (default limit 50, max 100). Responses look like `{ data, total, limit, offset }`.
+All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (default 50, max 100). `api-keys` filter by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` plus `?event_id=`. Responses look like `{ data, total, limit, offset }`.
 
 Ingest (`POST /v1/events`) accepts a Bearer API key or a tenant session cookie. Every other tenant route requires a tenant session cookie. Admin routes require a super-admin session. Auth routes are public except logout, me, and change-password.
 
@@ -285,7 +285,9 @@ Transient failures retry automatically. Permanent client errors fail fast. After
 
 > When a tenant hits the rate limit, the delivery stays `pending` for about 60 seconds (`last_error: rate_limited`). That pause is not a failure and does not count toward the five-attempt cap.
 
-Only `failed` deliveries can be re-queued. Call `POST /v1/deliveries/:id/replay` (returns `202`), or use **Replay** on the delivery detail page.
+Delivery is at-least-once — dedupe on your side with `X-Webhook-Id` (stable across retries). A background sweeper reclaims deliveries left `in_progress` after a worker crash and re-enqueues them.
+
+Only `failed` deliveries can be re-queued. Call `POST /v1/deliveries/:id/replay` (returns `202`), or use **Replay** on the delivery detail page. Replaying resets the attempt counter and clears the prior attempt timeline. Replaying a delivery that's already `pending`/`in_progress` returns `202` without rescheduling.
 
 ## Console guide
 

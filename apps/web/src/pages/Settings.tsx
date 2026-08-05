@@ -32,6 +32,10 @@ export function Settings() {
 
   const {
     apiKeys,
+    apiKeyTotal,
+    apiKeyOffset,
+    apiKeyPageSize,
+    setApiKeyOffset,
     loadingKeys,
     keysError,
     creatingKey,
@@ -83,6 +87,9 @@ export function Settings() {
               <SettingsLayout>
                 <SettingsApiKeysTab
                   apiKeys={apiKeys}
+                  total={apiKeyTotal}
+                  offset={apiKeyOffset}
+                  pageSize={apiKeyPageSize}
                   loadingKeys={loadingKeys}
                   keysError={keysError}
                   creatingKey={creatingKey}
@@ -91,6 +98,7 @@ export function Settings() {
                   onCreateKey={handleCreateKey}
                   onRotate={handleRotate}
                   onRevokeClick={setRevokeTarget}
+                  onOffsetChange={setApiKeyOffset}
                 />
               </SettingsLayout>
             </TabsContent>

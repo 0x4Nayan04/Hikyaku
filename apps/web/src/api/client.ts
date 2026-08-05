@@ -155,8 +155,11 @@ export function getStats(): Promise<Stats> {
   return apiFetch('/v1/stats')
 }
 
-export function listEndpoints(params: ListEndpointsParams = {}): Promise<Paginated<Endpoint>> {
-  return apiFetch(`/v1/endpoints${buildQuery(params)}`)
+export function listEndpoints(
+  params: ListEndpointsParams = {},
+  options?: ApiFetchOptions,
+): Promise<Paginated<Endpoint>> {
+  return apiFetch(`/v1/endpoints${buildQuery(params)}`, options)
 }
 
 export function createEndpoint(body: CreateEndpointInput): Promise<EndpointWithSecret> {
@@ -173,12 +176,15 @@ export function patchEndpoint(id: string, body: PatchEndpointInput): Promise<End
   })
 }
 
-export function listEvents(params: PaginationParams = {}): Promise<Paginated<EventSummary>> {
-  return apiFetch(`/v1/events${buildQuery(params)}`)
+export function listEvents(
+  params: PaginationParams = {},
+  options?: ApiFetchOptions,
+): Promise<Paginated<EventSummary>> {
+  return apiFetch(`/v1/events${buildQuery(params)}`, options)
 }
 
-export function getEvent(id: string): Promise<EventDetail> {
-  return apiFetch(`/v1/events/${id}`)
+export function getEvent(id: string, options?: ApiFetchOptions): Promise<EventDetail> {
+  return apiFetch(`/v1/events/${id}`, options)
 }
 
 export function sendEvent(body: IngestEventInput): Promise<IngestEventResponse> {
@@ -188,20 +194,26 @@ export function sendEvent(body: IngestEventInput): Promise<IngestEventResponse> 
   })
 }
 
-export function listDeliveries(params: ListDeliveriesParams = {}): Promise<Paginated<Delivery>> {
-  return apiFetch(`/v1/deliveries${buildQuery(params)}`)
+export function listDeliveries(
+  params: ListDeliveriesParams = {},
+  options?: ApiFetchOptions,
+): Promise<Paginated<Delivery>> {
+  return apiFetch(`/v1/deliveries${buildQuery(params)}`, options)
 }
 
-export function getDelivery(id: string): Promise<DeliveryDetail> {
-  return apiFetch(`/v1/deliveries/${id}`)
+export function getDelivery(id: string, options?: ApiFetchOptions): Promise<DeliveryDetail> {
+  return apiFetch(`/v1/deliveries/${id}`, options)
 }
 
 export function replayDelivery(id: string): Promise<ReplayDeliveryResponse> {
   return apiFetch(`/v1/deliveries/${id}/replay`, { method: 'POST' })
 }
 
-export function listApiKeys(params: ListApiKeysParams = {}): Promise<Paginated<ApiKey>> {
-  return apiFetch(`/v1/api-keys${buildQuery(params)}`)
+export function listApiKeys(
+  params: ListApiKeysParams = {},
+  options?: ApiFetchOptions,
+): Promise<Paginated<ApiKey>> {
+  return apiFetch(`/v1/api-keys${buildQuery(params)}`, options)
 }
 
 export function createApiKey(): Promise<ApiKeyWithSecret> {
@@ -218,9 +230,10 @@ export function rotateApiKey(id: string): Promise<ApiKeyWithSecret> {
 
 export function listAdminTenants(
   params: PaginationParams & { search?: string } = {},
+  options?: ApiFetchOptions,
 ): Promise<Paginated<AdminTenant>> {
   const { search, ...rest } = params
-  return apiFetch(`/v1/admin/tenants${buildQuery({ ...rest, search })}`)
+  return apiFetch(`/v1/admin/tenants${buildQuery({ ...rest, search })}`, options)
 }
 
 export function getAdminTenant(id: string): Promise<AdminTenant> {
@@ -241,8 +254,9 @@ export function patchAdminTenant(id: string, body: { tenant_name: string }): Pro
 export function listTenantUsers(
   tenantId: string,
   params: PaginationParams = {},
+  options?: ApiFetchOptions,
 ): Promise<Paginated<User>> {
-  return apiFetch(`/v1/admin/tenants/${tenantId}/users${buildQuery(params)}`)
+  return apiFetch(`/v1/admin/tenants/${tenantId}/users${buildQuery(params)}`, options)
 }
 
 export function deleteAdminTenantUser(tenantId: string, userId: string): Promise<void> {

@@ -21,6 +21,7 @@ import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { LiveChip } from '@/components/console/LiveChip'
 import { usePolling } from '@/hooks/usePolling'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { hasActiveDeliveryWork } from '@/lib/polling-utils'
 
 const PAGE_SIZE = 25
 
@@ -47,20 +48,21 @@ export function Deliveries() {
     reload,
   } = usePaginatedList<Delivery>({
     pageSize: PAGE_SIZE,
-    fetchPage: ({ limit, offset }) =>
-      listDeliveries({
-        limit,
-        offset,
-        status: statusFilter === 'all' ? undefined : statusFilter,
-        event_id: eventIdFilter,
-      }),
+    fetchPage: ({ limit, offset, signal }) =>
+      listDeliveries(
+        {
+          limit,
+          offset,
+          status: statusFilter === 'all' ? undefined : statusFilter,
+          event_id: eventIdFilter,
+        },
+        { signal },
+      ),
     fallbackError: 'Failed to load deliveries',
     queryKey: JSON.stringify([statusFilter, eventIdFilter]),
   })
 
-  usePolling({
-    onPoll: () => void reload(),
-  })
+  usePolling({ enabled: hasActiveDeliveryWork(deliveries), onPoll: reload })
 
   const isLive = error === null
   const showEmpty = !isInitial && deliveries.length === 0
@@ -127,7 +129,7 @@ export function Deliveries() {
   }
 
   const deliveryPanelActions = (
-    <div className="log-panel-actions" role="search" aria-label="Filter deliveries">
+    <search className="log-panel-actions" aria-label="Filter deliveries">
       <Select
         value={statusFilter}
         onValueChange={(value) => {
@@ -146,7 +148,7 @@ export function Deliveries() {
           ))}
         </SelectContent>
       </Select>
-    </div>
+    </search>
   )
 
   return (

@@ -9,17 +9,35 @@ import {
 } from '@/components/console/DataTable'
 import { DataPanel } from '@/components/console/DataPanel'
 import { FormPanel } from '@/components/console/FormPanel'
+import { PaginationBar } from '@/components/console/PaginationBar'
+import { shouldPaginate } from '@/components/console/pagination-utils'
 import { TenantAdminUserActions } from '@/pages/tenant-admin/TenantAdminUserActions'
 import { useSession } from '@/providers/session-context'
 
 type TenantAdminDetailsProps = {
   tenant: AdminTenant
   users: User[]
+  total: number
+  offset: number
+  pageSize: number
+  loading: boolean
+  onOffsetChange: (offset: number) => void
   onUserDeleted: (userId: string) => void
 }
 
-export function TenantAdminDetails({ tenant, users, onUserDeleted }: TenantAdminDetailsProps) {
+export function TenantAdminDetails({
+  tenant,
+  users,
+  total,
+  offset,
+  pageSize,
+  loading,
+  onOffsetChange,
+  onUserDeleted,
+}: TenantAdminDetailsProps) {
   const { session } = useSession()
+  const pageStart = total === 0 ? 0 : offset + 1
+  const pageEnd = Math.min(offset + users.length, total)
   return (
     <div className="flex flex-col gap-8">
       <FormPanel title="Tenant details">
@@ -36,7 +54,23 @@ export function TenantAdminDetails({ tenant, users, onUserDeleted }: TenantAdmin
       </FormPanel>
 
       <DataPanel
-        title={`Users (${users.length})`}
+        title={`Users (${total})`}
+        loading={loading}
+        footer={
+          shouldPaginate(total, pageSize) ? (
+            <div className="pagination-bar-footer">
+              <PaginationBar
+                pageStart={pageStart}
+                pageEnd={pageEnd}
+                total={total}
+                canGoBack={offset > 0}
+                canGoForward={offset + pageSize < total}
+                onPrevious={() => onOffsetChange(Math.max(0, offset - pageSize))}
+                onNext={() => onOffsetChange(offset + pageSize)}
+              />
+            </div>
+          ) : undefined
+        }
         empty={
           users.length === 0 && 'No users found for this tenant. Send an invite to get started.'
         }
@@ -63,10 +97,10 @@ export function TenantAdminDetails({ tenant, users, onUserDeleted }: TenantAdmin
                     {user.id}
                   </DataTableCell>
                   <DataTableCell>
-                    <TenantAdminUserActions
-                      tenantId={tenant.id}
-                      user={user}
-                      userCount={users.length}
+                      <TenantAdminUserActions
+                        tenantId={tenant.id}
+                        user={user}
+                        userCount={total}
                       currentUserId={session?.user.id}
                       onDeleted={onUserDeleted}
                     />

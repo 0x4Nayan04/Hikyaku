@@ -39,7 +39,7 @@ function strengthBarTone(score: number): string {
 
 export function SettingsProfileTab() {
   const navigate = useNavigate()
-  const { session, loading } = useSession()
+  const { session, loading, refresh } = useSession()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -77,6 +77,7 @@ export function SettingsProfileTab() {
         current_password: currentPassword,
         new_password: newPassword,
       })
+      await refresh()
       navigate('/login', {
         replace: true,
         state: {

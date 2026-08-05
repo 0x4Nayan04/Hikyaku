@@ -25,6 +25,27 @@ function initials(name: string): string {
   return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase()
 }
 
+function handleMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+  const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'))
+  const index = items.indexOf(document.activeElement as HTMLElement)
+  if (index < 0) return
+
+  let nextIndex: number | null = null
+  if (event.key === 'ArrowDown') {
+    nextIndex = (index + 1) % items.length
+  } else if (event.key === 'ArrowUp') {
+    nextIndex = (index - 1 + items.length) % items.length
+  } else if (event.key === 'Home') {
+    nextIndex = 0
+  } else if (event.key === 'End') {
+    nextIndex = items.length - 1
+  }
+  if (nextIndex === null) return
+
+  event.preventDefault()
+  items[nextIndex]?.focus()
+}
+
 export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -117,8 +138,10 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
                   type="button"
                   ref={dropdownButtonRef}
                   className="nav-user-trigger outline-none"
+                  aria-label="Open account menu"
                   aria-expanded={dropdownOpen}
                   aria-haspopup="menu"
+                  aria-controls="account-menu"
                   onClick={() => setDropdownOpen((prev) => !prev)}
                 >
                   <span className="nav-user-avatar">
@@ -129,7 +152,13 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
                 </button>
 
                 {dropdownOpen ? (
-                  <div ref={dropdownTrapRef} className="nav-user-menu" role="menu">
+                  <div
+                    ref={dropdownTrapRef}
+                    id="account-menu"
+                    className="nav-user-menu"
+                    role="menu"
+                    onKeyDown={handleMenuKeyDown}
+                  >
                     <div className="nav-user-menu-identity">
                       <span className="nav-user-menu-avatar" aria-hidden="true">
                         {initials(session.user.name)}

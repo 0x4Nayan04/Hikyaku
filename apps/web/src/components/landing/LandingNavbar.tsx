@@ -11,12 +11,13 @@ import { APP_HOME_LABEL, APP_NAME, PRODUCT_LINKS } from '@/lib/app-meta'
 import { useSession } from '@/providers/session-context'
 
 const LANDING_SECTION_IDS = ['how-it-works', 'faq']
+const PRIMARY_CTA = { label: 'Sign in', path: '/login' }
 
 const NAV_LINKS = [
-  { label: 'How it works', href: '#how-it-works', sectionId: 'how-it-works', external: false },
-  { label: 'Console', href: PRODUCT_LINKS.console, sectionId: null, external: false },
-  { label: 'FAQ', href: '#faq', sectionId: 'faq', external: false },
-  { label: 'Docs', href: PRODUCT_LINKS.docs, sectionId: null, external: false },
+  { label: 'How it works', href: '#how-it-works', sectionId: 'how-it-works' },
+  { label: 'Console', href: PRODUCT_LINKS.console, sectionId: null },
+  { label: 'FAQ', href: '#faq', sectionId: 'faq' },
+  { label: 'Docs', href: PRODUCT_LINKS.docs, sectionId: null },
 ] as const
 
 export const LandingNavbar = memo(function LandingNavbar() {
@@ -31,14 +32,6 @@ export const LandingNavbar = memo(function LandingNavbar() {
     onEscape: () => setIsMobileMenuOpen(false),
   })
   const activeSectionId = useScrollSpy(isLanding ? LANDING_SECTION_IDS : [])
-
-  const goHome = useCallback(
-    (event: React.MouseEvent) => {
-      event.preventDefault()
-      navigate('/')
-    },
-    [navigate],
-  )
 
   useBodyScrollLock(isMobileMenuOpen)
 
@@ -60,41 +53,32 @@ export const LandingNavbar = memo(function LandingNavbar() {
     menuButtonRef.current?.focus()
   }, [])
 
-  const primaryCta = { label: 'Sign in', path: '/login' }
-
   return (
     <header className="landing-nav">
       <LandingFrameInner className="landing-nav-inner-wrap">
         <div className="landing-nav-bar">
-          <a
-            href="/"
-            onClick={goHome}
+          <Link
+            to="/"
             className="landing-nav-brand focus-ring"
             aria-label={APP_HOME_LABEL}
           >
             <HikyakuMark className="size-7 shrink-0" />
             <span className="landing-nav-brand-text">{APP_NAME}</span>
-          </a>
+          </Link>
 
           <nav className="landing-nav-links hidden md:flex" aria-label="Page sections">
-            {NAV_LINKS.map((item) =>
-              item.external ? (
-                <Link key={item.label} to={item.href} className="landing-nav-link focus-ring">
-                  {item.label}
-                </Link>
-              ) : (
-                <a
-                  key={item.label}
-                  href={item.href}
-                  className={`landing-nav-link focus-ring${item.sectionId && activeSectionId === item.sectionId ? ' landing-nav-link--active' : ''}`}
-                  aria-current={
-                    item.sectionId && activeSectionId === item.sectionId ? 'location' : undefined
-                  }
-                >
-                  {item.label}
-                </a>
-              ),
-            )}
+            {NAV_LINKS.map((item) => (
+              <Link
+                key={item.label}
+                to={item.href}
+                className={`landing-nav-link focus-ring${item.sectionId && activeSectionId === item.sectionId ? ' landing-nav-link--active' : ''}`}
+                aria-current={
+                  item.sectionId && activeSectionId === item.sectionId ? 'location' : undefined
+                }
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
 
           <div className="landing-nav-actions">
@@ -114,10 +98,10 @@ export const LandingNavbar = memo(function LandingNavbar() {
               {!session && !loading ? (
                 <button
                   type="button"
-                  onClick={() => navigate(primaryCta.path)}
+                  onClick={() => navigate(PRIMARY_CTA.path)}
                   className="sm-btn sm-btn-primary sm-btn-split focus-ring"
                 >
-                  <span className="sm-btn-split-label">{primaryCta.label}</span>
+                  <span className="sm-btn-split-label">{PRIMARY_CTA.label}</span>
                   <span className="sm-btn-split-icon">
                     <ArrowRight className="size-3.5" aria-hidden="true" />
                   </span>
@@ -158,30 +142,19 @@ export const LandingNavbar = memo(function LandingNavbar() {
             aria-label="Site navigation"
           >
             <nav className="landing-nav-drawer-links" aria-label="Page sections">
-              {NAV_LINKS.map((item) =>
-                item.external ? (
-                  <Link
-                    key={item.label}
-                    to={item.href}
-                    className="landing-nav-drawer-link"
-                    onClick={closeMobileMenu}
-                  >
-                    {item.label}
-                  </Link>
-                ) : (
-                  <a
-                    key={item.label}
-                    href={item.href}
-                    className={`landing-nav-drawer-link${item.sectionId && activeSectionId === item.sectionId ? ' landing-nav-drawer-link--active' : ''}`}
-                    onClick={closeMobileMenu}
-                    aria-current={
-                      item.sectionId && activeSectionId === item.sectionId ? 'location' : undefined
-                    }
-                  >
-                    {item.label}
-                  </a>
-                ),
-              )}
+              {NAV_LINKS.map((item) => (
+                <Link
+                  key={item.label}
+                  to={item.href}
+                  className={`landing-nav-drawer-link${item.sectionId && activeSectionId === item.sectionId ? ' landing-nav-drawer-link--active' : ''}`}
+                  onClick={closeMobileMenu}
+                  aria-current={
+                    item.sectionId && activeSectionId === item.sectionId ? 'location' : undefined
+                  }
+                >
+                  {item.label}
+                </Link>
+              ))}
             </nav>
             <div className="landing-nav-drawer-actions">
               {session ? (
@@ -200,12 +173,12 @@ export const LandingNavbar = memo(function LandingNavbar() {
                   <button
                     type="button"
                     onClick={() => {
-                      navigate(primaryCta.path)
+                      navigate(PRIMARY_CTA.path)
                       closeMobileMenu()
                     }}
                     className="sm-btn sm-btn-primary w-full"
                   >
-                    {primaryCta.label}
+                    {PRIMARY_CTA.label}
                   </button>
                 </>
               ) : null}

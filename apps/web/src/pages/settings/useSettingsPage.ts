@@ -1,46 +1,40 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ApiError, createApiKey, listApiKeys, revokeApiKey, rotateApiKey } from '@/api/client'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { toast } from '@/lib/toast'
 import type { ApiKey, ApiKeyWithSecret } from '@/api/types'
 
+const API_KEY_PAGE_SIZE = 25
+
 export function useSettingsPage(isSuperAdmin = false) {
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
-  const [loadingKeys, setLoadingKeys] = useState(true)
-  const [keysError, setKeysError] = useState<string | null>(null)
+  const {
+    data: apiKeys,
+    total: apiKeyTotal,
+    offset: apiKeyOffset,
+    setOffset: setApiKeyOffset,
+    isInitial,
+    isRefreshing,
+    error: keysError,
+    reload,
+  } = usePaginatedList<ApiKey>({
+    pageSize: API_KEY_PAGE_SIZE,
+    fetchPage: ({ limit, offset, signal }) => listApiKeys({ limit, offset }, { signal }),
+    fallbackError: 'Failed to load API keys',
+    enabled: !isSuperAdmin,
+  })
+
   const [creatingKey, setCreatingKey] = useState(false)
   const [revokingId, setRevokingId] = useState<string | null>(null)
   const [rotatingId, setRotatingId] = useState<string | null>(null)
   const [secretKey, setSecretKey] = useState<ApiKeyWithSecret | null>(null)
   const [revokeTarget, setRevokeTarget] = useState<ApiKey | null>(null)
 
-  const loadApiKeys = useCallback(async () => {
-    // Tenants with more than 100 keys need pagination UI.
-    const result = await listApiKeys({ limit: 100 })
-    setApiKeys(result.data)
-    setKeysError(null)
-  }, [])
-
-  useEffect(() => {
-    if (isSuperAdmin) return
-
-    let cancelled = false
-
-    loadApiKeys()
-      .catch((err) => {
-        if (!cancelled) {
-          setKeysError(err instanceof ApiError ? err.message : 'Failed to load API keys')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadingKeys(false)
-        }
-      })
-
-    return () => {
-      cancelled = true
+  async function refreshApiKeysAfterMutation(message: string) {
+    const refreshed = await reload()
+    if (refreshed === false) {
+      toast.error(`${message}, but the API-key list could not be refreshed.`)
     }
-  }, [loadApiKeys, isSuperAdmin])
+  }
 
   async function handleCreateKey() {
     setCreatingKey(true)
@@ -48,13 +42,15 @@ export function useSettingsPage(isSuperAdmin = false) {
     try {
       const created = await createApiKey()
       setSecretKey(created)
-      setCreatingKey(false)
-      await loadApiKeys()
       toast.success('API key created')
     } catch (err) {
-      setCreatingKey(false)
       toast.error(err instanceof ApiError ? err.message : 'Failed to create API key')
+      return
+    } finally {
+      setCreatingKey(false)
     }
+
+    await refreshApiKeysAfterMutation('API key created')
   }
 
   async function handleRevoke() {
@@ -67,13 +63,15 @@ export function useSettingsPage(isSuperAdmin = false) {
     try {
       await revokeApiKey(revokeTarget.id)
       setRevokeTarget(null)
-      setRevokingId(null)
-      await loadApiKeys()
       toast.success('API key revoked')
     } catch (err) {
-      setRevokingId(null)
       toast.error(err instanceof ApiError ? err.message : 'Failed to revoke API key')
+      return
+    } finally {
+      setRevokingId(null)
     }
+
+    await refreshApiKeysAfterMutation('API key revoked')
   }
 
   async function handleRotate(id: string) {
@@ -82,18 +80,24 @@ export function useSettingsPage(isSuperAdmin = false) {
     try {
       const rotated = await rotateApiKey(id)
       setSecretKey(rotated)
-      setRotatingId(null)
-      await loadApiKeys()
       toast.success('API key rotated')
     } catch (err) {
-      setRotatingId(null)
       toast.error(err instanceof ApiError ? err.message : 'Failed to rotate API key')
+      return
+    } finally {
+      setRotatingId(null)
     }
+
+    await refreshApiKeysAfterMutation('API key rotated')
   }
 
   return {
     apiKeys,
-    loadingKeys,
+    apiKeyTotal,
+    apiKeyOffset,
+    apiKeyPageSize: API_KEY_PAGE_SIZE,
+    setApiKeyOffset,
+    loadingKeys: isInitial || isRefreshing,
     keysError,
     creatingKey,
     revokingId,

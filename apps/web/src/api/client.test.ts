@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apiFetch } from './client'
+import { apiFetch, listApiKeys, listEvents } from './client'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -34,5 +34,37 @@ describe('apiFetch auth redirects', () => {
 
     await expect(apiFetch('/test')).rejects.toMatchObject({ code: 'unauthorized' })
     expect(assign).toHaveBeenCalledWith('/login')
+  })
+})
+
+describe('list requests', () => {
+  it('forwards an abort signal to the network request', async () => {
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: [], total: 0, limit: 25, offset: 0 })),
+    )
+    vi.stubGlobal('fetch', fetch)
+    const controller = new AbortController()
+
+    await listEvents({ limit: 25 }, { signal: controller.signal })
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:3000/v1/events?limit=25',
+      expect.objectContaining({ signal: controller.signal }),
+    )
+  })
+
+  it('forwards an abort signal to the API-key list request', async () => {
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: [], total: 0, limit: 25, offset: 0 })),
+    )
+    vi.stubGlobal('fetch', fetch)
+    const controller = new AbortController()
+
+    await listApiKeys({ limit: 25, offset: 25 }, { signal: controller.signal })
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:3000/v1/api-keys?limit=25&offset=25',
+      expect.objectContaining({ signal: controller.signal }),
+    )
   })
 })

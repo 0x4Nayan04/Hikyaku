@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Check, Copy } from 'lucide-react'
-import { toast } from '@/lib/toast'
+import { copyToClipboard } from '@/lib/clipboard'
 
 type AttemptResponseBodyProps = {
   body: string
@@ -10,8 +10,7 @@ export function AttemptResponseBody({ body }: AttemptResponseBodyProps) {
   const [copied, setCopied] = useState(false)
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(body)
-    toast.success('Response copied')
+    if (!(await copyToClipboard(body, 'Response'))) return
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1600)
   }

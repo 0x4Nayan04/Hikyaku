@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ArrowUpRight, Plus } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
@@ -129,6 +129,7 @@ export function LandingFaq() {
   const [selectedId, setSelectedId] = useState('what-does')
   const [activeCategory, setActiveCategory] =
     useState<(typeof CATEGORIES)[number]>('Getting started')
+  const categoryRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   const filtered = FAQ_ITEMS.filter((item) => item.category === activeCategory)
 
@@ -139,6 +140,24 @@ export function LandingFaq() {
   const handleCategorySelect = (category: (typeof CATEGORIES)[number]) => {
     setActiveCategory(category)
     setSelectedId(FAQ_ITEMS.find((item) => item.category === category)?.id ?? '')
+  }
+
+  function handleCategoryKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    let nextIndex: number | null = null
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (index + 1) % CATEGORIES.length
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (index - 1 + CATEGORIES.length) % CATEGORIES.length
+    } else if (event.key === 'Home') {
+      nextIndex = 0
+    } else if (event.key === 'End') {
+      nextIndex = CATEGORIES.length - 1
+    }
+    if (nextIndex === null) return
+
+    event.preventDefault()
+    handleCategorySelect(CATEGORIES[nextIndex])
+    categoryRefs.current[nextIndex]?.focus()
   }
 
   return (
@@ -155,21 +174,34 @@ export function LandingFaq() {
         </header>
 
         <div className="lp-faq__tabs" role="tablist" aria-label="FAQ topics">
-          {CATEGORIES.map((category) => (
+          {CATEGORIES.map((category, index) => (
             <button
               key={category}
               type="button"
               role="tab"
+              ref={(element) => {
+                categoryRefs.current[index] = element
+              }}
+              id={`faq-tab-${index}`}
+              aria-controls="faq-panel"
               aria-selected={activeCategory === category}
+              tabIndex={activeCategory === category ? 0 : -1}
               className={cn('lp-faq__tab', activeCategory === category && 'lp-faq__tab--active')}
               onClick={() => handleCategorySelect(category)}
+              onKeyDown={(event) => handleCategoryKeyDown(event, index)}
             >
               {category}
             </button>
           ))}
         </div>
 
-        <div className="lp-faq__list" key={activeCategory}>
+        <div
+          id="faq-panel"
+          role="tabpanel"
+          aria-labelledby={`faq-tab-${CATEGORIES.indexOf(activeCategory)}`}
+          className="lp-faq__list"
+          key={activeCategory}
+        >
           {filtered.map((item, index) => {
             const open = selectedId === item.id
             return (

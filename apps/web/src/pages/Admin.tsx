@@ -31,8 +31,8 @@ export function Admin() {
     reload,
   } = usePaginatedList<AdminTenant>({
     pageSize: PAGE_SIZE,
-    fetchPage: ({ limit, offset }) =>
-      listAdminTenants({ limit, offset, search: searchQuery.trim() || undefined }),
+    fetchPage: ({ limit, offset, signal }) =>
+      listAdminTenants({ limit, offset, search: searchQuery.trim() || undefined }, { signal }),
     fallbackError: 'Failed to load tenants',
     queryKey: searchQuery.trim(),
   })

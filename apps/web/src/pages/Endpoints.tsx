@@ -11,19 +11,9 @@ import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
 import { shouldPaginate } from '@/components/console/pagination-utils'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
-import { SendEventField } from '@/components/console/SendEventField'
-import { SettingsCopyValue } from '@/components/console/SettingsCatalog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { EndpointDialogs } from '@/pages/endpoint-dialogs'
 
 const API_PAGE_SIZE = 25
 
@@ -39,7 +29,7 @@ export function Endpoints() {
     reload,
   } = usePaginatedList<Endpoint>({
     pageSize: API_PAGE_SIZE,
-    fetchPage: listEndpoints,
+    fetchPage: ({ limit, offset, signal }) => listEndpoints({ limit, offset }, { signal }),
     fallbackError: 'Failed to load endpoints',
   })
   const [togglingId, setTogglingId] = useState<string | null>(null)
@@ -75,26 +65,6 @@ export function Endpoints() {
     setEditSubmitting(false)
   }
 
-  const emptyState = (
-    <DataPanelEmpty
-      icon={Globe}
-      title="No endpoints yet"
-      description={
-        <>
-          Register a URL where signed webhook payloads should be delivered.{' '}
-          <button
-            type="button"
-            className="font-medium text-primary hover:underline"
-            onClick={() => setCreateOpen(true)}
-          >
-            Create your first endpoint
-          </button>
-          .
-        </>
-      }
-    />
-  )
-
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSubmitting(true)
@@ -105,12 +75,12 @@ export function Endpoints() {
         description: description.trim() || undefined,
       })
       handleCreateOpenChange(false)
-      setSubmitting(false)
       setSecretEndpoint(created)
       await reload()
       toast.success('Endpoint created')
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Failed to create endpoint')
+    } finally {
       setSubmitting(false)
     }
   }
@@ -156,24 +126,6 @@ export function Endpoints() {
   const canGoForward = offset + API_PAGE_SIZE < total
   const showFooter = !isInitial && total > 0 && shouldPaginate(total, API_PAGE_SIZE)
 
-  const createButton = (
-    <Button
-      size="sm"
-      className="endpoint-panel-toolbar__create gap-1.5"
-      onClick={() => setCreateOpen(true)}
-      disabled={submitting}
-    >
-      <Plus className="size-3.5" aria-hidden="true" />
-      {submitting ? 'Creating…' : 'Create endpoint'}
-    </Button>
-  )
-
-  const endpointPanelChrome = (
-    <div className="endpoint-panel-toolbar">
-      <div className="endpoint-panel-toolbar__actions">{createButton}</div>
-    </div>
-  )
-
   return (
     <ConsolePage
       title="Endpoints"
@@ -198,16 +150,28 @@ export function Endpoints() {
                   total={total}
                   canGoBack={canGoBack}
                   canGoForward={canGoForward}
-                  onPrevious={() =>
-                    setOffset(Math.max(0, offset - API_PAGE_SIZE))
-                  }
+                  onPrevious={() => setOffset(Math.max(0, offset - API_PAGE_SIZE))}
                   onNext={() => setOffset(offset + API_PAGE_SIZE)}
                 />
               </div>
             ) : undefined
           }
         >
-          {showEmpty ? null : endpointPanelChrome}
+          {showEmpty ? null : (
+            <div className="endpoint-panel-toolbar">
+              <div className="endpoint-panel-toolbar__actions">
+                <Button
+                  size="sm"
+                  className="endpoint-panel-toolbar__create gap-1.5"
+                  onClick={() => setCreateOpen(true)}
+                  disabled={submitting}
+                >
+                  <Plus className="size-3.5" aria-hidden="true" />
+                  {submitting ? 'Creating…' : 'Create endpoint'}
+                </Button>
+              </div>
+            </div>
+          )}
           {endpoints.length > 0 ? (
             <EndpointCatalogList
               endpoints={endpoints}
@@ -216,184 +180,45 @@ export function Endpoints() {
               onToggle={handleToggleStatus}
             />
           ) : showEmpty ? (
-            emptyState
+            <DataPanelEmpty
+              icon={Globe}
+              title="No endpoints yet"
+              description={
+                <>
+                  Register a URL where signed webhook payloads should be delivered.{' '}
+                  <button
+                    type="button"
+                    className="font-medium text-primary hover:underline"
+                    onClick={() => setCreateOpen(true)}
+                  >
+                    Create your first endpoint
+                  </button>
+                  .
+                </>
+              }
+            />
           ) : null}
         </DataPanel>
       )}
 
-      <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
-        <DialogContent className="gap-0 p-0 sm:max-w-md">
-          <div className="catalog-dialog-secret px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))] pb-4">
-            <DialogHeader className="gap-1.5 text-left">
-              <DialogTitle className="catalog-dialog-secret__title">Create endpoint</DialogTitle>
-              <DialogDescription className="catalog-dialog-secret__desc">
-                Register a receiver URL. Signed webhook payloads are POSTed to this address.
-              </DialogDescription>
-            </DialogHeader>
-
-            <form
-              id="create-endpoint-form"
-              className="mt-4 flex flex-col gap-4"
-              onSubmit={handleCreate}
-            >
-              <SendEventField
-                id="endpoint-url"
-                label="URL"
-                hint="Must accept POST requests."
-                variant="plain"
-              >
-                <Input
-                  id="endpoint-url"
-                  type="url"
-                  placeholder="https://example.com/webhooks"
-                  value={url}
-                  onChange={(event) => setUrl(event.target.value)}
-                  autoFocus
-                  required
-                />
-              </SendEventField>
-              <SendEventField
-                id="endpoint-description"
-                label="Label"
-                hint="Optional label (e.g. Production, Staging)."
-                variant="plain"
-              >
-                <Input
-                  id="endpoint-description"
-                  placeholder="e.g. Production"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                />
-              </SendEventField>
-            </form>
-          </div>
-
-          <DialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/6 px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
-            <Button
-              size="sm"
-              type="button"
-              variant="secondary"
-              onClick={() => handleCreateOpenChange(false)}
-              disabled={submitting}
-            >
-              Cancel
-            </Button>
-            <Button size="sm" type="submit" form="create-endpoint-form" disabled={submitting}>
-              {submitting ? 'Creating…' : 'Create endpoint'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={editTarget !== null}
-        onOpenChange={(open) => {
-          if (!open && !editSubmitting) {
-            handleEditClose()
-          }
-        }}
-      >
-        <DialogContent className="gap-0 p-0 sm:max-w-md">
-          <div className="catalog-dialog-secret px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))] pb-4">
-            <DialogHeader className="gap-1.5 text-left">
-              <DialogTitle className="catalog-dialog-secret__title">Edit label</DialogTitle>
-              <DialogDescription className="catalog-dialog-secret__desc">
-                Update the label. The receiver URL cannot be changed after creation.
-              </DialogDescription>
-            </DialogHeader>
-
-            {editTarget ? (
-              <form
-                id="edit-endpoint-form"
-                className="mt-4 flex flex-col gap-4"
-                onSubmit={handleEdit}
-              >
-                <SendEventField
-                  id="edit-endpoint-url"
-                  label="URL"
-                  hint="Cannot be changed after creation."
-                  variant="plain"
-                >
-                  <p id="edit-endpoint-url" className="endpoint-locked-url" title={editTarget.url}>
-                    {editTarget.url}
-                  </p>
-                </SendEventField>
-                <SendEventField
-                  id="edit-endpoint-description"
-                  label="Label"
-                  hint="Shown in the endpoint list (e.g. Production, Staging)."
-                  variant="plain"
-                >
-                  <Input
-                    id="edit-endpoint-description"
-                    placeholder="e.g. Production"
-                    value={editDescription}
-                    onChange={(event) => setEditDescription(event.target.value)}
-                    autoFocus
-                  />
-                </SendEventField>
-              </form>
-            ) : null}
-          </div>
-
-          <DialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/6 px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
-            <Button
-              size="sm"
-              type="button"
-              variant="secondary"
-              onClick={handleEditClose}
-              disabled={editSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button size="sm" type="submit" form="edit-endpoint-form" disabled={editSubmitting}>
-              {editSubmitting ? 'Saving…' : 'Save changes'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={secretEndpoint !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSecretEndpoint(null)
-          }
-        }}
-      >
-        <DialogContent className="gap-0 p-0 sm:max-w-lg">
-          <div className="flex flex-col gap-4 px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))] pb-4">
-            <DialogHeader>
-              <DialogTitle>Signing secret</DialogTitle>
-              <DialogDescription className="text-muted-foreground">
-                Copy this secret now. The server cannot show it again after you close this dialog.
-              </DialogDescription>
-            </DialogHeader>
-
-            {secretEndpoint ? (
-              <>
-                <PageBanner
-                  variant="info"
-                  title="Shown once"
-                  description="Use this value to verify webhook signatures. Treat it like a password."
-                />
-
-                <SettingsCopyValue
-                  value={secretEndpoint.secret}
-                  copyLabel="Secret"
-                  buttonLabel="Copy"
-                />
-              </>
-            ) : null}
-          </div>
-
-          <DialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/6 px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
-            <Button size="sm" type="button" onClick={() => setSecretEndpoint(null)}>
-              Done
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EndpointDialogs
+        createOpen={createOpen}
+        onCreateOpenChange={handleCreateOpenChange}
+        url={url}
+        onUrlChange={setUrl}
+        description={description}
+        onDescriptionChange={setDescription}
+        submitting={submitting}
+        onCreate={handleCreate}
+        editTarget={editTarget}
+        editDescription={editDescription}
+        onEditDescriptionChange={setEditDescription}
+        editSubmitting={editSubmitting}
+        onEdit={handleEdit}
+        onEditClose={handleEditClose}
+        secretEndpoint={secretEndpoint}
+        onSecretEndpointChange={setSecretEndpoint}
+      />
     </ConsolePage>
   )
 }
