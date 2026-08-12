@@ -143,8 +143,16 @@ export function SendEvent() {
 
   return (
     <ConsolePage
+      marker="Dev tools"
       title="Test event"
-      description="Console smoke test for this tenant. Production traffic should use POST /v1/events with an API key."
+      description={
+        <>
+          Non-prod smoke test for this tenant.{' '}
+          <Link to="/docs#ingest" className="font-medium text-primary hover:underline">
+            Ingest docs
+          </Link>
+        </>
+      }
       actions={
         <Button size="sm" className="sm-btn-split" variant="secondary" asChild>
           <Link to="/events">
@@ -248,52 +256,41 @@ function SendEventForm({
       titleVariant="prominent"
       description={
         <>
-          Smoke-test request body for{' '}
-          <code className="send-event-api-endpoint">POST /v1/events</code>. For real traffic, create
-          an API key and use curl — see{' '}
-          <Link to="/docs#ingest" className="font-medium text-primary hover:underline">
-            ingest docs
+          <code className="send-event-api-endpoint">POST /v1/events</code> →{' '}
+          <strong className="font-medium text-ink">202</strong>, then watch{' '}
+          <Link to="/deliveries" className="font-medium text-primary hover:underline">
+            Deliveries
           </Link>
-          . The API responds with <strong className="font-medium text-ink">202 Accepted</strong>;
-          deliveries queue immediately.
+          .
         </>
       }
-      footerAlign="between"
+      footerAlign="end"
       footer={
-        <>
-          <p className="send-event-footer-note">
-            After send, track outcomes on{' '}
-            <Link to="/deliveries" className="font-medium text-primary hover:underline">
-              Deliveries
-            </Link>
-            .
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              size="sm"
-              type="submit"
-              form="send-event-form"
-              disabled={form.submitting}
-              className="sm-btn-split"
-            >
-              <span className="sm-btn-split-label">
-                {form.submitting ? 'Sending…' : 'Send test event'}
-              </span>
-              <span className="sm-btn-split-icon">
-                <Send className="size-3.5" aria-hidden="true" />
-              </span>
-            </Button>
-            <Button
-              size="sm"
-              type="button"
-              variant="secondary"
-              onClick={() => dispatch({ type: 'reset' })}
-              disabled={form.submitting}
-            >
-              <RotateCcw className="size-3.5" aria-hidden="true" /> Reset form
-            </Button>
-          </div>
-        </>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            size="sm"
+            type="submit"
+            form="send-event-form"
+            disabled={form.submitting}
+            className="sm-btn-split"
+          >
+            <span className="sm-btn-split-label">
+              {form.submitting ? 'Sending…' : 'Send test event'}
+            </span>
+            <span className="sm-btn-split-icon">
+              <Send className="size-3.5" aria-hidden="true" />
+            </span>
+          </Button>
+          <Button
+            size="sm"
+            type="button"
+            variant="secondary"
+            onClick={() => dispatch({ type: 'reset' })}
+            disabled={form.submitting}
+          >
+            <RotateCcw className="size-3.5" aria-hidden="true" /> Reset form
+          </Button>
+        </div>
       }
     >
       <form id="send-event-form" className="send-event-form" onSubmit={onSubmit}>
@@ -310,7 +307,7 @@ function SendEventForm({
               id="idempotency-key"
               variant="plain"
               label="Idempotency key"
-              hint="Auto-generated UUID. Reusing the same key returns the original event without creating new deliveries."
+              hint="Same key + same body returns the original event."
               action={
                 <Button
                   type="button"
@@ -350,7 +347,7 @@ function SendEventForm({
               id="event-type"
               variant="plain"
               label="Event type"
-              hint="Dot-separated name, e.g. order.paid or user.created."
+              hint="e.g. order.paid"
             >
               <Input
                 id="event-type"

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import type { Delivery } from '@/api/types'
 import {
   DataTable,
@@ -12,7 +12,7 @@ import { StatusBadge } from '@/components/console/StatusBadge'
 import {
   formatDateTime,
   formatDeliveryError,
-  formatEndpointUrlForDisplay,
+  formatEndpointUrlDistinctive,
   shortId,
 } from '@/lib/format'
 
@@ -25,6 +25,8 @@ function formatAttempts(count: number): string {
 }
 
 export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
+  const navigate = useNavigate()
+
   return (
     <DataTable className="delivery-table">
       <DataTableHeader>
@@ -38,17 +40,27 @@ export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
       </DataTableHeader>
       <DataTableBody>
         {deliveries.map((delivery) => (
-          <DataTableRow key={delivery.id}>
+          <DataTableRow
+            key={delivery.id}
+            className="cursor-pointer"
+            tabIndex={0}
+            role="link"
+            aria-label={`Open delivery to ${formatEndpointUrlDistinctive(delivery.endpoint_url, 40)}`}
+            onClick={() => navigate(`/deliveries/${delivery.id}`)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                navigate(`/deliveries/${delivery.id}`)
+              }
+            }}
+          >
             <DataTableCell className="max-w-[18rem] md:max-w-88">
-              <Link
-                to={`/deliveries/${delivery.id}`}
-                className="block min-w-0 font-medium hover:text-primary hover:underline"
+              <span
+                className="block min-w-0 truncate font-medium group-hover:text-primary"
                 title={delivery.endpoint_url}
               >
-                <span className="block truncate">
-                  {formatEndpointUrlForDisplay(delivery.endpoint_url, 64)}
-                </span>
-              </Link>
+                {formatEndpointUrlDistinctive(delivery.endpoint_url, 64)}
+              </span>
               {delivery.last_error ? (
                 <p className="delivery-table__error" title={delivery.last_error}>
                   {formatDeliveryError(delivery.last_error)}
@@ -60,6 +72,8 @@ export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
                 to={`/events/${delivery.event_id}`}
                 className="font-mono text-xs text-muted-strong hover:text-primary hover:underline"
                 title={delivery.event_id}
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
               >
                 {shortId(delivery.event_id, 10)}
               </Link>
@@ -71,12 +85,7 @@ export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
               {formatAttempts(delivery.attempt_count)}
             </DataTableCell>
             <DataTableCell className="whitespace-nowrap text-sm text-muted-strong">
-              <Link
-                to={`/deliveries/${delivery.id}`}
-                className="hover:text-primary hover:underline"
-              >
-                <time dateTime={delivery.updated_at}>{formatDateTime(delivery.updated_at)}</time>
-              </Link>
+              <time dateTime={delivery.updated_at}>{formatDateTime(delivery.updated_at)}</time>
             </DataTableCell>
           </DataTableRow>
         ))}

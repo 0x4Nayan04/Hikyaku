@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search, Send, X } from 'lucide-react'
 import { listDeliveries } from '@/api/client'
@@ -33,10 +33,22 @@ const STATUS_OPTIONS: Array<{ value: 'all' | DeliveryStatus; label: string }> = 
   { value: 'failed', label: 'Failed' },
 ]
 
+function parseStatusParam(value: string | null): 'all' | DeliveryStatus {
+  if (
+    value === 'pending' ||
+    value === 'in_progress' ||
+    value === 'succeeded' ||
+    value === 'failed'
+  ) {
+    return value
+  }
+  return 'all'
+}
+
 export function Deliveries() {
   const [searchParams, setSearchParams] = useSearchParams()
   const eventIdFilter = searchParams.get('event_id') || undefined
-  const [statusFilter, setStatusFilter] = useState<'all' | DeliveryStatus>('all')
+  const statusFilter = parseStatusParam(searchParams.get('status'))
   const {
     data: deliveries,
     total,
@@ -122,10 +134,17 @@ export function Deliveries() {
   const canGoForward = offset + PAGE_SIZE < total
   const showFooter = !isInitial && total > 0 && shouldPaginate(total, PAGE_SIZE)
 
-  function clearEventFilter() {
+  function patchParams(mutate: (next: URLSearchParams) => void) {
     const next = new URLSearchParams(searchParams)
-    next.delete('event_id')
+    mutate(next)
     setSearchParams(next, { replace: true })
+    setOffset(0)
+  }
+
+  function clearEventFilter() {
+    patchParams((next) => {
+      next.delete('event_id')
+    })
   }
 
   const deliveryPanelActions = (
@@ -133,8 +152,10 @@ export function Deliveries() {
       <Select
         value={statusFilter}
         onValueChange={(value) => {
-          setStatusFilter(value as 'all' | DeliveryStatus)
-          setOffset(0)
+          patchParams((next) => {
+            if (value === 'all') next.delete('status')
+            else next.set('status', value)
+          })
         }}
       >
         <SelectTrigger className="log-panel-toolbar__filter" aria-label="Filter by status">

@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Globe, Plus } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { ApiError, createEndpoint, listEndpoints, patchEndpoint } from '@/api/client'
-import type { Endpoint, EndpointWithSecret } from '@/api/types'
+import type { Endpoint, EndpointStatus, EndpointWithSecret } from '@/api/types'
 import { ConsolePage } from '@/components/console/ConsolePage'
 import { DataPanel } from '@/components/console/DataPanel'
 import { EndpointCatalogList } from '@/components/console/EndpointCatalogList'
@@ -12,12 +13,32 @@ import { PaginationBar } from '@/components/console/PaginationBar'
 import { shouldPaginate } from '@/components/console/pagination-utils'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { EndpointDialogs } from '@/pages/endpoint-dialogs'
 
 const API_PAGE_SIZE = 25
 
+const STATUS_OPTIONS: Array<{ value: 'all' | EndpointStatus; label: string }> = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'active', label: 'Active' },
+  { value: 'disabled', label: 'Disabled' },
+]
+
+function parseStatusParam(value: string | null): 'all' | EndpointStatus {
+  if (value === 'active' || value === 'disabled') return value
+  return 'all'
+}
+
 export function Endpoints() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const statusFilter = parseStatusParam(searchParams.get('status'))
   const {
     data: endpoints,
     total,
@@ -29,8 +50,17 @@ export function Endpoints() {
     reload,
   } = usePaginatedList<Endpoint>({
     pageSize: API_PAGE_SIZE,
-    fetchPage: ({ limit, offset, signal }) => listEndpoints({ limit, offset }, { signal }),
+    fetchPage: ({ limit, offset, signal }) =>
+      listEndpoints(
+        {
+          limit,
+          offset,
+          status: statusFilter === 'all' ? undefined : statusFilter,
+        },
+        { signal },
+      ),
     fallbackError: 'Failed to load endpoints',
+    queryKey: statusFilter,
   })
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
@@ -44,6 +74,15 @@ export function Endpoints() {
 
   const showEmpty = !isInitial && endpoints.length === 0
   const showLoading = isInitial && endpoints.length === 0
+  const isDatasetEmpty = showEmpty && statusFilter === 'all' && total === 0
+
+  function setStatusFilter(value: 'all' | EndpointStatus) {
+    const next = new URLSearchParams(searchParams)
+    if (value === 'all') next.delete('status')
+    else next.set('status', value)
+    setSearchParams(next, { replace: true })
+    setOffset(0)
+  }
 
   function handleCreateOpenChange(open: boolean) {
     setCreateOpen(open)
@@ -157,8 +196,20 @@ export function Endpoints() {
             ) : undefined
           }
         >
-          {showEmpty ? null : (
+          {showEmpty && isDatasetEmpty ? null : (
             <div className="endpoint-panel-toolbar">
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'all' | EndpointStatus)}>
+                <SelectTrigger className="log-panel-toolbar__filter" aria-label="Filter by status">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="endpoint-panel-toolbar__actions">
                 <Button
                   size="sm"
@@ -182,19 +233,23 @@ export function Endpoints() {
           ) : showEmpty ? (
             <DataPanelEmpty
               icon={Globe}
-              title="No endpoints yet"
+              title={statusFilter === 'disabled' ? 'No disabled endpoints' : 'No endpoints yet'}
               description={
-                <>
-                  Register a URL where signed webhook payloads should be delivered.{' '}
-                  <button
-                    type="button"
-                    className="font-medium text-primary hover:underline"
-                    onClick={() => setCreateOpen(true)}
-                  >
-                    Create your first endpoint
-                  </button>
-                  .
-                </>
+                statusFilter !== 'all' ? (
+                  'Try another status filter.'
+                ) : (
+                  <>
+                    Register a URL where signed webhook payloads should be delivered.{' '}
+                    <button
+                      type="button"
+                      className="font-medium text-primary hover:underline"
+                      onClick={() => setCreateOpen(true)}
+                    >
+                      Create your first endpoint
+                    </button>
+                    .
+                  </>
+                )
               }
             />
           ) : null}
