@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Copy, KeyRound, ShieldCheck, TriangleAlert } from 'lucide-react'
 import type { ApiKey, ApiKeyWithSecret } from '@/api/types'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { SecretOnceConfirm } from '@/components/ui/secret-once-confirm'
 import { SecretReveal } from '@/components/ui/secret-reveal'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { API_BASE } from '@/api/client'
@@ -33,18 +35,35 @@ export function SettingsApiKeyDialogs({
   onRevoke,
 }: SettingsApiKeyDialogsProps) {
   const ingestCurl = secretKey ? buildIngestCurl(secretKey.api_key, API_BASE) : null
+  const [secretSaved, setSecretSaved] = useState(false)
+
+  useEffect(() => {
+    setSecretSaved(false)
+  }, [secretKey?.id])
+
+  function dismissSecret() {
+    onSecretKeyChange(null)
+    setSecretSaved(false)
+  }
 
   return (
     <>
       <Dialog
         open={secretKey !== null}
         onOpenChange={(open) => {
-          if (!open) {
-            onSecretKeyChange(null)
-          }
+          if (!open && secretSaved) dismissSecret()
         }}
       >
-        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-lg">
+        <DialogContent
+          className="gap-0 overflow-hidden p-0 sm:max-w-lg"
+          showCloseButton={false}
+          onEscapeKeyDown={(event) => {
+            if (!secretSaved) event.preventDefault()
+          }}
+          onPointerDownOutside={(event) => {
+            if (!secretSaved) event.preventDefault()
+          }}
+        >
           <div className="flex gap-3 border-b border-border bg-surface-muted/40 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5 pr-12">
             <div className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface text-primary">
               <KeyRound className="size-4" aria-hidden="true" />
@@ -52,7 +71,8 @@ export function SettingsApiKeyDialogs({
             <DialogHeader className="gap-1.5 text-left">
               <DialogTitle className="text-lg leading-tight">Your API key is ready</DialogTitle>
               <DialogDescription className="text-muted-strong">
-                This is the only time the full key will be shown.
+                This is the only time the full key will be shown. Confirm you’ve saved it before
+                closing.
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -99,9 +119,15 @@ export function SettingsApiKeyDialogs({
           </div>
 
           <DialogFooter className="mx-0 mb-0 mt-0">
-            <Button size="sm" onClick={() => onSecretKeyChange(null)}>
-              Done
-            </Button>
+            {secretKey ? (
+              <SecretOnceConfirm
+                confirmed={secretSaved}
+                onConfirmedChange={setSecretSaved}
+                secret={secretKey.api_key}
+                downloadFilename={`hikyaku-api-key-${secretKey.prefix}.txt`}
+                onDone={dismissSecret}
+              />
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>

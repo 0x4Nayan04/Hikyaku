@@ -120,3 +120,41 @@ export function formatEndpointUrlForDisplay(url: string, maxLen = 56): string {
 
   return `${url.slice(0, maxLen - 1)}…`
 }
+
+
+/** Prefer host + last path segment so same-host URLs stay distinguishable. */
+export function formatEndpointUrlDistinctive(url: string, maxLen = 56): string {
+  if (url.length <= maxLen) return url
+
+  try {
+    const parsed = new URL(url)
+    const host = parsed.host
+    const segments = parsed.pathname.split('/').filter(Boolean)
+    const tail = segments.at(-1) ?? ''
+    if (tail) {
+      const distinctive = `${host}/…/${tail}`
+      if (distinctive.length <= maxLen) return distinctive
+      const budget = maxLen - 2
+      if (tail.length >= budget) return `…/${tail.slice(-(budget - 1))}`
+      return `…/${tail}`
+    }
+  } catch {
+    // Fall through.
+  }
+
+  return formatEndpointUrlForDisplay(url, maxLen)
+}
+
+/** Label for endpoint rows: custom description, else hostname. */
+export function endpointDisplayLabel(endpoint: {
+  description: string | null
+  url: string
+}): string {
+  const label = endpoint.description?.trim()
+  if (label) return label
+  try {
+    return new URL(endpoint.url).host
+  } catch {
+    return endpoint.url
+  }
+}

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  AlertTriangle,
   Check,
   ChevronRight,
   KeyRound,
   Package,
+  PowerOff,
   Send,
   Webhook,
   type LucideIcon,
@@ -37,9 +39,19 @@ import { cn } from '@/lib/utils'
 
 type ActivityPreview = ActivityItem
 
+type AttentionItem = {
+  id: string
+  label: string
+  hint: string
+  to: string
+  tone: 'danger' | 'warning' | 'neutral'
+  icon: LucideIcon
+}
+
 export function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [activity, setActivity] = useState<ActivityPreview[]>([])
+  const [attention, setAttention] = useState<AttentionItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isInitial, setIsInitial] = useState(true)
   const [isLive, setIsLive] = useState(false)
@@ -47,8 +59,12 @@ export function Dashboard() {
 
   const load = useCallback(async () => {
     try {
-      const data = await getStats()
+      const [data, disabled] = await Promise.all([
+        getStats(),
+        listEndpoints({ status: 'disabled', limit: 1 }),
+      ])
       setStats(data)
+      setAttention(buildAttentionItems(data, disabled.total || disabled.data.length))
       setError(null)
       setIsLive(true)
     } catch (err) {
@@ -119,7 +135,7 @@ export function Dashboard() {
       marker="Overview"
       title="Dashboard"
       description="Ingest volume, queue depth, and 24-hour delivery outcomes."
-      actions={<LiveChip active={isLive} />}
+      actions={<LiveChip active={isLive} lastUpdated={lastUpdated} />}
     >
       {error ? (
         <PageBanner variant="error" title="Could not load stats" description={error} />
@@ -130,6 +146,8 @@ export function Dashboard() {
       ) : stats ? (
         <div className="dashboard-page">
           {!hasData ? <EmptyDashboardCTA /> : null}
+
+          {hasData && attention.length > 0 ? <AttentionStrip items={attention} /> : null}
 
           <DataPanel title="Metrics">
             <LiveMetrics stats={stats} />
@@ -156,6 +174,85 @@ export function Dashboard() {
   )
 }
 
+function buildAttentionItems(stats: Stats, disabledCount: number): AttentionItem[] {
+  const items: AttentionItem[] = []
+
+  if (stats.deliveries_failed_24h > 0) {
+    items.push({
+      id: 'failed',
+      label: `${stats.deliveries_failed_24h.toLocaleString()} failed (24h)`,
+      hint: 'Open failed deliveries to replay',
+      to: '/deliveries?status=failed',
+      tone: 'danger',
+      icon: AlertTriangle,
+    })
+  }
+
+  if (stats.deliveries_active > 0) {
+    items.push({
+      id: 'active',
+      label: `${stats.deliveries_active.toLocaleString()} active`,
+      hint: 'Pending or in flight',
+      to: '/deliveries?status=pending',
+      tone: 'warning',
+      icon: Send,
+    })
+  }
+
+  if (disabledCount > 0) {
+    items.push({
+      id: 'disabled',
+      label: `${disabledCount.toLocaleString()} disabled endpoint${disabledCount === 1 ? '' : 's'}`,
+      hint: 'Not receiving webhooks',
+      to: '/endpoints?status=disabled',
+      tone: 'neutral',
+      icon: PowerOff,
+    })
+  }
+
+  return items
+}
+
+function AttentionStrip({ items }: { items: AttentionItem[] }) {
+  const toneIconClass = {
+    danger: 'dashboard-activity-row__icon--danger',
+    warning: 'dashboard-activity-row__icon--warning',
+    neutral: 'dashboard-activity-row__icon--neutral',
+  } as const
+
+  return (
+    <DataPanel
+      title="Needs attention"
+      description="Failures, in-flight work, and disabled receivers — jump straight to the filtered list."
+    >
+      <div className="dashboard-activity-list">
+        {items.map((item) => {
+          const Icon = item.icon
+          return (
+            <Link key={item.id} to={item.to} className="dashboard-activity-row group">
+              <span
+                className={cn('dashboard-activity-row__icon', toneIconClass[item.tone])}
+                aria-hidden="true"
+              >
+                <Icon className="size-4" strokeWidth={1.75} />
+              </span>
+              <div className="dashboard-activity-row__main">
+                <p className="dashboard-activity-row__name">{item.label}</p>
+                <p className="dashboard-panel-row__hint">{item.hint}</p>
+              </div>
+              <ChevronRight
+                className="size-4 shrink-0 text-muted-strong/40 transition-colors duration-150 group-hover:text-primary"
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+            </Link>
+          )
+        })}
+      </div>
+    </DataPanel>
+  )
+}
+
 function OutcomesPanel({ stats }: { stats: Stats }) {
   const rows = [
     {
@@ -163,41 +260,60 @@ function OutcomesPanel({ stats }: { stats: Stats }) {
       hint: 'Rolling 24-hour delivery success',
       value: formatPercent(stats.success_rate_24h, 'No data yet'),
       primary: true,
+      to: null as string | null,
     },
     {
       label: 'Succeeded',
       hint: 'Completed deliveries',
       value: stats.deliveries_succeeded_24h.toLocaleString(),
       primary: false,
+      to: '/deliveries?status=succeeded',
     },
     {
       label: 'Failed',
       hint: 'Exhausted retries or errors',
       value: stats.deliveries_failed_24h.toLocaleString(),
       primary: false,
+      to: '/deliveries?status=failed',
     },
   ] as const
 
   return (
     <DataPanel title="24h outcomes">
       <div className="dashboard-activity-list">
-        {rows.map((row) => (
-          <div key={row.label} className="dashboard-metric-row dashboard-metric-row--plain">
-            <div className="dashboard-activity-row__main">
-              <p className="dashboard-activity-row__name">{row.label}</p>
-              <p className="dashboard-panel-row__hint">{row.hint}</p>
+        {rows.map((row) => {
+          const content = (
+            <>
+              <div className="dashboard-activity-row__main">
+                <p className="dashboard-activity-row__name">{row.label}</p>
+                <p className="dashboard-panel-row__hint">{row.hint}</p>
+              </div>
+              <span
+                className={
+                  row.primary
+                    ? 'dashboard-stat-value dashboard-stat-value--primary'
+                    : 'dashboard-stat-value'
+                }
+              >
+                {row.value}
+              </span>
+            </>
+          )
+
+          if (row.to) {
+            return (
+              <Link key={row.label} to={row.to} className="dashboard-activity-row group">
+                {content}
+              </Link>
+            )
+          }
+
+          return (
+            <div key={row.label} className="dashboard-metric-row dashboard-metric-row--plain">
+              {content}
             </div>
-            <span
-              className={
-                row.primary
-                  ? 'dashboard-stat-value dashboard-stat-value--primary'
-                  : 'dashboard-stat-value'
-              }
-            >
-              {row.value}
-            </span>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </DataPanel>
   )
@@ -219,7 +335,7 @@ const onboardingStepMeta: Record<
   },
   test_event: {
     icon: Send,
-    hint: 'Console smoke test',
+    hint: 'Dev tools · non-prod smoke test',
     tone: 'info',
   },
   deliveries: {

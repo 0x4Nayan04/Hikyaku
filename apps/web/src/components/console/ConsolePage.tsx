@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 type ConsolePageProps = {
   marker?: string
   title: string
-  description?: string
+  description?: ReactNode
   actions?: ReactNode
   toolbar?: ReactNode
   children: ReactNode
@@ -28,7 +28,7 @@ export function ConsolePage({
             <div className="console-page-head-main">
               {marker ? <p className="console-section-marker">{marker}</p> : null}
               <h1 className="console-page-title">{title}</h1>
-              {description ? <p className="console-page-desc">{description}</p> : null}
+              {description ? <div className="console-page-desc">{description}</div> : null}
             </div>
           </div>
           {actions ? <div className="console-page-actions">{actions}</div> : null}

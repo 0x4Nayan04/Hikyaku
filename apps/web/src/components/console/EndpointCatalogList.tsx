@@ -89,7 +89,17 @@ function LastDeliveryColumn({
               isDisabled && 'endpoint-catalog-row__status-text--muted',
             )}
           >
-            {isDisabled ? 'Not receiving' : 'No deliveries yet'}
+            {isDisabled ? (
+              'Not receiving'
+            ) : (
+              <Link
+                to="/events/send"
+                className="font-medium text-primary hover:underline"
+                onClick={(event) => event.stopPropagation()}
+              >
+                No deliveries yet — send test event
+              </Link>
+            )}
           </span>
         </div>
       </div>
