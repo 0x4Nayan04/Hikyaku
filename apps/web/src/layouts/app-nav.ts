@@ -89,17 +89,23 @@ const appNavSections: AppNavSection[] = [
         tenantOnly: true,
       },
       {
-        title: 'Test event',
-        to: '/events/send',
-        icon: Send,
-        description: 'Console smoke test',
-        tenantOnly: true,
-      },
-      {
         title: 'Deliveries',
         to: '/deliveries',
         icon: Package,
         description: 'Outbound attempts',
+        tenantOnly: true,
+      },
+    ],
+  },
+  {
+    id: 'devtools',
+    label: 'Dev tools',
+    items: [
+      {
+        title: 'Test event',
+        to: '/events/send',
+        icon: Send,
+        description: 'Non-prod smoke test',
         tenantOnly: true,
       },
     ],

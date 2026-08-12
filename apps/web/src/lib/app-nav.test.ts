@@ -54,7 +54,18 @@ describe('filterNavSections', () => {
 
     expect(sections.find((section) => section.id === 'overview')).toBeUndefined()
     expect(sections.find((section) => section.id === 'operations')).toBeUndefined()
+    expect(sections.find((section) => section.id === 'devtools')).toBeUndefined()
     expect(sections.find((section) => section.id === 'platform')).toBeDefined()
     expect(sections.find((section) => section.id === 'account')).toBeDefined()
+  })
+
+  it('places Test event under Dev tools for tenant operators', () => {
+    const sections = filterNavSections(false)
+    const operations = sections.find((section) => section.id === 'operations')
+    const devtools = sections.find((section) => section.id === 'devtools')
+
+    expect(operations?.items.map((item) => item.to)).not.toContain('/events/send')
+    expect(devtools?.label).toBe('Dev tools')
+    expect(devtools?.items.map((item) => item.to)).toContain('/events/send')
   })
 })

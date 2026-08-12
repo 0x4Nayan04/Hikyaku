@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { filterNavSections, isNavItemActive } from '@/layouts/app-nav'
+import { markNavDescriptionsSeen, shouldShowNavDescriptions } from '@/lib/nav-descriptions'
 import { cn } from '@/lib/utils'
 
 type AppNavProps = {
@@ -13,9 +15,23 @@ export function AppNav({ isSuperAdmin, onNavigate, variant = 'sidebar' }: AppNav
   const sections = filterNavSections(isSuperAdmin)
   const allItems = sections.flatMap((section) => section.items)
   const isMobile = variant === 'mobile'
+  // Show subtitles for this first visit; hide on later sessions.
+  const [showDescriptions] = useState(shouldShowNavDescriptions)
+
+  useEffect(() => {
+    markNavDescriptionsSeen()
+  }, [])
 
   return (
-    <nav className={cn('flex flex-col', isMobile ? 'gap-4' : 'gap-0')} aria-label="Console">
+    <nav
+      className={cn(
+        'flex flex-col',
+        isMobile ? 'gap-4' : 'gap-0',
+        !showDescriptions && 'app-nav--compact',
+      )}
+      aria-label="Console"
+      data-nav-compact={!showDescriptions ? 'true' : undefined}
+    >
       {sections.map((section) => (
         <div key={section.id} className="app-nav-section">
           <p className="app-nav-section-label">{section.label}</p>
@@ -28,6 +44,7 @@ export function AppNav({ isSuperAdmin, onNavigate, variant = 'sidebar' }: AppNav
             {section.items.map((item, itemIndex) => {
               const Icon = item.icon
               const active = isNavItemActive(location.pathname, item, allItems)
+              const description = showDescriptions ? item.description : undefined
 
               return (
                 <li key={item.to}>
@@ -35,6 +52,7 @@ export function AppNav({ isSuperAdmin, onNavigate, variant = 'sidebar' }: AppNav
                     to={item.to}
                     onClick={onNavigate}
                     aria-current={active ? 'page' : undefined}
+                    title={!showDescriptions ? item.description : undefined}
                     className={cn(
                       isMobile
                         ? cn(
@@ -51,9 +69,9 @@ export function AppNav({ isSuperAdmin, onNavigate, variant = 'sidebar' }: AppNav
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="catalog-link-row-label">{item.title}</span>
-                          {item.description ? (
+                          {description ? (
                             <span className="mt-0.5 block text-xs text-muted-strong">
-                              {item.description}
+                              {description}
                             </span>
                           ) : null}
                         </span>
@@ -68,9 +86,9 @@ export function AppNav({ isSuperAdmin, onNavigate, variant = 'sidebar' }: AppNav
                           <span className="app-nav-link-title block truncate leading-snug">
                             {item.title}
                           </span>
-                          {item.description ? (
+                          {description ? (
                             <span className="app-nav-link-desc mt-0.5 block truncate text-xs leading-snug">
-                              {item.description}
+                              {description}
                             </span>
                           ) : null}
                         </span>

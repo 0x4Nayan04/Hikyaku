@@ -381,13 +381,24 @@
     font-weight: 400;
     color: var(--color-muted-strong);
     text-decoration: none;
-    transition:
-      color 150ms ease,
-      background-color 150ms ease;
+    transition: color 150ms ease;
   }
   .landing-nav-link:hover {
     color: var(--color-ink);
-    background: color-mix(in srgb, var(--color-background-alt) 65%, transparent);
+    background: transparent;
+  }
+  .landing-nav-docs {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--color-muted-strong);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .landing-nav-docs:hover {
+    color: var(--color-ink);
   }
   .landing-nav-actions {
     display: flex;
@@ -395,8 +406,8 @@
     gap: 0.5rem;
   }
   .landing-nav-auth {
-    align-items: stretch;
-    gap: 0.5rem;
+    align-items: center;
+    gap: 0.25rem;
   }
   @media (max-width: 639px) {
     .landing-nav-auth .sm-btn-secondary {
@@ -509,7 +520,7 @@
   .landing-nav-link--active,
   .landing-nav-drawer-link--active {
     color: var(--color-primary);
-    font-weight: 500;
+    font-weight: 600;
   }
   .landing-nav-link--active {
     background: transparent;
@@ -519,5 +530,12 @@
   .landing-nav-drawer-link--active {
     color: var(--color-primary);
     background: color-mix(in srgb, var(--color-blue-tint) 55%, var(--color-surface));
+  }
+  .landing-nav-drawer-link--utility {
+    margin-top: 0.25rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-border);
+    color: var(--color-muted-strong);
+    font-weight: 400;
   }
 }
