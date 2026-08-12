@@ -10,12 +10,17 @@ export function AuthNavbar() {
       <LandingFrameInner className="!px-0 h-full">
         <div className="landing-frame-px flex h-full items-center justify-between gap-4">
           <Link to="/" className="landing-nav-brand focus-ring" aria-label={APP_HOME_LABEL}>
-            <HikyakuMark className="size-7 shrink-0" />
+            <HikyakuMark decorative className="size-7 shrink-0" />
             <span className="landing-nav-brand-text">{APP_NAME}</span>
           </Link>
-          <Link to="/" className="sm-btn sm-btn-sm sm-btn-secondary focus-ring">
-            <ArrowLeft className="mr-2 size-4" />
-            Back to home
+          <Link
+            to="/"
+            title={APP_HOME_LABEL}
+            aria-label={APP_HOME_LABEL}
+            className="sm-btn sm-btn-sm sm-btn-secondary focus-ring"
+          >
+            <ArrowLeft className="mr-2 size-4" aria-hidden="true" />
+            Back to {APP_NAME} home
           </Link>
         </div>
       </LandingFrameInner>
