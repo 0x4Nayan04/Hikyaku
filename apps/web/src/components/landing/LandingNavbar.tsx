@@ -10,14 +10,15 @@ import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
 import { APP_HOME_LABEL, APP_NAME, PRODUCT_LINKS } from '@/lib/app-meta'
 import { useSession } from '@/providers/session-context'
 
-const LANDING_SECTION_IDS = ['how-it-works', 'faq']
+const LANDING_SECTION_IDS: string[] = ['how-it-works', 'console', 'faq']
+const NO_SECTION_IDS: string[] = []
 const PRIMARY_CTA = { label: 'Sign in', path: '/login' }
 
-const NAV_LINKS = [
-  { label: 'How it works', href: '#how-it-works', sectionId: 'how-it-works' },
-  { label: 'Console', href: PRODUCT_LINKS.console, sectionId: null },
-  { label: 'FAQ', href: '#faq', sectionId: 'faq' },
-  { label: 'Docs', href: PRODUCT_LINKS.docs, sectionId: null },
+/** In-page sections only — every item must scroll-spy. */
+const SECTION_LINKS = [
+  { label: 'How it works', href: PRODUCT_LINKS.howItWorks, sectionId: 'how-it-works' },
+  { label: 'Console', href: PRODUCT_LINKS.consoleSection, sectionId: 'console' },
+  { label: 'FAQ', href: PRODUCT_LINKS.faq, sectionId: 'faq' },
 ] as const
 
 export const LandingNavbar = memo(function LandingNavbar() {
@@ -31,7 +32,7 @@ export const LandingNavbar = memo(function LandingNavbar() {
   const mobileMenuRef = useFocusTrap(isMobileMenuOpen, {
     onEscape: () => setIsMobileMenuOpen(false),
   })
-  const activeSectionId = useScrollSpy(isLanding ? LANDING_SECTION_IDS : [])
+  const activeSectionId = useScrollSpy(isLanding ? LANDING_SECTION_IDS : NO_SECTION_IDS)
 
   useBodyScrollLock(isMobileMenuOpen)
 
@@ -62,19 +63,17 @@ export const LandingNavbar = memo(function LandingNavbar() {
             className="landing-nav-brand focus-ring"
             aria-label={APP_HOME_LABEL}
           >
-            <HikyakuMark className="size-7 shrink-0" />
+            <HikyakuMark decorative className="size-7 shrink-0" />
             <span className="landing-nav-brand-text">{APP_NAME}</span>
           </Link>
 
           <nav className="landing-nav-links hidden md:flex" aria-label="Page sections">
-            {NAV_LINKS.map((item) => (
+            {SECTION_LINKS.map((item) => (
               <Link
-                key={item.label}
+                key={item.sectionId}
                 to={item.href}
-                className={`landing-nav-link focus-ring${item.sectionId && activeSectionId === item.sectionId ? ' landing-nav-link--active' : ''}`}
-                aria-current={
-                  item.sectionId && activeSectionId === item.sectionId ? 'location' : undefined
-                }
+                className={`landing-nav-link focus-ring${activeSectionId === item.sectionId ? ' landing-nav-link--active' : ''}`}
+                aria-current={activeSectionId === item.sectionId ? 'location' : undefined}
               >
                 {item.label}
               </Link>
@@ -83,6 +82,9 @@ export const LandingNavbar = memo(function LandingNavbar() {
 
           <div className="landing-nav-actions">
             <div className="landing-nav-auth hidden sm:flex">
+              <Link to={PRODUCT_LINKS.docs} className="landing-nav-docs focus-ring">
+                Docs
+              </Link>
               {session ? (
                 <button
                   type="button"
@@ -142,19 +144,24 @@ export const LandingNavbar = memo(function LandingNavbar() {
             aria-label="Site navigation"
           >
             <nav className="landing-nav-drawer-links" aria-label="Page sections">
-              {NAV_LINKS.map((item) => (
+              {SECTION_LINKS.map((item) => (
                 <Link
-                  key={item.label}
+                  key={item.sectionId}
                   to={item.href}
-                  className={`landing-nav-drawer-link${item.sectionId && activeSectionId === item.sectionId ? ' landing-nav-drawer-link--active' : ''}`}
+                  className={`landing-nav-drawer-link${activeSectionId === item.sectionId ? ' landing-nav-drawer-link--active' : ''}`}
                   onClick={closeMobileMenu}
-                  aria-current={
-                    item.sectionId && activeSectionId === item.sectionId ? 'location' : undefined
-                  }
+                  aria-current={activeSectionId === item.sectionId ? 'location' : undefined}
                 >
                   {item.label}
                 </Link>
               ))}
+              <Link
+                to={PRODUCT_LINKS.docs}
+                className="landing-nav-drawer-link landing-nav-drawer-link--utility"
+                onClick={closeMobileMenu}
+              >
+                Docs
+              </Link>
             </nav>
             <div className="landing-nav-drawer-actions">
               {session ? (
@@ -169,18 +176,16 @@ export const LandingNavbar = memo(function LandingNavbar() {
                   {getHomeLabel(session.user)}
                 </button>
               ) : !loading ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigate(PRIMARY_CTA.path)
-                      closeMobileMenu()
-                    }}
-                    className="sm-btn sm-btn-primary w-full"
-                  >
-                    {PRIMARY_CTA.label}
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate(PRIMARY_CTA.path)
+                    closeMobileMenu()
+                  }}
+                  className="sm-btn sm-btn-primary w-full"
+                >
+                  {PRIMARY_CTA.label}
+                </button>
               ) : null}
             </div>
           </div>

@@ -31,7 +31,7 @@ const FOOTER_GROUPS = [
     label: 'Product',
     links: [
       { label: 'How it works', href: PRODUCT_LINKS.howItWorks },
-      { label: 'Console', href: PRODUCT_LINKS.console },
+      { label: 'Console', href: PRODUCT_LINKS.consoleSection },
       { label: 'FAQ', href: PRODUCT_LINKS.faq },
     ],
   },
@@ -89,7 +89,7 @@ export function LandingFooter() {
         <div className="lp-footer__grid">
           <div className="lp-footer__brand">
             <Link to={PRODUCT_LINKS.home} aria-label={APP_HOME_LABEL} className="focus-ring">
-              <HikyakuMark className="size-8" />
+              <HikyakuMark decorative className="size-8" />
               <strong>{APP_NAME}</strong>
             </Link>
             <p>HMAC-signed webhook delivery with automatic retries and attempt logs.</p>

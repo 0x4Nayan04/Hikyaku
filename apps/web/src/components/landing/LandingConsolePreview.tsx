@@ -50,7 +50,11 @@ export function LandingConsolePreview() {
   }
 
   return (
-    <section id="console" className="lp-console" aria-labelledby="console-heading">
+    <section
+      id="console"
+      className="lp-console scroll-mt-(--nav-height)"
+      aria-labelledby="console-heading"
+    >
       <LandingFrameInner className="lp-section">
         <header className="lp-console__heading">
           <div className="lp-section-heading">

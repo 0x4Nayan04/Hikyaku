@@ -126,7 +126,7 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
               className="landing-nav-brand focus-ring"
               aria-label={APP_HOME_LABEL}
             >
-              <HikyakuMark className="size-7 shrink-0" />
+              <HikyakuMark decorative className="size-7 shrink-0" />
               <span className="landing-nav-brand-text">{APP_NAME}</span>
             </a>
           </div>
@@ -261,7 +261,7 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
                 className="landing-nav-brand focus-ring"
                 aria-label={APP_HOME_LABEL}
               >
-                <HikyakuMark className="size-7" />
+                <HikyakuMark decorative className="size-7" />
                 <span className="landing-nav-brand-text">{APP_NAME}</span>
               </a>
               <p className="console-mobile-menu-tenant">{workspaceLabel}</p>

@@ -54,23 +54,37 @@
     letter-spacing: -0.035em;
   }
   .landing-page .landing-nav-links {
-    gap: 0.25rem;
+    gap: 0.35rem;
   }
   .landing-page .landing-nav-link {
     position: relative;
-    padding: 0.7rem 0.85rem;
-    border-radius: 0.55rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0;
     font-size: 0.875rem;
     font-weight: 500;
     color: #596679;
+    transition: color 150ms ease;
   }
   .landing-page .landing-nav-link:hover {
-    background: var(--lp-soft);
+    background: transparent;
     color: var(--lp-navy);
   }
-  .landing-page .landing-nav-link--active {
-    background: var(--lp-soft);
-    box-shadow: none;
+  .landing-page .landing-nav-link.landing-nav-link--active {
+    background: transparent;
+    box-shadow: inset 0 -2px 0 var(--lp-blue);
+    color: var(--lp-navy);
+    font-weight: 600;
+  }
+  .landing-page .landing-nav-link.landing-nav-link--active:hover {
+    background: transparent;
+    color: var(--lp-navy);
+  }
+  .landing-page .landing-nav-docs {
+    margin-right: 0.35rem;
+    color: #596679;
+    font-weight: 500;
+  }
+  .landing-page .landing-nav-docs:hover {
     color: var(--lp-navy);
   }
   .landing-page .landing-nav .sm-btn {
@@ -113,7 +127,12 @@
     border-radius: 0.6rem;
   }
   .landing-page .landing-nav-drawer-link--active {
-    background: #edf3fa;
+    background: color-mix(in srgb, var(--lp-blue) 12%, #fff);
+    color: var(--lp-navy);
+    font-weight: 600;
+  }
+  .landing-page .landing-nav-drawer-link--utility {
+    border-top-color: var(--lp-line);
   }
 
   /* Shared marketing primitives */
@@ -1054,6 +1073,7 @@
     backdrop-filter: none;
   }
   .landing-page .landing-nav-link,
+  .landing-page .landing-nav-docs,
   .landing-page .landing-nav-menu-btn,
   .landing-page .landing-nav .sm-btn,
   .landing-page .landing-nav-drawer-link {
@@ -1065,13 +1085,29 @@
     color: var(--color-muted-strong);
   }
   .landing-page .landing-nav-link:hover {
-    background: var(--color-background-alt);
+    background: transparent;
     color: var(--color-ink);
   }
-  .landing-page .landing-nav-link--active {
+  .landing-page .landing-nav-link.landing-nav-link--active {
     background: transparent;
     box-shadow: inset 0 -2px 0 var(--color-primary);
     color: var(--color-primary);
+    font-weight: 600;
+  }
+  .landing-page .landing-nav-link.landing-nav-link--active:hover {
+    background: transparent;
+    color: var(--color-primary);
+  }
+  .landing-page .landing-nav-docs {
+    color: var(--color-muted-strong);
+  }
+  .landing-page .landing-nav-docs:hover {
+    color: var(--color-ink);
+  }
+  .landing-page .landing-nav-drawer-link.landing-nav-drawer-link--active {
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+    color: var(--color-primary);
+    font-weight: 600;
   }
   .landing-page .landing-nav .sm-btn {
     height: var(--btn-h);

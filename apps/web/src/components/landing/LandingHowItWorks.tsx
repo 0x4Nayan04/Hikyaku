@@ -34,7 +34,11 @@ const STEPS: Step[] = [
 
 export function LandingHowItWorks() {
   return (
-    <section id="how-it-works" className="lp-flow" aria-labelledby="how-it-works-heading">
+    <section
+      id="how-it-works"
+      className="lp-flow scroll-mt-(--nav-height)"
+      aria-labelledby="how-it-works-heading"
+    >
       <LandingFrameInner className="lp-section">
         <header className="lp-section-heading lp-section-heading--centered">
           <p className="lp-kicker">Ingest → deliver → retry</p>
