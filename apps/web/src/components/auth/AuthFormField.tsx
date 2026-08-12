@@ -61,11 +61,11 @@ export function AuthFormField({
           readOnly={readOnly}
           className={cn('sm-input w-full text-ink', Icon && 'pl-9', isPassword && 'pr-9')}
         />
-        {isPassword ? (
+          {isPassword ? (
           <button
             type="button"
             onClick={() => setVisible((v) => !v)}
-            className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-strong hover:text-foreground transition-colors catalog-focus"
+            className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center text-muted-strong hover:text-foreground transition-colors catalog-focus"
             aria-label={visible ? 'Hide password' : 'Show password'}
             aria-pressed={visible}
           >

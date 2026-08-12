@@ -113,6 +113,23 @@
     color: var(--color-muted-strong);
   }
 
+  .auth-form-status {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 2.75rem;
+  }
+
+  .auth-form-status__placeholder {
+    margin: 0;
+    padding: 0.625rem 0.75rem;
+    border: 1px dashed var(--color-border);
+    background: color-mix(in srgb, var(--color-ink) 2%, var(--color-surface));
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--color-muted-accessible);
+  }
+
   .landing-mobile-menu-overlay {
     position: fixed;
     inset: var(--nav-height) 0 0;

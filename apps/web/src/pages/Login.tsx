@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, Lock, Mail } from 'lucide-react'
 import { ApiError, getBootstrapStatus, login } from '@/api/client'
@@ -7,7 +7,8 @@ import { AuthFormField } from '@/components/auth/AuthFormField'
 import { PageBanner } from '@/components/console/PageBanner'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import {
-  LOGIN_PENDING_ACCESS_HINT,
+  LOGIN_FAILED_RECOVERY,
+  LOGIN_PASSWORD_RESET_HINT,
   resolveLoginBanner,
   shouldShowBootstrapSetupLink,
   type LoginBannerKind,
@@ -33,9 +34,8 @@ export function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [showAccessHint, setShowAccessHint] = useState(false)
+  const [showRecovery, setShowRecovery] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [showForgotHint, setShowForgotHint] = useState(false)
   const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(null)
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export function Login() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    setShowAccessHint(false)
+    setShowRecovery(false)
     setSubmitting(true)
 
     try {
@@ -74,14 +74,12 @@ export function Login() {
       navigate(getPostLoginPath(location.state, user), { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Unable to sign in. Try again.')
-      // Soft path hint only — does not confirm whether this email has a pending request.
-      setShowAccessHint(true)
+      setShowRecovery(true)
     } finally {
       setSubmitting(false)
     }
   }
 
-  const toggleForgotHint = useCallback(() => setShowForgotHint((v) => !v), [])
   const showBootstrapLink = shouldShowBootstrapSetupLink(bootstrapAvailable)
 
   return (
@@ -134,18 +132,23 @@ export function Login() {
         </div>
       }
     >
-      <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
-        {banner ? (
-          <PageBanner
-            variant={banner.variant}
-            title={banner.title}
-            description={banner.description}
-          />
-        ) : null}
-        {error ? <PageBanner variant="error" title="Sign in failed" description={error} /> : null}
-        {showAccessHint ? (
-          <PageBanner variant="info" title="Need access?" description={LOGIN_PENDING_ACCESS_HINT} />
-        ) : null}
+      <form className="flex flex-col gap-3" onSubmit={handleSubmit} aria-describedby="login-status">
+        <div id="login-status" className="auth-form-status" aria-live="assertive" aria-atomic="true">
+          {banner ? (
+            <PageBanner
+              variant={banner.variant}
+              title={banner.title}
+              description={banner.description}
+            />
+          ) : null}
+          {error ? <PageBanner variant="error" title="Sign in failed" description={error} /> : null}
+          {showRecovery ? (
+            <PageBanner variant="info" title="Next steps" description={LOGIN_FAILED_RECOVERY} />
+          ) : null}
+          {!banner && !error && !showRecovery ? (
+            <p className="auth-form-status__placeholder">Sign-in errors appear here.</p>
+          ) : null}
+        </div>
 
         <AuthFormField
           id="email"
@@ -168,19 +171,9 @@ export function Login() {
           required
         />
 
-        <button
-          type="button"
-          onClick={toggleForgotHint}
-          className="self-start text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline transition-colors -mt-1"
-        >
-          Forgot your password?
-        </button>
-        {showForgotHint ? (
-          <p className="-mt-1 rounded-none border border-border bg-surface-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-            Ask a platform admin to delete your user and send a fresh invite. There is no
-            self-serve or admin password reset.
-          </p>
-        ) : null}
+        <p className="-mt-1 rounded-none border border-border bg-surface-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+          <span className="font-medium text-ink">Need a password reset?</span> {LOGIN_PASSWORD_RESET_HINT}
+        </p>
 
         <button type="submit" disabled={submitting} className="sm-btn sm-btn-primary sm-btn-block">
           {submitting ? 'Signing in…' : 'Sign in'}

@@ -21,6 +21,14 @@ export function resolveGuestLandingPrimaryCta(
 export const LOGIN_PENDING_ACCESS_HINT =
   'Waiting on access? Ask the platform admin for a tenant invite.'
 
+/** Password policy shown up front on the login form (no self-serve reset). */
+export const LOGIN_PASSWORD_RESET_HINT =
+  'Ask a platform admin to delete your user and send a fresh invite. There is no self-serve or admin password reset.'
+
+/** Combined invite + reset next steps after a failed sign-in. */
+export const LOGIN_FAILED_RECOVERY =
+  'Need an invite? Ask your platform admin. Need a password reset? Ask them to delete your user and send a fresh invite — there is no self-serve reset.'
+
 export type LoginBannerKind =
   | 'bootstrap_complete'
   | 'invite_accepted'
