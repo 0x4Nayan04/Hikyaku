@@ -13,6 +13,8 @@ Each tenant is an isolated workspace. API keys, endpoints, events, and deliverie
 - **Delivery** — one event sent to one endpoint, including retries and attempt history.
 - **API key** — Bearer auth for event ingest only, scoped to one tenant.
 
+Access is invite-only — a platform admin sends a one-time link. There is no self-serve signup. Jump to [Console guide](#console-guide) for the UI tour, or keep reading for the API.
+
 ## Quick start
 
 Pick a path below. Both need the API and worker running — `pnpm dev` starts them together.
@@ -44,6 +46,19 @@ curl -X POST "{{API_BASE}}/v1/events" \
 ```
 
 A successful ingest returns `202 Accepted` with the event id and enqueues one delivery per active endpoint. If deliveries stay pending, check that the worker process is running.
+
+## Console guide
+
+Fresh deploys bootstrap a super-admin at [/bootstrap](/bootstrap). All tenant users arrive through invitation links. Console data is scoped to the signed-in tenant.
+
+- **Dashboard** — ingest volume, queue depth, 24h outcomes, and recent activity.
+- **Endpoints** — register a receiver URL and copy the signing secret shown once at create.
+- **Events** — browse ingested events and open one to see its deliveries.
+- **Test event** — POST a smoke-test payload from the UI (real traffic should use `POST /v1/events`).
+- **Deliveries** — filter by status, inspect attempt timelines, and replay failures.
+- **Settings** — API keys, tenant identity, and account password. Super-admins see profile/password only; they have no API key or tenant tabs.
+
+Super-admins use **Admin** to invite tenant owners, list, rename, or delete tenants, and invite or remove tenant users. Super-admins are not tenant-scoped — they do not run tenant deliveries or hold tenant API keys.
 
 ## Authentication
 
@@ -288,19 +303,6 @@ Transient failures retry automatically. Permanent client errors fail fast. After
 Delivery is at-least-once — dedupe on your side with `X-Webhook-Id` (stable across retries). A background sweeper reclaims deliveries left `in_progress` after a worker crash and re-enqueues them.
 
 Only `failed` deliveries can be re-queued. Call `POST /v1/deliveries/:id/replay` (returns `202`), or use **Replay** on the delivery detail page. Replaying resets the attempt counter and clears the prior attempt timeline. Replaying a delivery that's already `pending`/`in_progress` returns `202` without rescheduling.
-
-## Console guide
-
-Fresh deploys bootstrap a super-admin at [/bootstrap](/bootstrap). All tenant users arrive through invitation links. Console data is scoped to the signed-in tenant.
-
-- **Dashboard** — ingest volume, queue depth, 24h outcomes, and recent activity.
-- **Endpoints** — register a receiver URL and copy the signing secret shown once at create.
-- **Events** — browse ingested events and open one to see its deliveries.
-- **Test event** — POST a smoke-test payload from the UI (real traffic should use `POST /v1/events`).
-- **Deliveries** — filter by status, inspect attempt timelines, and replay failures.
-- **Settings** — API keys, tenant identity, and account password. Super-admins see profile/password only; they have no API key or tenant tabs.
-
-Super-admins use **Admin** to invite tenant owners, list, rename, or delete tenants, and invite or remove tenant users. Super-admins are not tenant-scoped — they do not run tenant deliveries or hold tenant API keys.
 
 ## Privacy
 

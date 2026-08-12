@@ -1,6 +1,7 @@
 export const DOCS_TOC = [
   { id: 'introduction', label: 'Introduction' },
   { id: 'quick-start', label: 'Quick start' },
+  { id: 'console-guide', label: 'Console guide' },
   { id: 'authentication', label: 'Authentication' },
   { id: 'ingest', label: 'Ingest' },
   { id: 'api-keys', label: 'API keys' },
@@ -9,7 +10,6 @@ export const DOCS_TOC = [
   { id: 'signing', label: 'Signing' },
   { id: 'api-reference', label: 'API reference' },
   { id: 'retries', label: 'Retries' },
-  { id: 'console-guide', label: 'Console guide' },
   { id: 'privacy', label: 'Privacy' },
 ] as const
 

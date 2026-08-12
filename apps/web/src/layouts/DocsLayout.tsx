@@ -1,22 +1,24 @@
-import { useEffect, useRef } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, Outlet, useLocation } from 'react-router-dom'
+import { ArrowUp } from 'lucide-react'
 
+import { DocsFooter } from '@/components/docs/DocsFooter'
 import { DocsHeader } from '@/components/docs/DocsHeader'
 import { DocsSidebar } from '@/components/docs/DocsSidebar'
 import { LandingFrame } from '@/components/landing/LandingFrame'
 import { DOCS_TOC } from '@/docs/toc'
-import { APP_NAME } from '@/lib/app-meta'
 
 export function DocsLayout() {
   const location = useLocation()
   const bodyRef = useRef<HTMLDivElement>(null)
+  const [showBackToTop, setShowBackToTop] = useState(false)
+  const hash = location.hash.slice(1)
+  const currentSection = useMemo(
+    () => DOCS_TOC.find((item) => item.id === hash) ?? null,
+    [hash],
+  )
 
   useEffect(() => {
-    document.title = `${APP_NAME} Docs`
-  }, [])
-
-  useEffect(() => {
-    const hash = location.hash.slice(1)
     const body = bodyRef.current
 
     const scrollToTarget = () => {
@@ -28,7 +30,22 @@ export function DocsLayout() {
     }
 
     requestAnimationFrame(scrollToTarget)
-  }, [location.hash, location.pathname])
+  }, [hash, location.pathname])
+
+  useEffect(() => {
+    const body = bodyRef.current
+    if (!body) return
+    const onScroll = () => setShowBackToTop(body.scrollTop > 480)
+    onScroll()
+    body.addEventListener('scroll', onScroll, { passive: true })
+    return () => body.removeEventListener('scroll', onScroll)
+  }, [])
+
+  const scrollToTop = useCallback(() => {
+    const body = bodyRef.current
+    if (!body) return
+    body.scrollTo({ top: 0, behavior: 'auto' })
+  }, [])
 
   return (
     <div className="docs-shell landing-page flex h-dvh flex-col overflow-hidden">
@@ -38,11 +55,31 @@ export function DocsLayout() {
           <div className="docs-compose">
             <DocsSidebar />
             <main id="main-content" className="docs-main">
+              <nav className="docs-breadcrumb" aria-label="Breadcrumb">
+                <ol className="docs-breadcrumb__list">
+                  <li>
+                    <Link to="/">Home</Link>
+                  </li>
+                  <li>
+                    <Link to="/docs" aria-current={!currentSection ? 'page' : undefined}>
+                      Docs
+                    </Link>
+                  </li>
+                  {currentSection ? (
+                    <li>
+                      <a href={`#${currentSection.id}`} aria-current="page">
+                        {currentSection.label}
+                      </a>
+                    </li>
+                  ) : null}
+                </ol>
+              </nav>
+
               <div className="docs-mobile-nav">
                 <select
                   className="docs-mobile-nav-select"
                   aria-label="Jump to section"
-                  value={location.hash.slice(1)}
+                  value={hash}
                   onChange={(event) => {
                     window.location.hash = event.target.value
                   }}
@@ -55,10 +92,18 @@ export function DocsLayout() {
                   ))}
                 </select>
               </div>
+
               <Outlet />
+              <DocsFooter />
             </main>
           </div>
         </div>
+        {showBackToTop ? (
+          <button type="button" className="docs-back-to-top focus-ring" onClick={scrollToTop}>
+            <ArrowUp className="size-4" aria-hidden="true" />
+            Back to top
+          </button>
+        ) : null}
       </LandingFrame>
     </div>
   )

@@ -25,7 +25,7 @@ export const DocsHeader = memo(function DocsHeader() {
       <LandingFrameInner className="docs-header-inner">
         <div className="docs-header-brand">
           <Link to="/" className="docs-header-logo focus-ring" aria-label={`${APP_NAME} home`}>
-            <HikyakuMark className="size-7 shrink-0" />
+            <HikyakuMark decorative className="size-7 shrink-0" />
             <span>{APP_NAME}</span>
           </Link>
           <span className="docs-header-divider" aria-hidden="true" />
