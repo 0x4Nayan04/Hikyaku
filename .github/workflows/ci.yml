@@ -19,7 +19,7 @@ jobs:
           POSTGRES_DB: webhooks_test
         ports: ['5432:5432']
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U webhook"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -46,7 +46,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 11.17.0
 
       - uses: actions/setup-node@v4
         with:
