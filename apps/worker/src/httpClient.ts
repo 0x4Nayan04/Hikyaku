@@ -1,11 +1,13 @@
 import type { LookupAddress } from 'node:dns'
-import { request as httpRequest, type IncomingMessage } from 'node:http'
-import { request as httpsRequest } from 'node:https'
+import { Agent as HttpAgent, request as httpRequest, type IncomingMessage } from 'node:http'
+import { Agent as HttpsAgent, request as httpsRequest } from 'node:https'
 import type { LookupFunction } from 'node:net'
 import { resolveWebhookUrl } from '@webhook/shared/webhookUrl'
 
 const MAX_REDIRECTS = 5
 const MAX_RESPONSE_BODY_BYTES = 1024
+const httpAgent = new HttpAgent({ keepAlive: true, maxSockets: 64 })
+const httpsAgent = new HttpsAgent({ keepAlive: true, maxSockets: 64 })
 
 type PinnedTarget = { url: URL; addresses: LookupAddress[] }
 
@@ -61,6 +63,7 @@ function requestOnce(
       {
         method: 'POST',
         headers,
+        agent: target.url.protocol === 'https:' ? httpsAgent : httpAgent,
         lookup: pinnedLookup(target.addresses),
         signal,
       },
@@ -80,23 +83,15 @@ function requestOnce(
         }
 
         res.on('data', (chunk: Buffer) => {
-          if (settled) return
+          if (settled || length >= MAX_RESPONSE_BODY_BYTES) return
           const remaining = MAX_RESPONSE_BODY_BYTES - length
-          if (remaining <= 0) {
-            res.destroy()
-            return
-          }
-          const slice = chunk.subarray(0, remaining)
+          const slice = remaining >= chunk.length ? chunk : chunk.subarray(0, remaining)
           chunks.push(slice)
           length += slice.length
-          if (length >= MAX_RESPONSE_BODY_BYTES) {
-            res.destroy()
-          }
         })
         res.on('end', finish)
         res.on('close', finish)
         res.on('error', (err) => {
-          // destroy() after the 1KB cap can surface as an error; keep the truncated body.
           if (length > 0) finish()
           else reject(err)
         })

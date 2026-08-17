@@ -100,4 +100,34 @@ describe('postWithTimeout response body cap', () => {
       )
     }
   })
+
+  it('reuses the TCP socket after truncating a large response', async () => {
+    let connections = 0
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.end(Buffer.alloc(8 * 1024, 0x61))
+    })
+    server.on('connection', () => {
+      connections += 1
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('missing test server address')
+
+    resolveWebhookUrl.mockResolvedValue({
+      ok: true,
+      url: new URL(`http://127.0.0.1:${address.port}/hook`),
+      addresses: [{ address: '127.0.0.1', family: 4 }],
+    })
+
+    try {
+      await postWithTimeout('http://127.0.0.1/hook', '{}', {}, 5_000, true)
+      await postWithTimeout('http://127.0.0.1/hook', '{}', {}, 5_000, true)
+      expect(connections).toBe(1)
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        server.close((err) => (err ? reject(err) : resolve())),
+      )
+    }
+  })
 })

@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { deliveries, deliveryAttempts, events } from '@webhook/shared/schema'
+import type { DeliveryJobData } from '@webhook/shared/constants'
 import type { Job } from 'bullmq'
 import { asc, eq } from 'drizzle-orm'
 import request from 'supertest'
@@ -60,8 +61,8 @@ function startSwitchableMockServer(initialStatus: number): Promise<{
   })
 }
 
-function makeJob(deliveryId: string): Job<{ deliveryId: string }> {
-  return { data: { deliveryId } } as Job<{ deliveryId: string }>
+function makeJob(deliveryId: string, tenantId: string): Job<DeliveryJobData> {
+  return { data: { deliveryId, tenantId } } as Job<DeliveryJobData>
 }
 
 describe('delivery replay', () => {
@@ -99,7 +100,7 @@ describe('delivery replay', () => {
       payload: { order_id: 'ord_replay' },
     })
 
-    await processor(makeJob(deliveryId))
+    await processor(makeJob(deliveryId, tenantId))
 
     const [failedDelivery] = await db
       .select()
@@ -132,7 +133,7 @@ describe('delivery replay', () => {
     const [eventBefore] = await db.select().from(events).where(eq(events.id, eventId))
     expect(eventBefore.status).toBe('pending')
 
-    await processor(makeJob(deliveryId))
+    await processor(makeJob(deliveryId, tenantId))
 
     const [succeededDelivery] = await db
       .select()

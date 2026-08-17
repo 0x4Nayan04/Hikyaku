@@ -27,7 +27,7 @@ async function findDeliveryJob(deliveryId: string) {
   return jobs.find((job) => job.data.deliveryId === deliveryId)
 }
 
-async function seedPendingDeliveries(count = 1): Promise<string[]> {
+async function seedPendingDeliveries(count = 1): Promise<{ id: string; tenantId: string }[]> {
   const db = getDb()
   const [tenant] = await db.insert(tenants).values({ name: 'sweeper-test' }).returning()
   const [endpoint] = await db
@@ -60,12 +60,12 @@ async function seedPendingDeliveries(count = 1): Promise<string[]> {
         updatedAt: new Date(Date.now() - (6 * 60 + count - index) * 1000),
       })),
     )
-    .returning({ id: deliveries.id })
+    .returning({ id: deliveries.id, tenantId: deliveries.tenantId })
 
-  return seededDeliveries.map((delivery) => delivery.id)
+  return seededDeliveries
 }
 
-async function seedPendingDelivery(): Promise<string> {
+async function seedPendingDelivery(): Promise<{ id: string; tenantId: string }> {
   return (await seedPendingDeliveries())[0]!
 }
 
@@ -88,79 +88,88 @@ describe('sweepOrphanDeliveries', () => {
   })
 
   it('re-enqueues pending deliveries missing from the queue', async () => {
-    const deliveryId = await seedPendingDelivery()
+    const seeded = await seedPendingDelivery()
 
     await sweepOrphanDeliveries(queue)
 
-    const job = await findDeliveryJob(deliveryId)
+    const job = await findDeliveryJob(seeded.id)
     expect(job).toBeDefined()
-    expect(job?.data).toEqual({ deliveryId })
+    expect(job?.data).toEqual({ deliveryId: seeded.id, tenantId: seeded.tenantId })
   })
 
   it('does not re-enqueue fresh or future-scheduled deliveries', async () => {
-    const [freshId, futureRetryId] = await seedPendingDeliveries(2)
+    const [fresh, futureRetry] = await seedPendingDeliveries(2)
     const db = getDb()
-    await db.update(deliveries).set({ updatedAt: new Date() }).where(eq(deliveries.id, freshId))
+    await db.update(deliveries).set({ updatedAt: new Date() }).where(eq(deliveries.id, fresh.id))
     await db
       .update(deliveries)
       .set({ nextRetryAt: new Date(Date.now() + 60_000) })
-      .where(eq(deliveries.id, futureRetryId))
+      .where(eq(deliveries.id, futureRetry.id))
 
     await sweepOrphanDeliveries(queue)
 
-    expect(await findDeliveryJob(freshId)).toBeUndefined()
-    expect(await findDeliveryJob(futureRetryId)).toBeUndefined()
+    expect(await findDeliveryJob(fresh.id)).toBeUndefined()
+    expect(await findDeliveryJob(futureRetry.id)).toBeUndefined()
   })
 
-  it('limits each sweep to the 100 oldest eligible deliveries', async () => {
-    const deliveryIds = await seedPendingDeliveries(101)
+  it('drains remaining eligible deliveries after each 100-row batch', async () => {
+    const seeded = await seedPendingDeliveries(101)
 
     await sweepOrphanDeliveries(queue)
 
     const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
+    expect(jobs).toHaveLength(101)
+    expect(jobs.map((job) => job.data.deliveryId).sort()).toEqual(seeded.map((row) => row.id).sort())
+  }, 15_000)
+
+  it('stops draining when the sweeper lock deadline has passed', async () => {
+    await seedPendingDeliveries(101)
+
+    await sweepOrphanDeliveries(queue, Date.now() - 1)
+
+    const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
     expect(jobs).toHaveLength(100)
-    expect(jobs.map((job) => job.data.deliveryId)).not.toContain(deliveryIds[100])
   })
 
   it('re-enqueues rate-limited pending deliveries when nextRetryAt has passed', async () => {
-    const deliveryId = await seedPendingDelivery()
+    const seeded = await seedPendingDelivery()
     const db = getDb()
     await db
       .update(deliveries)
       .set({ lastError: 'rate_limited', nextRetryAt: new Date(Date.now() - 1_000) })
-      .where(eq(deliveries.id, deliveryId))
+      .where(eq(deliveries.id, seeded.id))
 
     await sweepOrphanDeliveries(queue)
 
     const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
-    expect(jobs.some((row) => row.data.deliveryId === deliveryId)).toBe(true)
+    expect(jobs.some((row) => row.data.deliveryId === seeded.id)).toBe(true)
   })
 
   it('skips deliveries that already have an in-flight queue job', async () => {
-    const deliveryId = await seedPendingDelivery()
-    await enqueueDelivery(deliveryId, queue)
+    const seeded = await seedPendingDelivery()
+    await enqueueDelivery(seeded.id, seeded.tenantId, queue)
 
     await sweepOrphanDeliveries(queue)
 
     const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
-    const matching = jobs.filter((job) => job.data.deliveryId === deliveryId)
+    const matching = jobs.filter((job) => job.data.deliveryId === seeded.id)
     expect(matching).toHaveLength(1)
   })
 
   it('does not re-enqueue terminal deliveries', async () => {
-    const deliveryId = await seedPendingDelivery()
+    const seeded = await seedPendingDelivery()
     const db = getDb()
-    await db.update(deliveries).set({ status: 'succeeded' }).where(eq(deliveries.id, deliveryId))
+    await db.update(deliveries).set({ status: 'succeeded' }).where(eq(deliveries.id, seeded.id))
 
     await sweepOrphanDeliveries(queue)
 
     const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
-    expect(jobs.some((row) => row.data.deliveryId === deliveryId)).toBe(false)
+    expect(jobs.some((row) => row.data.deliveryId === seeded.id)).toBe(false)
   })
 
   it('re-enqueues after a previous BullMQ job failed', async () => {
-    const deliveryId = await seedPendingDelivery()
-    await enqueueDelivery(deliveryId, queue)
+    const seeded = await seedPendingDelivery()
+    await enqueueDelivery(seeded.id, seeded.tenantId, queue)
 
     const worker = new Worker(queue.name, null, {
       connection: getRedisConnectionOptions(),
@@ -180,43 +189,43 @@ describe('sweepOrphanDeliveries', () => {
     await sweepOrphanDeliveries(queue)
 
     const jobs = await queue.getJobs(['waiting'])
-    const requeued = jobs.find((candidate) => candidate.data.deliveryId === deliveryId)
+    const requeued = jobs.find((candidate) => candidate.data.deliveryId === seeded.id)
     expect(requeued).toBeDefined()
     expect(await requeued!.getState()).toBe('waiting')
   })
 
   it('re-enqueues stuck in_progress deliveries missing from the queue', async () => {
-    const deliveryId = await seedPendingDelivery()
+    const seeded = await seedPendingDelivery()
     const db = getDb()
-    await db.update(deliveries).set({ status: 'in_progress' }).where(eq(deliveries.id, deliveryId))
+    await db.update(deliveries).set({ status: 'in_progress' }).where(eq(deliveries.id, seeded.id))
 
     await sweepOrphanDeliveries(queue)
 
     const [row] = await db
       .select({ status: deliveries.status })
       .from(deliveries)
-      .where(eq(deliveries.id, deliveryId))
+      .where(eq(deliveries.id, seeded.id))
     expect(row?.status).toBe('pending')
 
     const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
-    expect(jobs.some((job) => job.data.deliveryId === deliveryId)).toBe(true)
+    expect(jobs.some((job) => job.data.deliveryId === seeded.id)).toBe(true)
   })
 
   it('does not reclaim an active delivery before its worker lock expires', async () => {
-    const deliveryId = await seedPendingDelivery()
+    const seeded = await seedPendingDelivery()
     const db = getDb()
     await db
       .update(deliveries)
       .set({ status: 'in_progress', updatedAt: new Date() })
-      .where(eq(deliveries.id, deliveryId))
+      .where(eq(deliveries.id, seeded.id))
 
     await sweepOrphanDeliveries(queue)
 
     const [row] = await db
       .select({ status: deliveries.status })
       .from(deliveries)
-      .where(eq(deliveries.id, deliveryId))
+      .where(eq(deliveries.id, seeded.id))
     expect(row?.status).toBe('in_progress')
-    expect(await findDeliveryJob(deliveryId)).toBeUndefined()
+    expect(await findDeliveryJob(seeded.id)).toBeUndefined()
   })
 })

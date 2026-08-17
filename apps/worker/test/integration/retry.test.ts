@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import type { DeliveryJobData } from '@webhook/shared/constants'
 import { deliveries, deliveryAttempts, events } from '@webhook/shared/schema'
 import type { Job } from 'bullmq'
 import { asc, eq } from 'drizzle-orm'
@@ -98,17 +99,21 @@ function startFlakyMockServer(
   })
 }
 
-function makeJob(deliveryId: string): Job<{ deliveryId: string }> {
+function makeJob(deliveryId: string, tenantId: string): Job<DeliveryJobData> {
   return {
-    data: { deliveryId },
+    data: { deliveryId, tenantId },
     moveToDelayed: vi.fn().mockResolvedValue(undefined),
-  } as unknown as Job<{ deliveryId: string }>
+  } as unknown as Job<DeliveryJobData>
 }
 
-async function runProcessorUntilSettled(deliveryId: string, maxRuns: number): Promise<void> {
+async function runProcessorUntilSettled(
+  deliveryId: string,
+  tenantId: string,
+  maxRuns: number,
+): Promise<void> {
   for (let run = 0; run < maxRuns; run += 1) {
     try {
-      await processor(makeJob(deliveryId))
+      await processor(makeJob(deliveryId, tenantId))
       return
     } catch {
       const db = getDb()
@@ -182,7 +187,7 @@ describe('retry integration', () => {
       .from(deliveries)
       .where(eq(deliveries.eventId, eventId))
 
-    await runProcessorUntilSettled(delivery.id, 4)
+    await runProcessorUntilSettled(delivery.id, tenantId, 4)
 
     const [updatedDelivery] = await db
       .select()
@@ -238,7 +243,7 @@ describe('retry integration', () => {
       .from(deliveries)
       .where(eq(deliveries.eventId, eventId))
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery.id, tenantId))
 
     const requestCountAfterProcess = mock.getRequestCount()
     await new Promise((resolve) => setTimeout(resolve, 5_000))
