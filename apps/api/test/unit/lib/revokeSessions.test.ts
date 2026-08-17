@@ -3,7 +3,7 @@ import { sessions } from '@webhook/shared/schema'
 import { eq } from 'drizzle-orm'
 import '../../../src/config.js'
 import { closePool, getDb } from '../../../src/db/client.js'
-import { revokeUserSessions } from '../../../src/lib/revokeSessions.js'
+import { refreshTenantNameInSessions, revokeUserSessions } from '../../../src/lib/revokeSessions.js'
 import { createUser, deleteUser } from '../../helpers/user.js'
 import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
 
@@ -44,6 +44,41 @@ describe('revokeUserSessions', () => {
       await db.delete(sessions).where(eq(sessions.sid, `sid-b-${b.userId}`)).catch(() => undefined)
       await deleteUser(a.userId)
       await deleteUser(b.userId)
+      await deleteTenant(tenantId)
+    }
+  })
+})
+
+describe('refreshTenantNameInSessions', () => {
+  afterAll(async () => {
+    await closePool()
+  })
+
+  it('updates tenantName on matching session blobs', async () => {
+    const { tenantId } = await createTenantWithKey()
+    const user = await createUser({ tenantId })
+    const db = getDb()
+    const sid = `sid-rename-${user.userId}`
+
+    try {
+      await db.insert(sessions).values({
+        sid,
+        sess: {
+          cookie: {},
+          userId: user.userId,
+          tenantId,
+          tenantName: 'Old Co',
+        },
+        expire: new Date(Date.now() + 60_000),
+      })
+
+      await refreshTenantNameInSessions(tenantId, 'New Co')
+
+      const [row] = await db.select().from(sessions).where(eq(sessions.sid, sid))
+      expect(row.sess).toMatchObject({ tenantId, tenantName: 'New Co' })
+    } finally {
+      await db.delete(sessions).where(eq(sessions.sid, sid)).catch(() => undefined)
+      await deleteUser(user.userId)
       await deleteTenant(tenantId)
     }
   })

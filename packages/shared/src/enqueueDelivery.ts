@@ -5,8 +5,9 @@ import { DELIVERY_JOB_OPTIONS, JOB_NAME, type DeliveryJobData } from './constant
 export async function enqueueDeliveryJob(
   queue: Queue<DeliveryJobData>,
   deliveryId: string,
+  tenantId: string,
 ): Promise<void> {
-  await queue.add(JOB_NAME, { deliveryId } satisfies DeliveryJobData, {
+  await queue.add(JOB_NAME, { deliveryId, tenantId } satisfies DeliveryJobData, {
     ...DELIVERY_JOB_OPTIONS,
     deduplication: { id: deliveryId },
   })
@@ -15,14 +16,14 @@ export async function enqueueDeliveryJob(
 /** Enqueue deliveries in one Redis request while keeping per-delivery deduplication. */
 export async function enqueueDeliveryJobs(
   queue: Queue<DeliveryJobData>,
-  deliveryIds: string[],
+  jobs: DeliveryJobData[],
 ): Promise<void> {
-  if (deliveryIds.length === 0) return
+  if (jobs.length === 0) return
 
   await queue.addBulk(
-    deliveryIds.map((deliveryId) => ({
+    jobs.map(({ deliveryId, tenantId }) => ({
       name: JOB_NAME,
-      data: { deliveryId } satisfies DeliveryJobData,
+      data: { deliveryId, tenantId } satisfies DeliveryJobData,
       opts: { ...DELIVERY_JOB_OPTIONS, deduplication: { id: deliveryId } },
     })),
   )

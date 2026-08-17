@@ -62,7 +62,7 @@ describe('GET /v1/deliveries', () => {
 
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({
-      total: 1,
+      has_more: false,
       limit: 50,
       offset: 0,
     })
@@ -92,7 +92,7 @@ describe('GET /v1/deliveries', () => {
 
     expect(empty.status).toBe(200)
     expect(empty.body.data).toHaveLength(0)
-    expect(empty.body.total).toBe(0)
+    expect(empty.body.has_more).toBe(false)
   })
 
   it('filters deliveries by event_id', async () => {
@@ -107,7 +107,7 @@ describe('GET /v1/deliveries', () => {
 
     expect(empty.status).toBe(200)
     expect(empty.body.data).toHaveLength(0)
-    expect(empty.body.total).toBe(0)
+    expect(empty.body.has_more).toBe(false)
   })
 
   it('rejects an invalid event_id filter', async () => {

@@ -51,7 +51,7 @@ describe('endpoints tenant isolation', () => {
     const res = await globexAgent.get('/v1/endpoints')
 
     expect(res.status).toBe(200)
-    expect(res.body.total).toBe(0)
+    expect(res.body.has_more).toBe(false)
     expect(res.body.data).toEqual([])
   })
 
@@ -59,7 +59,7 @@ describe('endpoints tenant isolation', () => {
     const res = await acmeAgent.get('/v1/endpoints')
 
     expect(res.status).toBe(200)
-    expect(res.body.total).toBe(1)
+    expect(res.body.has_more).toBe(false)
     expect(res.body.data[0].id).toBe(acmeEndpointId)
     expect(res.body.data[0].secret).toBeUndefined()
   })

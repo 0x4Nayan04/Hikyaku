@@ -3,10 +3,15 @@ import { enqueueDeliveryJobs } from '@webhook/shared/enqueueDelivery'
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
-import { IdempotencyMismatchError, ingestFanout, eventColumns } from '../../ingest/fanout.js'
+import {
+  IdempotencyMismatchError,
+  ingestFanout,
+  eventDetailColumns,
+  eventListColumns,
+} from '../../ingest/fanout.js'
 import { AppError } from '../../lib/errors.js'
 import { logger } from '../../lib/logger.js'
-import { parsePagination } from '../../lib/pagination.js'
+import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
 import { queue } from '../../queue/client.js'
 import {
@@ -82,7 +87,10 @@ export async function ingestEvent(req: Request, res: Response, next: NextFunctio
           : []
 
     try {
-      await enqueueDeliveryJobs(queue, deliveryIds)
+      await enqueueDeliveryJobs(
+        queue,
+        deliveryIds.map((deliveryId) => ({ deliveryId, tenantId })),
+      )
     } catch (err) {
       logger.error({ delivery_ids: deliveryIds, err }, 'enqueue_failed')
       throw new AppError(503, 'service_unavailable', 'Service temporarily unavailable')
@@ -116,25 +124,23 @@ export async function listEvents(req: Request, res: Response, next: NextFunction
     const db = getDb()
     const where = eq(events.tenantId, tenantId)
 
-    const [countResult, rows] = await Promise.all([
-      db.select({ value: count() }).from(events).where(where),
-      db
-        .select(eventColumns)
-        .from(events)
-        .where(where)
-        .orderBy(desc(events.createdAt))
-        .limit(limit)
-        .offset(offset),
-    ])
-    const [countRow] = countResult
-    const total = countRow?.value ?? 0
+    const rows = await db
+      .select(eventListColumns)
+      .from(events)
+      .where(where)
+      .orderBy(desc(events.createdAt))
+      .limit(limit + 1)
+      .offset(offset)
+    const page = takePage(rows, limit)
 
-    res.json({
-      data: rows.map((row) => toEventListJson(row)),
-      total,
-      limit,
-      offset,
-    })
+    res.json(
+      paginatedJson(
+        page.data.map((row) => toEventListJson(row)),
+        page.hasMore,
+        limit,
+        offset,
+      ),
+    )
   } catch (err) {
     next(err)
   }
@@ -147,17 +153,20 @@ export async function getEvent(req: Request, res: Response, next: NextFunction) 
 
     const tenantId = getTenantId(req)
     const db = getDb()
-    const [row] = await db
-      .select(eventColumns)
-      .from(events)
-      .where(and(eq(events.id, id), eq(events.tenantId, tenantId)))
-      .limit(1)
+    const [eventRows, deliveriesSummary] = await Promise.all([
+      db
+        .select(eventDetailColumns)
+        .from(events)
+        .where(and(eq(events.id, id), eq(events.tenantId, tenantId)))
+        .limit(1),
+      loadDeliveriesSummary(id, tenantId),
+    ])
+    const [row] = eventRows
 
     if (!row) {
       throw new AppError(404, 'not_found', 'Event not found')
     }
 
-    const deliveriesSummary = await loadDeliveriesSummary(row.id, tenantId)
     res.json(toEventDetailJson(row, deliveriesSummary))
   } catch (err) {
     next(err)

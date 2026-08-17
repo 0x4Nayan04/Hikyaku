@@ -11,6 +11,8 @@ describe('constants', () => {
   it('defines queue name', () => {
     expect(QUEUE_NAME).toBe('webhook-deliveries')
     expect(DELIVERY_JOB_OPTIONS.attempts).toBe(1)
+    expect(DELIVERY_JOB_OPTIONS.removeOnComplete).toEqual({ age: 3600, count: 1000 })
+    expect(DELIVERY_JOB_OPTIONS.removeOnFail).toEqual({ age: 3600, count: 1000 })
   })
 
   it('defines status enums', () => {

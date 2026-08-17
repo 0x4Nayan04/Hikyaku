@@ -1,9 +1,13 @@
 import { eq } from 'drizzle-orm'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import { hashApiKey } from '@webhook/shared/crypto'
 import { apiKeys } from '@webhook/shared/schema'
 import '../../../src/config.js'
-import { resolveTenantId } from '../../../src/auth/apiKey.js'
+import {
+  clearApiKeyCache,
+  invalidateApiKeyCache,
+  resolveTenantId,
+} from '../../../src/auth/apiKey.js'
 import { closePool, getDb } from '../../../src/db/client.js'
 import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
 
@@ -18,6 +22,10 @@ async function readLastUsedAt(apiKey: string): Promise<Date | null> {
 }
 
 describe('resolveTenantId', () => {
+  afterEach(() => {
+    clearApiKeyCache()
+  })
+
   afterAll(async () => {
     await closePool()
   })
@@ -83,5 +91,21 @@ describe('resolveTenantId', () => {
     const unknownKey = 'whk_00000000000000000000000000000000'
 
     await expect(resolveTenantId(unknownKey)).resolves.toBeNull()
+  })
+
+  it('returns a cached tenant id until the key hash is invalidated', async () => {
+    const { tenantId, apiKey } = await createTenantWithKey()
+    const keyHash = hashApiKey(apiKey)
+
+    await expect(resolveTenantId(apiKey)).resolves.toBe(tenantId)
+
+    await getDb().update(apiKeys).set({ revokedAt: new Date() }).where(eq(apiKeys.keyHash, keyHash))
+
+    await expect(resolveTenantId(apiKey)).resolves.toBe(tenantId)
+
+    invalidateApiKeyCache(keyHash)
+    await expect(resolveTenantId(apiKey)).resolves.toBeNull()
+
+    await deleteTenant(tenantId)
   })
 })

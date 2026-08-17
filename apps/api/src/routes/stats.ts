@@ -1,5 +1,5 @@
 import { deliveries, events } from '@webhook/shared/schema'
-import { and, count, eq, gte, inArray } from 'drizzle-orm'
+import { and, count, eq, gte, inArray, sql } from 'drizzle-orm'
 import { Router, type IRouter } from 'express'
 import type { NextFunction, Request, Response } from 'express'
 import { requireTenantSessionAuth } from '../auth/middleware.js'
@@ -18,7 +18,7 @@ export async function loadTenantStats(tenantId: string) {
   const sinceMidnightUtc = utcMidnightToday()
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
-  const [[eventsTodayRow], [pendingRow], [succeeded24hRow], [failed24hRow]] = await Promise.all([
+  const [[eventsTodayRow], [activeRow], [terminal24hRow]] = await Promise.all([
     db
       .select({ value: count() })
       .from(events)
@@ -33,34 +33,27 @@ export async function loadTenantStats(tenantId: string) {
         ),
       ),
     db
-      .select({ value: count() })
+      .select({
+        succeeded: sql<number>`cast(count(*) filter (where ${deliveries.status} = 'succeeded') as int)`,
+        failed: sql<number>`cast(count(*) filter (where ${deliveries.status} = 'failed') as int)`,
+      })
       .from(deliveries)
       .where(
         and(
           eq(deliveries.tenantId, tenantId),
-          eq(deliveries.status, 'succeeded'),
-          gte(deliveries.updatedAt, since24h),
-        ),
-      ),
-    db
-      .select({ value: count() })
-      .from(deliveries)
-      .where(
-        and(
-          eq(deliveries.tenantId, tenantId),
-          eq(deliveries.status, 'failed'),
+          inArray(deliveries.status, ['succeeded', 'failed']),
           gte(deliveries.updatedAt, since24h),
         ),
       ),
   ])
 
-  const deliveriesSucceeded24h = succeeded24hRow?.value ?? 0
-  const deliveriesFailed24h = failed24hRow?.value ?? 0
+  const deliveriesSucceeded24h = terminal24hRow?.succeeded ?? 0
+  const deliveriesFailed24h = terminal24hRow?.failed ?? 0
   const terminal24h = deliveriesSucceeded24h + deliveriesFailed24h
 
   return {
     events_today: eventsTodayRow?.value ?? 0,
-    deliveries_active: pendingRow?.value ?? 0,
+    deliveries_active: activeRow?.value ?? 0,
     deliveries_succeeded_24h: deliveriesSucceeded24h,
     deliveries_failed_24h: deliveriesFailed24h,
     success_rate_24h: terminal24h === 0 ? null : deliveriesSucceeded24h / terminal24h,

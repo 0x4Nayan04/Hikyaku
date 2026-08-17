@@ -51,7 +51,7 @@ describe('endpoints', () => {
 
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({
-      total: 1,
+      has_more: false,
       limit: 50,
       offset: 0,
     })
@@ -100,9 +100,9 @@ describe('endpoints', () => {
     ])
 
     expect(active.status).toBe(200)
-    expect(active.body).toMatchObject({ data: [], total: 0 })
+    expect(active.body).toMatchObject({ data: [], has_more: false })
     expect(disabled.status).toBe(200)
-    expect(disabled.body.total).toBe(1)
+    expect(disabled.body.has_more).toBe(false)
     expect(disabled.body.data[0]).toMatchObject({ id: endpointId, status: 'disabled' })
   })
 })

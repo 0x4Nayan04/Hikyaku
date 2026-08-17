@@ -1,28 +1,34 @@
-import { deliveries, endpoints, events } from '@webhook/shared/schema'
+import { deliveries, events } from '@webhook/shared/schema'
 import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
 import type { IngestEventInput } from '@webhook/shared/zod'
 import { and, eq } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type * as schema from '@webhook/shared/schema'
 import { isDeepStrictEqual } from 'node:util'
+import { getActiveEndpointIds } from '../lib/activeEndpoints.js'
 import { getDb } from '../db/client.js'
 
 type DbExecutor = NodePgDatabase<typeof schema>
 
-export const eventColumns = {
+export const eventListColumns = {
   id: events.id,
   tenantId: events.tenantId,
   idempotencyKey: events.idempotencyKey,
   type: events.type,
-  payload: events.payload,
   status: events.status,
   createdAt: events.createdAt,
 }
 
+export const eventDetailColumns = {
+  ...eventListColumns,
+  payload: events.payload,
+}
+
+export type EventListRow = Omit<typeof events.$inferSelect, 'payload'>
 export type EventRow = typeof events.$inferSelect
 
 export type FanoutResult = {
-  event: EventRow
+  event: EventListRow
   newDeliveryIds: string[]
   isDuplicate: boolean
 }
@@ -40,7 +46,7 @@ async function findEvent(
   idempotencyKey: string,
 ): Promise<EventRow | undefined> {
   const [row] = await executor
-    .select(eventColumns)
+    .select(eventDetailColumns)
     .from(events)
     .where(and(eq(events.tenantId, tenantId), eq(events.idempotencyKey, idempotencyKey)))
     .limit(1)
@@ -48,27 +54,35 @@ async function findEvent(
   return row
 }
 
+function toListRow(row: EventRow, status: EventListRow['status']): EventListRow {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    idempotencyKey: row.idempotencyKey,
+    type: row.type,
+    status,
+    createdAt: row.createdAt,
+  }
+}
+
 async function insertDeliveries(
   executor: DbExecutor,
   tenantId: string,
   eventId: string,
 ): Promise<string[]> {
-  const activeEndpoints = await executor
-    .select({ id: endpoints.id })
-    .from(endpoints)
-    .where(and(eq(endpoints.tenantId, tenantId), eq(endpoints.status, 'active')))
+  const endpointIds = await getActiveEndpointIds(executor, tenantId)
 
-  if (activeEndpoints.length === 0) {
+  if (endpointIds.length === 0) {
     return []
   }
 
   const inserted = await executor
     .insert(deliveries)
     .values(
-      activeEndpoints.map((endpoint) => ({
+      endpointIds.map((endpointId) => ({
         tenantId,
         eventId,
-        endpointId: endpoint.id,
+        endpointId,
       })),
     )
     .onConflictDoNothing({ target: [deliveries.eventId, deliveries.endpointId] })
@@ -93,7 +107,7 @@ export async function ingestFanout(
         payload: input.payload,
       })
       .onConflictDoNothing({ target: [events.tenantId, events.idempotencyKey] })
-      .returning(eventColumns)
+      .returning(eventListColumns)
 
     if (!inserted) {
       const concurrent = await findEvent(tx, tenantId, input.idempotency_key)
@@ -106,14 +120,9 @@ export async function ingestFanout(
       }
 
       const newDeliveryIds = await insertDeliveries(tx, tenantId, concurrent.id)
-      await reevaluateEventStatus(concurrent.id, tx)
+      const status = await reevaluateEventStatus(concurrent.id, tx)
 
-      const updated = await findEvent(tx, tenantId, input.idempotency_key)
-      if (!updated) {
-        throw new Error('event_status_update_missing_row')
-      }
-
-      return { event: updated, newDeliveryIds, isDuplicate: true }
+      return { event: toListRow(concurrent, status), newDeliveryIds, isDuplicate: true }
     }
 
     const newDeliveryIds = await insertDeliveries(tx, tenantId, inserted.id)
@@ -122,7 +131,7 @@ export async function ingestFanout(
         .update(events)
         .set({ status: 'completed' })
         .where(eq(events.id, inserted.id))
-        .returning(eventColumns)
+        .returning(eventListColumns)
 
       if (!completed) {
         throw new Error('event_status_update_missing_row')

@@ -1,7 +1,7 @@
 import express, { type Application, type NextFunction, type Request, type Response } from 'express'
 import { pinoHttp } from 'pino-http'
 import { env } from './config.js'
-import { createSessionMiddleware } from './auth/session.js'
+import { createSessionMiddleware, skipSessionStack } from './auth/session.js'
 import { createCorsMiddleware } from './lib/cors.js'
 import { createSessionCsrfMiddleware } from './lib/csrf.js'
 import { AppError } from './lib/errors.js'
@@ -32,11 +32,17 @@ export function createApp(): Application {
       logger,
       genReqId: (req) => readRequestId(req),
       serializers: { req: serializeRequestForLog, res: serializeResponseForLog },
+      autoLogging: {
+        ignore: (req) => {
+          const path = req.url?.split('?')[0]
+          return path === '/v1/health' || path === '/v1/ready'
+        },
+      },
     }),
   )
   app.use(createCorsMiddleware())
-  app.use(createSessionMiddleware())
-  app.use(createSessionCsrfMiddleware())
+  app.use(skipSessionStack(createSessionMiddleware()))
+  app.use(skipSessionStack(createSessionCsrfMiddleware()))
   app.use(express.json({ limit: '256kb' }))
 
   app.use('/v1', healthRouter)

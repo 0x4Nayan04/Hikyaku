@@ -76,7 +76,7 @@ describe('POST /v1/events idempotency', () => {
     const jobs = await queue.getJobs(['waiting', 'active', 'delayed'])
     const job = jobs.find((candidate) => candidate.data.deliveryId === delivery.id)
     expect(job).toBeDefined()
-    expect(job?.data).toEqual({ deliveryId: delivery.id })
+    expect(job?.data).toEqual({ deliveryId: delivery.id, tenantId })
   })
 
   it('rejects an idempotency key reused with a different event body', async () => {

@@ -127,6 +127,20 @@
       "when": 1785864221320,
       "tag": "0018_enforce_delivery_tenant_consistency",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1786880000000,
+      "tag": "0019_delivery_query_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1786966400000,
+      "tag": "0020_stats_caches_index_diet",
+      "breakpoints": true
     }
   ]
 }

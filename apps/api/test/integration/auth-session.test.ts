@@ -61,6 +61,23 @@ describe('session auth on tenant routes', () => {
     expect(statsRes.body).toEqual(emptyStats)
   })
 
+  it('returns the session user and tenant from GET /v1/auth/me', async () => {
+    const agent = request.agent(app)
+
+    const loginRes = await agent.post('/v1/auth/login').send({ email, password })
+    expect(loginRes.status).toBe(200)
+
+    const meRes = await agent.get('/v1/auth/me')
+    expect(meRes.status).toBe(200)
+    expect(meRes.body.user).toMatchObject({
+      id: userId,
+      email,
+      is_super_admin: false,
+    })
+    expect(meRes.body.tenant).toMatchObject({ id: tenantId })
+    expect(typeof meRes.body.tenant.name).toBe('string')
+  })
+
   it('regenerates the session ID after a successful login', async () => {
     const agent = request.agent(app)
 

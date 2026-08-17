@@ -69,7 +69,7 @@ describe('POST /v1/deliveries/:id/replay', () => {
     const jobs = await queue.getJobs(['waiting', 'active', 'delayed'])
     const job = jobs.find((candidate) => candidate.data.deliveryId === deliveryId)
     expect(job).toBeDefined()
-    expect(job?.data).toEqual({ deliveryId })
+    expect(job?.data).toEqual({ deliveryId, tenantId })
     expect(['waiting', 'active', 'delayed']).toContain(await job?.getState())
 
     const [delivery] = await db

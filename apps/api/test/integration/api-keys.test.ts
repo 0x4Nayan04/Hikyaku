@@ -31,7 +31,7 @@ describe('api-keys', () => {
 
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({
-      total: 1,
+      has_more: false,
       limit: 50,
       offset: 0,
     })
@@ -63,13 +63,11 @@ describe('api-keys', () => {
 
     const activeRes = await agent.get('/v1/api-keys').query({ status: 'active', limit: 1 })
     expect(activeRes.status).toBe(200)
-    expect(activeRes.body.total).toBeGreaterThan(0)
     expect(activeRes.body.data).toHaveLength(1)
     expect(activeRes.body.data[0].revoked_at).toBeNull()
 
     const revokedRes = await agent.get('/v1/api-keys').query({ status: 'revoked', limit: 1 })
     expect(revokedRes.status).toBe(200)
-    expect(revokedRes.body.total).toBeGreaterThan(0)
     expect(revokedRes.body.data).toHaveLength(1)
     expect(revokedRes.body.data[0].revoked_at).toEqual(expect.any(String))
 

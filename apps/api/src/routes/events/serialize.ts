@@ -1,4 +1,4 @@
-import type { EventRow } from '../../ingest/fanout.js'
+import type { EventListRow, EventRow } from '../../ingest/fanout.js'
 
 export type DeliveriesSummary = {
   total: number
@@ -7,7 +7,7 @@ export type DeliveriesSummary = {
   pending: number
 }
 
-export function toIngestEventJson(row: EventRow) {
+export function toIngestEventJson(row: EventListRow) {
   return {
     id: row.id,
     status: row.status,
@@ -15,7 +15,7 @@ export function toIngestEventJson(row: EventRow) {
   }
 }
 
-export function toEventListJson(row: EventRow) {
+export function toEventListJson(row: EventListRow) {
   return {
     id: row.id,
     idempotency_key: row.idempotencyKey,

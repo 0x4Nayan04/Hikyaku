@@ -21,3 +21,17 @@ export async function revokeTenantSessions(tenantId: string, executor?: DbExecut
     )
   `)
 }
+
+/** Keeps denormalized tenant names in session blobs in sync after an admin rename. */
+export async function refreshTenantNameInSessions(
+  tenantId: string,
+  tenantName: string,
+  executor?: DbExecutor,
+): Promise<void> {
+  const db = executor ?? getDb()
+  await db.execute(sql`
+    UPDATE sessions
+    SET sess = jsonb_set(sess::jsonb, '{tenantName}', to_jsonb(${tenantName}::text))
+    WHERE sess->>'tenantId' = ${tenantId}
+  `)
+}

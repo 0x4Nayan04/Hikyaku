@@ -4,7 +4,7 @@ import type { PgTransaction } from 'drizzle-orm/pg-core'
 import * as schema from '@webhook/shared/schema'
 import { invites, users } from '@webhook/shared/schema'
 import { hashInviteToken } from '@webhook/shared/crypto'
-import { and, eq, gt, isNull } from 'drizzle-orm'
+import { and, eq, gt, isNull, sql } from 'drizzle-orm'
 import { getDb } from '../db/client.js'
 import { AppError } from './errors.js'
 
@@ -36,12 +36,17 @@ const inviteColumns = {
   acceptedAt: invites.acceptedAt,
 }
 
+/** Matches `users_email_ci_uidx` (`lower(email)`). */
+export function userEmailMatches(email: string) {
+  return sql`lower(${users.email}) = lower(${email})`
+}
+
 export async function assertEmailAvailable(email: string, tx?: DbExecutor): Promise<void> {
   const db = tx ?? getDb()
   const [existing] = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.email, email))
+    .where(userEmailMatches(email))
     .limit(1)
 
   if (existing) {

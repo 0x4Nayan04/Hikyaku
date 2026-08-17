@@ -1,55 +1,71 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const exec = vi.fn()
-const transaction = {
-  incr: vi.fn(),
-  pexpire: vi.fn(),
-  exec,
-}
-transaction.incr.mockReturnValue(transaction)
-transaction.pexpire.mockReturnValue(transaction)
+const evalMock = vi.fn()
 
 vi.mock('../../../src/lib/redis.js', () => ({
-  getRedis: () => ({ multi: () => transaction }),
+  getRedis: () => ({ eval: evalMock }),
 }))
 
 describe('takeFixedWindowToken', () => {
   beforeEach(() => {
-    exec.mockReset()
-    transaction.incr.mockClear()
-    transaction.pexpire.mockClear()
+    evalMock.mockReset()
   })
 
-  it('allows requests under the limit and sets TTL on first hit', async () => {
-    exec
-      .mockResolvedValueOnce([
-        [null, 1],
-        [null, 1],
-      ])
-      .mockResolvedValueOnce([
-        [null, 2],
-        [null, 1],
-      ])
+  it('allows requests under the limit', async () => {
+    evalMock.mockResolvedValueOnce(1).mockResolvedValueOnce(1)
 
     const { takeFixedWindowToken } = await import('../../../src/lib/rateLimit.js')
 
     await expect(takeFixedWindowToken('auth:ratelimit:ip:127.0.0.1', 2)).resolves.toBe(true)
-    expect(transaction.pexpire).toHaveBeenCalledWith(
+    expect(evalMock).toHaveBeenCalledWith(
+      expect.stringContaining('INCR'),
+      1,
       expect.stringMatching(/^auth:ratelimit:ip:127\.0\.0\.1:\d+$/),
-      60_000,
+      '2',
+      expect.stringMatching(/^\d+$/),
     )
 
     await expect(takeFixedWindowToken('auth:ratelimit:ip:127.0.0.1', 2)).resolves.toBe(true)
   })
 
   it('rejects once the fixed window is exhausted', async () => {
-    exec.mockResolvedValue([
-      [null, 3],
-      [null, 1],
-    ])
+    evalMock.mockResolvedValue(0)
 
     const { takeFixedWindowToken } = await import('../../../src/lib/rateLimit.js')
 
     await expect(takeFixedWindowToken('ingest:ratelimit:tenant-a', 2)).resolves.toBe(false)
+  })
+})
+
+describe('takeFixedWindowTokens', () => {
+  beforeEach(() => {
+    evalMock.mockReset()
+  })
+
+  it('evaluates every key in one script', async () => {
+    evalMock.mockResolvedValue(1)
+
+    const { takeFixedWindowTokens } = await import('../../../src/lib/rateLimit.js')
+
+    await expect(
+      takeFixedWindowTokens(['auth:ratelimit:ip:127.0.0.1', 'auth:ratelimit:email:a@b.com'], 20),
+    ).resolves.toBe(true)
+    expect(evalMock).toHaveBeenCalledTimes(1)
+    expect(evalMock).toHaveBeenCalledWith(
+      expect.stringContaining('INCR'),
+      2,
+      expect.stringMatching(/^auth:ratelimit:ip:127\.0\.0\.1:\d+$/),
+      expect.stringMatching(/^auth:ratelimit:email:a@b\.com:\d+$/),
+      '20',
+      expect.stringMatching(/^\d+$/),
+    )
+  })
+
+  it('rejects when any key is over the limit', async () => {
+    evalMock.mockResolvedValue(0)
+
+    const { takeFixedWindowTokens } = await import('../../../src/lib/rateLimit.js')
+
+    await expect(takeFixedWindowTokens(['auth:ip', 'auth:email'], 20)).resolves.toBe(false)
   })
 })

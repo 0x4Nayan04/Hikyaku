@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { AppError } from '../../../src/lib/errors.js'
-import { parsePagination } from '../../../src/lib/pagination.js'
+import { parsePagination, takePage } from '../../../src/lib/pagination.js'
 
 describe('parsePagination', () => {
   it('defaults when params are omitted', () => {
@@ -29,4 +29,14 @@ describe('parsePagination', () => {
       expect(() => parsePagination(query)).toThrow(AppError)
     },
   )
+})
+
+describe('takePage', () => {
+  it('returns hasMore when an extra row is present', () => {
+    expect(takePage([1, 2, 3], 2)).toEqual({ data: [1, 2], hasMore: true })
+  })
+
+  it('returns the full slice when the page is short', () => {
+    expect(takePage([1, 2], 2)).toEqual({ data: [1, 2], hasMore: false })
+  })
 })
