@@ -19,7 +19,7 @@ export type ListEndpointsParams = PaginationParams & {
 
 export type Paginated<T> = {
   data: T[]
-  total: number
+  has_more: boolean
   limit: number
   offset: number
 }

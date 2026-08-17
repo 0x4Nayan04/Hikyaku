@@ -1,3 +1,5 @@
+@import './chrome.css';
+
 @layer utilities {
   .docs-shell {
     --docs-header-height: var(--nav-height);

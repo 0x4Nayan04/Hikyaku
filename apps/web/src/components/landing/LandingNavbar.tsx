@@ -1,32 +1,32 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRight, LayoutDashboard, Menu, X } from 'lucide-react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { useFocusTrap } from '@/components/accessibility/Accessibility'
+import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useScrollSpy } from '@/hooks/useScrollSpy'
-import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
 import { APP_HOME_LABEL, APP_NAME, PRODUCT_LINKS } from '@/lib/app-meta'
+import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
 import { useSession } from '@/providers/session-context'
+import { ArrowRight, LayoutDashboard, Menu, X } from 'lucide-react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
-const LANDING_SECTION_IDS: string[] = ['how-it-works', 'console', 'faq']
+const LANDING_SECTION_IDS: string[] = ['features', 'how-it-works', 'preview', 'faq']
 const NO_SECTION_IDS: string[] = []
 const PRIMARY_CTA = { label: 'Sign in', path: '/login' }
 
 /** In-page sections only — every item must scroll-spy. */
 const SECTION_LINKS = [
-  { label: 'How it works', href: PRODUCT_LINKS.howItWorks, sectionId: 'how-it-works' },
-  { label: 'Console', href: PRODUCT_LINKS.consoleSection, sectionId: 'console' },
+  { label: 'Features', href: '/#features', sectionId: 'features' },
+  { label: 'How it works', href: '/#how-it-works', sectionId: 'how-it-works' },
+  { label: 'Preview', href: '/#preview', sectionId: 'preview' },
   { label: 'FAQ', href: PRODUCT_LINKS.faq, sectionId: 'faq' },
 ] as const
 
 export const LandingNavbar = memo(function LandingNavbar() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { session, loading } = useSession()
-  const isLogin = location.pathname === '/login'
-  const isLanding = !isLogin
+  const { session } = useSession()
+  const isLanding = location.pathname === '/'
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const mobileMenuRef = useFocusTrap(isMobileMenuOpen, {
@@ -58,11 +58,7 @@ export const LandingNavbar = memo(function LandingNavbar() {
     <header className="landing-nav">
       <LandingFrameInner className="landing-nav-inner-wrap">
         <div className="landing-nav-bar">
-          <Link
-            to="/"
-            className="landing-nav-brand focus-ring"
-            aria-label={APP_HOME_LABEL}
-          >
+          <Link to="/" className="landing-nav-brand focus-ring" aria-label={APP_HOME_LABEL}>
             <HikyakuMark decorative className="size-7 shrink-0" />
             <span className="landing-nav-brand-text">{APP_NAME}</span>
           </Link>
@@ -96,8 +92,7 @@ export const LandingNavbar = memo(function LandingNavbar() {
                     <LayoutDashboard className="size-3.5" aria-hidden="true" />
                   </span>
                 </button>
-              ) : null}
-              {!session && !loading ? (
+              ) : (
                 <button
                   type="button"
                   onClick={() => navigate(PRIMARY_CTA.path)}
@@ -108,7 +103,7 @@ export const LandingNavbar = memo(function LandingNavbar() {
                     <ArrowRight className="size-3.5" aria-hidden="true" />
                   </span>
                 </button>
-              ) : null}
+              )}
             </div>
             <button
               type="button"
@@ -175,7 +170,7 @@ export const LandingNavbar = memo(function LandingNavbar() {
                 >
                   {getHomeLabel(session.user)}
                 </button>
-              ) : !loading ? (
+              ) : (
                 <button
                   type="button"
                   onClick={() => {
@@ -186,7 +181,7 @@ export const LandingNavbar = memo(function LandingNavbar() {
                 >
                   {PRIMARY_CTA.label}
                 </button>
-              ) : null}
+              )}
             </div>
           </div>
         </div>

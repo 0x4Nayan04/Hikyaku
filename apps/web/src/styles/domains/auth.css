@@ -1,3 +1,5 @@
+@import './chrome.css';
+
 @layer utilities {
   .auth-section-block {
     display: flex;
@@ -5,14 +7,11 @@
     flex-direction: column;
   }
   .auth-page-dot-grid {
+    position: relative;
     display: flex;
     flex: 1;
     min-height: calc(100vh - var(--nav-height) - var(--section-bar-height));
     flex-direction: column;
-  }
-  .auth-page-dot-grid::before,
-  .auth-page-dot-grid::after {
-    opacity: 0.55;
   }
   .auth-page-inner {
     display: flex;
@@ -25,64 +24,6 @@
   }
   .auth-page-inner .landing-frame-inner {
     width: 100%;
-  }
-
-  .hero-dot-grid-wrap {
-    position: relative;
-    isolation: isolate;
-  }
-  .hero-dot-grid-wrap::before,
-  .hero-dot-grid-wrap::after {
-    content: '';
-    position: absolute;
-    inset-block: 0;
-    width: 42%;
-    pointer-events: none;
-    z-index: 1;
-  }
-  .hero-dot-grid-wrap::before {
-    left: 0;
-    background: radial-gradient(
-      ellipse 90% 70% at 0% 45%,
-      rgba(var(--color-primary-rgb), 0.12),
-      transparent 72%
-    );
-  }
-  .hero-dot-grid-wrap::after {
-    right: 0;
-    background: radial-gradient(
-      ellipse 90% 70% at 100% 45%,
-      rgba(var(--color-seal-rgb), 0.08),
-      transparent 72%
-    );
-  }
-  .hero-dot-grid-mask {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    -webkit-mask-image: linear-gradient(
-      to right,
-      black 0%,
-      black 8%,
-      transparent 22%,
-      transparent 78%,
-      black 92%,
-      black 100%
-    );
-    mask-image: linear-gradient(
-      to right,
-      black 0%,
-      black 8%,
-      transparent 22%,
-      transparent 78%,
-      black 92%,
-      black 100%
-    );
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .hero-dot-grid-mask {
-      display: none;
-    }
   }
 
   .landing-mobile-menu-btn {

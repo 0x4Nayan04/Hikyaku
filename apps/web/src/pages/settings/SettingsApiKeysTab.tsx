@@ -13,7 +13,7 @@ import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { PageBanner } from '@/components/console/PageBanner'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
-import { shouldPaginate } from '@/components/console/pagination-utils'
+import { pageRange, shouldPaginate } from '@/components/console/pagination-utils'
 import { StatusBadge } from '@/components/console/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/format'
@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
 
 type SettingsApiKeysTabProps = {
   apiKeys: ApiKey[]
-  total: number
+  hasMore: boolean
   offset: number
   pageSize: number
   loadingKeys: boolean
@@ -37,7 +37,7 @@ type SettingsApiKeysTabProps = {
 
 export function SettingsApiKeysTab({
   apiKeys,
-  total,
+  hasMore,
   offset,
   pageSize,
   loadingKeys,
@@ -50,10 +50,9 @@ export function SettingsApiKeysTab({
   onRevokeClick,
   onOffsetChange,
 }: SettingsApiKeysTabProps) {
-  const pageStart = total === 0 ? 0 : offset + 1
-  const pageEnd = Math.min(offset + apiKeys.length, total)
+  const { pageStart, pageEnd } = pageRange(offset, apiKeys.length)
   const canGoBack = offset > 0
-  const canGoForward = offset + pageSize < total
+  const canGoForward = hasMore
 
   return (
     <>
@@ -75,12 +74,11 @@ export function SettingsApiKeysTab({
             </Button>
           }
           footer={
-            shouldPaginate(total, pageSize) ? (
+            shouldPaginate(hasMore, offset) ? (
               <div className="pagination-bar-footer">
                 <PaginationBar
                   pageStart={pageStart}
                   pageEnd={pageEnd}
-                  total={total}
                   canGoBack={canGoBack}
                   canGoForward={canGoForward}
                   onPrevious={() => onOffsetChange(Math.max(0, offset - pageSize))}

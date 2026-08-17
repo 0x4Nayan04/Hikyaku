@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lastPageOffset, paginationButtonVariant } from '@/components/console/pagination-utils'
+import { paginationButtonVariant, shouldPaginate } from '@/components/console/pagination-utils'
 
 describe('paginationButtonVariant', () => {
   it('uses primary when navigation is available', () => {
@@ -11,9 +11,13 @@ describe('paginationButtonVariant', () => {
   })
 })
 
-describe('lastPageOffset', () => {
-  it('moves an empty final page to the preceding page', () => {
-    expect(lastPageOffset(25, 25)).toBe(0)
-    expect(lastPageOffset(26, 25)).toBe(25)
+describe('shouldPaginate', () => {
+  it('hides the pager on a single first page', () => {
+    expect(shouldPaginate(false, 0)).toBe(false)
+  })
+
+  it('shows the pager when more pages exist or we are past the first', () => {
+    expect(shouldPaginate(true, 0)).toBe(true)
+    expect(shouldPaginate(false, 25)).toBe(true)
   })
 })

@@ -7,6 +7,7 @@ import { DocsHeader } from '@/components/docs/DocsHeader'
 import { DocsSidebar } from '@/components/docs/DocsSidebar'
 import { LandingFrame } from '@/components/landing/LandingFrame'
 import { DOCS_TOC } from '@/docs/toc'
+import '@/styles/domains/docs.css'
 
 export function DocsLayout() {
   const location = useLocation()

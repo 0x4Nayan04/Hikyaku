@@ -1,10 +1,12 @@
-import { useRef } from 'react'
+import { Suspense, useRef } from 'react'
 import { Outlet } from 'react-router-dom'
 import { AppAside } from '@/components/app/AppAside'
 import { AppTopBar } from '@/components/app/AppTopBar'
 import { AppCatalogShell } from '@/components/app/AppCatalogShell'
+import { PageLoading } from '@/components/console/PageLoading'
 import { ScrollToTop } from '@/components/console/ScrollToTop'
 import { useSession } from '@/providers/session-context'
+import '@/styles/console-bridge.css'
 
 export function ConsoleLayout() {
   const mainRef = useRef<HTMLElement>(null)
@@ -18,7 +20,9 @@ export function ConsoleLayout() {
         <AppAside session={session} loading={loading} isSuperAdmin={isSuperAdmin} />
         <main id="main-content" ref={mainRef} className="app-main">
           <div className="app-main-inner">
-            <Outlet />
+            <Suspense fallback={<PageLoading />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
         <ScrollToTop scrollContainerRef={mainRef} />

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apiFetch, listApiKeys, listEvents } from './client'
+import { apiFetch, getStats, listApiKeys, listEvents } from './client'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -40,7 +40,7 @@ describe('apiFetch auth redirects', () => {
 describe('list requests', () => {
   it('forwards an abort signal to the network request', async () => {
     const fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: [], total: 0, limit: 25, offset: 0 })),
+      new Response(JSON.stringify({ data: [], has_more: false, limit: 25, offset: 0 })),
     )
     vi.stubGlobal('fetch', fetch)
     const controller = new AbortController()
@@ -55,7 +55,7 @@ describe('list requests', () => {
 
   it('forwards an abort signal to the API-key list request', async () => {
     const fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: [], total: 0, limit: 25, offset: 0 })),
+      new Response(JSON.stringify({ data: [], has_more: false, limit: 25, offset: 0 })),
     )
     vi.stubGlobal('fetch', fetch)
     const controller = new AbortController()
@@ -64,6 +64,29 @@ describe('list requests', () => {
 
     expect(fetch).toHaveBeenCalledWith(
       'http://localhost:3000/v1/api-keys?limit=25&offset=25',
+      expect.objectContaining({ signal: controller.signal }),
+    )
+  })
+
+  it('forwards an abort signal to the stats request', async () => {
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          events_today: 0,
+          deliveries_active: 0,
+          deliveries_succeeded_24h: 0,
+          deliveries_failed_24h: 0,
+          success_rate_24h: null,
+        }),
+      ),
+    )
+    vi.stubGlobal('fetch', fetch)
+    const controller = new AbortController()
+
+    await getStats({ signal: controller.signal })
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:3000/v1/stats',
       expect.objectContaining({ signal: controller.signal }),
     )
   })

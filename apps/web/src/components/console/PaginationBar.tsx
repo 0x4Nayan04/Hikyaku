@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils'
 type PaginationBarProps = {
   pageStart: number
   pageEnd: number
-  total: number
   canGoBack: boolean
   canGoForward: boolean
   onPrevious: () => void
@@ -16,7 +15,6 @@ type PaginationBarProps = {
 export function PaginationBar({
   pageStart,
   pageEnd,
-  total,
   canGoBack,
   canGoForward,
   onPrevious,
@@ -25,7 +23,7 @@ export function PaginationBar({
   return (
     <div className="pagination-bar">
       <p className="pagination-bar__count">
-        Showing {pageStart.toLocaleString()}–{pageEnd.toLocaleString()} of {total.toLocaleString()}
+        Showing {pageStart.toLocaleString()}–{pageEnd.toLocaleString()}
       </p>
       <div className="pagination-bar__actions">
         <Button

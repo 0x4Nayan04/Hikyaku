@@ -10,7 +10,7 @@ import { EndpointCatalogList } from '@/components/console/EndpointCatalogList'
 import { PageBanner } from '@/components/console/PageBanner'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
-import { shouldPaginate } from '@/components/console/pagination-utils'
+import { pageRange, shouldPaginate } from '@/components/console/pagination-utils'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { Button } from '@/components/ui/button'
 import {
@@ -41,7 +41,7 @@ export function Endpoints() {
   const statusFilter = parseStatusParam(searchParams.get('status'))
   const {
     data: endpoints,
-    total,
+    hasMore,
     offset,
     setOffset,
     isInitial,
@@ -74,7 +74,7 @@ export function Endpoints() {
 
   const showEmpty = !isInitial && endpoints.length === 0
   const showLoading = isInitial && endpoints.length === 0
-  const isDatasetEmpty = showEmpty && statusFilter === 'all' && total === 0
+  const isDatasetEmpty = showEmpty && statusFilter === 'all' && offset === 0
 
   function setStatusFilter(value: 'all' | EndpointStatus) {
     const next = new URLSearchParams(searchParams)
@@ -159,11 +159,10 @@ export function Endpoints() {
     }
   }
 
-  const pageStart = total === 0 ? 0 : offset + 1
-  const pageEnd = Math.min(offset + endpoints.length, total)
+  const { pageStart, pageEnd } = pageRange(offset, endpoints.length)
   const canGoBack = offset > 0
-  const canGoForward = offset + API_PAGE_SIZE < total
-  const showFooter = !isInitial && total > 0 && shouldPaginate(total, API_PAGE_SIZE)
+  const canGoForward = hasMore
+  const showFooter = !isInitial && shouldPaginate(hasMore, offset)
 
   return (
     <ConsolePage
@@ -186,7 +185,6 @@ export function Endpoints() {
                 <PaginationBar
                   pageStart={pageStart}
                   pageEnd={pageEnd}
-                  total={total}
                   canGoBack={canGoBack}
                   canGoForward={canGoForward}
                   onPrevious={() => setOffset(Math.max(0, offset - API_PAGE_SIZE))}
@@ -198,7 +196,10 @@ export function Endpoints() {
         >
           {showEmpty && isDatasetEmpty ? null : (
             <div className="endpoint-panel-toolbar">
-              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'all' | EndpointStatus)}>
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value as 'all' | EndpointStatus)}
+              >
                 <SelectTrigger className="log-panel-toolbar__filter" aria-label="Filter by status">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>

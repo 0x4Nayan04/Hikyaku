@@ -14,6 +14,7 @@ import {
 import { DataPanel } from '@/components/console/DataPanel'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
+import { pageRange, shouldPaginate } from '@/components/console/pagination-utils'
 import { SettingsCopyAction } from '@/components/console/SettingsCatalog'
 import { Button } from '@/components/ui/button'
 import {
@@ -41,7 +42,7 @@ const PAGE_SIZE = 25
 
 type AdminTenantTableProps = {
   tenants: AdminTenant[]
-  total: number
+  hasMore: boolean
   offset: number
   loading: boolean
   onOffsetChange: (offset: number) => void
@@ -51,7 +52,7 @@ type AdminTenantTableProps = {
 
 export function AdminTenantTable({
   tenants,
-  total,
+  hasMore,
   offset,
   loading,
   onOffsetChange,
@@ -63,10 +64,9 @@ export function AdminTenantTable({
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const cancelDeleteRef = useRef<HTMLButtonElement>(null)
-  const pageStart = total === 0 ? 0 : offset + 1
-  const pageEnd = Math.min(offset + tenants.length, total)
+  const { pageStart, pageEnd } = pageRange(offset, tenants.length)
   const canGoBack = offset > 0
-  const canGoForward = offset + PAGE_SIZE < total
+  const canGoForward = hasMore
   const isSearching = searchQuery && searchQuery.trim().length > 0
 
   const emptyMessage = isSearching
@@ -83,11 +83,10 @@ export function AdminTenantTable({
       loading={loading && tenants.length > 0}
       empty={!loading && tenants.length === 0 ? emptyMessage : undefined}
       footer={
-        !loading && total > 0 ? (
+        !loading && shouldPaginate(hasMore, offset) ? (
           <PaginationBar
             pageStart={pageStart}
             pageEnd={pageEnd}
-            total={total}
             canGoBack={canGoBack}
             canGoForward={canGoForward}
             onPrevious={() => onOffsetChange(Math.max(0, offset - PAGE_SIZE))}

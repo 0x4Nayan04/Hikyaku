@@ -17,7 +17,7 @@ import { DataPanel } from '@/components/console/DataPanel'
 import { PageBanner } from '@/components/console/PageBanner'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
-import { shouldPaginate } from '@/components/console/pagination-utils'
+import { pageRange, shouldPaginate } from '@/components/console/pagination-utils'
 import { StatusBadge } from '@/components/console/StatusBadge'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { formatDateTime } from '@/lib/format'
@@ -31,7 +31,7 @@ export function Events() {
   const navigate = useNavigate()
   const {
     data: events,
-    total,
+    hasMore,
     offset,
     setOffset,
     isInitial,
@@ -46,7 +46,7 @@ export function Events() {
   usePolling({ enabled: hasPendingEventWork(events), onPoll: reload })
 
   const showEmpty = !isInitial && events.length === 0
-  const isDatasetEmpty = showEmpty && total === 0
+  const isDatasetEmpty = showEmpty && offset === 0
 
   const emptyState = useMemo(
     () => (
@@ -68,11 +68,10 @@ export function Events() {
     [],
   )
 
-  const pageStart = total === 0 ? 0 : offset + 1
-  const pageEnd = Math.min(offset + events.length, total)
+  const { pageStart, pageEnd } = pageRange(offset, events.length)
   const canGoBack = offset > 0
-  const canGoForward = offset + PAGE_SIZE < total
-  const showFooter = !isInitial && total > 0 && shouldPaginate(total, PAGE_SIZE)
+  const canGoForward = hasMore
+  const showFooter = !isInitial && shouldPaginate(hasMore, offset)
 
   return (
     <ConsolePage
@@ -105,7 +104,6 @@ export function Events() {
                 <PaginationBar
                   pageStart={pageStart}
                   pageEnd={pageEnd}
-                  total={total}
                   canGoBack={canGoBack}
                   canGoForward={canGoForward}
                   onPrevious={() => setOffset(Math.max(0, offset - PAGE_SIZE))}

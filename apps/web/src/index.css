@@ -1,13 +1,7 @@
 @import './styles/domains/tokens.css';
 @import './styles/domains/layout.css';
-@import './styles/domains/auth.css';
-@import './styles/domains/nav.css';
-@import './styles/domains/components.css';
-@import './styles/domains/docs.css';
-@import './styles/console-bridge.css';
-@import './styles/domains/landing-revamp.css';
 @import 'tailwindcss';
-@import 'tw-animate-css';
+@import './styles/animate.css';
 
 @custom-variant dark (&:is(.dark *));
 @custom-variant data-disabled {

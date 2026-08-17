@@ -1,5 +1,5 @@
-import { APP_NAME } from '@/lib/app-meta'
 import { DOCS_TOC } from '@/docs/toc'
+import { APP_NAME } from '@/lib/app-meta'
 
 /** Map a pathname (+ optional hash) to `document.title`. Detail IDs collapse to a generic label. */
 export function titleForPath(pathname: string, hash = ''): string {
@@ -11,6 +11,7 @@ export function titleForPath(pathname: string, hash = ''): string {
   if (pathname === '/') return APP_NAME
 
   const routes: Array<[RegExp | string, string]> = [
+    ['/why-haiku', 'Why Haiku'],
     ['/login', 'Sign in'],
     ['/bootstrap', 'Setup'],
     ['/accept-invite', 'Accept invite'],

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, Lock, Mail } from 'lucide-react'
-import { ApiError, getBootstrapStatus, login } from '@/api/client'
+import { ApiError, login } from '@/api/client'
 import { AuthFooterLink } from '@/components/auth/AuthFooterLink'
 import { AuthFormField } from '@/components/auth/AuthFormField'
 import { PageBanner } from '@/components/console/PageBanner'
@@ -15,6 +15,7 @@ import {
 } from '@/lib/auth-first-run'
 import { getPostLoginPath } from '@/lib/auth-redirect'
 import { APP_NAME } from '@/lib/app-meta'
+import { loadBootstrapStatus, readBootstrapStatusCache } from '@/lib/bootstrap-status'
 import { useSession } from '@/providers/session-context'
 
 type LoginLocationState = {
@@ -36,7 +37,7 @@ export function Login() {
   const [error, setError] = useState<string | null>(null)
   const [showRecovery, setShowRecovery] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(null)
+  const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(readBootstrapStatusCache)
 
   useEffect(() => {
     if (!loading && session) {
@@ -46,10 +47,10 @@ export function Login() {
 
   useEffect(() => {
     let cancelled = false
-    getBootstrapStatus()
-      .then((status) => {
+    loadBootstrapStatus()
+      .then((available) => {
         if (!cancelled) {
-          setBootstrapAvailable(status.available)
+          setBootstrapAvailable(available)
         }
       })
       .catch(() => {

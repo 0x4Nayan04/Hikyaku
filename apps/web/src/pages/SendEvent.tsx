@@ -93,7 +93,7 @@ export function SendEvent() {
     listEndpoints({ status: 'active', limit: 1 })
       .then((result) => {
         if (!cancelled) {
-          setGate({ status: 'ready', canSend: result.total > 0 })
+          setGate({ status: 'ready', canSend: result.data.length > 0 })
         }
       })
       .catch((err) => {

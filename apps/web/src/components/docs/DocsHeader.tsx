@@ -10,7 +10,7 @@ import { useSession } from '@/providers/session-context'
 
 export const DocsHeader = memo(function DocsHeader() {
   const navigate = useNavigate()
-  const { session, loading } = useSession()
+  const { session } = useSession()
 
   const goDashboard = useCallback(() => {
     if (session) {
@@ -34,12 +34,10 @@ export const DocsHeader = memo(function DocsHeader() {
           </NavLink>
         </div>
 
-        {!loading ? (
-          <button type="button" className="docs-header-dashboard focus-ring" onClick={goDashboard}>
-            <LayoutDashboard className="size-3.5" aria-hidden="true" />
-            {session ? getHomeLabel(session.user) : 'Sign in'}
-          </button>
-        ) : null}
+        <button type="button" className="docs-header-dashboard focus-ring" onClick={goDashboard}>
+          <LayoutDashboard className="size-3.5" aria-hidden="true" />
+          {session ? getHomeLabel(session.user) : 'Sign in'}
+        </button>
       </LandingFrameInner>
     </header>
   )

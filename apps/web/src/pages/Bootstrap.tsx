@@ -7,6 +7,7 @@ import { AuthFormField } from '@/components/auth/AuthFormField'
 import { PageBanner } from '@/components/console/PageBanner'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { getDefaultHomePath } from '@/lib/auth-redirect'
+import { writeBootstrapStatusCache } from '@/lib/bootstrap-status'
 import { useSession } from '@/providers/session-context'
 
 export function Bootstrap() {
@@ -81,6 +82,7 @@ export function Bootstrap() {
 
     try {
       await bootstrap(adminSecret, { name, email, password })
+      writeBootstrapStatusCache(false)
       navigate('/login', {
         replace: true,
         state: {

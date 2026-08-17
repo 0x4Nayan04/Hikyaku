@@ -4,6 +4,7 @@ import { titleForPath } from './page-title'
 describe('titleForPath', () => {
   it('maps known routes', () => {
     expect(titleForPath('/')).toBe('Hikyaku')
+    expect(titleForPath('/why-haiku')).toBe('Why Haiku · Hikyaku')
     expect(titleForPath('/login')).toBe('Sign in · Hikyaku')
     expect(titleForPath('/docs')).toBe('Hikyaku Docs')
     expect(titleForPath('/docs', '#signing')).toBe('Signing · Hikyaku Docs')
