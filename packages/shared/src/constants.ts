@@ -3,6 +3,7 @@ export const JOB_NAME = 'deliver'
 
 export type DeliveryJobData = {
   deliveryId: string
+  tenantId: string
 }
 
 export const MAX_INGEST_BODY_BYTES = 256 * 1024
@@ -26,13 +27,14 @@ export const CONFIG_DEFAULTS = {
 } as const
 
 export const RATE_LIMIT_DEFER_MS = 60_000
+export const RATE_LIMIT_JITTER_MS = 5_000
 
 export const WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = 300
 
 export const DELIVERY_JOB_OPTIONS = {
   attempts: 1,
-  removeOnComplete: 1000,
-  removeOnFail: 1000,
+  removeOnComplete: { age: 3600, count: 1000 },
+  removeOnFail: { age: 3600, count: 1000 },
 }
 
 export const EVENT_STATUSES = ['pending', 'completed', 'failed'] as const

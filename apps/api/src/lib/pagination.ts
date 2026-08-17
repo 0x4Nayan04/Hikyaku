@@ -5,6 +5,15 @@ export type PaginationParams = {
   offset: number
 }
 
+export function takePage<T>(rows: T[], limit: number): { data: T[]; hasMore: boolean } {
+  const hasMore = rows.length > limit
+  return { data: hasMore ? rows.slice(0, limit) : rows, hasMore }
+}
+
+export function paginatedJson<T>(data: T[], hasMore: boolean, limit: number, offset: number) {
+  return { data, has_more: hasMore, limit, offset }
+}
+
 function parseInteger(value: string | undefined, name: string, fallback: number): number {
   if (value === undefined) return fallback
   if (!/^-?\d+$/.test(value) || !Number.isSafeInteger(Number(value))) {

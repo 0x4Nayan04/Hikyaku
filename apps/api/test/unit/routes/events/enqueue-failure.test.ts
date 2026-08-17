@@ -146,7 +146,7 @@ describe('ingestEvent enqueue failure', () => {
     expect(retry.statusCode).toBe(202)
     expect(enqueueMock).toHaveBeenCalledWith(
       expect.anything(),
-      expect.arrayContaining(open.map((row) => row.id)),
+      expect.arrayContaining(open.map((row) => ({ deliveryId: row.id, tenantId }))),
     )
   })
 })

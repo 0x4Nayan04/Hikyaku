@@ -7,7 +7,14 @@ import { AppError } from '../../../src/lib/errors.js'
 import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
 import { createUser, deleteUser } from '../../helpers/user.js'
 
-function createRequest(session?: { userId?: string }): Request {
+function createRequest(session?: {
+  userId?: string
+  email?: string
+  name?: string
+  tenantId?: string | null
+  isSuperAdmin?: boolean
+  tenantName?: string | null
+}): Request {
   return {
     session: session ?? {},
   } as Request
@@ -60,17 +67,39 @@ describe('requireSession', () => {
 
   it('attaches tenant user context for a valid session', async () => {
     const { tenantId } = await createTenantWithKey()
-    const { userId } = await createUser({ tenantId })
+    const { userId, email } = await createUser({ tenantId, name: 'Session User' })
+    const req = createRequest({ userId })
 
-    const result = await runRequireSession(createRequest({ userId }))
+    const result = await runRequireSession(req)
 
     expect(result.error).toBeUndefined()
     expect(result.userId).toBe(userId)
     expect(result.tenantId).toBe(tenantId)
     expect(result.isSuperAdmin).toBe(false)
+    expect(req.session.email).toBe(email)
+    expect(req.session.name).toBe('Session User')
+    expect(req.session.tenantId).toBe(tenantId)
 
     await deleteUser(userId)
     await deleteTenant(tenantId)
+  })
+
+  it('uses the session blob without a users lookup', async () => {
+    const result = await runRequireSession(
+      createRequest({
+        userId: '880e8400-e29b-41d4-a716-446655440099',
+        email: 'gone@test.com',
+        name: 'Gone',
+        tenantId: 'aa0e8400-e29b-41d4-a716-446655440001',
+        isSuperAdmin: false,
+        tenantName: 'Acme',
+      }),
+    )
+
+    expect(result.error).toBeUndefined()
+    expect(result.userId).toBe('880e8400-e29b-41d4-a716-446655440099')
+    expect(result.tenantId).toBe('aa0e8400-e29b-41d4-a716-446655440001')
+    expect(result.isSuperAdmin).toBe(false)
   })
 
   it('attaches super-admin context without tenantId', async () => {

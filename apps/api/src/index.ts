@@ -48,6 +48,11 @@ const app = createApp()
 const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'server_started')
 })
+// Assumed reverse-proxy idle timeout is 60s (nginx keepalive_timeout / Caddy).
+// keepAliveTimeout is slightly below so Node closes first; headersTimeout must exceed it.
+server.keepAliveTimeout = 55_000
+server.headersTimeout = 60_000
+server.requestTimeout = 60_000
 
 const poolMetricsTimer = setInterval(() => {
   const pool = getPool()

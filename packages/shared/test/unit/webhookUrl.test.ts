@@ -1,3 +1,4 @@
+import { lookup } from 'node:dns/promises'
 import { describe, expect, it, vi } from 'vitest'
 import { checkWebhookUrl, isPrivateIp, resolveWebhookUrl } from '../../src/webhookUrl.js'
 
@@ -92,5 +93,35 @@ describe('checkWebhookUrl', () => {
     expect(result.url.hostname).toBe('example.com')
     expect(result.addresses.length).toBeGreaterThan(0)
     expect(result.addresses.every((address) => !isPrivateIp(address.address))).toBe(true)
+  })
+})
+
+describe('resolveWebhookUrl DNS cache', () => {
+  it('reuses a short-lived lookup for the same hostname', async () => {
+    vi.mocked(lookup).mockClear()
+    const host = `cache-${crypto.randomUUID()}.example`
+
+    await expect(resolveWebhookUrl(`https://${host}/a`)).resolves.toMatchObject({ ok: true })
+    await expect(resolveWebhookUrl(`https://${host}/b`)).resolves.toMatchObject({ ok: true })
+    expect(lookup).toHaveBeenCalledTimes(1)
+  })
+
+  it('still rejects cached private addresses when allowPrivate is false', async () => {
+    const host = `private-${crypto.randomUUID()}.example`
+    vi.mocked(lookup).mockClear()
+    vi.mocked(lookup).mockImplementation(async () => [{ address: '10.0.0.1', family: 4 }])
+
+    await expect(resolveWebhookUrl(`https://${host}/hook`, true)).resolves.toMatchObject({
+      ok: true,
+    })
+    await expect(resolveWebhookUrl(`https://${host}/hook`, false)).resolves.toMatchObject({
+      ok: false,
+      reason: 'URL must not target a private or loopback address',
+    })
+    expect(lookup).toHaveBeenCalledTimes(1)
+
+    vi.mocked(lookup).mockImplementation(async (hostname: string) => [
+      { address: hostname === '127.0.0.1' ? hostname : '93.184.216.34', family: 4 },
+    ])
   })
 })

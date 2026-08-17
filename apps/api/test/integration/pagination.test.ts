@@ -42,7 +42,7 @@ describe('list endpoint pagination', () => {
 
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({
-      total: 3,
+      has_more: false,
       limit: 2,
       offset: 1,
     })
@@ -64,7 +64,7 @@ describe('list endpoint pagination', () => {
 
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({
-      total: 3,
+      has_more: false,
       limit: 1,
       offset: 2,
     })
@@ -76,7 +76,7 @@ describe('list endpoint pagination', () => {
 
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({
-      total: 9,
+      has_more: true,
       limit: 2,
       offset: 0,
     })

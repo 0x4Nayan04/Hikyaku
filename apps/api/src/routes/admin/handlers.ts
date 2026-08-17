@@ -7,8 +7,12 @@ import { env } from '../../config.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { assertEmailAvailable, assertNoPendingInvite } from '../../lib/invites.js'
-import { parsePagination } from '../../lib/pagination.js'
-import { revokeTenantSessions, revokeUserSessions } from '../../lib/revokeSessions.js'
+import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
+import {
+  refreshTenantNameInSessions,
+  revokeTenantSessions,
+  revokeUserSessions,
+} from '../../lib/revokeSessions.js'
 import { isUuid, parseSchema } from '../../lib/validation.js'
 import { toAdminTenantJson } from './serialize.js'
 import { parsePatchTenantBody, parseTenantId, parseUserId } from './validation.js'
@@ -41,28 +45,23 @@ export async function listTenants(req: Request, res: Response, next: NextFunctio
     const nameFilter = escaped ? ilike(tenants.name, `%${escaped}%`) : undefined
     const filter = nameFilter && idFilter ? or(nameFilter, idFilter) : (nameFilter ?? idFilter)
 
-    const countQuery = searchQuery
-      ? db.select({ value: count() }).from(tenants).where(filter)
-      : db.select({ value: count() }).from(tenants)
     const query = db
       .select(tenantColumns)
       .from(tenants)
       .orderBy(desc(tenants.createdAt))
-      .limit(limit)
+      .limit(limit + 1)
       .offset(offset)
-    const [countResult, rows] = await Promise.all([
-      countQuery,
-      searchQuery ? query.where(filter) : query,
-    ])
-    const [countRow] = countResult
-    const total = countRow?.value ?? 0
+    const rows = searchQuery ? await query.where(filter) : await query
+    const page = takePage(rows, limit)
 
-    res.json({
-      data: rows.map((row) => toAdminTenantJson(row)),
-      total,
-      limit,
-      offset,
-    })
+    res.json(
+      paginatedJson(
+        page.data.map((row) => toAdminTenantJson(row)),
+        page.hasMore,
+        limit,
+        offset,
+      ),
+    )
   } catch (err) {
     next(err)
   }
@@ -132,6 +131,7 @@ export async function patchTenant(req: Request, res: Response, next: NextFunctio
       throw new AppError(404, 'not_found', 'Tenant not found')
     }
 
+    await refreshTenantNameInSessions(row.id, row.name)
     res.json(toAdminTenantJson(row))
   } catch (err) {
     next(err)
@@ -199,25 +199,23 @@ export async function listTenantUsers(req: Request, res: Response, next: NextFun
       throw new AppError(404, 'not_found', 'Tenant not found')
     }
 
-    const [countResult, rows] = await Promise.all([
-      db.select({ value: count() }).from(users).where(eq(users.tenantId, id)),
-      db
-        .select(userColumns)
-        .from(users)
-        .where(eq(users.tenantId, id))
-        .orderBy(desc(users.createdAt))
-        .limit(limit)
-        .offset(offset),
-    ])
-    const [countRow] = countResult
-    const total = countRow?.value ?? 0
+    const rows = await db
+      .select(userColumns)
+      .from(users)
+      .where(eq(users.tenantId, id))
+      .orderBy(desc(users.createdAt))
+      .limit(limit + 1)
+      .offset(offset)
+    const page = takePage(rows, limit)
 
-    res.json({
-      data: rows.map((row) => toUserJson(row)),
-      total,
-      limit,
-      offset,
-    })
+    res.json(
+      paginatedJson(
+        page.data.map((row) => toUserJson(row)),
+        page.hasMore,
+        limit,
+        offset,
+      ),
+    )
   } catch (err) {
     next(err)
   }

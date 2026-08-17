@@ -17,7 +17,13 @@ export function createDbClient(connectionString: string, maxPoolSize = 10): DbCl
 
   function getPool(): pg.Pool {
     if (!pool) {
-      pool = new Pool({ connectionString, max: maxPoolSize })
+      pool = new Pool({
+        connectionString,
+        max: maxPoolSize,
+        idleTimeoutMillis: 10_000,
+        connectionTimeoutMillis: 5_000,
+        options: '-c statement_timeout=5000 -c idle_in_transaction_session_timeout=10000',
+      })
     }
     return pool
   }

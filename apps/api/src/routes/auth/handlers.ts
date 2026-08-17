@@ -2,8 +2,10 @@ import { count, eq, sql } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { tenants, users } from '@webhook/shared/schema'
 import { hashPassword, INVALID_PASSWORD_HASH, verifyPassword } from '@webhook/shared/password'
+import { writeSessionUser } from '../../auth/session.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
+import { userEmailMatches } from '../../lib/invites.js'
 import { revokeUserSessions } from '../../lib/revokeSessions.js'
 import { toUserJson, userColumns } from './serialize.js'
 import {
@@ -116,9 +118,12 @@ export async function login(req: Request, res: Response, next: NextFunction) {
         name: users.name,
         isSuperAdmin: users.isSuperAdmin,
         passwordHash: users.passwordHash,
+        tenantId: users.tenantId,
+        tenantName: tenants.name,
       })
       .from(users)
-      .where(eq(users.email, body.email))
+      .leftJoin(tenants, eq(users.tenantId, tenants.id))
+      .where(userEmailMatches(body.email))
       .limit(1)
 
     const user = rows[0]
@@ -132,7 +137,14 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     }
 
     await regenerateSession(req)
-    req.session.userId = user.id
+    writeSessionUser(req.session, {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      tenantId: user.tenantId,
+      isSuperAdmin: user.isSuperAdmin,
+      tenantName: user.tenantName,
+    })
     await saveSession(req)
 
     res.status(200).json({
@@ -159,51 +171,26 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
 
 export async function me(req: Request, res: Response, next: NextFunction) {
   try {
-    const db = getDb()
-    const userId = req.userId
-    if (!userId) {
+    const session = req.session
+    if (
+      !session.userId ||
+      session.email === undefined ||
+      session.name === undefined ||
+      session.isSuperAdmin === undefined
+    ) {
       throw new AppError(401, 'unauthorized', 'Missing or invalid session')
-    }
-
-    const rows = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        name: users.name,
-        isSuperAdmin: users.isSuperAdmin,
-        tenantId: users.tenantId,
-      })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1)
-
-    const user = rows[0]
-    if (!user) {
-      throw new AppError(401, 'unauthorized', 'Missing or invalid session')
-    }
-
-    let tenant: { id: string; name: string } | null = null
-    if (user.tenantId) {
-      const tenantRows = await db
-        .select({ id: tenants.id, name: tenants.name })
-        .from(tenants)
-        .where(eq(tenants.id, user.tenantId))
-        .limit(1)
-
-      const tenantRow = tenantRows[0]
-      if (tenantRow) {
-        tenant = { id: tenantRow.id, name: tenantRow.name }
-      }
     }
 
     res.status(200).json({
       user: toUserJson({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        isSuperAdmin: user.isSuperAdmin,
+        id: session.userId,
+        email: session.email,
+        name: session.name,
+        isSuperAdmin: session.isSuperAdmin,
       }),
-      tenant,
+      tenant: session.tenantId
+        ? { id: session.tenantId, name: session.tenantName ?? '' }
+        : null,
     })
   } catch (err) {
     next(err)

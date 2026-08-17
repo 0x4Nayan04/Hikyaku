@@ -69,7 +69,7 @@ export const endpoints = pgTable(
   },
   (t) => [
     uniqueIndex('endpoints_tenant_id_id_uidx').on(t.tenantId, t.id),
-    index('endpoints_tenant_id_idx').on(t.tenantId),
+    index('endpoints_tenant_id_status_idx').on(t.tenantId, t.status),
   ],
 )
 
@@ -116,7 +116,16 @@ export const deliveries = pgTable(
   (t) => [
     uniqueIndex('deliveries_event_id_endpoint_id_idx').on(t.eventId, t.endpointId),
     index('deliveries_tenant_id_created_at_idx').on(t.tenantId, t.createdAt),
-    index('deliveries_status_idx').on(t.status),
+    index('deliveries_tenant_id_status_created_at_idx').on(t.tenantId, t.status, t.createdAt),
+    index('deliveries_tenant_id_status_updated_at_idx').on(t.tenantId, t.status, t.updatedAt),
+    index('deliveries_tenant_id_endpoint_id_created_at_idx').on(
+      t.tenantId,
+      t.endpointId,
+      sql`${t.createdAt} DESC`,
+    ),
+    index('deliveries_status_updated_at_idx')
+      .on(t.status, t.updatedAt)
+      .where(sql`${t.status} IN ('pending', 'in_progress')`),
     foreignKey({
       columns: [t.tenantId, t.eventId],
       foreignColumns: [events.tenantId, events.id],
@@ -149,7 +158,6 @@ export const deliveryAttempts = pgTable(
       t.deliveryId,
       t.attemptNumber,
     ),
-    index('delivery_attempts_delivery_id_idx').on(t.deliveryId),
   ],
 )
 

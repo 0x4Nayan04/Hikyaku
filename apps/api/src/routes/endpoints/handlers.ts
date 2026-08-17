@@ -1,12 +1,13 @@
 import { generateEndpointSecret } from '@webhook/shared/crypto'
 import { deliveries, endpoints } from '@webhook/shared/schema'
 import { checkWebhookUrl } from '@webhook/shared/webhookUrl'
-import { and, count, desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { env } from '../../config.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
-import { parsePagination } from '../../lib/pagination.js'
+import { invalidateActiveEndpointIds } from '../../lib/activeEndpoints.js'
+import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
 import { toEndpointJson, type EndpointLastDeliveryRow } from './serialize.js'
 import { parseCreateBody, parseEndpointId, parseListQuery, parsePatchBody } from './validation.js'
@@ -72,6 +73,7 @@ export async function createEndpoint(req: Request, res: Response, next: NextFunc
       })
       .returning(endpointColumns)
 
+    invalidateActiveEndpointIds(getTenantId(req))
     res.status(201).json(toEndpointJson(row, secret))
   } catch (err) {
     next(err)
@@ -89,30 +91,28 @@ export async function listEndpoints(req: Request, res: Response, next: NextFunct
       status === undefined ? undefined : eq(endpoints.status, status),
     )
 
-    const [countResult, rows] = await Promise.all([
-      db.select({ value: count() }).from(endpoints).where(where),
-      db
-        .select(endpointColumns)
-        .from(endpoints)
-        .where(where)
-        .orderBy(desc(endpoints.createdAt))
-        .limit(limit)
-        .offset(offset),
-    ])
-    const [countRow] = countResult
-    const total = countRow?.value ?? 0
+    const rows = await db
+      .select(endpointColumns)
+      .from(endpoints)
+      .where(where)
+      .orderBy(desc(endpoints.createdAt))
+      .limit(limit + 1)
+      .offset(offset)
+    const page = takePage(rows, limit)
 
     const lastByEndpoint = await loadLastDeliveries(
       tenantId,
-      rows.map((row) => row.id),
+      page.data.map((row) => row.id),
     )
 
-    res.json({
-      data: rows.map((row) => toEndpointJson(row, undefined, lastByEndpoint.get(row.id) ?? null)),
-      total,
-      limit,
-      offset,
-    })
+    res.json(
+      paginatedJson(
+        page.data.map((row) => toEndpointJson(row, undefined, lastByEndpoint.get(row.id) ?? null)),
+        page.hasMore,
+        limit,
+        offset,
+      ),
+    )
   } catch (err) {
     next(err)
   }
@@ -143,6 +143,7 @@ export async function patchEndpoint(req: Request, res: Response, next: NextFunct
       throw new AppError(404, 'not_found', 'Endpoint not found')
     }
 
+    invalidateActiveEndpointIds(getTenantId(req))
     res.json(toEndpointJson(row))
   } catch (err) {
     next(err)

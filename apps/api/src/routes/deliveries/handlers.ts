@@ -1,12 +1,12 @@
 import { deliveries, deliveryAttempts, endpoints } from '@webhook/shared/schema'
 import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
 import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
-import { and, asc, count, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { logger } from '../../lib/logger.js'
-import { parsePagination } from '../../lib/pagination.js'
+import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import { queue } from '../../queue/client.js'
 import { getTenantId } from '../../lib/tenant.js'
 import { toDeliveryDetailJson, toDeliveryListJson } from './serialize.js'
@@ -50,26 +50,24 @@ export async function listDeliveries(req: Request, res: Response, next: NextFunc
     }
     const where = and(...conditions)
 
-    const [countResult, rows] = await Promise.all([
-      db.select({ value: count() }).from(deliveries).where(where),
-      db
-        .select(deliverySelect)
-        .from(deliveries)
-        .innerJoin(endpoints, eq(deliveries.endpointId, endpoints.id))
-        .where(where)
-        .orderBy(desc(deliveries.createdAt))
-        .limit(limit)
-        .offset(offset),
-    ])
-    const [countRow] = countResult
-    const total = countRow?.value ?? 0
+    const rows = await db
+      .select(deliverySelect)
+      .from(deliveries)
+      .innerJoin(endpoints, eq(deliveries.endpointId, endpoints.id))
+      .where(where)
+      .orderBy(desc(deliveries.createdAt))
+      .limit(limit + 1)
+      .offset(offset)
+    const page = takePage(rows, limit)
 
-    res.json({
-      data: rows.map((row) => toDeliveryListJson(row)),
-      total,
-      limit,
-      offset,
-    })
+    res.json(
+      paginatedJson(
+        page.data.map((row) => toDeliveryListJson(row)),
+        page.hasMore,
+        limit,
+        offset,
+      ),
+    )
   } catch (err) {
     next(err)
   }
@@ -82,22 +80,24 @@ export async function getDelivery(req: Request, res: Response, next: NextFunctio
 
     const tenantId = getTenantId(req)
     const db = getDb()
-    const [row] = await db
-      .select(deliverySelect)
-      .from(deliveries)
-      .innerJoin(endpoints, eq(deliveries.endpointId, endpoints.id))
-      .where(and(eq(deliveries.id, id), eq(deliveries.tenantId, tenantId)))
-      .limit(1)
+    const [deliveryRows, attempts] = await Promise.all([
+      db
+        .select(deliverySelect)
+        .from(deliveries)
+        .innerJoin(endpoints, eq(deliveries.endpointId, endpoints.id))
+        .where(and(eq(deliveries.id, id), eq(deliveries.tenantId, tenantId)))
+        .limit(1),
+      db
+        .select(attemptColumns)
+        .from(deliveryAttempts)
+        .where(eq(deliveryAttempts.deliveryId, id))
+        .orderBy(asc(deliveryAttempts.attemptNumber)),
+    ])
+    const [row] = deliveryRows
 
     if (!row) {
       throw new AppError(404, 'not_found', 'Delivery not found')
     }
-
-    const attempts = await db
-      .select(attemptColumns)
-      .from(deliveryAttempts)
-      .where(eq(deliveryAttempts.deliveryId, id))
-      .orderBy(asc(deliveryAttempts.attemptNumber))
 
     res.json(toDeliveryDetailJson(row, attempts))
   } catch (err) {
@@ -181,7 +181,7 @@ export async function replayDelivery(req: Request, res: Response, next: NextFunc
     })
 
     try {
-      await enqueueDeliveryJob(queue, id)
+      await enqueueDeliveryJob(queue, id, tenantId)
     } catch (err) {
       logger.error({ delivery_id: id, err }, 'replay_enqueue_failed')
       // Revert to failed + restore history so the client can retry replay.

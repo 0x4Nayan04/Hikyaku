@@ -61,6 +61,21 @@ function isBlockedHostname(hostname: string): boolean {
   return false
 }
 
+const DNS_CACHE_TTL_MS = 5_000
+const DNS_CACHE_MAX = 1024
+const dnsCache = new Map<string, { addresses: LookupAddress[]; expiresAt: number }>()
+
+async function lookupAddresses(host: string): Promise<LookupAddress[]> {
+  const now = Date.now()
+  const cached = dnsCache.get(host)
+  if (cached && cached.expiresAt > now) return cached.addresses
+
+  const records = await lookup(host, { all: true, verbatim: true })
+  if (dnsCache.size >= DNS_CACHE_MAX) dnsCache.clear()
+  dnsCache.set(host, { addresses: records, expiresAt: now + DNS_CACHE_TTL_MS })
+  return records
+}
+
 /** Resolves and validates every address so the caller can pin the connection to this result. */
 export async function resolveWebhookUrl(
   raw: string,
@@ -92,7 +107,7 @@ export async function resolveWebhookUrl(
   }
 
   try {
-    const records = await lookup(host, { all: true, verbatim: true })
+    const records = await lookupAddresses(host)
     for (const record of records) {
       if (!allowPrivate && isPrivateIp(record.address)) {
         return { ok: false, reason: 'URL must not target a private or loopback address' }

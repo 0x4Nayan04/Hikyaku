@@ -1,9 +1,9 @@
 import { generateApiKey, hashApiKey, prefixOf } from '@webhook/shared/crypto'
 import { hashPassword } from '@webhook/shared/password'
 import { apiKeys, tenants, users } from '@webhook/shared/schema'
-import { eq } from 'drizzle-orm'
 import '../config.js'
 import { closePool, getDb } from '../db/client.js'
+import { userEmailMatches } from '../lib/invites.js'
 import { maybeSeedSuperAdmin } from './seedSuperAdmin.js'
 
 /** Local-only demo tenants. Password meets min-12 validation. */
@@ -29,7 +29,7 @@ async function seed(): Promise<void> {
     const [existing] = await db
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.email, email))
+      .where(userEmailMatches(email))
       .limit(1)
 
     if (existing) {

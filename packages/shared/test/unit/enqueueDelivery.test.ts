@@ -17,11 +17,15 @@ function makeQueue() {
 describe('enqueueDeliveryJob', () => {
   it('adds when no job exists', async () => {
     const queue = makeQueue()
-    await enqueueDeliveryJob(queue.queue, 'delivery-1')
+    await enqueueDeliveryJob(queue.queue, 'delivery-1', 'tenant-1')
     expect(queue.add).toHaveBeenCalledWith(
       'deliver',
-      { deliveryId: 'delivery-1' },
-      expect.objectContaining({ deduplication: { id: 'delivery-1' } }),
+      { deliveryId: 'delivery-1', tenantId: 'tenant-1' },
+      expect.objectContaining({
+        deduplication: { id: 'delivery-1' },
+        removeOnComplete: { age: 3600, count: 1000 },
+        removeOnFail: { age: 3600, count: 1000 },
+      }),
     )
   })
 })
@@ -29,14 +33,17 @@ describe('enqueueDeliveryJob', () => {
 describe('enqueueDeliveryJobs', () => {
   it('batches jobs without dropping per-delivery deduplication', async () => {
     const queue = makeQueue()
-    await enqueueDeliveryJobs(queue.queue, ['delivery-1', 'delivery-2'])
+    await enqueueDeliveryJobs(queue.queue, [
+      { deliveryId: 'delivery-1', tenantId: 'tenant-1' },
+      { deliveryId: 'delivery-2', tenantId: 'tenant-1' },
+    ])
     expect(queue.addBulk).toHaveBeenCalledWith([
       expect.objectContaining({
-        data: { deliveryId: 'delivery-1' },
+        data: { deliveryId: 'delivery-1', tenantId: 'tenant-1' },
         opts: expect.objectContaining({ deduplication: { id: 'delivery-1' } }),
       }),
       expect.objectContaining({
-        data: { deliveryId: 'delivery-2' },
+        data: { deliveryId: 'delivery-2', tenantId: 'tenant-1' },
         opts: expect.objectContaining({ deduplication: { id: 'delivery-2' } }),
       }),
     ])

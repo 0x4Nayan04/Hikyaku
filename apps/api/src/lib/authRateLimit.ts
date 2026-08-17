@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from 'express'
 import { env } from '../config.js'
 import { AppError } from './errors.js'
 import { asyncHandler } from './asyncHandler.js'
-import { takeFixedWindowToken } from './rateLimit.js'
+import { takeFixedWindowTokens } from './rateLimit.js'
 
 function readAuthEmail(req: Request): string | undefined {
   const body = req.body
@@ -28,11 +28,9 @@ export const authRateLimit = asyncHandler(
       keys.push(`auth:ratelimit:email:${email}`)
     }
 
-    for (const key of keys) {
-      const allowed = await takeFixedWindowToken(key, env.AUTH_RATE_LIMIT_PER_MINUTE)
-      if (!allowed) {
-        throw new AppError(429, 'rate_limited', 'Too many auth attempts, try again later')
-      }
+    const allowed = await takeFixedWindowTokens(keys, env.AUTH_RATE_LIMIT_PER_MINUTE)
+    if (!allowed) {
+      throw new AppError(429, 'rate_limited', 'Too many auth attempts, try again later')
     }
     next()
   },

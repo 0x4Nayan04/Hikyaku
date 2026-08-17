@@ -1,10 +1,11 @@
 import { generateApiKey, hashApiKey, prefixOf } from '@webhook/shared/crypto'
 import { apiKeys } from '@webhook/shared/schema'
-import { and, count, desc, eq, isNotNull, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
+import { invalidateApiKeyCache } from '../../auth/apiKey.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
-import { parsePagination } from '../../lib/pagination.js'
+import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
 import { toApiKeyJson } from './serialize.js'
 import { parseApiKeyId, parseListQuery } from './validation.js'
@@ -32,25 +33,23 @@ export async function listApiKeys(req: Request, res: Response, next: NextFunctio
           : undefined,
     )
 
-    const [countResult, rows] = await Promise.all([
-      db.select({ value: count() }).from(apiKeys).where(where),
-      db
-        .select(apiKeyColumns)
-        .from(apiKeys)
-        .where(where)
-        .orderBy(desc(apiKeys.createdAt))
-        .limit(limit)
-        .offset(offset),
-    ])
-    const [countRow] = countResult
-    const total = countRow?.value ?? 0
+    const rows = await db
+      .select(apiKeyColumns)
+      .from(apiKeys)
+      .where(where)
+      .orderBy(desc(apiKeys.createdAt))
+      .limit(limit + 1)
+      .offset(offset)
+    const page = takePage(rows, limit)
 
-    res.json({
-      data: rows.map((row) => toApiKeyJson(row)),
-      total,
-      limit,
-      offset,
-    })
+    res.json(
+      paginatedJson(
+        page.data.map((row) => toApiKeyJson(row)),
+        page.hasMore,
+        limit,
+        offset,
+      ),
+    )
   } catch (err) {
     next(err)
   }
@@ -70,6 +69,7 @@ export async function createApiKey(req: Request, res: Response, next: NextFuncti
       })
       .returning(apiKeyColumns)
 
+    invalidateApiKeyCache(hashApiKey(apiKey))
     res.status(201).json(toApiKeyJson(row, apiKey))
   } catch (err) {
     next(err)
@@ -85,7 +85,7 @@ export async function revokeApiKey(req: Request, res: Response, next: NextFuncti
     const tenantId = getTenantId(req)
 
     const [existing] = await db
-      .select(apiKeyColumns)
+      .select({ ...apiKeyColumns, keyHash: apiKeys.keyHash })
       .from(apiKeys)
       .where(and(eq(apiKeys.id, id), eq(apiKeys.tenantId, tenantId)))
 
@@ -107,6 +107,7 @@ export async function revokeApiKey(req: Request, res: Response, next: NextFuncti
       throw new AppError(409, 'already_revoked', 'API key is already revoked')
     }
 
+    invalidateApiKeyCache(existing.keyHash)
     res.json(toApiKeyJson(row))
   } catch (err) {
     next(err)
@@ -122,7 +123,7 @@ export async function rotateApiKey(req: Request, res: Response, next: NextFuncti
     const tenantId = getTenantId(req)
 
     const [existing] = await db
-      .select({ id: apiKeys.id, revokedAt: apiKeys.revokedAt })
+      .select({ id: apiKeys.id, revokedAt: apiKeys.revokedAt, keyHash: apiKeys.keyHash })
       .from(apiKeys)
       .where(and(eq(apiKeys.id, id), eq(apiKeys.tenantId, tenantId)))
 
@@ -158,6 +159,7 @@ export async function rotateApiKey(req: Request, res: Response, next: NextFuncti
       return created
     })
 
+    invalidateApiKeyCache(existing.keyHash)
     res.status(201).json(toApiKeyJson(row, apiKey))
   } catch (err) {
     next(err)
