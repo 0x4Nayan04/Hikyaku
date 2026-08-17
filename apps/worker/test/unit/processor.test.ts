@@ -1,6 +1,6 @@
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { RATE_LIMIT_DEFER_MS } from '@webhook/shared/constants'
+import type { DeliveryJobData } from '@webhook/shared/constants'
 import { generateEndpointSecret, verifyPayload } from '@webhook/shared/crypto'
 import { deliveries, deliveryAttempts, endpoints, events, tenants } from '@webhook/shared/schema'
 import { DelayedError, type Job } from 'bullmq'
@@ -35,11 +35,11 @@ function startMockServer(
   })
 }
 
-function makeJob(deliveryId: string): Job<{ deliveryId: string }> {
+function makeJob(delivery: { id: string; tenantId: string }): Job<DeliveryJobData> {
   return {
-    data: { deliveryId },
+    data: { deliveryId: delivery.id, tenantId: delivery.tenantId },
     moveToDelayed: vi.fn().mockResolvedValue(undefined),
-  } as unknown as Job<{ deliveryId: string }>
+  } as unknown as Job<DeliveryJobData>
 }
 
 describe('classifyDeliveryError', () => {
@@ -123,7 +123,7 @@ describe('processor', () => {
       .returning()
 
     deliveryId = delivery.id
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery))
 
     expect(statusDuringRequest).toBe('in_progress')
 
@@ -178,7 +178,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery))
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -251,7 +251,7 @@ describe('processor', () => {
       .returning()
 
     const before = Date.now()
-    const job = makeJob(delivery.id)
+    const job = makeJob(delivery)
     await expect(processor(job)).rejects.toThrow(DelayedError)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
@@ -316,7 +316,7 @@ describe('processor', () => {
       .returning()
 
     const before = Date.now()
-    await expect(processor(makeJob(delivery.id))).rejects.toThrow(DelayedError)
+    await expect(processor(makeJob(delivery))).rejects.toThrow(DelayedError)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const delayMs = calculateBackoffDelayMs(3)
@@ -368,7 +368,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await expect(processor(makeJob(delivery.id))).rejects.toThrow(DelayedError)
+    await expect(processor(makeJob(delivery))).rejects.toThrow(DelayedError)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -418,7 +418,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await expect(processor(makeJob(delivery.id))).rejects.toThrow(DelayedError)
+    await expect(processor(makeJob(delivery))).rejects.toThrow(DelayedError)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -465,7 +465,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await expect(processor(makeJob(delivery.id))).rejects.toThrow(DelayedError)
+    await expect(processor(makeJob(delivery))).rejects.toThrow(DelayedError)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -519,7 +519,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery))
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -576,7 +576,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery))
 
     const [eventRow] = await db.select().from(events).where(eq(events.id, event.id))
     expect(eventRow?.status).toBe('failed')
@@ -621,7 +621,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery))
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     expect(updated.attemptCount).toBe(5)
@@ -629,7 +629,7 @@ describe('processor', () => {
     expect(updated.lastError).toBe('max_attempts')
     expect(updated.nextRetryAt).toBeNull()
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery))
 
     const [final] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     expect(final.status).toBe('failed')
@@ -677,7 +677,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery))
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     expect(updated.attemptCount).toBe(5)
@@ -724,7 +724,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery))
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -778,7 +778,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await expect(processor(makeJob(delivery.id))).rejects.toThrow()
+    await expect(processor(makeJob(delivery))).rejects.toThrow()
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -832,7 +832,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery))
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -877,7 +877,7 @@ describe('processor', () => {
       .values({ tenantId: tenant.id, eventId: event.id, endpointId: endpoint.id })
       .returning()
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery))
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -929,7 +929,7 @@ describe('processor', () => {
       })
       .returning()
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery))
 
     const [failed] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     expect(failed.status).toBe('failed')
@@ -947,7 +947,7 @@ describe('processor', () => {
       .where(eq(deliveries.id, delivery.id))
     await db.delete(deliveryAttempts).where(eq(deliveryAttempts.deliveryId, delivery.id))
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery))
 
     const [succeeded] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -966,7 +966,11 @@ describe('processor', () => {
 
   it('defers delivery when rate limit denied without incrementing attempt_count', async () => {
     const db = getDb()
-    vi.spyOn(rateLimit, 'takeRateLimitToken').mockResolvedValue(false)
+    const retryAt = new Date(Date.now() + 12_000)
+    vi.spyOn(rateLimit, 'takeRateLimitToken').mockResolvedValue({
+      allowed: false,
+      retryAt,
+    })
     const postSpy = vi.spyOn(httpClient, 'postWithTimeout')
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor RateLimit' }).returning()
@@ -998,8 +1002,7 @@ describe('processor', () => {
       })
       .returning()
 
-    const before = Date.now()
-    const job = makeJob(delivery.id)
+    const job = makeJob(delivery)
     await expect(processor(job)).rejects.toThrow(DelayedError)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
@@ -1009,25 +1012,72 @@ describe('processor', () => {
       .where(eq(deliveryAttempts.deliveryId, delivery.id))
 
     expect(postSpy).not.toHaveBeenCalled()
-    expect(job.moveToDelayed).toHaveBeenCalledOnce()
-    const delayedUntil = vi.mocked(job.moveToDelayed).mock.calls[0]?.[0] as number
-    expect(delayedUntil).toBeGreaterThanOrEqual(before + RATE_LIMIT_DEFER_MS - 1_000)
+    expect(job.moveToDelayed).toHaveBeenCalledWith(retryAt.getTime(), undefined)
     expect(updated.status).toBe('pending')
-    expect(updated.lastError).toBe('rate_limited')
+    expect(updated.lastError).toBeNull()
     expect(updated.attemptCount).toBe(2)
-    expect(updated.nextRetryAt).not.toBeNull()
-    expect(updated.nextRetryAt!.getTime()).toBeGreaterThanOrEqual(
-      before + RATE_LIMIT_DEFER_MS - 1_000,
-    )
+    expect(updated.nextRetryAt).toBeNull()
     expect(attempts).toHaveLength(0)
 
     const [eventRow] = await db.select().from(events).where(eq(events.id, event.id))
     expect(eventRow.status).toBe('pending')
   })
 
+  it('rate-limits legacy jobs that only carry deliveryId', async () => {
+    const db = getDb()
+    const retryAt = new Date(Date.now() + 12_000)
+    const rateLimitSpy = vi.spyOn(rateLimit, 'takeRateLimitToken').mockResolvedValue({
+      allowed: false,
+      retryAt,
+    })
+    const postSpy = vi.spyOn(httpClient, 'postWithTimeout')
+
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor Legacy Job' }).returning()
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: 'http://127.0.0.1:9/hook',
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-legacy-job-1',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({
+        tenantId: tenant.id,
+        eventId: event.id,
+        endpointId: endpoint.id,
+      })
+      .returning()
+
+    const job = {
+      data: { deliveryId: delivery.id },
+      moveToDelayed: vi.fn().mockResolvedValue(undefined),
+    } as unknown as Job<DeliveryJobData>
+    await expect(processor(job)).rejects.toThrow(DelayedError)
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    expect(rateLimitSpy).toHaveBeenCalledWith(tenant.id)
+    expect(postSpy).not.toHaveBeenCalled()
+    expect(job.moveToDelayed).toHaveBeenCalledWith(retryAt.getTime(), undefined)
+    expect(updated.status).toBe('pending')
+  })
+
   it('does not mutate a delivery already claimed by another worker', async () => {
     const db = getDb()
-    const rateLimitSpy = vi.spyOn(rateLimit, 'takeRateLimitToken').mockResolvedValue(false)
+    const rateLimitSpy = vi.spyOn(rateLimit, 'takeRateLimitToken').mockResolvedValue({
+      allowed: true,
+    })
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Claimed' }).returning()
     const [endpoint] = await db
       .insert(endpoints)
@@ -1057,7 +1107,7 @@ describe('processor', () => {
       })
       .returning()
 
-    const job = makeJob(delivery.id)
+    const job = makeJob(delivery)
     await processor(job)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
@@ -1066,7 +1116,7 @@ describe('processor', () => {
       .from(deliveryAttempts)
       .where(eq(deliveryAttempts.deliveryId, delivery.id))
 
-    expect(rateLimitSpy).not.toHaveBeenCalled()
+    expect(rateLimitSpy).toHaveBeenCalledWith(tenant.id)
     expect(job.moveToDelayed).not.toHaveBeenCalled()
     expect(updated.status).toBe('in_progress')
     expect(attempts).toHaveLength(0)
@@ -1116,7 +1166,7 @@ describe('processor', () => {
       return { status: 500, body: 'fail' }
     })
 
-    await processor(makeJob(delivery.id))
+    await processor(makeJob(delivery))
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     const attempts = await db
@@ -1167,7 +1217,7 @@ describe('processor', () => {
       })
       .returning()
 
-    const job = makeJob(delivery.id)
+    const job = makeJob(delivery)
     await processor(job)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))

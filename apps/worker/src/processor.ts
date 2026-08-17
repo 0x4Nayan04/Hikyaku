@@ -1,10 +1,9 @@
-import { RATE_LIMIT_DEFER_MS } from '@webhook/shared/constants'
 import type { DeliveryJobData } from '@webhook/shared/constants'
 import { signPayload } from '@webhook/shared/crypto'
 import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
-import { deliveryAttempts, deliveries, endpoints, events } from '@webhook/shared/schema'
+import { deliveryAttempts, deliveries } from '@webhook/shared/schema'
 import { DelayedError, type Job } from 'bullmq'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { calculateBackoffDelayMs } from './backoff.js'
 import { env } from './config.js'
 import { getDb } from './db/client.js'
@@ -16,7 +15,6 @@ type DeliveryContext = {
   id: string
   tenantId: string
   eventId: string
-  status: string
   attemptCount: number
   eventType: string
   eventPayload: unknown
@@ -24,6 +22,19 @@ type DeliveryContext = {
   url: string
   secret: string
   endpointStatus: string
+}
+
+type ClaimRow = {
+  id: string
+  tenant_id: string
+  event_id: string
+  attempt_count: number
+  event_type: string
+  event_payload: unknown
+  event_created_at: Date
+  url: string
+  secret: string
+  endpoint_status: string
 }
 
 type HttpAttemptFields = {
@@ -42,29 +53,19 @@ type DeliveryOutcome = {
   nextRetryAt?: Date | null
 }
 
-async function loadDeliveryContext(deliveryId: string): Promise<DeliveryContext | null> {
-  const db = getDb()
-  const [row] = await db
-    .select({
-      id: deliveries.id,
-      tenantId: deliveries.tenantId,
-      eventId: deliveries.eventId,
-      status: deliveries.status,
-      attemptCount: deliveries.attemptCount,
-      eventType: events.type,
-      eventPayload: events.payload,
-      eventCreatedAt: events.createdAt,
-      url: endpoints.url,
-      secret: endpoints.secret,
-      endpointStatus: endpoints.status,
-    })
-    .from(deliveries)
-    .innerJoin(events, eq(events.id, deliveries.eventId))
-    .innerJoin(endpoints, eq(endpoints.id, deliveries.endpointId))
-    .where(eq(deliveries.id, deliveryId))
-    .limit(1)
-
-  return row ?? null
+function toDeliveryContext(raw: ClaimRow): DeliveryContext {
+  return {
+    id: raw.id,
+    tenantId: raw.tenant_id,
+    eventId: raw.event_id,
+    attemptCount: Number(raw.attempt_count),
+    eventType: raw.event_type,
+    eventPayload: raw.event_payload,
+    eventCreatedAt: new Date(raw.event_created_at),
+    url: raw.url,
+    secret: raw.secret,
+    endpointStatus: raw.endpoint_status,
+  }
 }
 
 async function recordOutcome(
@@ -102,7 +103,20 @@ async function recordOutcome(
     if (attempt && attemptNumber !== undefined) {
       await tx.insert(deliveryAttempts).values({ deliveryId, attemptNumber, ...attempt })
     }
-    await reevaluateEventStatus(eventId, tx)
+
+    switch (delivery.status) {
+      case 'pending':
+      case 'in_progress':
+        break
+      case 'succeeded':
+      case 'failed':
+        await reevaluateEventStatus(eventId, tx)
+        break
+      default: {
+        const _exhaustive: never = delivery.status
+        throw new Error(`unexpected delivery status: ${_exhaustive}`)
+      }
+    }
     return true
   })
 }
@@ -139,38 +153,73 @@ export function classifyDeliveryError(err: unknown): DeliveryTransportError {
   return 'network_error'
 }
 
-/** Claim a pending delivery so only one worker proceeds to HTTP. */
-async function claimPendingDelivery(deliveryId: string): Promise<Date | null> {
+/** Old jobs may only have deliveryId. Look up tenant so rate-limit still runs before claim. */
+async function resolveJobTenantId(
+  deliveryId: string,
+  tenantId: string | undefined,
+): Promise<string | undefined> {
+  if (tenantId) return tenantId
+  const [row] = await getDb()
+    .select({ tenantId: deliveries.tenantId })
+    .from(deliveries)
+    .where(eq(deliveries.id, deliveryId))
+    .limit(1)
+  return row?.tenantId
+}
+
+/** Claim a pending delivery and load payload/url/secret in one round-trip. */
+async function claimPendingDelivery(
+  deliveryId: string,
+): Promise<{ row: DeliveryContext; leaseStartedAt: Date } | null> {
   const db = getDb()
   const leaseStartedAt = new Date()
-  const [claimed] = await db
-    .update(deliveries)
-    .set({ status: 'in_progress', updatedAt: leaseStartedAt })
-    .where(and(eq(deliveries.id, deliveryId), eq(deliveries.status, 'pending')))
-    .returning({ updatedAt: deliveries.updatedAt })
-  return claimed?.updatedAt ?? null
+  const result = (await db.execute(sql`
+    UPDATE deliveries AS d
+    SET status = 'in_progress', updated_at = ${leaseStartedAt}
+    FROM events AS e, endpoints AS ep
+    WHERE d.id = ${deliveryId}
+      AND d.status = 'pending'
+      AND e.id = d.event_id
+      AND ep.id = d.endpoint_id
+    RETURNING
+      d.id,
+      d.tenant_id,
+      d.event_id,
+      d.attempt_count,
+      e.type AS event_type,
+      e.payload AS event_payload,
+      e.created_at AS event_created_at,
+      ep.url,
+      ep.secret,
+      ep.status AS endpoint_status
+  `)) as { rows?: ClaimRow[] }
+
+  const raw = result.rows?.[0]
+  if (!raw) return null
+  return { row: toDeliveryContext(raw), leaseStartedAt }
 }
 
 export async function processor(job: Job<DeliveryJobData>, token?: string): Promise<void> {
   const { deliveryId } = job.data
   const log = logger.child({ delivery_id: deliveryId })
+  const tenantId = await resolveJobTenantId(deliveryId, job.data.tenantId)
 
-  const row = await loadDeliveryContext(deliveryId)
-  if (!row) {
-    log.info('delivery_not_found')
-    return
+  if (tenantId) {
+    const decision = await takeRateLimitToken(tenantId)
+    if (!decision.allowed) {
+      await job.moveToDelayed(decision.retryAt.getTime(), token)
+      log.info('rate_limited')
+      throw new DelayedError()
+    }
   }
 
-  if (row.status === 'succeeded' || row.status === 'failed') {
-    log.info({ status: row.status }, 'already_terminal')
-    return
-  }
-
-  const leaseStartedAt = await claimPendingDelivery(row.id)
-  if (!leaseStartedAt) {
+  const claimed = await claimPendingDelivery(deliveryId)
+  if (!claimed) {
     log.info('claim_lost')
     return
   }
+
+  const { row, leaseStartedAt } = claimed
 
   if (row.endpointStatus === 'disabled') {
     await recordOutcome(
@@ -199,20 +248,6 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     })
     log.info('max_attempts')
     return
-  }
-
-  const allowed = await takeRateLimitToken(row.tenantId)
-  if (!allowed) {
-    const retryAt = new Date(Date.now() + RATE_LIMIT_DEFER_MS)
-    const wrote = await recordOutcome(row.id, row.eventId, leaseStartedAt, {
-      status: 'pending',
-      lastError: 'rate_limited',
-      nextRetryAt: retryAt,
-    })
-    if (!wrote) return
-    await job.moveToDelayed(retryAt.getTime(), token)
-    log.info('rate_limited')
-    throw new DelayedError()
   }
 
   const body = buildOutboundBody(row)

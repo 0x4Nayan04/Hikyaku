@@ -10,7 +10,8 @@ export const queue = new Queue(QUEUE_NAME, {
 /** Enqueue a delivery job unless the same delivery already has a live job. */
 export async function enqueueDelivery(
   deliveryId: string,
+  tenantId: string,
   targetQueue: Queue = queue,
 ): Promise<void> {
-  await enqueueDeliveryJob(targetQueue, deliveryId)
+  await enqueueDeliveryJob(targetQueue, deliveryId, tenantId)
 }

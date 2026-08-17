@@ -55,31 +55,31 @@ describe('reevaluateEventStatus', () => {
 
   it('sets completed when all deliveries succeeded', async () => {
     const { eventId } = await seedEventWithDeliveries(['succeeded', 'succeeded'])
-    await reevaluateEventStatus(eventId, getDb())
+    await expect(reevaluateEventStatus(eventId, getDb())).resolves.toBe('completed')
     expect(await getEventStatus(eventId)).toBe('completed')
   })
 
   it('sets failed when all deliveries failed', async () => {
     const { eventId } = await seedEventWithDeliveries(['failed', 'failed'])
-    await reevaluateEventStatus(eventId, getDb())
+    await expect(reevaluateEventStatus(eventId, getDb())).resolves.toBe('failed')
     expect(await getEventStatus(eventId)).toBe('failed')
   })
 
   it('sets completed when deliveries are mixed succeeded and failed', async () => {
     const { eventId } = await seedEventWithDeliveries(['succeeded', 'failed'])
-    await reevaluateEventStatus(eventId, getDb())
+    await expect(reevaluateEventStatus(eventId, getDb())).resolves.toBe('completed')
     expect(await getEventStatus(eventId)).toBe('completed')
   })
 
   it('keeps pending when one delivery is still pending', async () => {
     const { eventId } = await seedEventWithDeliveries(['succeeded', 'pending'])
-    await reevaluateEventStatus(eventId, getDb())
+    await expect(reevaluateEventStatus(eventId, getDb())).resolves.toBe('pending')
     expect(await getEventStatus(eventId)).toBe('pending')
   })
 
   it('keeps pending when one delivery is in_progress', async () => {
     const { eventId } = await seedEventWithDeliveries(['succeeded', 'in_progress'])
-    await reevaluateEventStatus(eventId, getDb())
+    await expect(reevaluateEventStatus(eventId, getDb())).resolves.toBe('pending')
     expect(await getEventStatus(eventId)).toBe('pending')
   })
 
@@ -96,7 +96,14 @@ describe('reevaluateEventStatus', () => {
       })
       .returning()
 
-    await reevaluateEventStatus(event.id, db)
+    await expect(reevaluateEventStatus(event.id, db)).resolves.toBe('completed')
     expect(await getEventStatus(event.id)).toBe('completed')
+  })
+
+  it('returns the current status without requiring a write when it is unchanged', async () => {
+    const { eventId } = await seedEventWithDeliveries(['succeeded', 'pending'])
+    await expect(reevaluateEventStatus(eventId, getDb())).resolves.toBe('pending')
+    await expect(reevaluateEventStatus(eventId, getDb())).resolves.toBe('pending')
+    expect(await getEventStatus(eventId)).toBe('pending')
   })
 })

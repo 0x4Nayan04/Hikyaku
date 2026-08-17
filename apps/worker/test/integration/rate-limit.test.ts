@@ -194,7 +194,6 @@ describe('rate limit integration', () => {
         (counts) =>
           counts.succeeded >= limit &&
           counts.pending >= overLimit - 1 &&
-          counts.rateLimited >= overLimit - 1 &&
           counts.inProgress === 0 &&
           counts.succeeded + counts.pending === eventCount,
       )
@@ -206,21 +205,16 @@ describe('rate limit integration', () => {
       expect(mockServer.getRequestCount()).toBeLessThanOrEqual(limit + 1)
 
       const db = getDb()
-      const rateLimitedRows = await db
+      const pendingRows = await db
         .select()
         .from(deliveries)
-        .where(
-          and(
-            eq(deliveries.tenantId, tenantId),
-            eq(deliveries.status, 'pending'),
-            eq(deliveries.lastError, 'rate_limited'),
-          ),
-        )
+        .where(and(eq(deliveries.tenantId, tenantId), eq(deliveries.status, 'pending')))
 
-      expect(rateLimitedRows.length).toBeGreaterThanOrEqual(overLimit - 1)
+      expect(pendingRows.length).toBeGreaterThanOrEqual(overLimit - 1)
 
-      for (const delivery of rateLimitedRows) {
+      for (const delivery of pendingRows) {
         expect(delivery.attemptCount).toBe(0)
+        expect(delivery.lastError).toBeNull()
 
         const attempts = await db
           .select()

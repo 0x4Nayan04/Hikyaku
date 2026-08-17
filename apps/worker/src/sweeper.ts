@@ -16,48 +16,85 @@ const SWEEPER_LOCK_TTL_MS = 4 * 60 * 1000
 
 let sweepTimer: ReturnType<typeof setInterval> | undefined
 
-export async function sweepOrphanDeliveries(sweepQueue: Queue): Promise<void> {
+export async function sweepOrphanDeliveries(
+  sweepQueue: Queue,
+  lockDeadlineMs = Number.POSITIVE_INFINITY,
+): Promise<void> {
   const db = getDb()
-  const now = new Date()
-  const staleBefore = new Date(now.getTime() - WORKER_LOCK_DURATION_MS)
-  const candidates = await db
-    .select({ id: deliveries.id, status: deliveries.status, updatedAt: deliveries.updatedAt })
-    .from(deliveries)
-    .where(
-      or(
-        and(
-          inArray(deliveries.status, ['pending']),
-          lte(deliveries.updatedAt, staleBefore),
-          or(isNull(deliveries.nextRetryAt), lte(deliveries.nextRetryAt, now)),
-        ),
-        and(eq(deliveries.status, 'in_progress'), lte(deliveries.updatedAt, staleBefore)),
-      ),
-    )
-    .orderBy(asc(deliveries.updatedAt))
-    .limit(SWEEP_BATCH_SIZE)
+  let totalCandidates = 0
+  let totalEnqueued = 0
 
-  const deliveryIds: string[] = []
-  for (const row of candidates) {
-    // Reset stuck in_progress so the worker can claim (status must be pending).
-    if (row.status === 'in_progress') {
-      const [reclaimed] = await db
+  for (;;) {
+    const now = new Date()
+    const staleBefore = new Date(now.getTime() - WORKER_LOCK_DURATION_MS)
+    const candidates = await db
+      .select({
+        id: deliveries.id,
+        tenantId: deliveries.tenantId,
+        status: deliveries.status,
+        updatedAt: deliveries.updatedAt,
+      })
+      .from(deliveries)
+      .where(
+        or(
+          and(
+            inArray(deliveries.status, ['pending']),
+            lte(deliveries.updatedAt, staleBefore),
+            or(isNull(deliveries.nextRetryAt), lte(deliveries.nextRetryAt, now)),
+          ),
+          and(eq(deliveries.status, 'in_progress'), lte(deliveries.updatedAt, staleBefore)),
+        ),
+      )
+      .orderBy(asc(deliveries.updatedAt))
+      .limit(SWEEP_BATCH_SIZE)
+
+    totalCandidates += candidates.length
+    if (candidates.length === 0) break
+
+    const pendingIds = candidates.filter((row) => row.status === 'pending').map((row) => row.id)
+    const inProgressIds = candidates
+      .filter((row) => row.status === 'in_progress')
+      .map((row) => row.id)
+
+    const jobs: { deliveryId: string; tenantId: string }[] = []
+
+    if (pendingIds.length > 0) {
+      const pending = await db
         .update(deliveries)
-        .set({ status: 'pending', updatedAt: new Date() })
+        .set({ updatedAt: now })
         .where(
           and(
-            eq(deliveries.id, row.id),
-            eq(deliveries.status, 'in_progress'),
-            eq(deliveries.updatedAt, row.updatedAt),
+            inArray(deliveries.id, pendingIds),
+            eq(deliveries.status, 'pending'),
+            lte(deliveries.updatedAt, staleBefore),
           ),
         )
-        .returning({ id: deliveries.id })
-      if (!reclaimed) continue
+        .returning({ id: deliveries.id, tenantId: deliveries.tenantId })
+      jobs.push(...pending.map((row) => ({ deliveryId: row.id, tenantId: row.tenantId })))
     }
-    deliveryIds.push(row.id)
+
+    if (inProgressIds.length > 0) {
+      const reclaimed = await db
+        .update(deliveries)
+        .set({ status: 'pending', updatedAt: now })
+        .where(
+          and(
+            inArray(deliveries.id, inProgressIds),
+            eq(deliveries.status, 'in_progress'),
+            lte(deliveries.updatedAt, staleBefore),
+          ),
+        )
+        .returning({ id: deliveries.id, tenantId: deliveries.tenantId })
+      jobs.push(...reclaimed.map((row) => ({ deliveryId: row.id, tenantId: row.tenantId })))
+    }
+
+    await enqueueDeliveryJobs(sweepQueue, jobs)
+    totalEnqueued += jobs.length
+
+    if (candidates.length < SWEEP_BATCH_SIZE || Date.now() >= lockDeadlineMs) break
   }
 
-  await enqueueDeliveryJobs(sweepQueue, deliveryIds)
-  logger.info({ candidates: candidates.length, enqueued: deliveryIds.length }, 'sweeper_completed')
+  logger.info({ candidates: totalCandidates, enqueued: totalEnqueued }, 'sweeper_completed')
 }
 
 export function startSweeper(): void {
@@ -71,7 +108,7 @@ export function startSweeper(): void {
         (await redis.set(SWEEPER_LOCK_KEY, token, 'PX', SWEEPER_LOCK_TTL_MS, 'NX')) === 'OK'
       if (!acquired) return
 
-      await sweepOrphanDeliveries(queue)
+      await sweepOrphanDeliveries(queue, Date.now() + SWEEPER_LOCK_TTL_MS)
     } catch (err) {
       logger.error({ err }, 'sweeper_failed')
     } finally {
