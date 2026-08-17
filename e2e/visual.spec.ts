@@ -11,7 +11,7 @@ test.describe('visual regression', () => {
   test('landing hero @ 1440', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/')
-    await expect(page.getByRole('heading', { name: /Send a webhook once/ })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /Self-hosted webhook delivery/i })).toBeVisible()
     await expect(page).toHaveScreenshot('landing-hero-1440.png', {
       maxDiffPixelRatio: 0.02,
     })

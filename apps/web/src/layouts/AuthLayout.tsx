@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
 import { AuthNavbar } from '@/components/auth/AuthNavbar'
 import { AppCatalogShell, LandingSectionBlock } from '@/components/app/AppCatalogShell'
-import { HeroDotGridWrap } from '@/components/landing/HeroDotGridWrap'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
-
+import { DotPattern } from '@/components/ui/dot-pattern'
+import { cn } from '@/lib/utils'
+import '@/styles/domains/auth.css'
 
 type AuthLayoutProps = {
   children: ReactNode
@@ -13,6 +14,23 @@ type AuthLayoutProps = {
   wide?: boolean
   variant?: 'centered' | 'split'
   sidePanel?: ReactNode
+}
+
+function AuthDots({
+  wrapClassName,
+  className,
+  children,
+}: {
+  wrapClassName?: string
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <div className={cn('relative overflow-hidden', wrapClassName)}>
+      <DotPattern width={20} height={20} cr={1} className="fill-primary/25" />
+      <div className={cn('relative z-10', className)}>{children}</div>
+    </div>
+  )
 }
 
 export function AuthLayout({
@@ -29,12 +47,12 @@ export function AuthLayout({
       <AppCatalogShell>
         <AuthNavbar />
         <div className="flex flex-1 flex-col lg:flex-row min-h-0">
-          <HeroDotGridWrap
+          <AuthDots
             wrapClassName="relative flex flex-col overflow-hidden bg-surface-muted lg:w-1/2 lg:max-w-xl"
             className="relative z-10 flex flex-col p-8 lg:p-12 h-full"
           >
             {sidePanel}
-          </HeroDotGridWrap>
+          </AuthDots>
 
           <div className="flex flex-1 items-start justify-center overflow-y-auto bg-surface px-8 pb-6 pt-5 lg:px-10 lg:pb-10 lg:pt-6">
             <div className="w-full max-w-lg">
@@ -56,7 +74,7 @@ export function AuthLayout({
     <AppCatalogShell>
       <AuthNavbar />
       <LandingSectionBlock className="auth-section-block flex flex-1 flex-col">
-        <HeroDotGridWrap wrapClassName="auth-page-dot-grid bg-surface" className="auth-page-inner">
+        <AuthDots wrapClassName="auth-page-dot-grid bg-surface" className="auth-page-inner">
           <LandingFrameInner>
             <div className={`auth-form-shell mx-auto w-full ${wide ? 'max-w-xl' : 'max-w-md'}`}>
               <header className="auth-form-header mb-5">
@@ -74,7 +92,7 @@ export function AuthLayout({
               {children}
             </div>
           </LandingFrameInner>
-        </HeroDotGridWrap>
+        </AuthDots>
       </LandingSectionBlock>
     </AppCatalogShell>
   )

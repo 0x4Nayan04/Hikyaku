@@ -9,7 +9,7 @@ const API_KEY_PAGE_SIZE = 25
 export function useSettingsPage(isSuperAdmin = false) {
   const {
     data: apiKeys,
-    total: apiKeyTotal,
+    hasMore: apiKeyHasMore,
     offset: apiKeyOffset,
     setOffset: setApiKeyOffset,
     isInitial,
@@ -93,7 +93,7 @@ export function useSettingsPage(isSuperAdmin = false) {
 
   return {
     apiKeys,
-    apiKeyTotal,
+    apiKeyHasMore,
     apiKeyOffset,
     apiKeyPageSize: API_KEY_PAGE_SIZE,
     setApiKeyOffset,

@@ -79,10 +79,12 @@ test.describe('dashboard smoke', () => {
 
   test('supports keyboard navigation for landing tabs and the account menu', async ({ page }) => {
     await page.goto('/')
-    const faqTabs = page.getByRole('tablist', { name: 'FAQ topics' })
-    await faqTabs.getByRole('tab', { name: 'Getting started' }).focus()
-    await page.keyboard.press('End')
-    await expect(faqTabs.getByRole('tab', { name: 'Access' })).toHaveAttribute(
+    const faqQuestion = page.getByRole('tab', { name: 'How do I get started?' })
+    await faqQuestion.focus()
+    await page.keyboard.press('Enter')
+    await expect(faqQuestion).toHaveAttribute('aria-selected', 'true')
+    await page.keyboard.press('ArrowDown')
+    await expect(page.getByRole('tab', { name: 'What if my endpoint is down?' })).toHaveAttribute(
       'aria-selected',
       'true',
     )

@@ -151,8 +151,8 @@ export function changePassword(body: ChangePasswordInput): Promise<void> {
   })
 }
 
-export function getStats(): Promise<Stats> {
-  return apiFetch('/v1/stats')
+export function getStats(options?: ApiFetchOptions): Promise<Stats> {
+  return apiFetch('/v1/stats', options)
 }
 
 export function listEndpoints(

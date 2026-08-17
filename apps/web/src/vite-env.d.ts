@@ -8,6 +8,16 @@ interface ImportMetaEnv {
   readonly VITE_SOCIAL_URL?: string
 }
 
+declare module '*.md?html' {
+  const html: string
+  export default html
+}
+
+declare module '*.md?search' {
+  const entries: { id: string; label: string }[]
+  export default entries
+}
+
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }

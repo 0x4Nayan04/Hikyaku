@@ -9,10 +9,13 @@ export function paginationButtonVariant(canNavigate: boolean): ButtonVariant {
   return canNavigate ? 'primary' : 'secondary'
 }
 
-export function shouldPaginate(total: number, pageSize: number): boolean {
-  return total > pageSize
+export function shouldPaginate(hasMore: boolean, offset: number): boolean {
+  return hasMore || offset > 0
 }
 
-export function lastPageOffset(total: number, pageSize: number): number {
-  return Math.max(0, Math.floor((total - 1) / pageSize) * pageSize)
+export function pageRange(offset: number, count: number): { pageStart: number; pageEnd: number } {
+  return {
+    pageStart: count === 0 ? 0 : offset + 1,
+    pageEnd: offset + count,
+  }
 }

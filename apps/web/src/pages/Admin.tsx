@@ -22,7 +22,7 @@ export function Admin() {
   } | null>(null)
   const {
     data: tenants,
-    total,
+    hasMore,
     offset,
     setOffset,
     isInitial,
@@ -72,7 +72,7 @@ export function Admin() {
 
       <AdminTenantTable
         tenants={tenants}
-        total={total}
+        hasMore={hasMore}
         offset={offset}
         loading={isInitial || isRefreshing}
         onOffsetChange={setOffset}

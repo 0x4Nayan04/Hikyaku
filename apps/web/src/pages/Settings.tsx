@@ -32,7 +32,7 @@ export function Settings() {
 
   const {
     apiKeys,
-    apiKeyTotal,
+    apiKeyHasMore,
     apiKeyOffset,
     apiKeyPageSize,
     setApiKeyOffset,
@@ -87,7 +87,7 @@ export function Settings() {
               <SettingsLayout>
                 <SettingsApiKeysTab
                   apiKeys={apiKeys}
-                  total={apiKeyTotal}
+                  hasMore={apiKeyHasMore}
                   offset={apiKeyOffset}
                   pageSize={apiKeyPageSize}
                   loadingKeys={loadingKeys}

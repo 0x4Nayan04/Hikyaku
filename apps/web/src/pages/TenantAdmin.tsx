@@ -22,7 +22,7 @@ export function TenantAdmin() {
   const [inviteOpen, setInviteOpen] = useState(false)
   const {
     data: users,
-    total: userTotal,
+    hasMore: usersHasMore,
     offset: userOffset,
     setOffset: setUserOffset,
     isInitial: loadingUsers,
@@ -34,7 +34,7 @@ export function TenantAdmin() {
     fetchPage: ({ limit, offset, signal }) =>
       id
         ? listTenantUsers(id, { limit, offset }, { signal })
-        : Promise.resolve({ data: [], total: 0, limit, offset: 0 }),
+        : Promise.resolve({ data: [], has_more: false, limit, offset: 0 }),
     fallbackError: 'Failed to load tenant users',
     queryKey: id,
   })
@@ -105,7 +105,7 @@ export function TenantAdmin() {
         <TenantAdminDetails
           tenant={tenant}
           users={users}
-          total={userTotal}
+          hasMore={usersHasMore}
           offset={userOffset}
           pageSize={USER_PAGE_SIZE}
           loading={refreshingUsers}

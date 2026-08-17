@@ -16,7 +16,7 @@ import { toast } from '@/lib/toast'
 type TenantAdminUserActionsProps = {
   tenantId: string
   user: User
-  userCount: number
+  isSoleUser: boolean
   currentUserId?: string
   onDeleted: (userId: string) => void
 }
@@ -24,13 +24,13 @@ type TenantAdminUserActionsProps = {
 export function TenantAdminUserActions({
   tenantId,
   user,
-  userCount,
+  isSoleUser,
   currentUserId,
   onDeleted,
 }: TenantAdminUserActionsProps) {
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const cannotDelete = userCount <= 1 || currentUserId === user.id
+  const cannotDelete = isSoleUser || currentUserId === user.id
 
   async function handleDelete() {
     setSubmitting(true)
@@ -55,7 +55,7 @@ export function TenantAdminUserActions({
           className="text-status-danger"
           disabled={cannotDelete}
           title={
-            userCount <= 1
+            isSoleUser
               ? 'The last user in a tenant cannot be deleted'
               : currentUserId === user.id
                 ? 'You cannot delete your own account'

@@ -1,116 +1,34 @@
-import { useEffect, useState } from 'react'
-import {
-  ArrowRight,
-  Check,
-  CheckCircle2,
-  LayoutDashboard,
-  RadioTower,
-  RefreshCw,
-  Send,
-  ShieldCheck,
-} from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
-import { getBootstrapStatus } from '@/api/client'
+import { API_BASE } from '@/api/client'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
+import { DotPattern } from '@/components/ui/dot-pattern'
+import { APP_NAME, PRODUCT_LINKS, PUBLIC_LINKS } from '@/lib/app-meta'
 import { resolveGuestLandingPrimaryCta } from '@/lib/auth-first-run'
 import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
-import { PRODUCT_LINKS } from '@/lib/app-meta'
+import { loadBootstrapStatus, readBootstrapStatusCache } from '@/lib/bootstrap-status'
+import { copyToClipboard } from '@/lib/clipboard'
+import { buildIngestCurl } from '@/lib/tenant-onboarding'
 import { useSession } from '@/providers/session-context'
+import { ArrowRight, Check, Copy, LayoutDashboard } from 'lucide-react'
+import { SiGithub } from 'react-icons/si'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 
-const DESTINATIONS = [
-  {
-    name: 'Billing service',
-    endpoint: 'billing.acme.dev/events',
-    status: 'Delivered',
-    time: '142 ms',
-  },
-  { name: 'CRM sync', endpoint: 'hooks.partner.io/hikyaku', status: 'Delivered', time: '186 ms' },
-  { name: 'Data archive', endpoint: 'archive.acme.dev/webhooks', status: 'Retrying', time: '8s' },
-]
-
-function DeliveryPreview() {
-  return (
-    <div className="lp-route-map" aria-label="Webhook event routing preview">
-      <div className="lp-route-map__header">
-        <span className="lp-live-pill">
-          <span aria-hidden="true" /> Delivery in progress
-        </span>
-        <span>3 destinations</span>
-      </div>
-
-      <div className="lp-route-map__body">
-        <div className="lp-route-map__origin">
-          <span className="lp-route-map__icon" aria-hidden="true">
-            <Send className="size-4" />
-          </span>
-          <span>Your application</span>
-          <strong>order.created</strong>
-          <code>evt_7f2a</code>
-        </div>
-
-        <div className="lp-route-map__handoff" aria-hidden="true">
-          <span />
-          <ArrowRight className="size-4" />
-        </div>
-
-        <div className="lp-route-map__router">
-          <span className="lp-route-map__icon" aria-hidden="true">
-            <RadioTower className="size-5" />
-          </span>
-          <div>
-            <strong>Hikyaku</strong>
-            <span>signs · retries · records</span>
-          </div>
-        </div>
-
-        <div className="lp-route-map__fanout" aria-hidden="true">
-          <span />
-          <ArrowRight className="size-4" />
-        </div>
-
-        <ul className="lp-route-map__destinations">
-          {DESTINATIONS.map((destination) => (
-            <li
-              key={destination.name}
-              className={destination.status === 'Retrying' ? 'is-retrying' : undefined}
-            >
-              {destination.status === 'Retrying' ? (
-                <RefreshCw className="size-4 lp-spin" aria-hidden="true" />
-              ) : (
-                <CheckCircle2 className="size-4" aria-hidden="true" />
-              )}
-              <div>
-                <strong>{destination.name}</strong>
-                <code>{destination.endpoint}</code>
-              </div>
-              <span>
-                {destination.status} <time>{destination.time}</time>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="lp-route-map__footer">
-        <ShieldCheck className="size-4" aria-hidden="true" />
-        <span>HMAC-SHA256 signed</span>
-        <span>attempt history</span>
-      </div>
-    </div>
-  )
-}
+const INGEST_EXAMPLE_KEY = 'whk_your_api_key'
+const CURL_COPY = buildIngestCurl(INGEST_EXAMPLE_KEY, API_BASE)
+const INGEST_URL = `${API_BASE}/v1/events`
 
 export function LandingHero() {
   const navigate = useNavigate()
-  const { session, loading } = useSession()
-  const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(null)
+  const { session } = useSession()
+  const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(readBootstrapStatusCache)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    if (session || loading) return
+    if (session) return
     let cancelled = false
-    getBootstrapStatus()
-      .then((status) => {
-        if (!cancelled) setBootstrapAvailable(status.available)
+    loadBootstrapStatus()
+      .then((available) => {
+        if (!cancelled) setBootstrapAvailable(available)
       })
       .catch(() => {
         if (!cancelled) setBootstrapAvailable(false)
@@ -118,27 +36,38 @@ export function LandingHero() {
     return () => {
       cancelled = true
     }
-  }, [session, loading])
+  }, [session])
 
   const guestPrimary = resolveGuestLandingPrimaryCta(bootstrapAvailable)
-  const guestSecondary =
-    guestPrimary.path === '/bootstrap' ? { label: 'Sign in', path: '/login' as const } : null
+  const needsBootstrap = guestPrimary.path === '/bootstrap'
+
+  async function handleCopy() {
+    const ok = await copyToClipboard(CURL_COPY, 'cURL')
+    if (!ok) return
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1600)
+  }
 
   return (
     <section className="lp-hero" aria-labelledby="hero-heading">
+      <DotPattern width={20} height={20} cr={1} className="lp-hero__pattern fill-primary/25" />
       <LandingFrameInner className="lp-hero__inner">
-        <div className="lp-hero__copy">
+        <div className="lp-hero__center">
           <p className="lp-eyebrow">
-            <span aria-hidden="true">飛脚</span>
-            Webhook delivery
+            <span lang="ja" aria-hidden="true">
+              飛脚
+            </span>
+            {APP_NAME}
           </p>
-          <h1 id="hero-heading">Send a webhook once. Track each attempt.</h1>
+          <h1 id="hero-heading">
+            Your webhooks, delivered. <em>Every time.</em>
+          </h1>
           <p className="lp-hero__lead">
-            POST an event to the API. Hikyaku fans it out to your endpoints with HMAC-SHA256
-            signatures, retries failures with exponential backoff, and stores attempt-level history.
+            Post an event once. {APP_NAME} fans it out to every endpoint: signed, retried, and recorded
+            on infrastructure you run.
           </p>
 
-          <div className="lp-hero__actions">
+          <div className="lp-hero__actions" role="group" aria-label="Get started">
             {session ? (
               <button
                 type="button"
@@ -148,45 +77,81 @@ export function LandingHero() {
                 Go to {getHomeLabel(session.user).toLowerCase()}
                 <LayoutDashboard className="size-4" aria-hidden="true" />
               </button>
-            ) : !loading ? (
+            ) : (
               <>
-                <button
-                  type="button"
-                  onClick={() => navigate(guestPrimary.path)}
-                  className="lp-button lp-button--primary focus-ring"
-                >
-                  {guestPrimary.label}
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </button>
-                {guestSecondary ? (
-                  <Link
-                    to={guestSecondary.path}
-                    className="lp-button lp-button--secondary focus-ring"
-                  >
-                    {guestSecondary.label}
+                {needsBootstrap ? (
+                  <Link to={guestPrimary.path} className="lp-button lp-button--primary focus-ring">
+                    {guestPrimary.label}
+                    <ArrowRight className="size-4" aria-hidden="true" />
                   </Link>
-                ) : null}
+                ) : (
+                  <Link
+                    to={`${PRODUCT_LINKS.docs}/quick-start`}
+                    className="lp-button lp-button--primary focus-ring"
+                  >
+                    View quick start
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                )}
+                <a
+                  href={PUBLIC_LINKS.github}
+                  className="lp-button lp-button--secondary focus-ring"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <SiGithub className="size-4" aria-hidden="true" />
+                  View on GitHub
+                  <span className="sr-only">(opens in a new tab)</span>
+                </a>
               </>
-            ) : null}
-            <Link to={PRODUCT_LINKS.docs} className="lp-button lp-button--secondary focus-ring">
-              Read the docs
-            </Link>
+            )}
           </div>
 
-          <ul className="lp-hero__proof" aria-label="Product capabilities">
-            <li>
-              <Check className="size-4" aria-hidden="true" /> HMAC-SHA256
-            </li>
-            <li>
-              <Check className="size-4" aria-hidden="true" /> Exponential backoff
-            </li>
-            <li>
-              <Check className="size-4" aria-hidden="true" /> Attempt logs
-            </li>
-          </ul>
+          <figure className="lp-hero__command" aria-label="Example ingest request">
+            <div className="lp-hero__command-head">
+              <div className="lp-hero__command-meta">
+                <span className="lp-hero__command-lang">bash</span>
+                <span className="lp-hero__command-route" translate="no">
+                  POST /v1/events
+                </span>
+              </div>
+              <button
+                type="button"
+                className={`lp-cli-copy focus-ring${copied ? ' is-copied' : ''}`}
+                onClick={() => void handleCopy()}
+                aria-label={copied ? 'Copied ingest example' : 'Copy ingest example'}
+              >
+                {copied ? (
+                  <Check className="size-3.5" aria-hidden="true" />
+                ) : (
+                  <Copy className="size-3.5" aria-hidden="true" />
+                )}
+                <span aria-live="polite">{copied ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
+            <pre className="lp-cli-block" translate="no">
+              <code>
+                <span className="lp-cli-k">curl</span> <span className="lp-cli-f">-X</span> POST{' '}
+                <span className="lp-cli-p">&quot;{INGEST_URL}&quot;</span>
+                {' \\\n  '}
+                <span className="lp-cli-f">-H</span>{' '}
+                <span className="lp-cli-s">
+                  &quot;Authorization: Bearer {INGEST_EXAMPLE_KEY}&quot;
+                </span>
+                {' \\\n  '}
+                <span className="lp-cli-f">-H</span>{' '}
+                <span className="lp-cli-s">&quot;Content-Type: application/json&quot;</span>
+                {' \\\n  '}
+                <span className="lp-cli-f">-d</span>{' '}
+                <span className="lp-cli-s">{`'{
+    "idempotency_key": "order-123-paid",
+    "type": "order.paid",
+    "payload": { "order_id": "123", "amount": 4999 }
+  }'`}</span>
+              </code>
+            </pre>
+          </figure>
         </div>
-
-        <DeliveryPreview />
       </LandingFrameInner>
     </section>
   )

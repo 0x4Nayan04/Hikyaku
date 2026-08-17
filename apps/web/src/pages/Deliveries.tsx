@@ -16,7 +16,7 @@ import { DataPanel } from '@/components/console/DataPanel'
 import { PageBanner } from '@/components/console/PageBanner'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
-import { shouldPaginate } from '@/components/console/pagination-utils'
+import { pageRange, shouldPaginate } from '@/components/console/pagination-utils'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { LiveChip } from '@/components/console/LiveChip'
 import { usePolling } from '@/hooks/usePolling'
@@ -51,7 +51,7 @@ export function Deliveries() {
   const statusFilter = parseStatusParam(searchParams.get('status'))
   const {
     data: deliveries,
-    total,
+    hasMore,
     offset,
     setOffset,
     isInitial,
@@ -78,7 +78,7 @@ export function Deliveries() {
 
   const isLive = error === null
   const showEmpty = !isInitial && deliveries.length === 0
-  const isDatasetEmpty = showEmpty && statusFilter === 'all' && !eventIdFilter && total === 0
+  const isDatasetEmpty = showEmpty && statusFilter === 'all' && !eventIdFilter && offset === 0
   const emptyState = useMemo(() => {
     if (eventIdFilter) {
       return (
@@ -128,11 +128,10 @@ export function Deliveries() {
     )
   }, [statusFilter, eventIdFilter])
 
-  const pageStart = total === 0 ? 0 : offset + 1
-  const pageEnd = Math.min(offset + deliveries.length, total)
+  const { pageStart, pageEnd } = pageRange(offset, deliveries.length)
   const canGoBack = offset > 0
-  const canGoForward = offset + PAGE_SIZE < total
-  const showFooter = !isInitial && total > 0 && shouldPaginate(total, PAGE_SIZE)
+  const canGoForward = hasMore
+  const showFooter = !isInitial && shouldPaginate(hasMore, offset)
 
   function patchParams(mutate: (next: URLSearchParams) => void) {
     const next = new URLSearchParams(searchParams)
@@ -222,7 +221,6 @@ export function Deliveries() {
                 <PaginationBar
                   pageStart={pageStart}
                   pageEnd={pageEnd}
-                  total={total}
                   canGoBack={canGoBack}
                   canGoForward={canGoForward}
                   onPrevious={() => setOffset(Math.max(0, offset - PAGE_SIZE))}

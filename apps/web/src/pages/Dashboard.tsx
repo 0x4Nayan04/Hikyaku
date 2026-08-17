@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -39,6 +39,19 @@ import { cn } from '@/lib/utils'
 
 type ActivityPreview = ActivityItem
 
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === 'AbortError'
+}
+
+function hasDashboardData(stats: Stats): boolean {
+  return (
+    stats.events_today > 0 ||
+    stats.deliveries_active > 0 ||
+    stats.deliveries_succeeded_24h > 0 ||
+    stats.deliveries_failed_24h > 0
+  )
+}
+
 type AttentionItem = {
   id: string
   label: string
@@ -52,35 +65,52 @@ export function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [activity, setActivity] = useState<ActivityPreview[]>([])
   const [attention, setAttention] = useState<AttentionItem[]>([])
+  const [onboarding, setOnboarding] = useState<OnboardingStep[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isInitial, setIsInitial] = useState(true)
   const [isLive, setIsLive] = useState(false)
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toISOString())
+  const abortRef = useRef<AbortController | null>(null)
 
   const load = useCallback(async () => {
-    try {
-      const [data, disabled] = await Promise.all([
-        getStats(),
-        listEndpoints({ status: 'disabled', limit: 1 }),
-      ])
-      setStats(data)
-      setAttention(buildAttentionItems(data, disabled.total || disabled.data.length))
-      setError(null)
-      setIsLive(true)
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load stats')
-      setIsLive(false)
-    } finally {
-      setIsInitial(false)
-    }
-  }, [])
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const { signal } = controller
 
-  const loadActivity = useCallback(async () => {
     try {
-      const [eventsResult, deliveriesResult] = await Promise.all([
-        listEvents({ limit: 5, offset: 0 }),
-        listDeliveries({ limit: 5, offset: 0 }),
+      const [data, disabled, eventsResult, deliveriesResult] = await Promise.all([
+        getStats({ signal }),
+        listEndpoints({ status: 'disabled', limit: 1 }, { signal }),
+        listEvents({ limit: 5, offset: 0 }, { signal }),
+        listDeliveries({ limit: 5, offset: 0 }, { signal }),
       ])
+
+      let nextOnboarding: OnboardingStep[] | null = null
+      if (!hasDashboardData(data)) {
+        try {
+          const [activeEndpoints, keys] = await Promise.all([
+            listEndpoints({ status: 'active', limit: 1 }, { signal }),
+            listApiKeys({ status: 'active', limit: 1 }, { signal }),
+          ])
+          nextOnboarding = buildOnboardingSteps({
+            hasEndpoint: activeEndpoints.data.length > 0,
+            hasApiKey: keys.data.length > 0,
+            hasTestEvent: eventsResult.data.length > 0,
+            hasDeliveries: deliveriesResult.data.length > 0,
+          })
+        } catch (err) {
+          if (isAbortError(err)) throw err
+          nextOnboarding = buildOnboardingSteps({
+            hasEndpoint: false,
+            hasApiKey: false,
+            hasTestEvent: eventsResult.data.length > 0,
+            hasDeliveries: deliveriesResult.data.length > 0,
+          })
+        }
+      }
+
+      if (signal.aborted) return
 
       const merged: ActivityPreview[] = [
         ...eventsResult.data.map((event) => ({
@@ -104,31 +134,37 @@ export function Dashboard() {
         .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
         .slice(0, 5)
 
+      setStats(data)
+      setOnboarding(nextOnboarding)
+      setAttention(buildAttentionItems(data, disabled.data.length))
       setActivity(merged)
       setLastUpdated(new Date().toISOString())
-    } catch {
-      setActivity([])
+      setError(null)
+      setIsLive(true)
+    } catch (err) {
+      if (isAbortError(err)) return
+      setError(err instanceof ApiError ? err.message : 'Failed to load stats')
+      setIsLive(false)
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null
+      if (!controller.signal.aborted) setIsInitial(false)
     }
   }, [])
 
   useEffect(() => {
     void load()
-    void loadActivity()
-  }, [load, loadActivity])
+    return () => {
+      abortRef.current?.abort()
+    }
+  }, [load])
 
   usePolling({
+    enabled: (stats?.deliveries_active ?? 0) > 0,
     intervalMs: 10_000,
-    onPoll: async () => {
-      await Promise.all([load(), loadActivity()])
-    },
+    onPoll: load,
   })
 
-  const hasData =
-    stats !== null &&
-    (stats.events_today > 0 ||
-      stats.deliveries_active > 0 ||
-      stats.deliveries_succeeded_24h > 0 ||
-      stats.deliveries_failed_24h > 0)
+  const hasData = stats !== null && hasDashboardData(stats)
 
   return (
     <ConsolePage
@@ -145,7 +181,7 @@ export function Dashboard() {
         <DashboardSkeleton />
       ) : stats ? (
         <div className="dashboard-page">
-          {!hasData ? <EmptyDashboardCTA /> : null}
+          {!hasData && onboarding ? <EmptyDashboardCTA steps={onboarding} /> : null}
 
           {hasData && attention.length > 0 ? <AttentionStrip items={attention} /> : null}
 
@@ -165,7 +201,6 @@ export function Dashboard() {
             isLive={isLive}
             onRefresh={() => {
               void load()
-              void loadActivity()
             }}
           />
         </div>
@@ -402,43 +437,7 @@ function OnboardingStepRow({ step }: { step: OnboardingStep }) {
   )
 }
 
-function EmptyDashboardCTA() {
-  const [steps, setSteps] = useState<OnboardingStep[]>(() =>
-    buildOnboardingSteps({
-      hasEndpoint: false,
-      hasApiKey: false,
-      hasTestEvent: false,
-      hasDeliveries: false,
-    }),
-  )
-
-  useEffect(() => {
-    let cancelled = false
-    Promise.all([
-      listEndpoints({ status: 'active', limit: 1 }),
-      listApiKeys({ status: 'active', limit: 1 }),
-      listEvents({ limit: 1 }),
-      listDeliveries({ limit: 1 }),
-    ])
-      .then(([endpoints, keys, events, deliveries]) => {
-        if (cancelled) return
-        setSteps(
-          buildOnboardingSteps({
-            hasEndpoint: endpoints.total > 0,
-            hasApiKey: keys.total > 0,
-            hasTestEvent: events.total > 0,
-            hasDeliveries: deliveries.total > 0,
-          }),
-        )
-      })
-      .catch(() => {
-        // Keep the default unchecked checklist; empty-dashboard UX still works.
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
+function EmptyDashboardCTA({ steps }: { steps: OnboardingStep[] }) {
   return (
     <DataPanel
       title="Get started"

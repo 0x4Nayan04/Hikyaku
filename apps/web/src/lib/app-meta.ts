@@ -8,10 +8,9 @@ export const PRODUCT_LINKS = {
   docs: '/docs',
   /** Real console entry (sign-in / app). */
   console: '/login',
-  /** Landing page console preview section. */
-  consoleSection: '/#console',
   faq: '/#faq',
-  howItWorks: '/#how-it-works',
+  /** Brand story — why the name Hikyaku / 飛脚. */
+  whyHaiku: '/why-haiku',
   home: '/',
 } as const
 

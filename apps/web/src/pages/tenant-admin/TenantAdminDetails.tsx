@@ -10,14 +10,14 @@ import {
 import { DataPanel } from '@/components/console/DataPanel'
 import { FormPanel } from '@/components/console/FormPanel'
 import { PaginationBar } from '@/components/console/PaginationBar'
-import { shouldPaginate } from '@/components/console/pagination-utils'
+import { pageRange, shouldPaginate } from '@/components/console/pagination-utils'
 import { TenantAdminUserActions } from '@/pages/tenant-admin/TenantAdminUserActions'
 import { useSession } from '@/providers/session-context'
 
 type TenantAdminDetailsProps = {
   tenant: AdminTenant
   users: User[]
-  total: number
+  hasMore: boolean
   offset: number
   pageSize: number
   loading: boolean
@@ -28,7 +28,7 @@ type TenantAdminDetailsProps = {
 export function TenantAdminDetails({
   tenant,
   users,
-  total,
+  hasMore,
   offset,
   pageSize,
   loading,
@@ -36,8 +36,8 @@ export function TenantAdminDetails({
   onUserDeleted,
 }: TenantAdminDetailsProps) {
   const { session } = useSession()
-  const pageStart = total === 0 ? 0 : offset + 1
-  const pageEnd = Math.min(offset + users.length, total)
+  const { pageStart, pageEnd } = pageRange(offset, users.length)
+  const isSoleUser = offset === 0 && !hasMore && users.length <= 1
   return (
     <div className="flex flex-col gap-8">
       <FormPanel title="Tenant details">
@@ -54,17 +54,16 @@ export function TenantAdminDetails({
       </FormPanel>
 
       <DataPanel
-        title={`Users (${total})`}
+        title="Users"
         loading={loading}
         footer={
-          shouldPaginate(total, pageSize) ? (
+          shouldPaginate(hasMore, offset) ? (
             <div className="pagination-bar-footer">
               <PaginationBar
                 pageStart={pageStart}
                 pageEnd={pageEnd}
-                total={total}
                 canGoBack={offset > 0}
-                canGoForward={offset + pageSize < total}
+                canGoForward={hasMore}
                 onPrevious={() => onOffsetChange(Math.max(0, offset - pageSize))}
                 onNext={() => onOffsetChange(offset + pageSize)}
               />
@@ -97,10 +96,10 @@ export function TenantAdminDetails({
                     {user.id}
                   </DataTableCell>
                   <DataTableCell>
-                      <TenantAdminUserActions
-                        tenantId={tenant.id}
-                        user={user}
-                        userCount={total}
+                    <TenantAdminUserActions
+                      tenantId={tenant.id}
+                      user={user}
+                      isSoleUser={isSoleUser}
                       currentUserId={session?.user.id}
                       onDeleted={onUserDeleted}
                     />
