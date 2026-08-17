@@ -3,6 +3,7 @@
   "private": true,
   "description": "Self-hosted multi-tenant webhook delivery with HMAC-signed HTTP, retries, and an operator console.",
   "type": "module",
+  "packageManager": "pnpm@11.17.0",
   "engines": {
     "node": ">=20"
   },
