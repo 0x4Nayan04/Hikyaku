@@ -1,3 +1,5 @@
+import { DocumentTitle } from '@/components/DocumentTitle'
+import { SkipLink } from '@/components/SkipLink'
 import { SessionProvider } from '@/providers/SessionProvider'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -21,6 +23,8 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <SessionProvider>
       <BrowserRouter>
+        <SkipLink />
+        <DocumentTitle />
         <App />
       </BrowserRouter>
     </SessionProvider>

@@ -1,10 +1,7 @@
 import type { ButtonVariant } from '@/components/ui/button'
 
-/**
- * Returns a button variant for pagination navigation buttons.
- * Enabled buttons use 'primary' to stand out, disabled buttons use 'secondary'
- * so they appear visually distinct (disabled styling is handled via CSS).
- */
+export const PAGE_SIZE = 25
+
 export function paginationButtonVariant(canNavigate: boolean): ButtonVariant {
   return canNavigate ? 'primary' : 'secondary'
 }

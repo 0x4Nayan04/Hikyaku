@@ -50,7 +50,7 @@ export type ApiFetchOptions = RequestInit & {
   skipAuthRedirect?: boolean
 }
 
-export function apiUrl(path: string): string {
+function apiUrl(path: string): string {
   return `${API_BASE}${path}`
 }
 

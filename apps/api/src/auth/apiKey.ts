@@ -3,10 +3,9 @@ import { hashApiKey } from '@webhook/shared/crypto'
 import { apiKeys } from '@webhook/shared/schema'
 import { getDb } from '../db/client.js'
 import { logger } from '../lib/logger.js'
-import { createTtlCache } from '../lib/ttlCache.js'
+import { CACHE_TTL_MS, createTtlCache } from '../lib/ttlCache.js'
 
 const LAST_USED_AT_UPDATE_INTERVAL_MS = 60 * 60 * 1000
-const CACHE_TTL_MS = 30_000
 const tenantIdByKeyHash = createTtlCache<string>(CACHE_TTL_MS)
 
 export function invalidateApiKeyCache(keyHash: string): void {

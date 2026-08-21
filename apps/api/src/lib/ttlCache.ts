@@ -1,5 +1,6 @@
 type Entry<T> = { value: T; expiresAt: number }
 
+export const CACHE_TTL_MS = 30_000
 const MAX_ENTRIES = 1024
 
 export function createTtlCache<T>(ttlMs: number) {

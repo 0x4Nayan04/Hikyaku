@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { ApiError, createApiKey, listApiKeys, revokeApiKey, rotateApiKey } from '@/api/client'
+import { PAGE_SIZE } from '@/components/console/pagination-utils'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { toast } from '@/lib/toast'
 import type { ApiKey, ApiKeyWithSecret } from '@/api/types'
-
-const API_KEY_PAGE_SIZE = 25
 
 export function useSettingsPage(isSuperAdmin = false) {
   const {
@@ -17,7 +16,7 @@ export function useSettingsPage(isSuperAdmin = false) {
     error: keysError,
     reload,
   } = usePaginatedList<ApiKey>({
-    pageSize: API_KEY_PAGE_SIZE,
+    pageSize: PAGE_SIZE,
     fetchPage: ({ limit, offset, signal }) => listApiKeys({ limit, offset }, { signal }),
     fallbackError: 'Failed to load API keys',
     enabled: !isSuperAdmin,
@@ -95,7 +94,7 @@ export function useSettingsPage(isSuperAdmin = false) {
     apiKeys,
     apiKeyHasMore,
     apiKeyOffset,
-    apiKeyPageSize: API_KEY_PAGE_SIZE,
+    apiKeyPageSize: PAGE_SIZE,
     setApiKeyOffset,
     loadingKeys: isInitial || isRefreshing,
     keysError,

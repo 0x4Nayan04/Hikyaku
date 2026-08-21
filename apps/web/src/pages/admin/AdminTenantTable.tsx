@@ -14,7 +14,7 @@ import {
 import { DataPanel } from '@/components/console/DataPanel'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
-import { pageRange, shouldPaginate } from '@/components/console/pagination-utils'
+import { PAGE_SIZE, pageRange, shouldPaginate } from '@/components/console/pagination-utils'
 import { SettingsCopyAction } from '@/components/console/SettingsCatalog'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,8 +37,6 @@ import { Label } from '@/components/ui/label'
 import { formatDateTime } from '@/lib/format'
 import { toast } from '@/lib/toast'
 import { AdminRenameTenantDialog } from '@/pages/admin/AdminRenameTenantDialog'
-
-const PAGE_SIZE = 25
 
 type AdminTenantTableProps = {
   tenants: AdminTenant[]

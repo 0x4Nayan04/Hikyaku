@@ -7,12 +7,11 @@ import { Button } from '@/components/ui/button'
 import { ConsolePage } from '@/components/console/ConsolePage'
 import { PageBanner } from '@/components/console/PageBanner'
 import { PageLoading } from '@/components/console/PageLoading'
+import { PAGE_SIZE } from '@/components/console/pagination-utils'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { formatDateTime } from '@/lib/format'
 import { TenantAdminDetails } from '@/pages/tenant-admin/TenantAdminDetails'
 import { TenantAdminInviteUserDialog } from '@/pages/tenant-admin/TenantAdminInviteUserDialog'
-import { usePaginatedList } from '@/hooks/usePaginatedList'
-
-const USER_PAGE_SIZE = 25
 
 export function TenantAdmin() {
   const { id } = useParams<{ id: string }>()
@@ -30,7 +29,7 @@ export function TenantAdmin() {
     error: usersError,
     reload: reloadUsers,
   } = usePaginatedList<User>({
-    pageSize: USER_PAGE_SIZE,
+    pageSize: PAGE_SIZE,
     fetchPage: ({ limit, offset, signal }) =>
       id
         ? listTenantUsers(id, { limit, offset }, { signal })
@@ -107,7 +106,7 @@ export function TenantAdmin() {
           users={users}
           hasMore={usersHasMore}
           offset={userOffset}
-          pageSize={USER_PAGE_SIZE}
+          pageSize={PAGE_SIZE}
           loading={refreshingUsers}
           onOffsetChange={setUserOffset}
           onUserDeleted={() => void reloadUsers()}

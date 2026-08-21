@@ -120,7 +120,7 @@ async function getSuperAdminSession(jar: CookieJar, ts: number): Promise<void> {
   }
 }
 
-export async function waitForApiHealth(timeoutMs = 120_000): Promise<void> {
+async function waitForApiHealth(timeoutMs = 120_000): Promise<void> {
   const started = Date.now()
 
   while (Date.now() - started < timeoutMs) {

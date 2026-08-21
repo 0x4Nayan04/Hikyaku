@@ -1,5 +1,6 @@
 import express, { type Application, type NextFunction, type Request, type Response } from 'express'
 import { pinoHttp } from 'pino-http'
+import { MAX_INGEST_BODY_BYTES } from '@webhook/shared/constants'
 import { env } from './config.js'
 import { createSessionMiddleware, skipSessionStack } from './auth/session.js'
 import { createCorsMiddleware } from './lib/cors.js'
@@ -43,7 +44,7 @@ export function createApp(): Application {
   app.use(createCorsMiddleware())
   app.use(skipSessionStack(createSessionMiddleware()))
   app.use(skipSessionStack(createSessionCsrfMiddleware()))
-  app.use(express.json({ limit: '256kb' }))
+  app.use(express.json({ limit: MAX_INGEST_BODY_BYTES }))
 
   app.use('/v1', healthRouter)
   app.use('/v1', authRouter)

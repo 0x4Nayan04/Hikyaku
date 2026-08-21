@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { QUEUE_NAME } from '@webhook/shared/constants'
 import { deliveries } from '@webhook/shared/schema'
 import { enqueueDeliveryJobs } from '@webhook/shared/enqueueDelivery'
 import type { Queue } from 'bullmq'
@@ -11,7 +12,7 @@ import { getRedis } from './lib/redis.js'
 
 const SWEEP_INTERVAL_MS = 5 * 60 * 1000
 const SWEEP_BATCH_SIZE = 100
-const SWEEPER_LOCK_KEY = 'webhook-deliveries:sweeper-lock'
+const SWEEPER_LOCK_KEY = `${QUEUE_NAME}:sweeper-lock`
 const SWEEPER_LOCK_TTL_MS = 4 * 60 * 1000
 
 let sweepTimer: ReturnType<typeof setInterval> | undefined

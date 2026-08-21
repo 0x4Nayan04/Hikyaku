@@ -10,7 +10,7 @@ import { EndpointCatalogList } from '@/components/console/EndpointCatalogList'
 import { PageBanner } from '@/components/console/PageBanner'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
-import { pageRange, shouldPaginate } from '@/components/console/pagination-utils'
+import { PAGE_SIZE, pageRange, shouldPaginate } from '@/components/console/pagination-utils'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,8 +22,6 @@ import {
 } from '@/components/ui/select'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { EndpointDialogs } from '@/pages/endpoint-dialogs'
-
-const API_PAGE_SIZE = 25
 
 const STATUS_OPTIONS: Array<{ value: 'all' | EndpointStatus; label: string }> = [
   { value: 'all', label: 'All statuses' },
@@ -49,7 +47,7 @@ export function Endpoints() {
     error,
     reload,
   } = usePaginatedList<Endpoint>({
-    pageSize: API_PAGE_SIZE,
+    pageSize: PAGE_SIZE,
     fetchPage: ({ limit, offset, signal }) =>
       listEndpoints(
         {
@@ -187,8 +185,8 @@ export function Endpoints() {
                   pageEnd={pageEnd}
                   canGoBack={canGoBack}
                   canGoForward={canGoForward}
-                  onPrevious={() => setOffset(Math.max(0, offset - API_PAGE_SIZE))}
-                  onNext={() => setOffset(offset + API_PAGE_SIZE)}
+                  onPrevious={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+                  onNext={() => setOffset(offset + PAGE_SIZE)}
                 />
               </div>
             ) : undefined

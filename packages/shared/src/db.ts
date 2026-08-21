@@ -1,5 +1,6 @@
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
+import { CONFIG_DEFAULTS } from './constants.js'
 import * as schema from './schema.js'
 
 const { Pool } = pg
@@ -11,7 +12,10 @@ export type DbClient = {
   closePool(): Promise<void>
 }
 
-export function createDbClient(connectionString: string, maxPoolSize = 10): DbClient {
+export function createDbClient(
+  connectionString: string,
+  maxPoolSize: number = CONFIG_DEFAULTS.DB_POOL_MAX,
+): DbClient {
   let pool: pg.Pool | undefined
   let db: NodePgDatabase<typeof schema> | undefined
 
