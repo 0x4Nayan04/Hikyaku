@@ -17,15 +17,13 @@ import { DataPanel } from '@/components/console/DataPanel'
 import { PageBanner } from '@/components/console/PageBanner'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
-import { pageRange, shouldPaginate } from '@/components/console/pagination-utils'
+import { PAGE_SIZE, pageRange, shouldPaginate } from '@/components/console/pagination-utils'
 import { StatusBadge } from '@/components/console/StatusBadge'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { formatDateTime } from '@/lib/format'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { usePolling } from '@/hooks/usePolling'
 import { hasPendingEventWork } from '@/lib/polling-utils'
-
-const PAGE_SIZE = 25
 
 export function Events() {
   const navigate = useNavigate()

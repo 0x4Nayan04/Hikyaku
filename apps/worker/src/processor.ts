@@ -138,7 +138,7 @@ export function isRetryableHttpStatus(status: number): boolean {
 export type DeliveryTransportError =
   'timeout' | 'network_error' | 'blocked_url' | 'too_many_redirects'
 
-export function isTerminalTransportError(
+function isTerminalTransportError(
   error: DeliveryTransportError,
 ): error is 'blocked_url' | 'too_many_redirects' {
   return error === 'blocked_url' || error === 'too_many_redirects'

@@ -35,7 +35,7 @@ export function toDeliveryListJson(row: DeliveryRow) {
   }
 }
 
-export function toAttemptJson(row: AttemptRow) {
+function toAttemptJson(row: AttemptRow) {
   return {
     attempt_number: row.attemptNumber,
     http_status: row.httpStatus,

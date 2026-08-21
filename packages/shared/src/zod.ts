@@ -79,14 +79,14 @@ export const adminPatchTenantSchema = z.object({
 
 const optionalInviteNameSchema = userNameSchema.optional()
 
-export const adminCreateTenantOwnerInviteSchema = z.object({
+const adminCreateTenantOwnerInviteSchema = z.object({
   kind: z.literal('tenant_owner'),
   tenant_name: userNameSchema,
   owner_email: emailSchema,
   owner_name: optionalInviteNameSchema,
 })
 
-export const adminCreateTenantUserInviteSchema = z.object({
+const adminCreateTenantUserInviteSchema = z.object({
   kind: z.literal('tenant_user'),
   tenant_id: z.string().uuid(),
   email: emailSchema,

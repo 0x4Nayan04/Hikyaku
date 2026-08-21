@@ -2,9 +2,8 @@ import { endpoints } from '@webhook/shared/schema'
 import { and, eq } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type * as schema from '@webhook/shared/schema'
-import { createTtlCache } from './ttlCache.js'
+import { CACHE_TTL_MS, createTtlCache } from './ttlCache.js'
 
-const CACHE_TTL_MS = 30_000
 const cache = createTtlCache<string[]>(CACHE_TTL_MS)
 
 type DbExecutor = NodePgDatabase<typeof schema>

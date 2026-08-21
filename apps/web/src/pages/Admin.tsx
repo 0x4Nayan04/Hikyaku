@@ -6,12 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ConsolePage } from '@/components/console/ConsolePage'
 import { PageBanner } from '@/components/console/PageBanner'
+import { PAGE_SIZE } from '@/components/console/pagination-utils'
 import { InviteUrlDialog } from '@/components/invites/InviteUrlDialog'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { AdminInviteTenantDialog } from '@/pages/admin/AdminInviteTenantDialog'
 import { AdminTenantTable } from '@/pages/admin/AdminTenantTable'
-import { usePaginatedList } from '@/hooks/usePaginatedList'
-
-const PAGE_SIZE = 25
 
 export function Admin() {
   const [searchQuery, setSearchQuery] = useState('')

@@ -11,7 +11,10 @@ export function NotFound() {
   const homeLabel = session ? `Go to ${getHomeLabel(session.user).toLowerCase()}` : 'Sign in'
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background px-5 text-center">
+    <main
+      id="main-content"
+      className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background px-5 text-center"
+    >
       <HikyakuMark className="size-10" />
       <div>
         <h1 className="font-display text-4xl font-medium tracking-tight">Page not found</h1>
@@ -33,6 +36,6 @@ export function NotFound() {
           </Link>
         </Button>
       </div>
-    </div>
+    </main>
   )
 }

@@ -17,10 +17,6 @@ export function resolveGuestLandingPrimaryCta(
   return { label: 'Sign in', path: '/login' }
 }
 
-/** Soft hint after failed login — does not confirm whether the email exists. */
-export const LOGIN_PENDING_ACCESS_HINT =
-  'Waiting on access? Ask the platform admin for a tenant invite.'
-
 /** Password policy shown up front on the login form (no self-serve reset). */
 export const LOGIN_PASSWORD_RESET_HINT =
   'Ask a platform admin to delete your user and send a fresh invite. There is no self-serve or admin password reset.'

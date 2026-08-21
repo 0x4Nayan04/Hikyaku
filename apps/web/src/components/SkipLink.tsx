@@ -1,7 +1,6 @@
-/** Visually hidden until focused — first tab stop for keyboard users. */
-export function SkipLink({ href = '#main-content' }: { href?: string }) {
+export function SkipLink() {
   return (
-    <a href={href} className="skip-link focus-ring">
+    <a href="#main-content" className="sr-only focus-ring">
       Skip to content
     </a>
   )

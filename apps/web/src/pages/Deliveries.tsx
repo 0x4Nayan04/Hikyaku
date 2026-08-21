@@ -16,14 +16,12 @@ import { DataPanel } from '@/components/console/DataPanel'
 import { PageBanner } from '@/components/console/PageBanner'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
-import { pageRange, shouldPaginate } from '@/components/console/pagination-utils'
+import { PAGE_SIZE, pageRange, shouldPaginate } from '@/components/console/pagination-utils'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { LiveChip } from '@/components/console/LiveChip'
 import { usePolling } from '@/hooks/usePolling'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { hasActiveDeliveryWork } from '@/lib/polling-utils'
-
-const PAGE_SIZE = 25
 
 const STATUS_OPTIONS: Array<{ value: 'all' | DeliveryStatus; label: string }> = [
   { value: 'all', label: 'All statuses' },
