@@ -13,6 +13,8 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
+import type { DeliveryStatus, EndpointStatus, EventStatus } from './constants.js'
+
 export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
@@ -64,7 +66,7 @@ export const endpoints = pgTable(
     url: text('url').notNull(),
     secret: text('secret').notNull(),
     description: text('description'),
-    status: text('status').notNull().default('active'),
+    status: text('status').notNull().default('active').$type<EndpointStatus>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -83,7 +85,7 @@ export const events = pgTable(
     idempotencyKey: text('idempotency_key').notNull(),
     type: text('type').notNull(),
     payload: jsonb('payload').notNull(),
-    status: text('status').notNull().default('pending'),
+    status: text('status').notNull().default('pending').$type<EventStatus>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -106,8 +108,9 @@ export const deliveries = pgTable(
     endpointId: uuid('endpoint_id')
       .notNull()
       .references(() => endpoints.id, { onDelete: 'cascade' }),
-    status: text('status').notNull().default('pending'),
+    status: text('status').notNull().default('pending').$type<DeliveryStatus>(),
     attemptCount: integer('attempt_count').notNull().default(0),
+    replayCount: integer('replay_count').notNull().default(0),
     nextRetryAt: timestamp('next_retry_at', { withTimezone: true }),
     lastError: text('last_error'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -139,6 +142,21 @@ export const deliveries = pgTable(
   ],
 )
 
+/** Enqueue intent written in the same Postgres transaction as the delivery. */
+export const deliveryOutbox = pgTable(
+  'delivery_outbox',
+  {
+    deliveryId: uuid('delivery_id')
+      .primaryKey()
+      .references(() => deliveries.id, { onDelete: 'cascade' }),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('delivery_outbox_created_at_idx').on(t.createdAt)],
+)
+
 export const deliveryAttempts = pgTable(
   'delivery_attempts',
   {
@@ -147,6 +165,7 @@ export const deliveryAttempts = pgTable(
       .notNull()
       .references(() => deliveries.id, { onDelete: 'cascade' }),
     attemptNumber: integer('attempt_number').notNull(),
+    runNumber: integer('run_number').notNull().default(0),
     httpStatus: integer('http_status'),
     responseBody: text('response_body'),
     error: text('error'),
@@ -154,8 +173,9 @@ export const deliveryAttempts = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex('delivery_attempts_delivery_id_attempt_number_idx').on(
+    uniqueIndex('delivery_attempts_delivery_run_attempt_idx').on(
       t.deliveryId,
+      t.runNumber,
       t.attemptNumber,
     ),
   ],

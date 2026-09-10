@@ -5,7 +5,7 @@ import { BlockList, isIP } from 'node:net'
 export type WebhookUrlCheck = { ok: true } | { ok: false; reason: string }
 type ResolvedWebhookUrlCheck =
   | { ok: true; url: URL; addresses: LookupAddress[] }
-  | { ok: false; reason: string }
+  | { ok: false; reason: string; kind?: 'dns_error' }
 
 const BLOCKED_HOSTNAMES = new Set(['localhost', 'metadata.google.internal'])
 const BLOCKED_IPS = new BlockList()
@@ -71,6 +71,7 @@ async function lookupAddresses(host: string): Promise<LookupAddress[]> {
   if (cached && cached.expiresAt > now) return cached.addresses
 
   const records = await lookup(host, { all: true, verbatim: true })
+  if (records.length === 0) throw new Error('empty_dns_result')
   if (dnsCache.size >= DNS_CACHE_MAX) dnsCache.clear()
   dnsCache.set(host, { addresses: records, expiresAt: now + DNS_CACHE_TTL_MS })
   return records
@@ -115,7 +116,7 @@ export async function resolveWebhookUrl(
     }
     return { ok: true, url, addresses: records }
   } catch {
-    return { ok: false, reason: 'URL hostname could not be resolved' }
+    return { ok: false, kind: 'dns_error', reason: 'URL hostname could not be resolved' }
   }
 }
 

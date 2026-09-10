@@ -1,4 +1,6 @@
-export const QUEUE_NAME = 'webhook-deliveries'
+export const QUEUE_NAME = process.env.NODE_ENV === 'test' && process.env.TEST_RUN_ID
+  ? `webhook-deliveries-test-${process.env.TEST_RUN_ID}`
+  : 'webhook-deliveries'
 export const JOB_NAME = 'deliver'
 
 export type DeliveryJobData = {
@@ -37,7 +39,7 @@ export const DELIVERY_JOB_OPTIONS = {
   removeOnFail: { age: 3600, count: 1000 },
 }
 
-export const EVENT_STATUSES = ['pending', 'completed', 'failed'] as const
+export const EVENT_STATUSES = ['pending', 'completed', 'partial_failure', 'failed', 'no_recipients'] as const
 export type EventStatus = (typeof EVENT_STATUSES)[number]
 
 export const DELIVERY_STATUSES = ['pending', 'in_progress', 'succeeded', 'failed'] as const

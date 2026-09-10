@@ -125,3 +125,20 @@ describe('resolveWebhookUrl DNS cache', () => {
     ])
   })
 })
+
+// Resolver errors must remain distinguishable from policy violations.
+describe('DNS failures', () => {
+  it('does not cache lookup errors and succeeds after recovery', async () => {
+    const url = `https://${crypto.randomUUID()}.example/hook`
+    vi.mocked(lookup).mockRejectedValueOnce(Object.assign(new Error('temporary'), { code: 'EAI_AGAIN' }))
+    await expect(resolveWebhookUrl(url)).resolves.toMatchObject({ ok: false, kind: 'dns_error' })
+    await expect(resolveWebhookUrl(url)).resolves.toMatchObject({ ok: true })
+  })
+
+  it('rejects unresolved URLs at creation and treats empty results as DNS errors', async () => {
+    vi.mocked(lookup).mockResolvedValueOnce([])
+    await expect(checkWebhookUrl(`https://${crypto.randomUUID()}.example`)).resolves.toMatchObject({ ok: false })
+    vi.mocked(lookup).mockResolvedValueOnce([])
+    await expect(resolveWebhookUrl(`https://${crypto.randomUUID()}.example`)).resolves.toMatchObject({ ok: false, kind: 'dns_error' })
+  })
+})
