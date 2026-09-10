@@ -1,5 +1,3 @@
-'use client'
-
 import * as React from 'react'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 
@@ -72,14 +70,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-function DialogFooter({
-  className,
-  showCloseButton = false,
-  children,
-  ...props
-}: React.ComponentProps<'div'> & {
-  showCloseButton?: boolean
-}) {
+function DialogFooter({ className, children, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="dialog-footer"
@@ -90,16 +81,6 @@ function DialogFooter({
       {...props}
     >
       {children}
-      {showCloseButton && (
-        <DialogPrimitive.Close asChild>
-          <button
-            type="button"
-            className="sm-btn catalog-focus h-auto min-h-[var(--form-h)] sm-btn-secondary"
-          >
-            Close
-          </button>
-        </DialogPrimitive.Close>
-      )}
     </div>
   )
 }

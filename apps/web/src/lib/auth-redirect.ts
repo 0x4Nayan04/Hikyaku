@@ -23,16 +23,16 @@ function isTenantOnlyPath(pathname: string): boolean {
   return true
 }
 
-export function getDefaultHomePath(user: Pick<User, 'is_super_admin'>): string {
-  return user.is_super_admin ? ADMIN_HOME : TENANT_HOME
+export function getDefaultHomePath(user: Pick<User, 'is_super_admin' | 'tenant_id'>): string {
+  return user.is_super_admin && !user.tenant_id ? ADMIN_HOME : TENANT_HOME
 }
 
 /** CTA label for the role home (Dashboard vs Admin). */
-export function getHomeLabel(user: Pick<User, 'is_super_admin'>): string {
-  return user.is_super_admin ? 'Admin' : 'Dashboard'
+export function getHomeLabel(user: Pick<User, 'is_super_admin' | 'tenant_id'>): string {
+  return user.is_super_admin && !user.tenant_id ? 'Admin' : 'Dashboard'
 }
 
-export function getPostLoginPath(state: unknown, user: Pick<User, 'is_super_admin'>): string {
+export function getPostLoginPath(state: unknown, user: Pick<User, 'is_super_admin' | 'tenant_id'>): string {
   const locationState = state as LoginLocationState | null
   const pathname = locationState?.from?.pathname
 
@@ -40,7 +40,7 @@ export function getPostLoginPath(state: unknown, user: Pick<User, 'is_super_admi
     return getDefaultHomePath(user)
   }
 
-  if (user.is_super_admin && isTenantOnlyPath(pathname)) {
+  if (user.is_super_admin && !user.tenant_id && isTenantOnlyPath(pathname)) {
     return ADMIN_HOME
   }
 

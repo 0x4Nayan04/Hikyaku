@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
 import { useSession } from '@/providers/session-context'
 
-export function NotFound() {
+export default function NotFound() {
   const { session } = useSession()
   const homePath = session ? getDefaultHomePath(session.user) : '/login'
   const homeLabel = session ? `Go to ${getHomeLabel(session.user).toLowerCase()}` : 'Sign in'

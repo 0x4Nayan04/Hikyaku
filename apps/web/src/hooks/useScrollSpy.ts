@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react'
 
-type UseScrollSpyOptions = {
-  rootMarginTop?: number
-}
-
 function getNavHeight(): number {
-  if (typeof document === 'undefined') return 64
   const raw = getComputedStyle(document.documentElement).getPropertyValue('--nav-height').trim()
   if (!raw) return 64
   const num = parseFloat(raw)
@@ -15,14 +10,14 @@ function getNavHeight(): number {
   return num
 }
 
-export function useScrollSpy(sectionIds: string[], options: UseScrollSpyOptions = {}) {
-  const { rootMarginTop = getNavHeight() } = options
+export function useScrollSpy(sectionIds: string[]) {
   const [activeId, setActiveId] = useState<string | null>(null)
 
   useEffect(() => {
     if (sectionIds.length === 0) return
 
     const ratios = new Map<string, number>()
+    const rootMarginTop = getNavHeight()
 
     const pickActive = () => {
       let bestId: string | null = null
@@ -61,7 +56,7 @@ export function useScrollSpy(sectionIds: string[], options: UseScrollSpyOptions 
     }
 
     return () => observer.disconnect()
-  }, [sectionIds, rootMarginTop])
+  }, [sectionIds])
 
   return activeId
 }

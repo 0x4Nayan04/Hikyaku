@@ -1,24 +1,15 @@
 import { Link } from 'react-router-dom'
 import { Activity, ArrowRight, ChevronRight, Package, RefreshCw, Send } from 'lucide-react'
+import type { DeliveryStatus, EventStatus } from '@/api/types'
 import { DataPanel } from '@/components/console/DataPanel'
-import { formatStatusLabel } from '@/lib/format'
+import { formatCreatedStacked, formatDateTime, formatStatusLabel } from '@/lib/format'
 import { cn } from '@/lib/utils'
-
-const fullFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
-
-const timeFormatter = new Intl.DateTimeFormat(undefined, {
-  hour: '2-digit',
-  minute: '2-digit',
-})
 
 export type ActivityItem = {
   id: string
   kind: 'event' | 'delivery'
   eventType: string
-  status: string
+  status: EventStatus | DeliveryStatus
   to: string
   createdAt: string
   attemptCount?: number
@@ -31,19 +22,11 @@ type RecentActivityProps = {
   onRefresh: () => void
 }
 
-function formatFull(iso: string): string {
-  return fullFormatter.format(new Date(iso))
-}
-
-function formatTime(iso: string): string {
-  return timeFormatter.format(new Date(iso))
-}
-
 function formatActivityMeta(item: ActivityItem): string {
   const parts = [
     item.kind === 'event' ? 'Event' : 'Delivery',
     formatStatusLabel(item.status),
-    formatFull(item.createdAt),
+    formatDateTime(item.createdAt),
   ]
 
   if (item.attemptCount != null) {
@@ -111,7 +94,7 @@ function ActivityFooter({
             </span>
           </>
         ) : null}
-        Last updated {formatTime(lastUpdated)}
+        Last updated {formatCreatedStacked(lastUpdated).time}
       </p>
     </div>
   )

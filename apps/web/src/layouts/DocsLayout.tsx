@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { ArrowUp } from 'lucide-react'
 
@@ -14,10 +14,7 @@ export function DocsLayout() {
   const bodyRef = useRef<HTMLDivElement>(null)
   const [showBackToTop, setShowBackToTop] = useState(false)
   const hash = location.hash.slice(1)
-  const currentSection = useMemo(
-    () => DOCS_TOC.find((item) => item.id === hash) ?? null,
-    [hash],
-  )
+  const currentSection = DOCS_TOC.find((item) => item.id === hash) ?? null
 
   useEffect(() => {
     const body = bodyRef.current
@@ -42,11 +39,11 @@ export function DocsLayout() {
     return () => body.removeEventListener('scroll', onScroll)
   }, [])
 
-  const scrollToTop = useCallback(() => {
+  function scrollToTop() {
     const body = bodyRef.current
     if (!body) return
     body.scrollTo({ top: 0, behavior: 'auto' })
-  }, [])
+  }
 
   return (
     <div className="docs-shell landing-page flex h-dvh flex-col overflow-hidden">

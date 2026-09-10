@@ -46,7 +46,7 @@ const MAPPING = [
   },
 ] as const
 
-export function Name() {
+export default function Name() {
   const navigate = useNavigate()
   const { session } = useSession()
 

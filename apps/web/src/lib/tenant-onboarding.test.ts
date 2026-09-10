@@ -5,13 +5,11 @@ describe('buildOnboardingSteps', () => {
   it('marks every step from real state', () => {
     const steps = buildOnboardingSteps({
       hasEndpoint: true,
-      hasApiKey: false,
       hasTestEvent: true,
       hasDeliveries: true,
     })
     expect(steps.map((step) => [step.id, step.done])).toEqual([
       ['endpoint', true],
-      ['api_key', false],
       ['test_event', true],
       ['deliveries', true],
     ])

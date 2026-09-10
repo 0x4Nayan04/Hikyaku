@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   Check,
   ChevronRight,
-  KeyRound,
   Package,
   PowerOff,
   Send,
@@ -14,7 +13,6 @@ import {
 import {
   ApiError,
   getStats,
-  listApiKeys,
   listDeliveries,
   listEndpoints,
   listEvents,
@@ -29,15 +27,13 @@ import { LiveMetrics } from '@/components/console/LiveMetrics'
 import { RecentActivity, type ActivityItem } from '@/components/console/RecentActivity'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePolling } from '@/hooks/usePolling'
-import { formatPercent } from '@/lib/format'
+import { formatPercent, formatStatusLabel } from '@/lib/format'
 import {
   buildOnboardingSteps,
   type OnboardingStep,
   type OnboardingStepId,
 } from '@/lib/tenant-onboarding'
 import { cn } from '@/lib/utils'
-
-type ActivityPreview = ActivityItem
 
 function isAbortError(err: unknown): boolean {
   return err instanceof Error && err.name === 'AbortError'
@@ -63,7 +59,7 @@ type AttentionItem = {
 
 export function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
-  const [activity, setActivity] = useState<ActivityPreview[]>([])
+  const [activity, setActivity] = useState<ActivityItem[]>([])
   const [attention, setAttention] = useState<AttentionItem[]>([])
   const [onboarding, setOnboarding] = useState<OnboardingStep[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -89,13 +85,9 @@ export function Dashboard() {
       let nextOnboarding: OnboardingStep[] | null = null
       if (!hasDashboardData(data)) {
         try {
-          const [activeEndpoints, keys] = await Promise.all([
-            listEndpoints({ status: 'active', limit: 1 }, { signal }),
-            listApiKeys({ status: 'active', limit: 1 }, { signal }),
-          ])
+          const activeEndpoints = await listEndpoints({ status: 'active', limit: 1 }, { signal })
           nextOnboarding = buildOnboardingSteps({
             hasEndpoint: activeEndpoints.data.length > 0,
-            hasApiKey: keys.data.length > 0,
             hasTestEvent: eventsResult.data.length > 0,
             hasDeliveries: deliveriesResult.data.length > 0,
           })
@@ -103,7 +95,6 @@ export function Dashboard() {
           if (isAbortError(err)) throw err
           nextOnboarding = buildOnboardingSteps({
             hasEndpoint: false,
-            hasApiKey: false,
             hasTestEvent: eventsResult.data.length > 0,
             hasDeliveries: deliveriesResult.data.length > 0,
           })
@@ -112,7 +103,7 @@ export function Dashboard() {
 
       if (signal.aborted) return
 
-      const merged: ActivityPreview[] = [
+      const merged: ActivityItem[] = [
         ...eventsResult.data.map((event) => ({
           id: `event-${event.id}`,
           kind: 'event' as const,
@@ -124,7 +115,7 @@ export function Dashboard() {
         ...deliveriesResult.data.map((delivery) => ({
           id: `delivery-${delivery.id}`,
           kind: 'delivery' as const,
-          eventType: `Delivery ${delivery.status.replace('_', ' ')}`,
+          eventType: `Delivery ${formatStatusLabel(delivery.status)}`,
           status: delivery.status,
           to: `/deliveries/${delivery.id}`,
           createdAt: delivery.created_at,
@@ -208,6 +199,8 @@ export function Dashboard() {
     </ConsolePage>
   )
 }
+
+export default Dashboard
 
 function buildAttentionItems(stats: Stats, disabledCount: number): AttentionItem[] {
   const items: AttentionItem[] = []
@@ -295,7 +288,7 @@ function OutcomesPanel({ stats }: { stats: Stats }) {
       hint: 'Rolling 24-hour delivery success',
       value: formatPercent(stats.success_rate_24h, 'No data yet'),
       primary: true,
-      to: null as string | null,
+      to: null,
     },
     {
       label: 'Succeeded',
@@ -363,14 +356,9 @@ const onboardingStepMeta: Record<
     hint: 'Receiver URL and signing secret',
     tone: 'neutral',
   },
-  api_key: {
-    icon: KeyRound,
-    hint: 'Bearer auth for ingest API',
-    tone: 'neutral',
-  },
   test_event: {
     icon: Send,
-    hint: 'Dev tools · non-prod smoke test',
+    hint: 'Dev tools · send a real sample webhook',
     tone: 'info',
   },
   deliveries: {

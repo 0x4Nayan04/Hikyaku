@@ -84,7 +84,7 @@ function eventFormReducer(state: EventFormState, action: EventFormAction): Event
   return action.type === 'reset' ? createInitialFormState() : { ...state, ...action.changes }
 }
 
-export function SendEvent() {
+export default function SendEvent() {
   const [gate, setGate] = useState<EndpointGate>({ status: 'loading' })
   const [form, dispatch] = useReducer(eventFormReducer, undefined, createInitialFormState)
 
@@ -147,7 +147,7 @@ export function SendEvent() {
       title="Test event"
       description={
         <>
-          Non-prod smoke test for this tenant.{' '}
+          Sends a real webhook to the active endpoints in this workspace.{' '}
           <Link to="/docs#ingest" className="font-medium text-primary hover:underline">
             Ingest docs
           </Link>
@@ -183,7 +183,7 @@ export function SendEvent() {
                   <Link to="/endpoints" className="font-medium text-primary hover:underline">
                     Create an endpoint
                   </Link>
-                  , then come back to smoke-test.
+                  , then send your sample event.
                 </>
               }
             />

@@ -69,14 +69,16 @@ function AttemptTimelineItem({ attempt }: { attempt: DeliveryAttempt }) {
         </div>
       </div>
 
-      {attempt.error ? <p className="mt-3 text-sm text-destructive">{attempt.error}</p> : null}
+      {attempt.error ? (
+        <p className="mt-3 text-sm text-destructive">{formatDeliveryError(attempt.error)}</p>
+      ) : null}
 
       {attempt.response_body ? <AttemptResponseBody body={attempt.response_body} /> : null}
     </div>
   )
 }
 
-export function DeliveryDetail() {
+export default function DeliveryDetail() {
   const { id } = useParams<{ id: string }>()
   const [replayOpen, setReplayOpen] = useState(false)
   const [replaying, setReplaying] = useState(false)
@@ -101,11 +103,11 @@ export function DeliveryDetail() {
     try {
       await replayDelivery(id)
       setReplayOpen(false)
-      setReplaying(false)
       toast.success('Delivery replay queued')
       await reload()
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Failed to replay delivery')
+    } finally {
       setReplaying(false)
     }
   }
@@ -208,8 +210,11 @@ export function DeliveryDetail() {
               </FormPanel>
             ) : (
               <ol className="mt-3 flex flex-col gap-3">
-                {delivery.attempts.map((attempt) => (
-                  <li key={attempt.attempt_number}>
+                {delivery.attempts.map((attempt, index) => (
+                  <li key={`${attempt.run_number}-${attempt.attempt_number}`}>
+                    {(index === 0 || delivery.attempts[index - 1].run_number !== attempt.run_number) && (
+                      <h3 className="mb-3 text-sm font-semibold">{attempt.run_number === 0 ? 'Original delivery' : `Replay ${attempt.run_number}`}</h3>
+                    )}
                     <AttemptTimelineItem attempt={attempt} />
                   </li>
                 ))}
@@ -224,8 +229,8 @@ export function DeliveryDetail() {
           <DialogHeader>
             <DialogTitle>Replay delivery</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              This resets the delivery to pending, clears prior attempt history and the terminal
-              error, and re-enqueues a new worker job.
+              This starts a new delivery run, preserves prior attempt history, and clears the terminal
+              error before scheduling delivery again.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

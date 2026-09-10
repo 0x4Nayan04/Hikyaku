@@ -8,7 +8,7 @@ import { ScrollToTop } from '@/components/console/ScrollToTop'
 import { useSession } from '@/providers/session-context'
 import '@/styles/console-bridge.css'
 
-export function ConsoleLayout() {
+export default function ConsoleLayout() {
   const mainRef = useRef<HTMLElement>(null)
   const { session, loading } = useSession()
   const isSuperAdmin = session?.user.is_super_admin ?? false

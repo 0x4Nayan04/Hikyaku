@@ -19,11 +19,11 @@ function workspaceInitials(name: string): string {
 }
 
 export function AppAside({ session, loading, isSuperAdmin, className }: AppAsideProps) {
-  const workspaceLabel = isSuperAdmin
+  const workspaceLabel = isSuperAdmin && !session?.tenant
     ? APP_NAME
     : (session?.tenant?.name ?? (loading ? 'Loading…' : 'Workspace'))
 
-  const contextLabel = isSuperAdmin ? 'Platform' : 'Workspace'
+  const contextLabel = isSuperAdmin && !session?.tenant ? 'Platform' : 'Workspace'
 
   return (
     <aside className={cn('app-aside', className)}>
@@ -44,7 +44,7 @@ export function AppAside({ session, loading, isSuperAdmin, className }: AppAside
       </div>
 
       <div className="app-aside-inner">
-        <AppNav isSuperAdmin={isSuperAdmin} />
+        <AppNav hasWorkspace={!!session?.tenant} isSuperAdmin={isSuperAdmin} />
       </div>
 
       <div className="app-aside-nav-footer">

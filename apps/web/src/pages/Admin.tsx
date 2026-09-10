@@ -1,6 +1,8 @@
+import { useNavigate } from 'react-router-dom'
+import { useSession } from '@/providers/session-context'
 import { useState } from 'react'
 import { Link2, Search } from 'lucide-react'
-import { listAdminTenants } from '@/api/client'
+import { ApiError, createMyWorkspace, listAdminTenants } from '@/api/client'
 import type { AdminTenant } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,7 +14,12 @@ import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { AdminInviteTenantDialog } from '@/pages/admin/AdminInviteTenantDialog'
 import { AdminTenantTable } from '@/pages/admin/AdminTenantTable'
 
-export function Admin() {
+export default function Admin() {
+  const { session, refresh } = useSession()
+  const navigate = useNavigate()
+  const [workspaceName, setWorkspaceName] = useState('My workspace')
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false)
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteResult, setInviteResult] = useState<{
@@ -65,6 +72,28 @@ export function Admin() {
         </div>
       }
     >
+      {!session?.tenant && (
+        <form className="mb-6 flex flex-col gap-3" onSubmit={async (event) => {
+          event.preventDefault()
+          setCreatingWorkspace(true)
+          setWorkspaceError(null)
+          try {
+            await createMyWorkspace(workspaceName)
+            await refresh()
+            navigate('/dashboard')
+          } catch (err) {
+            setWorkspaceError(err instanceof ApiError ? err.message : 'Could not create workspace. Try again.')
+          } finally {
+            setCreatingWorkspace(false)
+          }
+        }}>
+          <h2 className="text-lg font-semibold">Send your first webhook</h2>
+          <label htmlFor="workspace-name">Workspace name</label>
+          <Input id="workspace-name" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} maxLength={200} required />
+          {workspaceError && <PageBanner variant="error" title="Workspace setup failed" description={workspaceError} />}
+          <Button type="submit" disabled={creatingWorkspace}>{creatingWorkspace ? 'Creating…' : 'Create my workspace'}</Button>
+        </form>
+      )}
       {error ? (
         <PageBanner variant="error" title="Could not load tenants" description={error} />
       ) : null}

@@ -1,24 +1,33 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Link2 } from 'lucide-react'
-import { ApiError, getAdminTenant, listTenantUsers } from '@/api/client'
+import { getAdminTenant, listTenantUsers } from '@/api/client'
 import type { AdminTenant, User } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { ConsolePage } from '@/components/console/ConsolePage'
 import { PageBanner } from '@/components/console/PageBanner'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PAGE_SIZE } from '@/components/console/pagination-utils'
+import { InviteUrlDialog } from '@/components/invites/InviteUrlDialog'
+import { useDetailFetch } from '@/hooks/useDetailFetch'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { formatDateTime } from '@/lib/format'
 import { TenantAdminDetails } from '@/pages/tenant-admin/TenantAdminDetails'
 import { TenantAdminInviteUserDialog } from '@/pages/tenant-admin/TenantAdminInviteUserDialog'
 
-export function TenantAdmin() {
+export default function TenantAdmin() {
   const { id } = useParams<{ id: string }>()
-  const [tenant, setTenant] = useState<AdminTenant | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: tenant, loading, error } = useDetailFetch<AdminTenant>({
+    id,
+    fetchDetail: getAdminTenant,
+    missingError: 'Tenant ID is missing',
+    fallbackError: 'Failed to load tenant',
+  })
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [inviteResult, setInviteResult] = useState<{
+    inviteUrl: string
+    expiresAt: string
+  } | null>(null)
   const {
     data: users,
     hasMore: usersHasMore,
@@ -37,33 +46,6 @@ export function TenantAdmin() {
     fallbackError: 'Failed to load tenant users',
     queryKey: id,
   })
-
-  useEffect(() => {
-    if (!id) {
-      setError('Tenant ID is missing')
-      setLoading(false)
-      return
-    }
-
-    let cancelled = false
-    getAdminTenant(id)
-      .then((tenantResult) => {
-        if (cancelled) return
-        setTenant(tenantResult)
-        setError(null)
-      })
-      .catch((err) => {
-        if (cancelled) return
-        setError(err instanceof ApiError ? err.message : 'Failed to load tenant')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [id])
 
   return (
     <ConsolePage
@@ -119,8 +101,18 @@ export function TenantAdmin() {
           tenantName={tenant.name}
           open={inviteOpen}
           onOpenChange={setInviteOpen}
+          onInvited={setInviteResult}
         />
       ) : null}
+
+      <InviteUrlDialog
+        open={inviteResult !== null}
+        inviteUrl={inviteResult?.inviteUrl ?? null}
+        expiresAt={inviteResult?.expiresAt ?? null}
+        onOpenChange={(open) => {
+          if (!open) setInviteResult(null)
+        }}
+      />
     </ConsolePage>
   )
 }

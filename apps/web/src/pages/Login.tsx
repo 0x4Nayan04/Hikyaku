@@ -14,7 +14,6 @@ import {
   type LoginBannerKind,
 } from '@/lib/auth-first-run'
 import { getPostLoginPath } from '@/lib/auth-redirect'
-import { APP_NAME } from '@/lib/app-meta'
 import { loadBootstrapStatus, readBootstrapStatusCache } from '@/lib/bootstrap-status'
 import { useSession } from '@/providers/session-context'
 
@@ -23,7 +22,7 @@ type LoginLocationState = {
   banner?: LoginBannerKind
 }
 
-export function Login() {
+export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const { session, loading, refresh } = useSession()
@@ -87,8 +86,6 @@ export function Login() {
     <AuthLayout
       variant="split"
       eyebrow="Sign in"
-      title="Sign in"
-      description={`Sign in to your ${APP_NAME} workspace or platform admin account.`}
       sidePanel={
         <div className="flex flex-col gap-6 h-full">
           <div className="flex flex-col gap-6 flex-1">

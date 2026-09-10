@@ -7,7 +7,6 @@ type HikyakuMarkProps = {
   decorative?: boolean
 }
 
-/** Brand mark — navy seal with white H and red accent. */
 export function HikyakuMark({ className, decorative = false }: HikyakuMarkProps) {
   return (
     <picture className={cn('inline-block shrink-0 leading-none', className)}>

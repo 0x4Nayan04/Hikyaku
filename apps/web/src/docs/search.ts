@@ -6,7 +6,6 @@ export type DocsSearchEntry = {
   label: string
 }
 
-/** Headings (h2/h3) from the docs guide — used for client-side search. */
 export function buildDocsSearchIndex(): DocsSearchEntry[] {
   const entries = [...searchIndex]
   const seen = new Set(entries.map((entry) => entry.id))

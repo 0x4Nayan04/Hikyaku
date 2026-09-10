@@ -24,20 +24,19 @@ export type AppNavSection = {
   items: AppNavItem[]
 }
 
-export function filterNavSections(isSuperAdmin: boolean): AppNavSection[] {
+export function filterNavSections(isSuperAdmin: boolean, hasWorkspace = !isSuperAdmin): AppNavSection[] {
   return appNavSections
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
         if (item.superAdminOnly && !isSuperAdmin) return false
-        if (item.tenantOnly && isSuperAdmin) return false
+        if (item.tenantOnly && !hasWorkspace) return false
         return true
       }),
     }))
     .filter((section) => section.items.length > 0)
 }
 
-/** Whether a nav item should appear active for the current pathname. */
 export function isNavItemActive(
   pathname: string,
   item: AppNavItem,
@@ -105,7 +104,7 @@ const appNavSections: AppNavSection[] = [
         title: 'Test event',
         to: '/events/send',
         icon: Send,
-        description: 'Non-prod smoke test',
+        description: 'Send a real sample webhook',
         tenantOnly: true,
       },
     ],

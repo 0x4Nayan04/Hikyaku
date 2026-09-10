@@ -2,14 +2,12 @@ import { useEffect, useRef } from 'react'
 
 type FocusTrapOptions = {
   onEscape?: () => void
-  restoreFocus?: boolean
 }
 
 export function useFocusTrap(isActive: boolean, options: FocusTrapOptions = {}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const previousFocusRef = useRef<Element | null>(null)
   const onEscapeRef = useRef(options.onEscape)
-  const restoreFocus = options.restoreFocus ?? true
 
   useEffect(() => {
     onEscapeRef.current = options.onEscape
@@ -52,11 +50,11 @@ export function useFocusTrap(isActive: boolean, options: FocusTrapOptions = {}) 
 
     return () => {
       container.removeEventListener('keydown', handleKeyDown)
-      if (restoreFocus && previousFocusRef.current instanceof HTMLElement) {
+      if (previousFocusRef.current instanceof HTMLElement) {
         previousFocusRef.current.focus()
       }
     }
-  }, [isActive, restoreFocus])
+  }, [isActive])
 
   return containerRef
 }

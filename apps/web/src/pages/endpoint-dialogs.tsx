@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { ApiError, createEndpoint, patchEndpoint } from '@/api/client'
 import type { Endpoint, EndpointWithSecret } from '@/api/types'
 import { PageBanner } from '@/components/console/PageBanner'
 import { SendEventField } from '@/components/console/SendEventField'
@@ -14,47 +15,94 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { SecretOnceConfirm } from '@/components/ui/secret-once-confirm'
+import { toast } from '@/lib/toast'
 
 type EndpointDialogsProps = {
   createOpen: boolean
   onCreateOpenChange: (open: boolean) => void
-  url: string
-  onUrlChange: (value: string) => void
-  description: string
-  onDescriptionChange: (value: string) => void
-  submitting: boolean
-  onCreate: (event: FormEvent<HTMLFormElement>) => void
   editTarget: Endpoint | null
-  editDescription: string
-  onEditDescriptionChange: (value: string) => void
-  editSubmitting: boolean
-  onEdit: (event: FormEvent<HTMLFormElement>) => void
-  onEditClose: () => void
-  secretEndpoint: EndpointWithSecret | null
-  onSecretEndpointChange: (endpoint: EndpointWithSecret | null) => void
+  onEditTargetChange: (endpoint: Endpoint | null) => void
+  onChanged: () => Promise<unknown>
 }
 
 export function EndpointDialogs({
   createOpen,
   onCreateOpenChange,
-  url,
-  onUrlChange,
-  description,
-  onDescriptionChange,
-  submitting,
-  onCreate,
   editTarget,
-  editDescription,
-  onEditDescriptionChange,
-  editSubmitting,
-  onEdit,
-  onEditClose,
-  secretEndpoint,
-  onSecretEndpointChange,
+  onEditTargetChange,
+  onChanged,
 }: EndpointDialogsProps) {
+  const [url, setUrl] = useState('')
+  const [description, setDescription] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [editDescription, setEditDescription] = useState('')
+  const [editSubmitting, setEditSubmitting] = useState(false)
+  const [secretEndpoint, setSecretEndpoint] = useState<EndpointWithSecret | null>(null)
+
+  useEffect(() => {
+    if (editTarget) {
+      setEditDescription(editTarget.description ?? '')
+      setEditSubmitting(false)
+    }
+  }, [editTarget])
+
+  function handleCreateOpenChange(open: boolean) {
+    onCreateOpenChange(open)
+    if (!open) {
+      setUrl('')
+      setDescription('')
+    }
+  }
+
+  function handleEditClose() {
+    onEditTargetChange(null)
+    setEditDescription('')
+    setEditSubmitting(false)
+  }
+
+  async function handleCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setSubmitting(true)
+
+    try {
+      const created = await createEndpoint({
+        url,
+        description: description.trim() || undefined,
+      })
+      handleCreateOpenChange(false)
+      setSecretEndpoint(created)
+      await onChanged()
+      toast.success('Endpoint created')
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Failed to create endpoint')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!editTarget) return
+
+    setEditSubmitting(true)
+
+    try {
+      await patchEndpoint(editTarget.id, {
+        description: editDescription.trim(),
+      })
+      handleEditClose()
+      await onChanged()
+      toast.success('Endpoint updated')
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Failed to update endpoint')
+    } finally {
+      setEditSubmitting(false)
+    }
+  }
+
   return (
     <>
-      <Dialog open={createOpen} onOpenChange={onCreateOpenChange}>
+      <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
         <DialogContent className="gap-0 p-0 sm:max-w-md">
           <div className="catalog-dialog-secret px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))] pb-4">
             <DialogHeader className="gap-1.5 text-left">
@@ -66,7 +114,7 @@ export function EndpointDialogs({
             <form
               id="create-endpoint-form"
               className="mt-4 flex flex-col gap-4"
-              onSubmit={onCreate}
+              onSubmit={handleCreate}
             >
               <SendEventField
                 id="endpoint-url"
@@ -79,7 +127,7 @@ export function EndpointDialogs({
                   type="url"
                   placeholder="https://example.com/webhooks"
                   value={url}
-                  onChange={(event) => onUrlChange(event.target.value)}
+                  onChange={(event) => setUrl(event.target.value)}
                   autoFocus
                   required
                 />
@@ -94,7 +142,7 @@ export function EndpointDialogs({
                   id="endpoint-description"
                   placeholder="e.g. Production"
                   value={description}
-                  onChange={(event) => onDescriptionChange(event.target.value)}
+                  onChange={(event) => setDescription(event.target.value)}
                 />
               </SendEventField>
             </form>
@@ -104,7 +152,7 @@ export function EndpointDialogs({
               size="sm"
               type="button"
               variant="secondary"
-              onClick={() => onCreateOpenChange(false)}
+              onClick={() => handleCreateOpenChange(false)}
               disabled={submitting}
             >
               Cancel
@@ -118,7 +166,7 @@ export function EndpointDialogs({
 
       <Dialog
         open={editTarget !== null}
-        onOpenChange={(open) => !open && !editSubmitting && onEditClose()}
+        onOpenChange={(open) => !open && !editSubmitting && handleEditClose()}
       >
         <DialogContent className="gap-0 p-0 sm:max-w-md">
           <div className="catalog-dialog-secret px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))] pb-4">
@@ -129,7 +177,11 @@ export function EndpointDialogs({
               </DialogDescription>
             </DialogHeader>
             {editTarget ? (
-              <form id="edit-endpoint-form" className="mt-4 flex flex-col gap-4" onSubmit={onEdit}>
+              <form
+                id="edit-endpoint-form"
+                className="mt-4 flex flex-col gap-4"
+                onSubmit={handleEdit}
+              >
                 <SendEventField
                   id="edit-endpoint-url"
                   label="URL"
@@ -150,7 +202,7 @@ export function EndpointDialogs({
                     id="edit-endpoint-description"
                     placeholder="e.g. Production"
                     value={editDescription}
-                    onChange={(event) => onEditDescriptionChange(event.target.value)}
+                    onChange={(event) => setEditDescription(event.target.value)}
                     autoFocus
                   />
                 </SendEventField>
@@ -162,7 +214,7 @@ export function EndpointDialogs({
               size="sm"
               type="button"
               variant="secondary"
-              onClick={onEditClose}
+              onClick={handleEditClose}
               disabled={editSubmitting}
             >
               Cancel
@@ -176,12 +228,11 @@ export function EndpointDialogs({
 
       <SecretEndpointDialog
         secretEndpoint={secretEndpoint}
-        onSecretEndpointChange={onSecretEndpointChange}
+        onSecretEndpointChange={setSecretEndpoint}
       />
     </>
   )
 }
-
 
 function SecretEndpointDialog({
   secretEndpoint,

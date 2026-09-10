@@ -5,14 +5,15 @@ import { markNavDescriptionsSeen, shouldShowNavDescriptions } from '@/lib/nav-de
 import { cn } from '@/lib/utils'
 
 type AppNavProps = {
+  hasWorkspace?: boolean
   isSuperAdmin: boolean
   onNavigate?: () => void
   variant?: 'sidebar' | 'mobile'
 }
 
-export function AppNav({ isSuperAdmin, onNavigate, variant = 'sidebar' }: AppNavProps) {
+export function AppNav({ isSuperAdmin, hasWorkspace, onNavigate, variant = 'sidebar' }: AppNavProps) {
   const location = useLocation()
-  const sections = filterNavSections(isSuperAdmin)
+  const sections = filterNavSections(isSuperAdmin, hasWorkspace)
   const allItems = sections.flatMap((section) => section.items)
   const isMobile = variant === 'mobile'
   // Show subtitles for this first visit; hide on later sessions.

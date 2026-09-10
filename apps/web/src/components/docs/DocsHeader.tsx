@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react'
+import { memo } from 'react'
 import { LayoutDashboard } from 'lucide-react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 
@@ -12,13 +12,13 @@ export const DocsHeader = memo(function DocsHeader() {
   const navigate = useNavigate()
   const { session } = useSession()
 
-  const goDashboard = useCallback(() => {
+  function goDashboard() {
     if (session) {
       navigate(getDefaultHomePath(session.user))
       return
     }
     navigate('/login')
-  }, [navigate, session])
+  }
 
   return (
     <header className="docs-header">

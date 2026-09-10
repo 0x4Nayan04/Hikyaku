@@ -9,7 +9,7 @@ import { useSession } from '@/providers/session-context'
 export function RequireTenantUser() {
   const { session, loading } = useSession()
 
-  if (!loading && session?.user.is_super_admin) {
+  if (!loading && session?.user.is_super_admin && !session.tenant) {
     return <Navigate to={getDefaultHomePath(session.user)} replace />
   }
 
