@@ -1,11 +1,7 @@
-import { execSync } from 'node:child_process'
-import { resolve } from 'node:path'
-import { config as loadEnv } from 'dotenv'
-
-loadEnv({ path: resolve(process.cwd(), '.env') })
-
-const API_BASE = process.env.API_URL ?? 'http://localhost:3000'
-const ADMIN_SECRET = process.env.ADMIN_BOOTSTRAP_SECRET ?? 'change-me-in-production'
+import { configureTestEnvironment } from '../../packages/shared/src/testEnv'
+configureTestEnvironment()
+const API_BASE = 'http://localhost:3101'
+const ADMIN_SECRET = process.env.ADMIN_BOOTSTRAP_SECRET!
 
 export type SmokeOwner = {
   email: string
@@ -61,20 +57,6 @@ async function login(jar: CookieJar, email: string, password: string): Promise<v
   }
 }
 
-function resetAuthTables(): void {
-  if (process.env.SMOKE_RESET_DB === '0') {
-    throw new Error(
-      'Users already exist. Set SMOKE_SUPER_EMAIL/SMOKE_SUPER_PASSWORD, SEED_SUPER_ADMIN_*, or SMOKE_RESET_DB=1.',
-    )
-  }
-
-  console.warn('[smoke] Resetting users/tenants/sessions for isolated bootstrap')
-  execSync(
-    'docker compose exec -T postgres psql -U webhook -d webhooks -c "TRUNCATE users, tenants, sessions CASCADE;"',
-    { stdio: 'inherit' },
-  )
-}
-
 async function bootstrapSuperAdmin(
   jar: CookieJar,
   email: string,
@@ -86,7 +68,7 @@ async function bootstrapSuperAdmin(
       'Content-Type': 'application/json',
       'X-Admin-Secret': ADMIN_SECRET,
     },
-    body: JSON.stringify({ email, password, name: 'Smoke Super' }),
+    body: JSON.stringify({ email, password, name: 'Smoke Super', workspace_name: `e2e-${process.env.TEST_RUN_ID}-installer` }),
   })
 
   if (bootstrap.status === 201) {
@@ -97,27 +79,23 @@ async function bootstrapSuperAdmin(
   return false
 }
 
-async function getSuperAdminSession(jar: CookieJar, ts: number): Promise<void> {
-  const email = `smoke-super-${ts}@test.com`
-  const password = 'smoke-super-pass-12'
+async function getSuperAdminSession(jar: CookieJar): Promise<void> {
+  const email = process.env.SMOKE_SUPER_EMAIL ?? `smoke-super-${process.env.TEST_RUN_ID}@test.com`
+  const password = process.env.SMOKE_SUPER_PASSWORD ?? 'smoke-super-pass-12'
 
   if (await bootstrapSuperAdmin(jar, email, password)) {
     return
   }
 
-  const superEmail =
-    process.env.SMOKE_SUPER_EMAIL?.trim() ?? process.env.SEED_SUPER_ADMIN_EMAIL?.trim()
-  const superPassword = process.env.SMOKE_SUPER_PASSWORD ?? process.env.SEED_SUPER_ADMIN_PASSWORD
+  const superEmail = email
+  const superPassword = password
 
   if (superEmail && superPassword) {
     await login(jar, superEmail, superPassword)
     return
   }
 
-  resetAuthTables()
-  if (!(await bootstrapSuperAdmin(jar, email, password))) {
-    throw new Error('Bootstrap failed after smoke DB reset')
-  }
+  throw new Error('Test database already has users. Supply SMOKE_SUPER_EMAIL/SMOKE_SUPER_PASSWORD for this test database; no reset is performed.')
 }
 
 async function waitForApiHealth(timeoutMs = 120_000): Promise<void> {
@@ -143,13 +121,13 @@ export async function ensureSmokeOwner(): Promise<SmokeOwner> {
 
   const ts = Date.now()
   const owner: SmokeOwner = {
-    email: `smoke-owner-${ts}@test.com`,
+    email: `smoke-owner-${process.env.TEST_RUN_ID}-${ts}@test.com`,
     password: 'smoke-owner-pass-12',
-    tenantName: `Smoke Tenant ${ts}`,
+    tenantName: `e2e-${process.env.TEST_RUN_ID}-${ts}`,
   }
 
   const jar = new CookieJar()
-  await getSuperAdminSession(jar, ts)
+  await getSuperAdminSession(jar)
 
   const createInvite = await apiFetch('/v1/admin/invites', jar, {
     method: 'POST',
