@@ -1,17 +1,7 @@
 import { Queue } from 'bullmq'
-import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
 import { QUEUE_NAME } from '@webhook/shared/constants'
 import { getRedisConnectionOptions } from '../lib/redis.js'
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: getRedisConnectionOptions(),
 })
-
-/** Enqueue a delivery job unless the same delivery already has a live job. */
-export async function enqueueDelivery(
-  deliveryId: string,
-  tenantId: string,
-  targetQueue: Queue = queue,
-): Promise<void> {
-  await enqueueDeliveryJob(targetQueue, deliveryId, tenantId)
-}

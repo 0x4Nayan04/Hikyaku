@@ -49,6 +49,7 @@ describe('parseBootstrapBody', () => {
         name: 'Platform Admin',
       }),
     ).toEqual({
+      workspace_name: 'My workspace',
       email: 'admin@example.com',
       password: 'secure-password-min-12-chars',
       name: 'Platform Admin',

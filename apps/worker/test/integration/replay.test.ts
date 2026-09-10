@@ -70,14 +70,18 @@ describe('delivery replay', () => {
   let agent: ReturnType<typeof request.agent>
 
   beforeEach(async () => {
-    await queue.obliterate({ force: true })
+    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+      await job.remove()
+    }
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
     agent = await createTenantSession(app, tenantId)
   })
 
   afterEach(async () => {
-    await queue.obliterate({ force: true })
+    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+      await job.remove()
+    }
     await deleteTenant(tenantId)
   })
 
@@ -111,7 +115,6 @@ describe('delivery replay', () => {
     expect(failedDelivery.attemptCount).toBe(1)
     expect(mock.getRequestCount()).toBe(1)
 
-    mock.setStatus(200)
 
     const replayRes = await agent.post(`/v1/deliveries/${deliveryId}/replay`)
 
@@ -133,6 +136,10 @@ describe('delivery replay', () => {
     const [eventBefore] = await db.select().from(events).where(eq(events.id, eventId))
     expect(eventBefore.status).toBe('pending')
 
+    // The first replay also fails; a second replay must retain both earlier runs.
+    await processor(makeJob(deliveryId, tenantId))
+    await agent.post(`/v1/deliveries/${deliveryId}/replay`).expect(202)
+    mock.setStatus(200)
     await processor(makeJob(deliveryId, tenantId))
 
     const [succeededDelivery] = await db
@@ -144,16 +151,20 @@ describe('delivery replay', () => {
       .select()
       .from(deliveryAttempts)
       .where(eq(deliveryAttempts.deliveryId, deliveryId))
-      .orderBy(asc(deliveryAttempts.attemptNumber))
+      .orderBy(asc(deliveryAttempts.runNumber), asc(deliveryAttempts.attemptNumber))
 
     const [eventAfter] = await db.select().from(events).where(eq(events.id, eventId))
 
-    expect(mock.getRequestCount()).toBe(2)
+    expect(mock.getRequestCount()).toBe(3)
     expect(succeededDelivery.status).toBe('succeeded')
     expect(succeededDelivery.attemptCount).toBe(1)
     expect(succeededDelivery.lastError).toBeNull()
-    expect(attempts).toHaveLength(1)
-    expect(attempts[0]?.httpStatus).toBe(200)
+    expect(attempts).toHaveLength(3)
+    expect(succeededDelivery.replayCount).toBe(2)
+    expect(attempts[0]).toMatchObject({ runNumber: 0, httpStatus: 400, attemptNumber: 1 })
+    expect(attempts[1]?.runNumber).toBe(1)
+    expect(attempts[1]?.httpStatus).toBe(400)
+    expect(attempts[2]).toMatchObject({ runNumber: 2, httpStatus: 200, attemptNumber: 1 })
     expect(attempts[0]?.attemptNumber).toBe(1)
     expect(eventAfter.status).toBe('completed')
 

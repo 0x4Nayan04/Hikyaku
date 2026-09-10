@@ -110,7 +110,7 @@ describe('POST /v1/auth/bootstrap', () => {
       .limit(1)
 
     expect(rows[0]).toMatchObject({
-      tenantId: null,
+      tenantId: expect.any(String),
       isSuperAdmin: true,
     })
 

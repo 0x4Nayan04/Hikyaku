@@ -5,12 +5,14 @@ export const userColumns = {
   email: users.email,
   name: users.name,
   isSuperAdmin: users.isSuperAdmin,
+  tenantId: users.tenantId,
 }
 
 export type UserRow = {
   id: string
   email: string
   name: string
+  tenantId?: string | null
   isSuperAdmin: boolean
 }
 
@@ -20,5 +22,6 @@ export function toUserJson(row: UserRow) {
     email: row.email,
     name: row.name,
     is_super_admin: row.isSuperAdmin,
+    tenant_id: row.tenantId ?? null,
   }
 }

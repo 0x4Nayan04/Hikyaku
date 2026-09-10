@@ -94,7 +94,9 @@ describe('e2e pipeline', () => {
   let mockServer: Awaited<ReturnType<typeof startMockServer>>
 
   beforeAll(async () => {
-    await queue.obliterate({ force: true })
+    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+      await job.remove()
+    }
 
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
@@ -123,7 +125,9 @@ describe('e2e pipeline', () => {
   afterAll(async () => {
     await worker.close()
     await mockServer.close()
-    await queue.obliterate({ force: true })
+    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+      await job.remove()
+    }
     await queue.close()
     await deleteTenant(tenantId)
     await closePool()

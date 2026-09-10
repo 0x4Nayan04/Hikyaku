@@ -93,7 +93,7 @@ describe('POST /v1/deliveries/:id/replay', () => {
       .select({ attemptNumber: deliveryAttempts.attemptNumber })
       .from(deliveryAttempts)
       .where(eq(deliveryAttempts.deliveryId, deliveryId))
-    expect(attempts).toEqual([])
+    expect(attempts).toEqual([{ attemptNumber: 5 }])
 
     const [event] = await db
       .select({ status: events.status })

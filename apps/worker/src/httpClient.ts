@@ -117,7 +117,7 @@ export async function postWithTimeout(
     const remainingMs = Math.max(0, timeoutMs - (Date.now() - start))
     const target = await resolveWithTimeout(currentUrl, allowPrivate, remainingMs)
     if (!target.ok) {
-      throw new Error(`blocked_url: ${target.reason}`)
+      throw new Error(`${target.kind === 'dns_error' ? 'dns_error' : 'blocked_url'}: ${target.reason}`)
     }
 
     const result = await requestOnce(target, body, headers, signal)

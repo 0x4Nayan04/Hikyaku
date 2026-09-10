@@ -18,7 +18,9 @@ describe('POST /v1/events idempotency', () => {
   let agent: ReturnType<typeof request.agent>
 
   beforeAll(async () => {
-    await queue.obliterate({ force: true })
+    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+      await job.remove()
+    }
 
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
@@ -31,7 +33,9 @@ describe('POST /v1/events idempotency', () => {
   })
 
   afterAll(async () => {
-    await queue.obliterate({ force: true })
+    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+      await job.remove()
+    }
     await queue.close()
     await deleteTenant(tenantId)
     await closePool()
@@ -124,13 +128,13 @@ describe('POST /v1/events idempotency', () => {
         .send({ idempotency_key: 'no-endpoints', type: 'test', payload: {} })
 
       expect(created.status).toBe(202)
-      expect(created.body.status).toBe('completed')
+      expect(created.body.status).toBe('no_recipients')
 
       const detail = await tenantAgent.get(`/v1/events/${created.body.id}`)
 
       expect(detail.status).toBe(200)
       expect(detail.body).toMatchObject({
-        status: 'completed',
+        status: 'no_recipients',
         deliveries_summary: { total: 0 },
       })
 

@@ -1,15 +1,11 @@
-import { deliveries, events } from '@webhook/shared/schema'
+import { deliveries, deliveryOutbox, events } from '@webhook/shared/schema'
 import { enqueueDeliveryJobs } from '@webhook/shared/enqueueDelivery'
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
-import type { NextFunction, Request, Response } from 'express'
+import type { Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
-import {
-  IdempotencyMismatchError,
-  ingestFanout,
-  eventDetailColumns,
-  eventListColumns,
-} from '../../ingest/fanout.js'
-import { AppError } from '../../lib/errors.js'
+import { ingestFanout, eventDetailColumns, eventListColumns } from '../../ingest/fanout.js'
+import { AppError, enqueueOr503 } from '../../lib/errors.js'
+import { asyncHandler } from '../../lib/asyncHandler.js'
 import { logger } from '../../lib/logger.js'
 import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
@@ -72,103 +68,92 @@ async function loadDeliveriesSummary(
   return summary
 }
 
-export async function ingestEvent(req: Request, res: Response, next: NextFunction) {
-  try {
-    const body = parseIngestBody(req.body)
-    const tenantId = getTenantId(req)
-    const result = await ingestFanout(tenantId, body)
+export const ingestEvent = asyncHandler(async (req: Request, res: Response) => {
+  const body = parseIngestBody(req.body)
+  const tenantId = getTenantId(req)
+  const result = await ingestFanout(tenantId, body)
 
-    // Duplicate retries must re-enqueue open deliveries left behind by a prior enqueue 503.
-    const deliveryIds =
-      result.newDeliveryIds.length > 0
-        ? result.newDeliveryIds
-        : result.isDuplicate
-          ? await listOpenDeliveryIds(result.event.id, tenantId)
-          : []
-
-    try {
-      await enqueueDeliveryJobs(
-        queue,
-        deliveryIds.map((deliveryId) => ({ deliveryId, tenantId })),
-      )
-    } catch (err) {
-      logger.error({ delivery_ids: deliveryIds, err }, 'enqueue_failed')
-      throw new AppError(503, 'service_unavailable', 'Service temporarily unavailable')
-    }
-
-    if (!result.isDuplicate) {
-      logger.info(
-        {
-          tenant_id: tenantId,
-          event_id: result.event.id,
-          idempotency_key: body.idempotency_key,
-        },
-        'ingest_event',
-      )
-    }
-
-    res.status(202).json(toIngestEventJson(result.event))
-  } catch (err) {
-    if (err instanceof IdempotencyMismatchError) {
-      next(new AppError(409, 'idempotency_mismatch', err.message))
-      return
-    }
-    next(err)
+  // Duplicate retries must re-enqueue open deliveries left behind by a prior enqueue 503.
+  let deliveryIds: string[]
+  if (result.newDeliveryIds.length > 0) {
+    deliveryIds = result.newDeliveryIds
+  } else if (result.isDuplicate) {
+    deliveryIds = await listOpenDeliveryIds(result.event.id, tenantId)
+  } else {
+    deliveryIds = []
   }
-}
 
-export async function listEvents(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { limit, offset } = parsePagination(req.query)
-    const tenantId = getTenantId(req)
-    const db = getDb()
-    const where = eq(events.tenantId, tenantId)
+  await enqueueOr503(
+    enqueueDeliveryJobs(
+      queue,
+      deliveryIds.map((deliveryId) => ({ deliveryId, tenantId })),
+    ),
+    { delivery_ids: deliveryIds },
+    'enqueue_failed',
+  )
 
-    const rows = await db
-      .select(eventListColumns)
-      .from(events)
-      .where(where)
-      .orderBy(desc(events.createdAt))
-      .limit(limit + 1)
-      .offset(offset)
-    const page = takePage(rows, limit)
+  if (deliveryIds.length > 0) {
+    await getDb().delete(deliveryOutbox).where(inArray(deliveryOutbox.deliveryId, deliveryIds))
+  }
 
-    res.json(
-      paginatedJson(
-        page.data.map((row) => toEventListJson(row)),
-        page.hasMore,
-        limit,
-        offset,
-      ),
+  if (!result.isDuplicate) {
+    logger.info(
+      {
+        tenant_id: tenantId,
+        event_id: result.event.id,
+        idempotency_key: body.idempotency_key,
+      },
+      'ingest_event',
     )
-  } catch (err) {
-    next(err)
   }
-}
 
-export async function getEvent(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { id } = req.params
-    parseEventId(id)
+  res.status(202).json(toIngestEventJson(result.event))
+})
 
-    const tenantId = getTenantId(req)
-    const db = getDb()
-    const [eventRows, deliveriesSummary] = await Promise.all([
-      db
-        .select(eventDetailColumns)
-        .from(events)
-        .where(and(eq(events.id, id), eq(events.tenantId, tenantId)))
-        .limit(1),
-      loadDeliveriesSummary(id, tenantId),
-    ])
-    const [row] = eventRows
+export const listEvents = asyncHandler(async (req: Request, res: Response) => {
+  const { limit, offset } = parsePagination(req.query)
+  const tenantId = getTenantId(req)
+  const db = getDb()
+  const where = eq(events.tenantId, tenantId)
 
-    if (!row) {
-      throw new AppError(404, 'not_found', 'Event not found')
-    }
+  const rows = await db
+    .select(eventListColumns)
+    .from(events)
+    .where(where)
+    .orderBy(desc(events.createdAt))
+    .limit(limit + 1)
+    .offset(offset)
+  const page = takePage(rows, limit)
 
-    res.json(toEventDetailJson(row, deliveriesSummary))
-  } catch (err) {
-    next(err)
+  res.json(
+    paginatedJson(
+      page.data.map((row) => toEventListJson(row)),
+      page.hasMore,
+      limit,
+      offset,
+    ),
+  )
+})
+
+export const getEvent = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params
+  parseEventId(id)
+
+  const tenantId = getTenantId(req)
+  const db = getDb()
+  const [eventRows, deliveriesSummary] = await Promise.all([
+    db
+      .select(eventDetailColumns)
+      .from(events)
+      .where(and(eq(events.id, id), eq(events.tenantId, tenantId)))
+      .limit(1),
+    loadDeliveriesSummary(id, tenantId),
+  ])
+  const [row] = eventRows
+
+  if (!row) {
+    throw new AppError(404, 'not_found', 'Event not found')
   }
-}
+
+  res.json(toEventDetailJson(row, deliveriesSummary))
+})

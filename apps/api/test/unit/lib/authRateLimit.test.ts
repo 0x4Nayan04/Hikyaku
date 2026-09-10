@@ -9,7 +9,7 @@ vi.mock('../../../src/lib/rateLimit.js', () => ({
 }))
 
 vi.mock('../../../src/config.js', () => ({
-  env: { AUTH_RATE_LIMIT_PER_MINUTE: 20 },
+  env: { LOG_LEVEL: 'silent', AUTH_RATE_LIMIT_PER_MINUTE: 20 },
 }))
 
 function createRequest(ip: string, email?: string): Request {

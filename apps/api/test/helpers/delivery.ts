@@ -32,7 +32,9 @@ export async function waitForActiveJobsToFinish(timeoutMs = 5_000): Promise<void
 export async function beginDeliveryTestIsolation(): Promise<void> {
   await queue.pause()
   await waitForActiveJobsToFinish()
-  await queue.obliterate({ force: true })
+  for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+      await job.remove()
+    }
   await queue.pause()
 }
 

@@ -9,7 +9,7 @@ vi.mock('../../../src/lib/rateLimit.js', () => ({
 }))
 
 vi.mock('../../../src/config.js', () => ({
-  env: { INGEST_RATE_LIMIT_PER_MINUTE: 120 },
+  env: { LOG_LEVEL: 'silent', INGEST_RATE_LIMIT_PER_MINUTE: 120 },
 }))
 
 vi.mock('../../../src/lib/authRateLimit.js', () => ({

@@ -1,9 +1,10 @@
 import { deliveries, events } from '@webhook/shared/schema'
 import { and, count, eq, gte, inArray, sql } from 'drizzle-orm'
 import { Router, type IRouter } from 'express'
-import type { NextFunction, Request, Response } from 'express'
+import type { Request, Response } from 'express'
 import { requireTenantSessionAuth } from '../auth/middleware.js'
 import { getDb } from '../db/client.js'
+import { asyncHandler } from '../lib/asyncHandler.js'
 import { getTenantId } from '../lib/tenant.js'
 
 export const statsRouter: IRouter = Router()
@@ -60,13 +61,9 @@ export async function loadTenantStats(tenantId: string) {
   }
 }
 
-async function getStats(req: Request, res: Response, next: NextFunction) {
-  try {
-    const stats = await loadTenantStats(getTenantId(req))
-    res.json(stats)
-  } catch (err) {
-    next(err)
-  }
-}
+const getStats = asyncHandler(async (req: Request, res: Response) => {
+  const stats = await loadTenantStats(getTenantId(req))
+  res.json(stats)
+})
 
 statsRouter.get('/stats', requireTenantSessionAuth, getStats)

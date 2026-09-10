@@ -128,7 +128,7 @@ describe('bootstrap one-time guard', () => {
       .limit(1)
 
     expect(row).toMatchObject({
-      tenantId: null,
+      tenantId: expect.any(String),
       isSuperAdmin: true,
     })
     expect(row?.passwordHash).toMatch(/^\$2[aby]\$12\$/)

@@ -4,13 +4,7 @@ import { env } from '../config.js'
 
 let redis: Redis | undefined
 
-/**
- * One ioredis client for sweeper lock + tenant rate-limit.
- * Pass into BullMQ `{ connection }`; Queue/Worker each duplicate it
- * (they require maxRetriesPerRequest: null). Duplicate ioredis versions
- * in the lockfile make Redis ≉ ConnectionOptions, hence the cast.
- * FDs per worker replica ≈ 1 shared + 1 Queue + 1 Worker (+ blocking/subscriber).
- */
+/** One ioredis client for sweeper lock + tenant rate-limit. BullMQ gets URL options, same as the API. */
 export function getRedis(): Redis {
   if (!redis) {
     redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null })
@@ -19,7 +13,10 @@ export function getRedis(): Redis {
 }
 
 export function getRedisConnectionOptions(): ConnectionOptions {
-  return getRedis() as unknown as ConnectionOptions
+  return {
+    url: env.REDIS_URL,
+    maxRetriesPerRequest: null,
+  }
 }
 
 export async function closeRedis(): Promise<void> {

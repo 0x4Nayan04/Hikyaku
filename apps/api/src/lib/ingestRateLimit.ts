@@ -11,7 +11,7 @@ const BEARER_PREFIX = 'Bearer '
 /** Cheap IP window before API-key DB lookup. Cookie ingest skips this and uses the tenant limiter. */
 export const ingestIpRateLimit = asyncHandler(
   async (req: Request, _res: Response, next: NextFunction) => {
-    const authorization = req.get('authorization') ?? undefined
+    const authorization = req.get('authorization')
     if (!authorization?.startsWith(BEARER_PREFIX)) {
       next()
       return
