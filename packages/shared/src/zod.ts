@@ -62,7 +62,11 @@ export const loginSchema = z.object({
   password: z.string().min(1),
 })
 
-export const bootstrapSchema = z.object({
+export const createWorkspaceSchema = z.object({
+  workspace_name: z.string().trim().min(1).max(200).default('My workspace'),
+})
+
+export const bootstrapSchema = createWorkspaceSchema.extend({
   email: emailSchema,
   password: newPasswordSchema,
   name: userNameSchema,

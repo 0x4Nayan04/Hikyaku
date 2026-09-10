@@ -20,6 +20,14 @@
       "types": "./dist/eventStatus.d.ts",
       "default": "./dist/eventStatus.js"
     },
+    "./rateLimitWindow": {
+      "types": "./dist/rateLimitWindow.d.ts",
+      "default": "./dist/rateLimitWindow.js"
+    },
+    "./apiJson": {
+      "types": "./dist/apiJson.d.ts",
+      "default": "./dist/apiJson.js"
+    },
     "./schema": {
       "types": "./dist/schema.d.ts",
       "default": "./dist/schema.js"
@@ -47,6 +55,10 @@
     "./logger": {
       "types": "./dist/logger.d.ts",
       "default": "./dist/logger.js"
+    },
+    "./testEnv": {
+      "types": "./dist/testEnv.d.ts",
+      "default": "./dist/testEnv.js"
     }
   },
   "scripts": {
