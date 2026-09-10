@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+.git
+.env
+.env.*
+apps/web/.env*
+.agents
+.codex
+.cursor
+test-results
+playwright-report

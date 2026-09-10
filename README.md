@@ -97,9 +97,9 @@ pnpm --filter @webhook/web dev
 
 1. Open http://localhost:5173/bootstrap
 2. Enter `ADMIN_BOOTSTRAP_SECRET` from `.env`
-3. Create the super-admin → sign in at `/login`
-4. On **Admin**, invite a tenant owner and send them the one-time link
-5. Sign in as that tenant → **Dashboard** (`/dashboard`)
+3. Create your installer account and first workspace → sign in at `/login`
+4. On **Dashboard**, add an endpoint, send a sample event, and inspect delivery
+5. Use **Admin** separately if you need to invite other users or manage tenants
 
 ### Option B — Dev seed (API smoke tests)
 
@@ -225,3 +225,22 @@ apps/web         Operator console + docs (Vite + React)
 packages/shared  Shared types, schema, env parsing, crypto
 e2e/             Playwright smoke and visual tests
 ```
+
+## Complete self-hosted startup
+
+See [deployment instructions](deploy/README.md) for the separate production Compose stack, HTTPS, backups, and upgrades. Start with `node deploy/setup.mjs`; the existing `pnpm dev` workflow is unchanged.
+
+## Safe tests
+
+Use `.env.test.example` as a reference for explicit `TEST_DATABASE_URL`, `TEST_REDIS_URL`, and a fresh `TEST_RUN_ID`. Tests never load the development `.env`. Provision a separate PostgreSQL database ending in `_test` (and a role limited to it) and a separate Redis service with a nonzero database number. Full disposable-container automation is intentionally deferred.
+
+Export these test variables plus the test secrets shown in the example, with development `DATABASE_URL`/`REDIS_URL` unset. Build shared code first, then migrate only the test database:
+
+```sh
+pnpm --filter @webhook/shared build
+DATABASE_URL="$TEST_DATABASE_URL" pnpm db:migrate
+pnpm test
+pnpm test:smoke
+```
+
+Browser tests start their own API on 3101 and web server on 5181, with no reuse of development servers. They never truncate databases. Use an empty test database for fresh-bootstrap tests; for repeated browser runs supply `SMOKE_SUPER_EMAIL`/`SMOKE_SUPER_PASSWORD` for that test installation. Test cleanup removes only run-owned fixtures and jobs. CI follows the same connection rules.
