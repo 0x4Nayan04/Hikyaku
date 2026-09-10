@@ -1,0 +1,91 @@
+name: hikyaku
+x-app: &app
+  build:
+    context: .
+    target: runtime
+  environment: &app-env
+    NODE_ENV: production
+    DATABASE_URL: postgresql://webhook:${POSTGRES_PASSWORD:?Run node deploy/setup.mjs}@postgres:5432/webhooks
+    REDIS_URL: redis://redis:6379
+    ADMIN_BOOTSTRAP_SECRET: ${ADMIN_BOOTSTRAP_SECRET:?Run node deploy/setup.mjs}
+    SESSION_SECRET: ${SESSION_SECRET:?Run node deploy/setup.mjs}
+    WEB_APP_URL: https://${SITE_ADDRESS:-localhost}
+    CORS_ORIGIN: https://${SITE_ADDRESS:-localhost}
+    TRUST_PROXY: 1
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: webhook
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run node deploy/setup.mjs}
+      POSTGRES_DB: webhooks
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U webhook -d webhooks']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+  redis:
+    image: redis:7
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+  migrate:
+    <<: *app
+    command: ['pnpm', 'db:migrate']
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+  api:
+    <<: *app
+    command: ['node', 'apps/api/dist/index.js']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/v1/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  worker:
+    <<: *app
+    command: ['node', 'apps/worker/dist/index.js']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+  web:
+    build:
+      context: .
+      target: web
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+    ports:
+      - '${HTTP_PORT:-80}:80'
+      - '${HTTPS_PORT:-443}:443'
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  pg_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

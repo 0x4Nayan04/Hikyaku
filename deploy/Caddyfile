@@ -1,0 +1,11 @@
+{$SITE_ADDRESS:localhost} {
+  handle /v1/* {
+    reverse_proxy api:3000
+  }
+  handle {
+    root * /srv
+    try_files {path} /index.html
+    file_server
+  }
+  encode gzip
+}
