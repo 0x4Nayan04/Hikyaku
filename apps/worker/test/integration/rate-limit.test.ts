@@ -69,7 +69,9 @@ function startCountingMockServer(): Promise<{
 
 async function clearQueue(): Promise<void> {
   await queue.pause()
-  await queue.obliterate({ force: true })
+  for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+      await job.remove()
+    }
   await queue.resume()
 }
 

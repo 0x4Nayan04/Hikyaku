@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { QUEUE_NAME } from '@webhook/shared/constants'
-import { deliveries } from '@webhook/shared/schema'
+import { deliveries, deliveryOutbox } from '@webhook/shared/schema'
 import { enqueueDeliveryJobs } from '@webhook/shared/enqueueDelivery'
 import type { Queue } from 'bullmq'
 import { and, asc, eq, inArray, isNull, lte, or } from 'drizzle-orm'
@@ -17,13 +17,47 @@ const SWEEPER_LOCK_TTL_MS = 4 * 60 * 1000
 
 let sweepTimer: ReturnType<typeof setInterval> | undefined
 
+async function drainDeliveryOutbox(
+  sweepQueue: Queue,
+  lockDeadlineMs: number,
+): Promise<number> {
+  const db = getDb()
+  let totalEnqueued = 0
+
+  for (;;) {
+    const rows = await db
+      .select({
+        deliveryId: deliveryOutbox.deliveryId,
+        tenantId: deliveryOutbox.tenantId,
+      })
+      .from(deliveryOutbox)
+      .orderBy(asc(deliveryOutbox.createdAt))
+      .limit(SWEEP_BATCH_SIZE)
+
+    if (rows.length === 0) break
+
+    await enqueueDeliveryJobs(sweepQueue, rows)
+    await db.delete(deliveryOutbox).where(
+      inArray(
+        deliveryOutbox.deliveryId,
+        rows.map((row) => row.deliveryId),
+      ),
+    )
+    totalEnqueued += rows.length
+
+    if (rows.length < SWEEP_BATCH_SIZE || Date.now() >= lockDeadlineMs) break
+  }
+
+  return totalEnqueued
+}
+
 export async function sweepOrphanDeliveries(
   sweepQueue: Queue,
   lockDeadlineMs = Number.POSITIVE_INFINITY,
 ): Promise<void> {
   const db = getDb()
   let totalCandidates = 0
-  let totalEnqueued = 0
+  let totalEnqueued = await drainDeliveryOutbox(sweepQueue, lockDeadlineMs)
 
   for (;;) {
     const now = new Date()
@@ -39,7 +73,7 @@ export async function sweepOrphanDeliveries(
       .where(
         or(
           and(
-            inArray(deliveries.status, ['pending']),
+            eq(deliveries.status, 'pending'),
             lte(deliveries.updatedAt, staleBefore),
             or(isNull(deliveries.nextRetryAt), lte(deliveries.nextRetryAt, now)),
           ),

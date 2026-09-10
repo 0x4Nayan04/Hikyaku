@@ -1,12 +1,13 @@
+const seededTenantIds: string[] = []
 import { QUEUE_NAME } from '@webhook/shared/constants'
-import { deliveries, endpoints, events, tenants } from '@webhook/shared/schema'
+import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
+import { deliveries, deliveryOutbox, endpoints, events, tenants } from '@webhook/shared/schema'
 import { Queue, Worker } from 'bullmq'
 import { eq, inArray } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
 import { closeRedis, getRedisConnectionOptions } from '../../src/lib/redis.js'
-import { enqueueDelivery } from '../../src/queue/client.js'
 import { sweepOrphanDeliveries } from '../../src/sweeper.js'
 
 const queue = new Queue(`${QUEUE_NAME}-sweeper-test-${process.pid}`, {
@@ -16,7 +17,9 @@ const queue = new Queue(`${QUEUE_NAME}-sweeper-test-${process.pid}`, {
 async function clearQueue(): Promise<void> {
   await queue.pause()
   try {
-    await queue.obliterate({ force: true })
+    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+      await job.remove()
+    }
   } finally {
     await queue.resume()
   }
@@ -30,6 +33,7 @@ async function findDeliveryJob(deliveryId: string) {
 async function seedPendingDeliveries(count = 1): Promise<{ id: string; tenantId: string }[]> {
   const db = getDb()
   const [tenant] = await db.insert(tenants).values({ name: 'sweeper-test' }).returning()
+  seededTenantIds.push(tenant.id)
   const [endpoint] = await db
     .insert(endpoints)
     .values({
@@ -71,7 +75,7 @@ async function seedPendingDelivery(): Promise<{ id: string; tenantId: string }> 
 
 async function clearOrphanCandidates(): Promise<void> {
   const db = getDb()
-  await db.delete(deliveries).where(inArray(deliveries.status, ['pending', 'in_progress']))
+  if (seededTenantIds.length) await db.delete(tenants).where(inArray(tenants.id, seededTenantIds.splice(0)))
 }
 
 describe('sweepOrphanDeliveries', () => {
@@ -82,9 +86,19 @@ describe('sweepOrphanDeliveries', () => {
 
   afterAll(async () => {
     await clearQueue()
+    await clearOrphanCandidates()
     await queue.close()
     await closePool()
     await closeRedis()
+  })
+
+  it('fixture cleanup preserves rows outside this test run', async () => {
+    const [sentinel] = await getDb().insert(tenants).values({ name: 'outside-run-sentinel' }).returning()
+    try {
+      await seedPendingDelivery()
+      await clearOrphanCandidates()
+      expect(await getDb().select().from(tenants).where(eq(tenants.id, sentinel.id))).toHaveLength(1)
+    } finally { await getDb().delete(tenants).where(eq(tenants.id, sentinel.id)) }
   })
 
   it('re-enqueues pending deliveries missing from the queue', async () => {
@@ -95,6 +109,28 @@ describe('sweepOrphanDeliveries', () => {
     const job = await findDeliveryJob(seeded.id)
     expect(job).toBeDefined()
     expect(job?.data).toEqual({ deliveryId: seeded.id, tenantId: seeded.tenantId })
+  })
+
+  it('enqueues a fresh delivery that still has an outbox row', async () => {
+    const seeded = await seedPendingDelivery()
+    const db = getDb()
+    await db.update(deliveries).set({ updatedAt: new Date() }).where(eq(deliveries.id, seeded.id))
+    await db.insert(deliveryOutbox).values({ deliveryId: seeded.id, tenantId: seeded.tenantId })
+
+    await sweepOrphanDeliveries(queue)
+
+    const job = await findDeliveryJob(seeded.id)
+    expect(job).toBeDefined()
+    expect(job?.data).toEqual({ deliveryId: seeded.id, tenantId: seeded.tenantId })
+
+    const leftover = await db
+      .select({ deliveryId: deliveryOutbox.deliveryId })
+      .from(deliveryOutbox)
+      .where(eq(deliveryOutbox.deliveryId, seeded.id))
+    expect(leftover).toEqual([])
+    await sweepOrphanDeliveries(queue)
+    const matching = (await queue.getJobs(['waiting', 'delayed', 'active'])).filter((item) => item.data.deliveryId === seeded.id)
+    expect(matching).toHaveLength(1)
   })
 
   it('does not re-enqueue fresh or future-scheduled deliveries', async () => {
@@ -119,7 +155,9 @@ describe('sweepOrphanDeliveries', () => {
 
     const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
     expect(jobs).toHaveLength(101)
-    expect(jobs.map((job) => job.data.deliveryId).sort()).toEqual(seeded.map((row) => row.id).sort())
+    expect(jobs.map((job) => job.data.deliveryId).sort()).toEqual(
+      seeded.map((row) => row.id).sort(),
+    )
   }, 15_000)
 
   it('stops draining when the sweeper lock deadline has passed', async () => {
@@ -147,7 +185,7 @@ describe('sweepOrphanDeliveries', () => {
 
   it('skips deliveries that already have an in-flight queue job', async () => {
     const seeded = await seedPendingDelivery()
-    await enqueueDelivery(seeded.id, seeded.tenantId, queue)
+    await enqueueDeliveryJob(queue, seeded.id, seeded.tenantId)
 
     await sweepOrphanDeliveries(queue)
 
@@ -169,7 +207,7 @@ describe('sweepOrphanDeliveries', () => {
 
   it('re-enqueues after a previous BullMQ job failed', async () => {
     const seeded = await seedPendingDelivery()
-    await enqueueDelivery(seeded.id, seeded.tenantId, queue)
+    await enqueueDeliveryJob(queue, seeded.id, seeded.tenantId)
 
     const worker = new Worker(queue.name, null, {
       connection: getRedisConnectionOptions(),

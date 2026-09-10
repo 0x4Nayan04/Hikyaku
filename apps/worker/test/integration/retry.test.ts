@@ -16,12 +16,6 @@ import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
 import { processor } from '../../src/processor.js'
 
-vi.mock('../../../api/src/queue/client.js', async (importOriginal) => ({
-  ...(await importOriginal()),
-  enqueueDelivery: vi.fn().mockResolvedValue(undefined),
-  reEnqueueDelivery: vi.fn().mockResolvedValue(undefined),
-}))
-
 const app = createApp()
 
 function startFixedStatusMockServer(status: number): Promise<{
@@ -137,7 +131,9 @@ describe('retry integration', () => {
   let agent: ReturnType<typeof request.agent>
 
   beforeEach(async () => {
-    await queue.obliterate({ force: true })
+    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+      await job.remove()
+    }
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
     apiKey = tenant.apiKey
@@ -145,7 +141,9 @@ describe('retry integration', () => {
   })
 
   afterEach(async () => {
-    await queue.obliterate({ force: true })
+    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+      await job.remove()
+    }
     await deleteTenant(tenantId)
   })
 

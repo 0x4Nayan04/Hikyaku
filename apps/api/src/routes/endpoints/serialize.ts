@@ -1,14 +1,17 @@
+import type { EndpointJson, EndpointWithSecretJson } from '@webhook/shared/apiJson'
+import type { DeliveryStatus, EndpointStatus } from '@webhook/shared/constants'
+
 export type EndpointRow = {
   id: string
   url: string
-  status: string
+  status: EndpointStatus
   description: string | null
   createdAt: Date
 }
 
 export type EndpointLastDeliveryRow = {
   id: string
-  status: string
+  status: DeliveryStatus
   updatedAt: Date
   lastError: string | null
 }
@@ -17,7 +20,7 @@ export function toEndpointJson(
   row: EndpointRow,
   secret?: string,
   lastDelivery?: EndpointLastDeliveryRow | null,
-) {
+): EndpointJson | EndpointWithSecretJson {
   const body = {
     id: row.id,
     url: row.url,

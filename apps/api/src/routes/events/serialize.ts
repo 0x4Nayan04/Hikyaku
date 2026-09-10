@@ -1,13 +1,14 @@
+import type {
+  DeliveriesSummary,
+  EventDetailJson,
+  EventListJson,
+  IngestEventJson,
+} from '@webhook/shared/apiJson'
 import type { EventListRow, EventRow } from '../../ingest/fanout.js'
 
-export type DeliveriesSummary = {
-  total: number
-  succeeded: number
-  failed: number
-  pending: number
-}
+export type { DeliveriesSummary }
 
-export function toIngestEventJson(row: EventListRow) {
+export function toIngestEventJson(row: EventListRow): IngestEventJson {
   return {
     id: row.id,
     status: row.status,
@@ -15,7 +16,7 @@ export function toIngestEventJson(row: EventListRow) {
   }
 }
 
-export function toEventListJson(row: EventListRow) {
+export function toEventListJson(row: EventListRow): EventListJson {
   return {
     id: row.id,
     idempotency_key: row.idempotencyKey,
@@ -25,7 +26,10 @@ export function toEventListJson(row: EventListRow) {
   }
 }
 
-export function toEventDetailJson(row: EventRow, deliveriesSummary: DeliveriesSummary) {
+export function toEventDetailJson(
+  row: EventRow,
+  deliveriesSummary: DeliveriesSummary,
+): EventDetailJson {
   return {
     id: row.id,
     idempotency_key: row.idempotencyKey,

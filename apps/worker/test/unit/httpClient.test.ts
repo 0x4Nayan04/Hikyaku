@@ -131,3 +131,10 @@ describe('postWithTimeout response body cap', () => {
     }
   })
 })
+
+describe('DNS failure classification', () => {
+  it('does not turn lookup failure into a policy block', async () => {
+    resolveWebhookUrl.mockResolvedValue({ ok: false, kind: 'dns_error', reason: 'lookup failed' })
+    await expect(postWithTimeout('https://example.com', '{}', {}, 100)).rejects.toThrow('dns_error:')
+  })
+})

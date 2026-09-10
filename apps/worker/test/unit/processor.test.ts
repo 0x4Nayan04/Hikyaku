@@ -1,10 +1,11 @@
+const seededTenantIds: string[] = []
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { DeliveryJobData } from '@webhook/shared/constants'
 import { generateEndpointSecret, verifyPayload } from '@webhook/shared/crypto'
 import { deliveries, deliveryAttempts, endpoints, events, tenants } from '@webhook/shared/schema'
 import { DelayedError, type Job } from 'bullmq'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { closePool, getDb } from '../../src/db/client.js'
 import { calculateBackoffDelayMs } from '../../src/backoff.js'
 import * as httpClient from '../../src/httpClient.js'
@@ -79,6 +80,7 @@ describe('processor', () => {
   })
 
   afterAll(async () => {
+    if (seededTenantIds.length) await getDb().delete(tenants).where(inArray(tenants.id, seededTenantIds))
     await closePool()
   })
 
@@ -95,6 +97,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor InProgress' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -151,6 +154,7 @@ describe('processor', () => {
 
     const secret = generateEndpointSecret()
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Test' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -223,6 +227,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Retry' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -287,6 +292,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Backoff' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -341,6 +347,7 @@ describe('processor', () => {
       .insert(tenants)
       .values({ name: `Processor Retry ${status}` })
       .returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -391,6 +398,7 @@ describe('processor', () => {
     vi.spyOn(httpClient, 'postWithTimeout').mockRejectedValue(abortErr)
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Timeout' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -434,10 +442,61 @@ describe('processor', () => {
     expect(attempts[0]?.httpStatus).toBeNull()
   })
 
+  it('retries a DNS lookup failure using application backoff', async () => {
+    const db = getDb()
+    const abortErr = new Error('dns_error: temporary lookup failure')
+    vi.spyOn(httpClient, 'postWithTimeout').mockRejectedValue(abortErr)
+
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor DNS' }).returning()
+  seededTenantIds.push(tenant.id)
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: 'http://127.0.0.1:9/hook',
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-dns-1',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({
+        tenantId: tenant.id,
+        eventId: event.id,
+        endpointId: endpoint.id,
+      })
+      .returning()
+
+    await expect(processor(makeJob(delivery))).rejects.toThrow(DelayedError)
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    const attempts = await db
+      .select()
+      .from(deliveryAttempts)
+      .where(eq(deliveryAttempts.deliveryId, delivery.id))
+
+    expect(updated.status).toBe('pending')
+    expect(updated.attemptCount).toBe(1)
+    expect(updated.lastError).toBe('network_error')
+    expect(attempts).toHaveLength(1)
+    expect(attempts[0]?.error).toBe('network_error')
+    expect(attempts[0]?.httpStatus).toBeNull()
+  })
+
   it('delays a network error using application backoff', async () => {
     const db = getDb()
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Network' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -492,6 +551,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor FailFast' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -549,6 +609,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Event Rollup' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -593,6 +654,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor DeadLetter' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -649,6 +711,7 @@ describe('processor', () => {
       .insert(tenants)
       .values({ name: 'Processor DeadLetter Timeout' })
       .returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -696,6 +759,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor MaxCap' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -750,6 +814,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor HttpCount' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -805,6 +870,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Disabled' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -854,6 +920,7 @@ describe('processor', () => {
   it('counts a blocked URL rejected before HTTP', async () => {
     const db = getDb()
     const [tenant] = await db.insert(tenants).values({ name: 'Processor BlockedUrl' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -902,6 +969,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Replay' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -974,6 +1042,7 @@ describe('processor', () => {
     const postSpy = vi.spyOn(httpClient, 'postWithTimeout')
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor RateLimit' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -1033,6 +1102,7 @@ describe('processor', () => {
     const postSpy = vi.spyOn(httpClient, 'postWithTimeout')
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Legacy Job' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -1079,6 +1149,7 @@ describe('processor', () => {
       allowed: true,
     })
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Claimed' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -1125,6 +1196,7 @@ describe('processor', () => {
   it('does not overwrite a newer in_progress lease after sweeper reclaim', async () => {
     const db = getDb()
     const [tenant] = await db.insert(tenants).values({ name: 'Processor LeaseLost' }).returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -1190,6 +1262,7 @@ describe('processor', () => {
       .insert(tenants)
       .values({ name: 'Processor BlockedRedirect' })
       .returning()
+  seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({

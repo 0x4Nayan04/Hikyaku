@@ -5,7 +5,7 @@ describe('toEndpointJson', () => {
   const row = {
     id: '11111111-1111-4111-8111-111111111111',
     url: 'https://example.com/hooks',
-    status: 'active',
+    status: 'active' as const,
     description: 'prod',
     createdAt: new Date('2026-07-18T12:00:00.000Z'),
   }
@@ -25,7 +25,7 @@ describe('toEndpointJson', () => {
     expect(
       toEndpointJson(row, undefined, {
         id: '22222222-2222-4222-8222-222222222222',
-        status: 'failed',
+        status: 'failed' as const,
         updatedAt: new Date('2026-07-18T13:00:00.000Z'),
         lastError: 'timeout',
       }),

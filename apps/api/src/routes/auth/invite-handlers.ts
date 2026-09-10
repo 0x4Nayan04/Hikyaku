@@ -1,144 +1,137 @@
 import { invites, tenants, users } from '@webhook/shared/schema'
 import { and, eq, gt, isNull } from 'drizzle-orm'
-import type { NextFunction, Request, Response } from 'express'
+import type { Request, Response } from 'express'
 import { hashPassword } from '@webhook/shared/password'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
+import { asyncHandler } from '../../lib/asyncHandler.js'
 import { assertEmailAvailable, assertInviteUsable, findInviteByToken } from '../../lib/invites.js'
 import { toUserJson, userColumns } from './serialize.js'
 import { parseAcceptInviteBody } from './invite-validation.js'
 
-export async function validateInvite(req: Request, res: Response, next: NextFunction) {
-  try {
-    const token = req.query.token
-    if (typeof token !== 'string' || !token) {
-      throw new AppError(400, 'validation_error', 'token query parameter is required')
-    }
-
-    const invite = await findInviteByToken(token)
-    if (!invite) {
-      throw new AppError(404, 'not_found', 'Invite not found')
-    }
-
-    assertInviteUsable(invite)
-
-    res.status(200).json({
-      kind: invite.kind,
-      email: invite.email,
-      tenant_name: invite.tenantName,
-      invited_name: invite.invitedName,
-      expires_at: invite.expiresAt.toISOString(),
-    })
-  } catch (err) {
-    next(err)
+export const validateInvite = asyncHandler(async (req: Request, res: Response) => {
+  const token = req.query.token
+  if (typeof token !== 'string' || !token) {
+    throw new AppError(400, 'validation_error', 'token query parameter is required')
   }
-}
 
-export async function acceptInvite(req: Request, res: Response, next: NextFunction) {
-  try {
-    const body = parseAcceptInviteBody(req.body)
-    const invite = await findInviteByToken(body.token)
+  const invite = await findInviteByToken(token)
+  if (!invite) {
+    throw new AppError(404, 'not_found', 'Invite not found')
+  }
 
-    if (!invite) {
-      throw new AppError(404, 'not_found', 'Invite not found')
+  assertInviteUsable(invite)
+
+  res.status(200).json({
+    kind: invite.kind,
+    email: invite.email,
+    tenant_name: invite.tenantName,
+    invited_name: invite.invitedName,
+    expires_at: invite.expiresAt.toISOString(),
+  })
+})
+
+export const acceptInvite = asyncHandler(async (req: Request, res: Response) => {
+  const body = parseAcceptInviteBody(req.body)
+  const invite = await findInviteByToken(body.token)
+
+  if (!invite) {
+    throw new AppError(404, 'not_found', 'Invite not found')
+  }
+
+  assertInviteUsable(invite)
+
+  const passwordHash = await hashPassword(body.password)
+  const db = getDb()
+
+  const user = await db.transaction(async (tx) => {
+    // Expiry is enforced here too so an invite cannot be consumed after assertInviteUsable.
+    const [consumed] = await tx
+      .update(invites)
+      .set({ acceptedAt: new Date() })
+      .where(
+        and(
+          eq(invites.id, invite.id),
+          isNull(invites.acceptedAt),
+          gt(invites.expiresAt, new Date()),
+        ),
+      )
+      .returning({ id: invites.id })
+
+    if (!consumed) {
+      const [current] = await tx
+        .select({
+          acceptedAt: invites.acceptedAt,
+          expiresAt: invites.expiresAt,
+        })
+        .from(invites)
+        .where(eq(invites.id, invite.id))
+        .limit(1)
+      if (current) {
+        assertInviteUsable({
+          ...invite,
+          acceptedAt: current.acceptedAt,
+          expiresAt: current.expiresAt,
+        })
+      }
+      throw new AppError(410, 'invite_used', 'Invite has already been used')
     }
 
-    assertInviteUsable(invite)
+    await assertEmailAvailable(invite.email, tx)
 
-    const passwordHash = await hashPassword(body.password)
-    const db = getDb()
+    let createdUser
 
-    const user = await db.transaction(async (tx) => {
-      // Expiry is enforced here too so an invite cannot be consumed after assertInviteUsable.
-      const [consumed] = await tx
-        .update(invites)
-        .set({ acceptedAt: new Date() })
-        .where(
-          and(
-            eq(invites.id, invite.id),
-            isNull(invites.acceptedAt),
-            gt(invites.expiresAt, new Date()),
-          ),
-        )
-        .returning({ id: invites.id })
-
-      if (!consumed) {
-        const [current] = await tx
-          .select({
-            acceptedAt: invites.acceptedAt,
-            expiresAt: invites.expiresAt,
-          })
-          .from(invites)
-          .where(eq(invites.id, invite.id))
-          .limit(1)
-        if (current) {
-          assertInviteUsable({
-            ...invite,
-            acceptedAt: current.acceptedAt,
-            expiresAt: current.expiresAt,
-          })
-        }
-        throw new AppError(410, 'invite_used', 'Invite has already been used')
+    if (invite.kind === 'tenant_owner') {
+      if (!invite.tenantName) {
+        throw new AppError(500, 'internal_error', 'Invite is missing tenant name')
       }
 
-      await assertEmailAvailable(invite.email, tx)
+      const [tenant] = await tx
+        .insert(tenants)
+        .values({ name: invite.tenantName })
+        .returning({ id: tenants.id })
 
-      let createdUser
-
-      if (invite.kind === 'tenant_owner') {
-        if (!invite.tenantName) {
-          throw new AppError(500, 'internal_error', 'Invite is missing tenant name')
-        }
-
-        const [tenant] = await tx
-          .insert(tenants)
-          .values({ name: invite.tenantName })
-          .returning({ id: tenants.id })
-
-        ;[createdUser] = await tx
-          .insert(users)
-          .values({
-            tenantId: tenant.id,
-            email: invite.email,
-            passwordHash,
-            name: body.name,
-            isSuperAdmin: false,
-          })
-          .returning(userColumns)
-      } else if (invite.kind === 'tenant_user') {
-        if (!invite.tenantId) {
-          throw new AppError(500, 'internal_error', 'Invite is missing tenant')
-        }
-
-        const [tenant] = await tx
-          .select({ id: tenants.id })
-          .from(tenants)
-          .where(eq(tenants.id, invite.tenantId))
-          .limit(1)
-
-        if (!tenant) {
-          throw new AppError(404, 'not_found', 'Tenant not found')
-        }
-
-        ;[createdUser] = await tx
-          .insert(users)
-          .values({
-            tenantId: tenant.id,
-            email: invite.email,
-            passwordHash,
-            name: body.name,
-            isSuperAdmin: false,
-          })
-          .returning(userColumns)
-      } else {
-        throw new AppError(500, 'internal_error', 'Unknown invite kind')
+      ;[createdUser] = await tx
+        .insert(users)
+        .values({
+          tenantId: tenant.id,
+          email: invite.email,
+          passwordHash,
+          name: body.name,
+          isSuperAdmin: false,
+        })
+        .returning(userColumns)
+    } else if (invite.kind === 'tenant_user') {
+      if (!invite.tenantId) {
+        throw new AppError(500, 'internal_error', 'Invite is missing tenant')
       }
 
-      return createdUser
-    })
+      const [tenant] = await tx
+        .select({ id: tenants.id })
+        .from(tenants)
+        .where(eq(tenants.id, invite.tenantId))
+        .limit(1)
 
-    res.status(201).json({ user: toUserJson(user) })
-  } catch (err) {
-    next(err)
-  }
-}
+      if (!tenant) {
+        throw new AppError(404, 'not_found', 'Tenant not found')
+      }
+
+      ;[createdUser] = await tx
+        .insert(users)
+        .values({
+          tenantId: tenant.id,
+          email: invite.email,
+          passwordHash,
+          name: body.name,
+          isSuperAdmin: false,
+        })
+        .returning(userColumns)
+    } else {
+      throw new AppError(500, 'internal_error', 'Unknown invite kind')
+    }
+
+    return createdUser
+  })
+
+  res.status(201).json({ user: toUserJson(user) })
+})

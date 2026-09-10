@@ -1,9 +1,17 @@
+import type {
+  DeliveryAttemptJson,
+  DeliveryDetailJson,
+  DeliveryListJson,
+} from '@webhook/shared/apiJson'
+import type { DeliveryStatus } from '@webhook/shared/constants'
+
 export type DeliveryRow = {
   id: string
   eventId: string
   endpointId: string
   endpointUrl: string
-  status: string
+  status: DeliveryStatus
+  replayCount: number
   attemptCount: number
   nextRetryAt: Date | null
   lastError: string | null
@@ -12,6 +20,7 @@ export type DeliveryRow = {
 }
 
 export type AttemptRow = {
+  runNumber: number
   attemptNumber: number
   httpStatus: number | null
   responseBody: string | null
@@ -20,7 +29,7 @@ export type AttemptRow = {
   createdAt: Date
 }
 
-export function toDeliveryListJson(row: DeliveryRow) {
+export function toDeliveryListJson(row: DeliveryRow): DeliveryListJson {
   return {
     id: row.id,
     event_id: row.eventId,
@@ -28,6 +37,7 @@ export function toDeliveryListJson(row: DeliveryRow) {
     endpoint_url: row.endpointUrl,
     status: row.status,
     attempt_count: row.attemptCount,
+    replay_count: row.replayCount,
     next_retry_at: row.nextRetryAt?.toISOString() ?? null,
     last_error: row.lastError,
     created_at: row.createdAt.toISOString(),
@@ -35,9 +45,10 @@ export function toDeliveryListJson(row: DeliveryRow) {
   }
 }
 
-function toAttemptJson(row: AttemptRow) {
+function toAttemptJson(row: AttemptRow): DeliveryAttemptJson {
   return {
     attempt_number: row.attemptNumber,
+    run_number: row.runNumber,
     http_status: row.httpStatus,
     response_body: row.responseBody,
     error: row.error,
@@ -46,7 +57,7 @@ function toAttemptJson(row: AttemptRow) {
   }
 }
 
-export function toDeliveryDetailJson(row: DeliveryRow, attempts: AttemptRow[]) {
+export function toDeliveryDetailJson(row: DeliveryRow, attempts: AttemptRow[]): DeliveryDetailJson {
   return {
     ...toDeliveryListJson(row),
     attempts: attempts.map((attempt) => toAttemptJson(attempt)),

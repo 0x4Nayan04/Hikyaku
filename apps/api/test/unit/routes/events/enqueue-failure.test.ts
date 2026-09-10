@@ -1,7 +1,8 @@
+import * as activeEndpoints from '../../../../src/lib/activeEndpoints.js'
 import { randomUUID } from 'node:crypto'
 import type { NextFunction, Request, Response } from 'express'
-import { and, eq } from 'drizzle-orm'
-import { deliveries, endpoints, events } from '@webhook/shared/schema'
+import { and, eq, inArray } from 'drizzle-orm'
+import { deliveries, deliveryOutbox, endpoints, events } from '@webhook/shared/schema'
 import { enqueueDeliveryJobs } from '@webhook/shared/enqueueDelivery'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import '../../../../src/config.js'
@@ -78,13 +79,27 @@ describe('ingestEvent enqueue failure', () => {
     await closePool()
   })
 
+  it('rolls back both event and outbox when fanout fails', async () => {
+    const key = `rollback-${randomUUID()}`
+    const spy = vi.spyOn(activeEndpoints, 'getActiveEndpointIds').mockResolvedValueOnce([randomUUID()])
+    try {
+      const result = await runIngestEvent({ tenantId, body: {
+        idempotency_key: key, type: 'test.event', payload: {},
+      } } as Request)
+      expect(result.error).toBeDefined()
+      const rows = await getDb().select().from(events).where(and(eq(events.tenantId, tenantId), eq(events.idempotencyKey, key)))
+      expect(rows).toEqual([])
+    } finally { spy.mockRestore() }
+  })
+
   it('returns 503 when BullMQ enqueue fails after commit', async () => {
+    const idempotencyKey = `enqueue-fail-${randomUUID()}`
     enqueueMock.mockRejectedValueOnce(new Error('redis unreachable'))
 
     const req = {
       tenantId,
       body: {
-        idempotency_key: `enqueue-fail-${randomUUID()}`,
+        idempotency_key: idempotencyKey,
         type: 'test.event',
         payload: {},
       },
@@ -98,6 +113,20 @@ describe('ingestEvent enqueue failure', () => {
       code: 'service_unavailable',
       message: 'Service temporarily unavailable',
     })
+
+    const [event] = await getDb()
+      .select({ id: events.id })
+      .from(events)
+      .where(and(eq(events.tenantId, tenantId), eq(events.idempotencyKey, idempotencyKey)))
+      .limit(1)
+    expect(event).toBeDefined()
+
+    const outbox = await getDb()
+      .select({ deliveryId: deliveryOutbox.deliveryId })
+      .from(deliveryOutbox)
+      .innerJoin(deliveries, eq(deliveries.id, deliveryOutbox.deliveryId))
+      .where(eq(deliveries.eventId, event!.id))
+    expect(outbox.length).toBeGreaterThan(0)
   })
 
   it('re-enqueues open deliveries on idempotent retry after a prior enqueue 503', async () => {
@@ -148,5 +177,16 @@ describe('ingestEvent enqueue failure', () => {
       expect.anything(),
       expect.arrayContaining(open.map((row) => ({ deliveryId: row.id, tenantId }))),
     )
+
+    const leftover = await getDb()
+      .select({ deliveryId: deliveryOutbox.deliveryId })
+      .from(deliveryOutbox)
+      .where(
+        inArray(
+          deliveryOutbox.deliveryId,
+          open.map((row) => row.id),
+        ),
+      )
+    expect(leftover).toEqual([])
   })
 })

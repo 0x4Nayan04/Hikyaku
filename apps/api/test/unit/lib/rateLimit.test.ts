@@ -20,7 +20,7 @@ describe('takeFixedWindowToken', () => {
     expect(evalMock).toHaveBeenCalledWith(
       expect.stringContaining('INCR'),
       1,
-      expect.stringMatching(/^auth:ratelimit:ip:127\.0\.0\.1:\d+$/),
+      expect.stringMatching(/^(?:test-[a-zA-Z0-9_-]+:)?auth:ratelimit:ip:127\.0\.0\.1:\d+$/),
       '2',
       expect.stringMatching(/^\d+$/),
     )
@@ -54,8 +54,8 @@ describe('takeFixedWindowTokens', () => {
     expect(evalMock).toHaveBeenCalledWith(
       expect.stringContaining('INCR'),
       2,
-      expect.stringMatching(/^auth:ratelimit:ip:127\.0\.0\.1:\d+$/),
-      expect.stringMatching(/^auth:ratelimit:email:a@b\.com:\d+$/),
+      expect.stringMatching(/^(?:test-[a-zA-Z0-9_-]+:)?auth:ratelimit:ip:127\.0\.0\.1:\d+$/),
+      expect.stringMatching(/^(?:test-[a-zA-Z0-9_-]+:)?auth:ratelimit:email:a@b\.com:\d+$/),
       '20',
       expect.stringMatching(/^\d+$/),
     )

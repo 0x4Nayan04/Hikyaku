@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { NextFunction, Request, Response } from 'express'
-import { asc, eq } from 'drizzle-orm'
-import { deliveries, deliveryAttempts, endpoints, events } from '@webhook/shared/schema'
+import { eq } from 'drizzle-orm'
+import { deliveries, deliveryAttempts, deliveryOutbox, endpoints, events } from '@webhook/shared/schema'
 import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import '../../../../src/config.js'
@@ -244,7 +244,7 @@ describe('replayDelivery validation', () => {
     }
   })
 
-  it('reverts to failed when replay enqueue fails so replay can be retried', async () => {
+  it('leaves the delivery pending when replay enqueue fails', async () => {
     enqueueMock.mockRejectedValueOnce(new Error('redis unreachable'))
     const { tenantId } = await createTenantWithKey()
 
@@ -290,13 +290,6 @@ describe('replayDelivery validation', () => {
         error: 'http_500',
         durationMs: 12,
       })
-      await db.insert(deliveryAttempts).values({
-        deliveryId: delivery.id,
-        attemptNumber: 2,
-        httpStatus: 502,
-        error: 'http_502',
-        durationMs: 20,
-      })
 
       const result = await runReplayDelivery(delivery.id, tenantId)
 
@@ -316,42 +309,30 @@ describe('replayDelivery validation', () => {
         .where(eq(deliveries.id, delivery.id))
 
       expect(updated).toMatchObject({
-        status: 'failed',
-        lastError: 'enqueue_failed',
-        attemptCount: 2,
+        status: 'pending',
+        lastError: null,
+        attemptCount: 0,
       })
 
       const attempts = await db
-        .select({
-          attemptNumber: deliveryAttempts.attemptNumber,
-          httpStatus: deliveryAttempts.httpStatus,
-        })
+        .select({ attemptNumber: deliveryAttempts.attemptNumber })
         .from(deliveryAttempts)
         .where(eq(deliveryAttempts.deliveryId, delivery.id))
-        .orderBy(asc(deliveryAttempts.attemptNumber))
 
-      expect(attempts).toEqual([
-        { attemptNumber: 1, httpStatus: 500 },
-        { attemptNumber: 2, httpStatus: 502 },
-      ])
+      expect(attempts).toEqual([{ attemptNumber: 1 }])
+
+      const outbox = await db
+        .select({ deliveryId: deliveryOutbox.deliveryId })
+        .from(deliveryOutbox)
+        .where(eq(deliveryOutbox.deliveryId, delivery.id))
+      expect(outbox).toEqual([{ deliveryId: delivery.id }])
     } finally {
       await deleteTenant(tenantId)
     }
   })
 
-  it('does not overwrite a newer delivery state when replay enqueue fails', async () => {
-    let signalEnqueue!: () => void
-    let rejectEnqueue!: (reason?: unknown) => void
-    const enqueueStarted = new Promise<void>((resolve) => {
-      signalEnqueue = resolve
-    })
-    enqueueMock.mockImplementationOnce(
-      () =>
-        new Promise<void>((_resolve, reject) => {
-          rejectEnqueue = reject
-          signalEnqueue()
-        }),
-    )
+  it('re-enqueues a pending delivery', async () => {
+    enqueueMock.mockResolvedValue(undefined)
     const { tenantId } = await createTenantWithKey()
 
     try {
@@ -365,58 +346,33 @@ describe('replayDelivery validation', () => {
           status: 'active',
         })
         .returning({ id: endpoints.id })
+
       const [event] = await db
         .insert(events)
         .values({
           tenantId,
-          idempotencyKey: `replay-state-change-${randomUUID()}`,
+          idempotencyKey: `replay-pending-${randomUUID()}`,
           type: 'test',
           payload: {},
-          status: 'failed',
         })
         .returning({ id: events.id })
+
       const [delivery] = await db
         .insert(deliveries)
         .values({
           tenantId,
           eventId: event.id,
           endpointId: endpoint.id,
-          status: 'failed',
-          lastError: 'http_500',
-          attemptCount: 1,
+          status: 'pending',
         })
         .returning({ id: deliveries.id })
 
-      await db.insert(deliveryAttempts).values({
-        deliveryId: delivery.id,
-        attemptNumber: 1,
-        httpStatus: 500,
-        error: 'http_500',
-        durationMs: 10,
-      })
+      const result = await runReplayDelivery(delivery.id, tenantId)
 
-      const replay = runReplayDelivery(delivery.id, tenantId)
-      await enqueueStarted
-      await db
-        .update(deliveries)
-        .set({ status: 'succeeded', lastError: null })
-        .where(eq(deliveries.id, delivery.id))
-      rejectEnqueue(new Error('redis unreachable'))
-
-      const result = await replay
-      expect(result.error).toMatchObject({ statusCode: 503 })
-
-      const [updated] = await db
-        .select({ status: deliveries.status })
-        .from(deliveries)
-        .where(eq(deliveries.id, delivery.id))
-      expect(updated?.status).toBe('succeeded')
-
-      const attempts = await db
-        .select({ attemptNumber: deliveryAttempts.attemptNumber })
-        .from(deliveryAttempts)
-        .where(eq(deliveryAttempts.deliveryId, delivery.id))
-      expect(attempts).toEqual([])
+      expect(result.error).toBeUndefined()
+      expect(result.statusCode).toBe(202)
+      expect(result.body).toEqual({ id: delivery.id, status: 'pending' })
+      expect(enqueueMock).toHaveBeenCalledWith(expect.anything(), delivery.id, tenantId)
     } finally {
       await deleteTenant(tenantId)
     }

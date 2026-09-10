@@ -1,4 +1,8 @@
-import type { DeliveryJobData } from '@webhook/shared/constants'
+import {
+  ENDPOINT_STATUSES,
+  type DeliveryJobData,
+  type EndpointStatus,
+} from '@webhook/shared/constants'
 import { signPayload } from '@webhook/shared/crypto'
 import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
 import { deliveryAttempts, deliveries } from '@webhook/shared/schema'
@@ -15,19 +19,21 @@ type DeliveryContext = {
   id: string
   tenantId: string
   eventId: string
+  replayCount: number
   attemptCount: number
   eventType: string
   eventPayload: unknown
   eventCreatedAt: Date
   url: string
   secret: string
-  endpointStatus: string
+  endpointStatus: EndpointStatus
 }
 
 type ClaimRow = {
   id: string
   tenant_id: string
   event_id: string
+  replay_count: number
   attempt_count: number
   event_type: string
   event_payload: unknown
@@ -44,13 +50,32 @@ type HttpAttemptFields = {
   durationMs: number
 }
 
-type AttemptOutcome = Partial<HttpAttemptFields> & { error?: string | null }
+type AttemptOutcome = Partial<HttpAttemptFields>
 
 type DeliveryOutcome = {
-  status: 'in_progress' | 'succeeded' | 'failed' | 'pending'
+  status: 'succeeded' | 'failed' | 'pending'
   attemptCount?: number
   lastError?: string | null
   nextRetryAt?: Date | null
+}
+
+type OutcomeDecision =
+  | {
+      action: 'fail_fast'
+      lastError: string
+      attemptCount?: number
+      attempt?: AttemptOutcome
+      log: string
+      logFields?: Record<string, unknown>
+    }
+  | { action: 'succeeded'; attempt: AttemptOutcome; httpStatus: number }
+  | { action: 'retry'; lastError: string; attempt: HttpAttemptFields; retryAt: Date }
+
+function parseEndpointStatus(value: string): EndpointStatus {
+  for (const status of ENDPOINT_STATUSES) {
+    if (status === value) return status
+  }
+  throw new Error(`unexpected_endpoint_status:${value}`)
 }
 
 function toDeliveryContext(raw: ClaimRow): DeliveryContext {
@@ -59,12 +84,13 @@ function toDeliveryContext(raw: ClaimRow): DeliveryContext {
     tenantId: raw.tenant_id,
     eventId: raw.event_id,
     attemptCount: Number(raw.attempt_count),
+    replayCount: Number(raw.replay_count),
     eventType: raw.event_type,
     eventPayload: raw.event_payload,
     eventCreatedAt: new Date(raw.event_created_at),
     url: raw.url,
     secret: raw.secret,
-    endpointStatus: raw.endpoint_status,
+    endpointStatus: parseEndpointStatus(raw.endpoint_status),
   }
 }
 
@@ -72,6 +98,7 @@ async function recordOutcome(
   deliveryId: string,
   eventId: string,
   leaseStartedAt: Date,
+  runNumber: number,
   delivery: DeliveryOutcome,
   attempt?: AttemptOutcome,
   attemptNumber?: number,
@@ -91,6 +118,7 @@ async function recordOutcome(
           eq(deliveries.id, deliveryId),
           eq(deliveries.status, 'in_progress'),
           eq(deliveries.updatedAt, leaseStartedAt),
+          eq(deliveries.replayCount, runNumber),
         ),
       )
       .returning({ id: deliveries.id })
@@ -101,12 +129,11 @@ async function recordOutcome(
     }
 
     if (attempt && attemptNumber !== undefined) {
-      await tx.insert(deliveryAttempts).values({ deliveryId, attemptNumber, ...attempt })
+      await tx.insert(deliveryAttempts).values({ deliveryId, runNumber, attemptNumber, ...attempt })
     }
 
     switch (delivery.status) {
       case 'pending':
-      case 'in_progress':
         break
       case 'succeeded':
       case 'failed':
@@ -135,7 +162,7 @@ export function isRetryableHttpStatus(status: number): boolean {
   return status === 408 || status === 429 || status >= 500
 }
 
-export type DeliveryTransportError =
+type DeliveryTransportError =
   'timeout' | 'network_error' | 'blocked_url' | 'too_many_redirects'
 
 function isTerminalTransportError(
@@ -167,7 +194,6 @@ async function resolveJobTenantId(
   return row?.tenantId
 }
 
-/** Claim a pending delivery and load payload/url/secret in one round-trip. */
 async function claimPendingDelivery(
   deliveryId: string,
 ): Promise<{ row: DeliveryContext; leaseStartedAt: Date } | null> {
@@ -186,15 +212,16 @@ async function claimPendingDelivery(
       d.tenant_id,
       d.event_id,
       d.attempt_count,
+      d.replay_count,
       e.type AS event_type,
       e.payload AS event_payload,
       e.created_at AS event_created_at,
       ep.url,
       ep.secret,
       ep.status AS endpoint_status
-  `)) as { rows?: ClaimRow[] }
+  `)) as { rows: ClaimRow[] }
 
-  const raw = result.rows?.[0]
+  const raw = result.rows[0]
   if (!raw) return null
   return { row: toDeliveryContext(raw), leaseStartedAt }
 }
@@ -220,169 +247,161 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
   }
 
   const { row, leaseStartedAt } = claimed
+  const nextAttempt = row.attemptCount + 1
+
+  let decision: OutcomeDecision
 
   if (row.endpointStatus === 'disabled') {
-    await recordOutcome(
-      row.id,
-      row.eventId,
-      leaseStartedAt,
-      {
-        status: 'failed',
-        attemptCount: row.attemptCount + 1,
-        lastError: 'endpoint_disabled',
-        nextRetryAt: null,
-      },
-      { error: 'endpoint_disabled' },
-      row.attemptCount + 1,
-    )
-    log.info('endpoint_disabled')
-    return
-  }
+    decision = {
+      action: 'fail_fast',
+      lastError: 'endpoint_disabled',
+      attemptCount: nextAttempt,
+      attempt: { error: 'endpoint_disabled' },
+      log: 'endpoint_disabled',
+    }
+  } else if (row.attemptCount >= env.MAX_DELIVERY_ATTEMPTS) {
+    decision = { action: 'fail_fast', lastError: 'max_attempts', log: 'max_attempts' }
+  } else {
+    const allowPrivate = env.NODE_ENV !== 'production'
+    const body = buildOutboundBody(row)
+    const timestamp = Math.floor(Date.now() / 1000)
+    const signature = signPayload(row.secret, timestamp, body)
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Webhook-Id': row.id,
+      'X-Webhook-Timestamp': String(timestamp),
+      'X-Webhook-Signature': signature,
+      'User-Agent': 'Hikyaku/1.0',
+    }
 
-  const allowPrivate = env.NODE_ENV !== 'production'
-  if (row.attemptCount >= env.MAX_DELIVERY_ATTEMPTS) {
-    await recordOutcome(row.id, row.eventId, leaseStartedAt, {
-      status: 'failed',
-      lastError: 'max_attempts',
-      nextRetryAt: null,
-    })
-    log.info('max_attempts')
-    return
-  }
+    const start = Date.now()
+    let httpStatus: number | null = null
+    let responseBody: string | null = null
+    let error: DeliveryTransportError | null = null
 
-  const body = buildOutboundBody(row)
-  const timestamp = Math.floor(Date.now() / 1000)
-  const signature = signPayload(row.secret, timestamp, body)
+    try {
+      const result = await postWithTimeout(
+        row.url,
+        body,
+        headers,
+        env.DELIVERY_TIMEOUT_MS,
+        allowPrivate,
+      )
+      httpStatus = result.status
+      responseBody = result.body
+    } catch (err) {
+      error = classifyDeliveryError(err)
+      log.info({ error }, 'delivery_transport_failure')
+    }
 
-  const headers = {
-    'Content-Type': 'application/json',
-    'X-Webhook-Id': row.id,
-    'X-Webhook-Timestamp': String(timestamp),
-    'X-Webhook-Signature': signature,
-    'User-Agent': 'Hikyaku/1.0',
-  }
+    const durationMs = Date.now() - start
 
-  const start = Date.now()
-  const attemptCountAfterHttp = row.attemptCount + 1
-  let httpStatus: number | null = null
-  let responseBody: string | null = null
-  let error: DeliveryTransportError | null = null
-
-  try {
-    const result = await postWithTimeout(
-      row.url,
-      body,
-      headers,
-      env.DELIVERY_TIMEOUT_MS,
-      allowPrivate,
-    )
-    httpStatus = result.status
-    responseBody = result.body
-  } catch (err) {
-    error = classifyDeliveryError(err)
-    log.info({ error }, 'delivery_transport_failure')
-  }
-
-  if (error !== null && isTerminalTransportError(error)) {
-    await recordOutcome(
-      row.id,
-      row.eventId,
-      leaseStartedAt,
-      {
-        attemptCount: row.attemptCount + 1,
-        status: 'failed',
+    if (error !== null && isTerminalTransportError(error)) {
+      decision = {
+        action: 'fail_fast',
         lastError: error,
-        nextRetryAt: null,
-      },
-      { httpStatus, responseBody, error, durationMs: Date.now() - start },
-      attemptCountAfterHttp,
-    )
-    log.info({ last_error: error }, 'delivery_failed_fast')
-    return
+        attemptCount: nextAttempt,
+        attempt: { httpStatus, responseBody, error, durationMs },
+        log: 'delivery_failed_fast',
+        logFields: { last_error: error },
+      }
+    } else if (httpStatus !== null && httpStatus >= 200 && httpStatus < 300) {
+      decision = {
+        action: 'succeeded',
+        attempt: { httpStatus, responseBody, durationMs },
+        httpStatus,
+      }
+    } else {
+      if (httpStatus !== null) {
+        log.info({ http_status: httpStatus }, 'delivery_http_failure')
+      }
+
+      if (httpStatus !== null && !isRetryableHttpStatus(httpStatus)) {
+        decision = {
+          action: 'fail_fast',
+          lastError: `http_${httpStatus}`,
+          attemptCount: nextAttempt,
+          attempt: { httpStatus, responseBody, error: null, durationMs },
+          log: 'delivery_failed_fast',
+          logFields: { last_error: `http_${httpStatus}` },
+        }
+      } else {
+        const attempt: HttpAttemptFields = { httpStatus, responseBody, error, durationMs }
+        if (nextAttempt >= env.MAX_DELIVERY_ATTEMPTS) {
+          decision = {
+            action: 'fail_fast',
+            lastError: 'max_attempts',
+            attemptCount: nextAttempt,
+            attempt,
+            log: 'delivery_dead_letter',
+            logFields: { attempt_count: nextAttempt },
+          }
+        } else {
+          decision = {
+            action: 'retry',
+            lastError: error ?? `http_${httpStatus}`,
+            attempt,
+            retryAt: new Date(Date.now() + calculateBackoffDelayMs(nextAttempt)),
+          }
+        }
+      }
+    }
   }
 
-  if (httpStatus !== null) {
-    if (httpStatus >= 200 && httpStatus < 300) {
-      await recordOutcome(
-        row.id,
-        row.eventId,
-        leaseStartedAt,
-        {
-          attemptCount: row.attemptCount + 1,
+  const delivery: DeliveryOutcome =
+    decision.action === 'succeeded'
+      ? {
           status: 'succeeded',
+          attemptCount: nextAttempt,
           lastError: null,
           nextRetryAt: null,
-        },
-        { httpStatus, responseBody, durationMs: Date.now() - start },
-        attemptCountAfterHttp,
-      )
-      log.info({ http_status: httpStatus }, 'delivery_succeeded')
-      return
-    }
+        }
+      : decision.action === 'retry'
+        ? {
+            status: 'pending',
+            attemptCount: nextAttempt,
+            lastError: decision.lastError,
+            nextRetryAt: decision.retryAt,
+          }
+        : {
+            status: 'failed',
+            lastError: decision.lastError,
+            nextRetryAt: null,
+            ...(decision.attemptCount !== undefined
+              ? { attemptCount: decision.attemptCount }
+              : {}),
+          }
 
-    log.info({ http_status: httpStatus }, 'delivery_http_failure')
-
-    if (!isRetryableHttpStatus(httpStatus)) {
-      await recordOutcome(
-        row.id,
-        row.eventId,
-        leaseStartedAt,
-        {
-          attemptCount: row.attemptCount + 1,
-          status: 'failed',
-          lastError: `http_${httpStatus}`,
-          nextRetryAt: null,
-        },
-        { httpStatus, responseBody, error: null, durationMs: Date.now() - start },
-        attemptCountAfterHttp,
-      )
-      log.info({ last_error: `http_${httpStatus}` }, 'delivery_failed_fast')
-      return
-    }
-  }
-
-  const attempt: HttpAttemptFields = {
-    httpStatus,
-    responseBody,
-    error,
-    durationMs: Date.now() - start,
-  }
-
-  if (attemptCountAfterHttp >= env.MAX_DELIVERY_ATTEMPTS) {
-    await recordOutcome(
-      row.id,
-      row.eventId,
-      leaseStartedAt,
-      {
-        attemptCount: row.attemptCount + 1,
-        status: 'failed',
-        lastError: 'max_attempts',
-        nextRetryAt: null,
-      },
-      attempt,
-      attemptCountAfterHttp,
-    )
-    log.info({ attempt_count: attemptCountAfterHttp }, 'delivery_dead_letter')
-    return
-  }
-
-  const lastError = error ?? `http_${httpStatus}`
-  const retryAt = new Date(Date.now() + calculateBackoffDelayMs(attemptCountAfterHttp))
+  const attempt = decision.attempt
   const wrote = await recordOutcome(
     row.id,
     row.eventId,
     leaseStartedAt,
-    {
-      attemptCount: row.attemptCount + 1,
-      status: 'pending',
-      lastError,
-      nextRetryAt: retryAt,
-    },
+    row.replayCount,
+    delivery,
     attempt,
-    attemptCountAfterHttp,
+    attempt !== undefined ? nextAttempt : undefined,
   )
-  if (!wrote) return
-  await job.moveToDelayed(retryAt.getTime(), token)
-  log.info({ last_error: lastError, attempt_count: attemptCountAfterHttp }, 'delivery_retrying')
-  throw new DelayedError()
+
+  switch (decision.action) {
+    case 'succeeded':
+      log.info({ http_status: decision.httpStatus }, 'delivery_succeeded')
+      return
+    case 'fail_fast':
+      if (decision.logFields) log.info(decision.logFields, decision.log)
+      else log.info(decision.log)
+      return
+    case 'retry':
+      if (!wrote) return
+      await job.moveToDelayed(decision.retryAt.getTime(), token)
+      log.info(
+        { last_error: decision.lastError, attempt_count: nextAttempt },
+        'delivery_retrying',
+      )
+      throw new DelayedError()
+    default: {
+      const _exhaustive: never = decision
+      throw new Error(`unexpected decision: ${_exhaustive}`)
+    }
+  }
 }

@@ -20,7 +20,9 @@ describe('tenant isolation (#4)', () => {
   let globexAgent: ReturnType<typeof request.agent>
 
   beforeAll(async () => {
-    await queue.obliterate({ force: true })
+    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+      await job.remove()
+    }
 
     acme = await createTenantWithKey()
     globex = await createTenantWithKey()
@@ -60,7 +62,9 @@ describe('tenant isolation (#4)', () => {
   })
 
   afterAll(async () => {
-    await queue.obliterate({ force: true })
+    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+      await job.remove()
+    }
     await queue.close()
     await deleteTenant(acme.tenantId)
     await deleteTenant(globex.tenantId)

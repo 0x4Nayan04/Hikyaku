@@ -1,12 +1,13 @@
-import { deliveries, events } from '@webhook/shared/schema'
 import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
+import type * as schema from '@webhook/shared/schema'
+import { deliveries, deliveryOutbox, events } from '@webhook/shared/schema'
 import type { IngestEventInput } from '@webhook/shared/zod'
 import { and, eq } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
-import type * as schema from '@webhook/shared/schema'
 import { isDeepStrictEqual } from 'node:util'
-import { getActiveEndpointIds } from '../lib/activeEndpoints.js'
 import { getDb } from '../db/client.js'
+import { getActiveEndpointIds } from '../lib/activeEndpoints.js'
+import { AppError } from '../lib/errors.js'
 
 type DbExecutor = NodePgDatabase<typeof schema>
 
@@ -31,13 +32,6 @@ export type FanoutResult = {
   event: EventListRow
   newDeliveryIds: string[]
   isDuplicate: boolean
-}
-
-export class IdempotencyMismatchError extends Error {
-  constructor(idempotencyKey: string) {
-    super(`Idempotency key "${idempotencyKey}" was already used with a different event body`)
-    this.name = 'IdempotencyMismatchError'
-  }
 }
 
 async function findEvent(
@@ -88,7 +82,12 @@ async function insertDeliveries(
     .onConflictDoNothing({ target: [deliveries.eventId, deliveries.endpointId] })
     .returning({ id: deliveries.id })
 
-  return inserted.map((row) => row.id)
+  const ids = inserted.map((row) => row.id)
+  if (ids.length > 0) {
+    await executor.insert(deliveryOutbox).values(ids.map((deliveryId) => ({ deliveryId, tenantId })))
+  }
+
+  return ids
 }
 
 export async function ingestFanout(
@@ -116,7 +115,11 @@ export async function ingestFanout(
       }
 
       if (concurrent.type !== input.type || !isDeepStrictEqual(concurrent.payload, input.payload)) {
-        throw new IdempotencyMismatchError(input.idempotency_key)
+        throw new AppError(
+          409,
+          'idempotency_mismatch',
+          `Idempotency key "${input.idempotency_key}" was already used with a different event body`,
+        )
       }
 
       const newDeliveryIds = await insertDeliveries(tx, tenantId, concurrent.id)
@@ -126,20 +129,8 @@ export async function ingestFanout(
     }
 
     const newDeliveryIds = await insertDeliveries(tx, tenantId, inserted.id)
-    if (newDeliveryIds.length === 0) {
-      const [completed] = await tx
-        .update(events)
-        .set({ status: 'completed' })
-        .where(eq(events.id, inserted.id))
-        .returning(eventListColumns)
+    const status = await reevaluateEventStatus(inserted.id, tx)
 
-      if (!completed) {
-        throw new Error('event_status_update_missing_row')
-      }
-
-      return { event: completed, newDeliveryIds: [], isDuplicate: false }
-    }
-
-    return { event: inserted, newDeliveryIds, isDuplicate: false }
+    return { event: { ...inserted, status }, newDeliveryIds, isDuplicate: false }
   })
 }

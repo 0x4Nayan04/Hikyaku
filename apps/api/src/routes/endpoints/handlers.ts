@@ -1,11 +1,13 @@
+import type { EndpointStatus } from '@webhook/shared/constants'
 import { generateEndpointSecret } from '@webhook/shared/crypto'
 import { deliveries, endpoints } from '@webhook/shared/schema'
 import { checkWebhookUrl } from '@webhook/shared/webhookUrl'
 import { and, desc, eq, inArray } from 'drizzle-orm'
-import type { NextFunction, Request, Response } from 'express'
+import type { Request, Response } from 'express'
 import { env } from '../../config.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
+import { asyncHandler } from '../../lib/asyncHandler.js'
 import { invalidateActiveEndpointIds } from '../../lib/activeEndpoints.js'
 import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
@@ -52,100 +54,90 @@ async function loadLastDeliveries(
   return map
 }
 
-export async function createEndpoint(req: Request, res: Response, next: NextFunction) {
-  try {
-    const body = parseCreateBody(req.body)
-    const urlCheck = await checkWebhookUrl(body.url, env.NODE_ENV !== 'production')
-    if (!urlCheck.ok) {
-      throw new AppError(400, 'validation_error', urlCheck.reason)
-    }
-
-    const secret = generateEndpointSecret()
-    const db = getDb()
-
-    const [row] = await db
-      .insert(endpoints)
-      .values({
-        tenantId: getTenantId(req),
-        url: body.url,
-        secret,
-        description: body.description ?? null,
-      })
-      .returning(endpointColumns)
-
-    invalidateActiveEndpointIds(getTenantId(req))
-    res.status(201).json(toEndpointJson(row, secret))
-  } catch (err) {
-    next(err)
+export const createEndpoint = asyncHandler(async (req: Request, res: Response) => {
+  const body = parseCreateBody(req.body)
+  const urlCheck = await checkWebhookUrl(body.url, env.NODE_ENV !== 'production')
+  if (!urlCheck.ok) {
+    throw new AppError(400, 'validation_error', urlCheck.reason)
   }
-}
 
-export async function listEndpoints(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { limit, offset } = parsePagination(req.query)
-    const { status } = parseListQuery(req.query)
-    const tenantId = getTenantId(req)
-    const db = getDb()
-    const where = and(
-      eq(endpoints.tenantId, tenantId),
-      status === undefined ? undefined : eq(endpoints.status, status),
-    )
+  const secret = generateEndpointSecret()
+  const db = getDb()
 
-    const rows = await db
-      .select(endpointColumns)
-      .from(endpoints)
-      .where(where)
-      .orderBy(desc(endpoints.createdAt))
-      .limit(limit + 1)
-      .offset(offset)
-    const page = takePage(rows, limit)
+  const [row] = await db
+    .insert(endpoints)
+    .values({
+      tenantId: getTenantId(req),
+      url: body.url,
+      secret,
+      description: body.description ?? null,
+    })
+    .returning(endpointColumns)
 
-    const lastByEndpoint = await loadLastDeliveries(
-      tenantId,
-      page.data.map((row) => row.id),
-    )
+  invalidateActiveEndpointIds(getTenantId(req))
+  res.status(201).json(toEndpointJson(row, secret))
+})
 
-    res.json(
-      paginatedJson(
-        page.data.map((row) => toEndpointJson(row, undefined, lastByEndpoint.get(row.id) ?? null)),
-        page.hasMore,
-        limit,
-        offset,
+export const listEndpoints = asyncHandler(async (req: Request, res: Response) => {
+  const { limit, offset } = parsePagination(req.query)
+  const { status } = parseListQuery(req.query)
+  const tenantId = getTenantId(req)
+  const db = getDb()
+  const where = and(
+    eq(endpoints.tenantId, tenantId),
+    status === undefined ? undefined : eq(endpoints.status, status),
+  )
+
+  const rows = await db
+    .select(endpointColumns)
+    .from(endpoints)
+    .where(where)
+    .orderBy(desc(endpoints.createdAt))
+    .limit(limit + 1)
+    .offset(offset)
+  const page = takePage(rows, limit)
+
+  const lastByEndpoint = await loadLastDeliveries(
+    tenantId,
+    page.data.map((row) => row.id),
+  )
+
+  res.json(
+    paginatedJson(
+      page.data.map((row) =>
+        toEndpointJson(row, undefined, lastByEndpoint.get(row.id) ?? null),
       ),
-    )
-  } catch (err) {
-    next(err)
+      page.hasMore,
+      limit,
+      offset,
+    ),
+  )
+})
+
+export const patchEndpoint = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params
+  parseEndpointId(id)
+
+  const body = parsePatchBody(req.body)
+  const updates: { status?: EndpointStatus; description?: string | null } = {}
+  if (body.status !== undefined) {
+    updates.status = body.status
   }
-}
-
-export async function patchEndpoint(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { id } = req.params
-    parseEndpointId(id)
-
-    const body = parsePatchBody(req.body)
-    const updates: { status?: string; description?: string | null } = {}
-    if (body.status !== undefined) {
-      updates.status = body.status
-    }
-    if (body.description !== undefined) {
-      updates.description = body.description
-    }
-
-    const db = getDb()
-    const [row] = await db
-      .update(endpoints)
-      .set(updates)
-      .where(and(eq(endpoints.id, id), eq(endpoints.tenantId, getTenantId(req))))
-      .returning(endpointColumns)
-
-    if (!row) {
-      throw new AppError(404, 'not_found', 'Endpoint not found')
-    }
-
-    invalidateActiveEndpointIds(getTenantId(req))
-    res.json(toEndpointJson(row))
-  } catch (err) {
-    next(err)
+  if (body.description !== undefined) {
+    updates.description = body.description
   }
-}
+
+  const db = getDb()
+  const [row] = await db
+    .update(endpoints)
+    .set(updates)
+    .where(and(eq(endpoints.id, id), eq(endpoints.tenantId, getTenantId(req))))
+    .returning(endpointColumns)
+
+  if (!row) {
+    throw new AppError(404, 'not_found', 'Endpoint not found')
+  }
+
+  invalidateActiveEndpointIds(getTenantId(req))
+  res.json(toEndpointJson(row))
+})
