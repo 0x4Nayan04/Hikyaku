@@ -50,7 +50,6 @@ function preloadLcpFont(): Plugin {
   }
 }
 
-// https://vite.dev/config/
 export default defineConfig(({ command }) => {
   // Vite keys isProduction off NODE_ENV; ensure `vite build` never ships a DEV bundle
   // when the shell left NODE_ENV unset (jsxDEV + optional react-grab would leak).

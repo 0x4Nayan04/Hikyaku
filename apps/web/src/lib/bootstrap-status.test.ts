@@ -24,14 +24,14 @@ describe('bootstrap status cache', () => {
     expect(readBootstrapStatusCache()).toBe(true)
   })
 
-  it('refetches after the cache is invalidated', async () => {
+  it('refetches after the cache is cleared', async () => {
     getBootstrapStatus
       .mockResolvedValueOnce({ available: true })
       .mockResolvedValueOnce({ available: false })
-    const { loadBootstrapStatus, invalidateBootstrapStatusCache } = await import('./bootstrap-status')
+    const { loadBootstrapStatus } = await import('./bootstrap-status')
 
     await expect(loadBootstrapStatus()).resolves.toBe(true)
-    invalidateBootstrapStatusCache()
+    sessionStorage.clear()
     await expect(loadBootstrapStatus()).resolves.toBe(false)
     expect(getBootstrapStatus).toHaveBeenCalledTimes(2)
   })

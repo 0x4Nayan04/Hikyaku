@@ -283,3 +283,7 @@ export function acceptInvite(body: AcceptInviteInput): Promise<{ user: User }> {
     body: JSON.stringify(body),
   })
 }
+
+export function createMyWorkspace(workspaceName: string): Promise<{ id: string; name: string }> {
+  return apiFetch('/v1/auth/workspace', { method: 'POST', body: JSON.stringify({ workspace_name: workspaceName }) })
+}

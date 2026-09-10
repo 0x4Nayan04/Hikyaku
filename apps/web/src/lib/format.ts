@@ -29,16 +29,14 @@ export function formatCreatedStacked(iso: string): { date: string; time: string 
   }
 }
 
-const deliveryDateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
-
-/** Relative time for recent deliveries; absolute date for older ones (matches endpoint table mock). */
+/** Relative time for recent deliveries; absolute date for older ones. */
 export function formatDeliveryTime(iso: string): string {
   const ageMs = Date.now() - Date.parse(iso)
   const sevenDays = 7 * 24 * 60 * 60 * 1000
   if (ageMs < sevenDays) {
     return formatRelativeTime(iso)
   }
-  return deliveryDateFormatter.format(new Date(iso))
+  return dateFormatter.format(new Date(iso))
 }
 
 const relativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
@@ -64,7 +62,7 @@ function formatRelativeTime(iso: string): string {
     }
   }
 
-  return relativeTimeFormatter.format(0, 'second')
+  return relativeTimeFormatter.format(seconds, 'second')
 }
 
 export function shortId(value: string, visible = 8): string {
@@ -115,7 +113,7 @@ export function formatEndpointUrlForDisplay(url: string, maxLen = 56): string {
       return `${origin}${path.slice(0, budget)}…`
     }
   } catch {
-    // Fall through to prefix truncation for non-standard URLs.
+    // not a parseable URL
   }
 
   return `${url.slice(0, maxLen - 1)}…`
@@ -139,22 +137,8 @@ export function formatEndpointUrlDistinctive(url: string, maxLen = 56): string {
       return `…/${tail}`
     }
   } catch {
-    // Fall through.
+    // not a parseable URL
   }
 
   return formatEndpointUrlForDisplay(url, maxLen)
-}
-
-/** Label for endpoint rows: custom description, else hostname. */
-export function endpointDisplayLabel(endpoint: {
-  description: string | null
-  url: string
-}): string {
-  const label = endpoint.description?.trim()
-  if (label) return label
-  try {
-    return new URL(endpoint.url).host
-  } catch {
-    return endpoint.url
-  }
 }

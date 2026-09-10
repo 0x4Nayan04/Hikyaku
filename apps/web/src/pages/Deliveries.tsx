@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search, Send, X } from 'lucide-react'
 import { listDeliveries } from '@/api/client'
@@ -43,7 +42,7 @@ function parseStatusParam(value: string | null): 'all' | DeliveryStatus {
   return 'all'
 }
 
-export function Deliveries() {
+export default function Deliveries() {
   const [searchParams, setSearchParams] = useSearchParams()
   const eventIdFilter = searchParams.get('event_id') || undefined
   const statusFilter = parseStatusParam(searchParams.get('status'))
@@ -77,39 +76,37 @@ export function Deliveries() {
   const isLive = error === null
   const showEmpty = !isInitial && deliveries.length === 0
   const isDatasetEmpty = showEmpty && statusFilter === 'all' && !eventIdFilter && offset === 0
-  const emptyState = useMemo(() => {
-    if (eventIdFilter) {
-      return (
-        <DataPanelEmpty
-          variant="inline"
-          icon={Search}
-          title="No deliveries for this event"
-          description={
-            <>
-              This event has no matching deliveries
-              {statusFilter !== 'all' ? ' for the selected status' : ''}.{' '}
-              <Link to="/deliveries" className="font-medium text-primary hover:underline">
-                View all deliveries
-              </Link>
-              .
-            </>
-          }
-        />
-      )
-    }
 
-    if (statusFilter !== 'all') {
-      return (
-        <DataPanelEmpty
-          variant="inline"
-          icon={Search}
-          title="No deliveries match this status"
-          description="Choose a different status or view all deliveries."
-        />
-      )
-    }
-
-    return (
+  let emptyState
+  if (eventIdFilter) {
+    emptyState = (
+      <DataPanelEmpty
+        variant="inline"
+        icon={Search}
+        title="No deliveries for this event"
+        description={
+          <>
+            This event has no matching deliveries
+            {statusFilter !== 'all' ? ' for the selected status' : ''}.{' '}
+            <Link to="/deliveries" className="font-medium text-primary hover:underline">
+              View all deliveries
+            </Link>
+            .
+          </>
+        }
+      />
+    )
+  } else if (statusFilter !== 'all') {
+    emptyState = (
+      <DataPanelEmpty
+        variant="inline"
+        icon={Search}
+        title="No deliveries match this status"
+        description="Choose a different status or view all deliveries."
+      />
+    )
+  } else {
+    emptyState = (
       <DataPanelEmpty
         icon={Send}
         title="No deliveries yet"
@@ -124,7 +121,7 @@ export function Deliveries() {
         }
       />
     )
-  }, [statusFilter, eventIdFilter])
+  }
 
   const { pageStart, pageEnd } = pageRange(offset, deliveries.length)
   const canGoBack = offset > 0

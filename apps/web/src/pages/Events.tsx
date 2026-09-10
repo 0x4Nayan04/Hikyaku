@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Send } from 'lucide-react'
 import { listEvents } from '@/api/client'
@@ -25,7 +24,7 @@ import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { usePolling } from '@/hooks/usePolling'
 import { hasPendingEventWork } from '@/lib/polling-utils'
 
-export function Events() {
+export default function Events() {
   const navigate = useNavigate()
   const {
     data: events,
@@ -46,24 +45,21 @@ export function Events() {
   const showEmpty = !isInitial && events.length === 0
   const isDatasetEmpty = showEmpty && offset === 0
 
-  const emptyState = useMemo(
-    () => (
-      <DataPanelEmpty
-        icon={Send}
-        title="No events yet"
-        description={
-          <>
-            Ingested events appear here after you send one.
-            <br />
-            <Link to="/events/send" className="font-medium text-primary hover:underline">
-              Send a test event
-            </Link>
-            .
-          </>
-        }
-      />
-    ),
-    [],
+  const emptyState = (
+    <DataPanelEmpty
+      icon={Send}
+      title="No events yet"
+      description={
+        <>
+          Ingested events appear here after you send one.
+          <br />
+          <Link to="/events/send" className="font-medium text-primary hover:underline">
+            Send a test event
+          </Link>
+          .
+        </>
+      }
+    />
   )
 
   const { pageStart, pageEnd } = pageRange(offset, events.length)

@@ -12,9 +12,9 @@ import { useSettingsPage } from '@/pages/settings/useSettingsPage'
 
 const TENANT_ONLY_TABS = new Set(['tenant', 'api-keys'])
 
-export function Settings() {
+export default function Settings() {
   const { session } = useSession()
-  const isSuperAdmin = session?.user.is_super_admin ?? false
+  const isSuperAdmin = (session?.user.is_super_admin ?? false) && !session?.tenant
 
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedTab = searchParams.get('tab') ?? 'profile'

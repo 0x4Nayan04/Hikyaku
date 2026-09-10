@@ -42,3 +42,8 @@ describe('auth-redirect', () => {
     )
   })
 })
+
+it('opens the assigned workspace for a super-admin', () => {
+  expect(getDefaultHomePath({ is_super_admin: true, tenant_id: 'workspace' })).toBe('/dashboard')
+  expect(getPostLoginPath({ from: { pathname: '/endpoints' } }, { is_super_admin: true, tenant_id: 'workspace' })).toBe('/endpoints')
+})

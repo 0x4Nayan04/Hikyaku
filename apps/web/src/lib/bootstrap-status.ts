@@ -33,14 +33,6 @@ export function writeBootstrapStatusCache(available: boolean): void {
   }
 }
 
-export function invalidateBootstrapStatusCache(): void {
-  try {
-    sessionStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // ignore
-  }
-}
-
 export async function loadBootstrapStatus(): Promise<boolean> {
   const cached = readBootstrapStatusCache()
   if (cached !== null) return cached

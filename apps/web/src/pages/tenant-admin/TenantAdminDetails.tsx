@@ -71,7 +71,7 @@ export function TenantAdminDetails({
           ) : undefined
         }
         empty={
-          users.length === 0 && 'No users found for this tenant. Send an invite to get started.'
+          users.length === 0 ? 'No users found for this tenant. Send an invite to get started.' : undefined
         }
       >
         {users.length > 0 && (

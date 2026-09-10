@@ -26,7 +26,7 @@ function resolveInviteLoadError(err: unknown): string {
   return 'Unable to load invite. Try again, or ask for a new invite link from your administrator.'
 }
 
-export function AcceptInvite() {
+export default function AcceptInvite() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') ?? ''
@@ -167,7 +167,7 @@ export function AcceptInvite() {
               icon={User}
               autoComplete="name"
               value={name}
-              onChange={(value) => setName(value)}
+              onChange={setName}
               required
             />
             <AuthFormField
@@ -179,7 +179,7 @@ export function AcceptInvite() {
               minLength={MIN_PASSWORD_LENGTH}
               maxLength={128}
               value={password}
-              onChange={(value) => setPassword(value)}
+              onChange={setPassword}
               hint={`Use at least ${MIN_PASSWORD_LENGTH} characters.`}
               required
             />
@@ -192,9 +192,7 @@ export function AcceptInvite() {
               minLength={MIN_PASSWORD_LENGTH}
               maxLength={128}
               value={confirmPassword}
-              onChange={(value) =>
-                setConfirmPassword(value)
-              }
+              onChange={setConfirmPassword}
               required
             />
 

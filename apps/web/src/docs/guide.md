@@ -21,10 +21,10 @@ Pick a path below. Both need the API and worker running — `pnpm dev` starts th
 
 ### Console path
 
-1. Bootstrap the first super-admin at [/bootstrap](/bootstrap) (first deploy only).
-2. From **Admin**, invite a tenant owner and send them the one-time link. Then sign in as that tenant — super-admins stay on platform ops and have no API keys tab.
+1. Create your installer account and first workspace at [/bootstrap](/bootstrap) (first deploy only).
+2. Sign in and open your workspace dashboard. Existing admin-only accounts can use **Create my workspace** in Admin.
 3. Open **Endpoints** and register a receiver URL.
-4. Create an API key under **Settings → API keys** (required for backend ingest).
+4. Send a sample event using the existing **Test event** form, then inspect its deliveries. API keys are only needed afterward for backend ingest.
 5. Prefer `POST /v1/events` with the key (curl below). **Test event** in the console is a smoke-test shortcut.
 6. Confirm the result under **Deliveries**.
 
@@ -49,16 +49,16 @@ A successful ingest returns `202 Accepted` with the event id and enqueues one de
 
 ## Console guide
 
-Fresh deploys bootstrap a super-admin at [/bootstrap](/bootstrap). All tenant users arrive through invitation links. Console data is scoped to the signed-in tenant.
+Fresh deploys create a super-admin and their workspace at [/bootstrap](/bootstrap). Additional users arrive through invitation links. Console data is scoped to the signed-in tenant.
 
 - **Dashboard** — ingest volume, queue depth, 24h outcomes, and recent activity.
 - **Endpoints** — register a receiver URL and copy the signing secret shown once at create.
 - **Events** — browse ingested events and open one to see its deliveries.
 - **Test event** — POST a smoke-test payload from the UI (real traffic should use `POST /v1/events`).
 - **Deliveries** — filter by status, inspect attempt timelines, and replay failures.
-- **Settings** — API keys, tenant identity, and account password. Super-admins see profile/password only; they have no API key or tenant tabs.
+- **Settings** — API keys, tenant identity, and account password. Super-admins with a workspace also have API key and tenant tabs.
 
-Super-admins use **Admin** to invite tenant owners, list, rename, or delete tenants, and invite or remove tenant users. Super-admins are not tenant-scoped — they do not run tenant deliveries or hold tenant API keys.
+Super-admins use **Admin** to invite tenant owners, list, rename, or delete tenants, and invite or remove tenant users. A super-admin can use their own assigned workspace, including deliveries and API keys. Admin remains a separate area. Workspaces linked to a super-admin cannot be deleted.
 
 ## Authentication
 
@@ -113,7 +113,7 @@ Post an event to `POST /v1/events`. The body must include three fields and stay 
 | `409`  | The idempotency key was already used with a different event body   |
 | `429`  | Too many requests — wait and retry after a short delay (default 120 per minute per tenant) |
 
-An event’s status rolls up from its deliveries: `pending` while anything is still open, `failed` when every delivery failed, and `completed` once all deliveries are terminal and at least one succeeded. An event with no active endpoints has no deliveries and completes immediately. List events with `GET /v1/events`, or open a single event with `GET /v1/events/:id`.
+An event is `pending` while any delivery is open; `completed` only when all deliveries succeeded; `partial_failure` when all are terminal with mixed results; `failed` when all failed; and `no_recipients` when it has zero deliveries. List events with `GET /v1/events`, or open a single event with `GET /v1/events/:id`.
 
 > **Idempotency:** Reusing the same `idempotency_key` with the same type and payload returns the existing event with `202`. Reusing it with a different type or payload returns `409 idempotency_mismatch`. If active endpoints were added since the first request, the retry creates only the missing deliveries.
 
@@ -252,7 +252,8 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 | GET    | `/v1/health`                            | Liveness probe                           |
 | GET    | `/v1/ready`                             | Postgres + Redis connectivity            |
 | GET    | `/v1/auth/bootstrap-status`             | Whether first-run bootstrap is still available |
-| POST   | `/v1/auth/bootstrap`                    | One-time super-admin bootstrap           |
+| POST   | `/v1/auth/bootstrap`                    | Installer and first workspace (`workspace_name` optional) |
+| POST | `/v1/auth/workspace` | Create an existing admin-only account’s workspace (session required) |
 | GET    | `/v1/auth/invites/validate`             | Validate invite token                    |
 | POST   | `/v1/auth/accept-invite`                | Accept invite and create account         |
 | POST   | `/v1/auth/login`                        | Email/password login → session cookie    |
@@ -283,7 +284,7 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 
 All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (default 50, max 100). `api-keys` filter by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` plus `?event_id=`. Responses look like `{ data, total, limit, offset }`.
 
-Ingest (`POST /v1/events`) accepts a Bearer API key or a tenant session cookie. Every other tenant route requires a tenant session cookie. Admin routes require a super-admin session. Auth routes are public except logout, me, and change-password.
+Ingest (`POST /v1/events`) accepts a Bearer API key or a tenant session cookie. Every other tenant route requires a tenant session cookie. Admin routes require a super-admin session. Auth routes are public except logout, me, change-password, and workspace creation.
 
 ## Retries
 
@@ -291,7 +292,7 @@ Transient failures retry automatically. Permanent client errors fail fast. After
 
 | Setting           | Value                                                |
 | ----------------- | ---------------------------------------------------- |
-| Max HTTP attempts | 5 per delivery                                       |
+| Max HTTP attempts | 5 per delivery run                                       |
 | Backoff           | Exponential backoff (1m → 2m → 4m → 8m), no jitter, no cap |
 | Success           | HTTP 2xx within 30s                                  |
 | Retryable         | Network error, timeout, 408, 429, 5xx                |
@@ -302,10 +303,12 @@ Transient failures retry automatically. Permanent client errors fail fast. After
 
 Delivery is at-least-once — dedupe on your side with `X-Webhook-Id` (stable across retries). A background sweeper reclaims deliveries left `in_progress` after a worker crash and re-enqueues them.
 
-Only `failed` deliveries can be re-queued. Call `POST /v1/deliveries/:id/replay` (returns `202`), or use **Replay** on the delivery detail page. Replaying resets the attempt counter and clears the prior attempt timeline. Replaying a delivery that's already `pending`/`in_progress` returns `202` without rescheduling.
+Only `failed` deliveries can be re-queued. Call `POST /v1/deliveries/:id/replay` (returns `202`), or use **Replay** on the delivery detail page. Replaying increments `replay_count`, resets the current run’s attempt counter, and preserves all previous attempts. Attempts expose `run_number`, starting at 0; the delivery ID and X-Webhook-Id remain unchanged. Replaying a delivery that's already `pending`/`in_progress` returns `202` without creating another run (an existing open delivery may be re-enqueued for recovery).
 
 ## Privacy
 
 API keys are stored as SHA-256 hashes; the full secret is shown only on create or rotate. Endpoint signing secrets are kept server-side so the worker can sign outbound POSTs, and are shown once at creation. Session cookies power the console. Delivery attempt logs may include a truncated response body (~1KB) for debugging. There is no application-level encryption at rest beyond what your database and filesystem provide.
 
 > **Protect secrets:** Do not commit API keys or signing secrets to source control or paste them into tickets. Revoke a compromised key from Settings immediately. To rotate an endpoint signing secret, create a new endpoint, point subscribers at it, then disable the old one — secrets cannot be rotated in place.
+
+Temporary DNS lookup failures use the normal bounded delivery retries. Invalid, private, or unsafe URLs remain blocked, and endpoint registration rejects unresolved hostnames.

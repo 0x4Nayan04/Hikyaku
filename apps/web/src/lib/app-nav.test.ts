@@ -69,3 +69,10 @@ describe('filterNavSections', () => {
     expect(devtools?.items.map((item) => item.to)).toContain('/events/send')
   })
 })
+
+it('shows both workspace operations and Admin for a workspace-linked super-admin', () => {
+  const paths = filterNavSections(true, true).flatMap(section => section.items.map(item => item.to))
+  expect(paths).toContain('/dashboard')
+  expect(paths).toContain('/endpoints')
+  expect(paths).toContain('/admin')
+})

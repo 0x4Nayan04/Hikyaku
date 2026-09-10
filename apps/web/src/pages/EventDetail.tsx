@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { getEvent } from '@/api/client'
@@ -19,11 +18,7 @@ import { formatDateTime } from '@/lib/format'
 import { useDetailFetch } from '@/hooks/useDetailFetch'
 import { usePolling } from '@/hooks/usePolling'
 
-function formatPayload(payload: Record<string, unknown>): string {
-  return JSON.stringify(payload, null, 2)
-}
-
-export function EventDetail() {
+export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
   const { data: event, loading, error, reload } = useDetailFetch<EventDetailType>({
     id,
@@ -33,7 +28,7 @@ export function EventDetail() {
   })
   usePolling({ enabled: event?.status === 'pending', onPoll: reload })
 
-  const payloadText = useMemo(() => (event ? formatPayload(event.payload) : ''), [event])
+  const payloadText = event ? JSON.stringify(event.payload, null, 2) : ''
 
   return (
     <ConsolePage

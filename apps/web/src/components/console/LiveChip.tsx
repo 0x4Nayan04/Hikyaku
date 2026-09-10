@@ -3,7 +3,6 @@ import { formatDateTime } from '@/lib/format'
 
 type LiveChipProps = {
   active?: boolean
-  /** ISO timestamp from the last successful poll. */
   lastUpdated?: string
 }
 

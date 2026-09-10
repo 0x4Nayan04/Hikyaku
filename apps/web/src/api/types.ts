@@ -1,5 +1,33 @@
 import type { DeliveryStatus, EndpointStatus, EventStatus } from '@webhook/shared/constants'
+import type {
+  DeliveriesSummary,
+  DeliveryAttemptJson,
+  DeliveryDetailJson,
+  DeliveryListJson,
+  EndpointJson,
+  EndpointLastDeliveryJson,
+  EndpointWithSecretJson,
+  EventDetailJson,
+  EventListJson,
+  IngestEventJson,
+  ReplayDeliveryJson,
+} from '@webhook/shared/apiJson'
+
 export type { DeliveryStatus, EndpointStatus, EventStatus }
+export type {
+  DeliveriesSummary,
+  ReplayDeliveryJson as ReplayDeliveryResponse,
+}
+
+export type EventSummary = EventListJson
+export type EventDetail = EventDetailJson
+export type IngestEventResponse = IngestEventJson
+export type Delivery = DeliveryListJson
+export type DeliveryAttempt = DeliveryAttemptJson
+export type DeliveryDetail = DeliveryDetailJson
+export type Endpoint = EndpointJson
+export type EndpointWithSecret = EndpointWithSecretJson
+export type EndpointLastDelivery = EndpointLastDeliveryJson
 
 export type ApiErrorBody = {
   error?: {
@@ -28,6 +56,7 @@ export type User = {
   id: string
   email: string
   name: string
+  tenant_id?: string | null
   is_super_admin: boolean
 }
 
@@ -60,91 +89,9 @@ export type AdminTenant = {
   created_at: string
 }
 
-export type EndpointLastDelivery = {
-  id: string
-  status: DeliveryStatus
-  updated_at: string
-  last_error: string | null
-}
-
-export type Endpoint = {
-  id: string
-  url: string
-  status: EndpointStatus
-  description: string | null
-  created_at: string
-  last_delivery?: EndpointLastDelivery | null
-}
-
-export type EndpointWithSecret = Endpoint & {
-  secret: string
-}
-
-export type EventSummary = {
-  id: string
-  idempotency_key: string
-  type: string
-  status: EventStatus
-  created_at: string
-}
-
-export type DeliveriesSummary = {
-  total: number
-  succeeded: number
-  failed: number
-  pending: number
-}
-
-export type EventDetail = {
-  id: string
-  idempotency_key: string
-  type: string
-  payload: Record<string, unknown>
-  status: EventStatus
-  created_at: string
-  deliveries_summary: DeliveriesSummary
-}
-
-export type IngestEventResponse = {
-  id: string
-  status: EventStatus
-  created_at: string
-}
-
-export type Delivery = {
-  id: string
-  event_id: string
-  endpoint_id: string
-  endpoint_url: string
-  status: DeliveryStatus
-  attempt_count: number
-  next_retry_at: string | null
-  last_error: string | null
-  created_at: string
-  updated_at: string
-}
-
-export type DeliveryAttempt = {
-  attempt_number: number
-  http_status: number | null
-  response_body: string | null
-  error: string | null
-  duration_ms: number | null
-  created_at: string
-}
-
-export type DeliveryDetail = Delivery & {
-  attempts: DeliveryAttempt[]
-}
-
 export type ListDeliveriesParams = PaginationParams & {
   status?: DeliveryStatus
   event_id?: string
-}
-
-export type ReplayDeliveryResponse = {
-  id: string
-  status: 'pending'
 }
 
 export type Stats = {

@@ -10,10 +10,11 @@ import { getDefaultHomePath } from '@/lib/auth-redirect'
 import { writeBootstrapStatusCache } from '@/lib/bootstrap-status'
 import { useSession } from '@/providers/session-context'
 
-export function Bootstrap() {
+export default function Bootstrap() {
   const navigate = useNavigate()
   const { session, loading } = useSession()
   const [adminSecret, setAdminSecret] = useState('')
+  const [workspaceName, setWorkspaceName] = useState('My workspace')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -81,13 +82,13 @@ export function Bootstrap() {
     setSubmitting(true)
 
     try {
-      await bootstrap(adminSecret, { name, email, password })
+      await bootstrap(adminSecret, { name, email, password, workspace_name: workspaceName })
       writeBootstrapStatusCache(false)
       navigate('/login', {
         replace: true,
         state: {
           banner: 'bootstrap_complete',
-          message: 'Super-admin created. Sign in to continue.',
+          message: 'Account and workspace created. Sign in to send your first webhook.',
         },
       })
     } catch (err) {
@@ -110,8 +111,6 @@ export function Bootstrap() {
       <AuthLayout
         variant="split"
         eyebrow="One-time setup"
-        title="Checking setup…"
-        description="Verifying whether first-deploy bootstrap is still available."
       >
         <p className="text-sm text-muted-foreground">Checking deployment status…</p>
       </AuthLayout>
@@ -123,8 +122,6 @@ export function Bootstrap() {
       <AuthLayout
         variant="split"
         eyebrow="One-time setup"
-        title="Unable to check setup"
-        description="The setup status could not be loaded."
       >
         <div className="flex flex-col gap-3">
           <PageBanner variant="error" title="Setup check failed" description={loadError} />
@@ -144,8 +141,6 @@ export function Bootstrap() {
     <AuthLayout
       variant="split"
       eyebrow="One-time setup"
-      title="Create the first super-admin"
-      description="Runs once per deployment to create the initial platform admin."
       sidePanel={
         <div className="flex flex-col gap-6 h-full">
           <div className="flex flex-col gap-6 flex-1">
@@ -154,17 +149,17 @@ export function Bootstrap() {
                 Delivery console
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-strong">
-                After bootstrap, use Admin to invite tenant owners.
+                Create your workspace, then add an endpoint and send your first webhook.
               </p>
             </div>
 
             <ul className="space-y-3 text-sm">
               {(
                 [
-                  'Invite tenant owners',
-                  'Manage tenant users',
-                  'Rename or delete tenants',
-                  'Tenant consoles are separate from Admin',
+                  'Add your receiver endpoint',
+                  'Send a sample event',
+                  'Inspect delivery results',
+                  'Open Admin separately when needed',
                 ] as const
               ).map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
@@ -201,7 +196,7 @@ export function Bootstrap() {
             icon={Shield}
             autoComplete="off"
             value={adminSecret}
-            onChange={(value) => setAdminSecret(value)}
+            onChange={setAdminSecret}
             required
           />
         </section>
@@ -210,15 +205,17 @@ export function Bootstrap() {
 
         <section className="flex flex-col gap-2">
           <h2 className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-muted-strong">
-            Super-admin account
+            Your account
           </h2>
+          <AuthFormField id="workspace-name" label="Workspace name" icon={User}
+            value={workspaceName} onChange={setWorkspaceName} required />
           <AuthFormField
             id="name"
             label="Full name"
             icon={User}
             autoComplete="name"
             value={name}
-            onChange={(value) => setName(value)}
+            onChange={setName}
             required
           />
           <AuthFormField
@@ -228,7 +225,7 @@ export function Bootstrap() {
             icon={Mail}
             autoComplete="email"
             value={email}
-            onChange={(value) => setEmail(value)}
+            onChange={setEmail}
             required
           />
           <AuthFormField
@@ -240,7 +237,7 @@ export function Bootstrap() {
             minLength={12}
             maxLength={128}
             value={password}
-            onChange={(value) => setPassword(value)}
+            onChange={setPassword}
             hint="Use at least 12 characters."
             required
           />
@@ -252,7 +249,7 @@ export function Bootstrap() {
           className="sm-btn sm-btn-primary sm-btn-block inline-flex items-center justify-center gap-2"
         >
           <KeyRound className="size-4" aria-hidden="true" />
-          {submitting ? 'Creating super-admin…' : 'Create super-admin'}
+          {submitting ? 'Creating workspace…' : 'Create account and workspace'}
         </button>
       </form>
     </AuthLayout>

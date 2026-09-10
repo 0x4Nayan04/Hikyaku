@@ -9,7 +9,7 @@ function DocsLegacyRedirect() {
   return <Navigate to={`/docs${legacyDocsHash(slug) ?? ''}`} replace />
 }
 
-export function DocsRoutes() {
+export default function DocsRoutes() {
   return (
     <Routes>
       <Route path=":slug" element={<DocsLegacyRedirect />} />

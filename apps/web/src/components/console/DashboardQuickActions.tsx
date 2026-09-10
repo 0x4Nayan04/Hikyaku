@@ -16,7 +16,7 @@ const actions: QuickAction[] = [
     icon: Send,
     tone: 'info',
     title: 'Test event',
-    hint: 'Dev tools · non-prod smoke test',
+    hint: 'Dev tools · send a real sample webhook',
   },
   {
     to: '/deliveries',

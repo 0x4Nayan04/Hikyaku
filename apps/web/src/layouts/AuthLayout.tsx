@@ -9,9 +9,8 @@ import '@/styles/domains/auth.css'
 type AuthLayoutProps = {
   children: ReactNode
   eyebrow: string
-  title: string
-  description: string
-  wide?: boolean
+  title?: string
+  description?: string
   variant?: 'centered' | 'split'
   sidePanel?: ReactNode
 }
@@ -38,7 +37,6 @@ export function AuthLayout({
   eyebrow,
   title,
   description,
-  wide,
   variant = 'centered',
   sidePanel,
 }: AuthLayoutProps) {
@@ -48,8 +46,8 @@ export function AuthLayout({
         <AuthNavbar />
         <div className="flex flex-1 flex-col lg:flex-row min-h-0">
           <AuthDots
-            wrapClassName="relative flex flex-col overflow-hidden bg-surface-muted lg:w-1/2 lg:max-w-xl"
-            className="relative z-10 flex flex-col p-8 lg:p-12 h-full"
+            wrapClassName="flex flex-col bg-surface-muted lg:w-1/2 lg:max-w-xl"
+            className="flex flex-col p-8 lg:p-12 h-full"
           >
             {sidePanel}
           </AuthDots>
@@ -80,7 +78,7 @@ export function AuthLayout({
         <LandingSectionBlock className="auth-section-block flex flex-1 flex-col">
           <AuthDots wrapClassName="auth-page-dot-grid bg-surface" className="auth-page-inner">
             <LandingFrameInner>
-              <div className={`auth-form-shell mx-auto w-full ${wide ? 'max-w-xl' : 'max-w-md'}`}>
+              <div className="auth-form-shell mx-auto w-full max-w-md">
                 <header className="auth-form-header mb-5">
                   <p className="auth-eyebrow font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-primary">
                     {eyebrow}

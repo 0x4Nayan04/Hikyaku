@@ -1,4 +1,4 @@
-export type OnboardingStepId = 'endpoint' | 'api_key' | 'test_event' | 'deliveries'
+export type OnboardingStepId = 'endpoint' | 'test_event' | 'deliveries'
 
 export type OnboardingStep = {
   id: OnboardingStepId
@@ -10,7 +10,6 @@ export type OnboardingStep = {
 /** Ordered first-run checklist for an empty tenant dashboard. */
 export function buildOnboardingSteps(opts: {
   hasEndpoint: boolean
-  hasApiKey: boolean
   hasTestEvent: boolean
   hasDeliveries: boolean
 }): OnboardingStep[] {
@@ -20,12 +19,6 @@ export function buildOnboardingSteps(opts: {
       label: 'Create an endpoint',
       to: '/endpoints',
       done: opts.hasEndpoint,
-    },
-    {
-      id: 'api_key',
-      label: 'Create an API key',
-      to: '/settings?tab=api-keys',
-      done: opts.hasApiKey,
     },
     {
       id: 'test_event',
@@ -44,7 +37,8 @@ export function buildOnboardingSteps(opts: {
 
 /** Copy-paste ingest curl with the just-created key (shown once). */
 export function buildIngestCurl(apiKey: string, apiBase: string): string {
-  return `curl -X POST "${apiBase}/v1/events" \\
+  const origin = apiBase || window.location.origin
+  return `curl -X POST "${origin}/v1/events" \\
   -H "Authorization: Bearer ${apiKey}" \\
   -H "Content-Type: application/json" \\
   -d '{

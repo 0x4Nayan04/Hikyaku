@@ -48,7 +48,6 @@ export function AdminInviteTenantDialog({
         owner_name: ownerName.trim() || undefined,
       })
       resetForm()
-      setSubmitting(false)
       onOpenChange(false)
       onInvited({ inviteUrl: result.invite_url, expiresAt: result.expires_at })
       toast.success('Invite created')

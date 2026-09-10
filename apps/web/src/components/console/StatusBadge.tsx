@@ -13,6 +13,8 @@ const deliveryTone: Record<DeliveryStatus, BadgeTone> = {
 const eventTone: Record<EventStatus, BadgeTone> = {
   pending: 'warning',
   completed: 'success',
+  partial_failure: 'warning',
+  no_recipients: 'muted',
   failed: 'danger',
 }
 
@@ -34,6 +36,7 @@ function getLabel(props: StatusBadgeProps): string {
     case 'delivery':
       return formatStatusLabel(props.status)
     case 'event':
+      return props.status === 'completed' ? 'All delivered' : props.status === 'pending' ? 'In progress' : formatStatusLabel(props.status)
     case 'endpoint':
       return formatStatusLabel(props.status)
     case 'api-key':

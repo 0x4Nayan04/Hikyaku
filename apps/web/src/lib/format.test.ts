@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  endpointDisplayLabel,
   formatEndpointUrlDistinctive,
   formatEndpointUrlForDisplay,
 } from './format'
@@ -26,26 +25,6 @@ describe('formatEndpointUrlDistinctive', () => {
     expect(formatEndpointUrlDistinctive(url, 40)).toBe(
       '…/11502179-92cd-450c-9853-6463be2338b0',
     )
-  })
-})
-
-describe('endpointDisplayLabel', () => {
-  it('prefers description over hostname', () => {
-    expect(
-      endpointDisplayLabel({
-        description: 'Billing',
-        url: 'https://billing.acme.dev/events',
-      }),
-    ).toBe('Billing')
-  })
-
-  it('falls back to hostname', () => {
-    expect(
-      endpointDisplayLabel({
-        description: null,
-        url: 'https://billing.acme.dev/events',
-      }),
-    ).toBe('billing.acme.dev')
   })
 })
 

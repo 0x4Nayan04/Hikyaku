@@ -161,7 +161,7 @@ describe('Dashboard empty-state probes', () => {
       { signal: expect.any(AbortSignal) },
     )
     expect(listDeliveries).toHaveBeenCalledTimes(1)
-    expect(listApiKeys).toHaveBeenCalledTimes(1)
+    expect(listApiKeys).not.toHaveBeenCalled()
     expect(listEndpoints).toHaveBeenCalledWith(
       { status: 'disabled', limit: 1 },
       { signal: expect.any(AbortSignal) },

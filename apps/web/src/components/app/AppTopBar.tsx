@@ -56,7 +56,6 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
   const mobileMenuRef = useFocusTrap(menuOpen, { onEscape: () => setMenuOpen(false) })
   const dropdownTrapRef = useFocusTrap(dropdownOpen, {
     onEscape: () => setDropdownOpen(false),
-    restoreFocus: true,
   })
 
   useBodyScrollLock(menuOpen)
@@ -97,7 +96,7 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
     navigate('/login', { replace: true })
   }
 
-  const workspaceLabel = isSuperAdmin ? 'Platform admin' : (session?.tenant?.name ?? 'Workspace')
+  const workspaceLabel = isSuperAdmin && !session?.tenant ? 'Platform admin' : (session?.tenant?.name ?? 'Workspace')
 
   const roleLabel = isSuperAdmin ? 'Super admin' : 'Tenant operator'
 
@@ -275,7 +274,7 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
               </button>
             </div>
             <div className="p-4">
-              <AppNav isSuperAdmin={isSuperAdmin} variant="mobile" onNavigate={closeMobileMenu} />
+              <AppNav hasWorkspace={!!session?.tenant} isSuperAdmin={isSuperAdmin} variant="mobile" onNavigate={closeMobileMenu} />
             </div>
           </div>
         </div>

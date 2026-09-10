@@ -9,7 +9,6 @@ type DataPanelProps = {
   children: ReactNode
   footer?: ReactNode
   empty?: ReactNode
-  emptyAlign?: 'center' | 'start'
   emptyFlush?: boolean
   loading?: boolean
   actions?: ReactNode
@@ -22,7 +21,6 @@ export function DataPanel({
   children,
   footer,
   empty,
-  emptyAlign = 'center',
   emptyFlush = false,
   loading,
   actions,
@@ -47,7 +45,7 @@ export function DataPanel({
         emptyFlush ? (
           empty
         ) : (
-          <PageEmpty align={emptyAlign}>{empty}</PageEmpty>
+          <PageEmpty>{empty}</PageEmpty>
         )
       ) : (
         <CardContent className="p-0">{children}</CardContent>
