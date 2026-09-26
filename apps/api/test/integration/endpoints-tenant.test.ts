@@ -47,6 +47,15 @@ describe('endpoints tenant isolation', () => {
     })
   })
 
+  it('returns 404 when another tenant rotates an endpoint secret', async () => {
+    const res = await globexAgent.post(`/v1/endpoints/${acmeEndpointId}/rotate`)
+
+    expect(res.status).toBe(404)
+    expect(res.body).toEqual({
+      error: { code: 'not_found', message: 'Endpoint not found' },
+    })
+  })
+
   it('does not list another tenant endpoints', async () => {
     const res = await globexAgent.get('/v1/endpoints')
 

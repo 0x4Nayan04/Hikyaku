@@ -131,7 +131,12 @@ export default function Login() {
       }
     >
       <form className="flex flex-col gap-3" onSubmit={handleSubmit} aria-describedby="login-status">
-        <div id="login-status" className="auth-form-status" aria-live="assertive" aria-atomic="true">
+        <div
+          id="login-status"
+          className={banner || error || showRecovery ? 'auth-form-status' : 'hidden'}
+          aria-live="assertive"
+          aria-atomic="true"
+        >
           {banner ? (
             <PageBanner
               variant={banner.variant}
@@ -142,9 +147,6 @@ export default function Login() {
           {error ? <PageBanner variant="error" title="Sign in failed" description={error} /> : null}
           {showRecovery ? (
             <PageBanner variant="info" title="Next steps" description={LOGIN_FAILED_RECOVERY} />
-          ) : null}
-          {!banner && !error && !showRecovery ? (
-            <p className="auth-form-status__placeholder">Sign-in errors appear here.</p>
           ) : null}
         </div>
 

@@ -27,7 +27,7 @@ const FAQ_ITEMS = [
   {
     id: 'tenancy',
     q: 'How is tenant data isolated?',
-    a: 'Each tenant has its own API keys, endpoints, events, and delivery history. Keys are hashed; endpoint secrets are shown once. Super-admins manage tenants from Admin.',
+    a: 'Each tenant has its own API keys, endpoints, events, and delivery history. Keys are hashed; endpoint secrets are shown once on create or rotate. Super-admins manage tenants from Admin.',
   },
   {
     id: 'pricing',

@@ -1,9 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { ApiError, createEndpoint, patchEndpoint } from '@/api/client'
+import { TriangleAlert } from 'lucide-react'
+import { ApiError, createEndpoint, patchEndpoint, rotateEndpointSecret } from '@/api/client'
 import type { Endpoint, EndpointWithSecret } from '@/api/types'
 import { PageBanner } from '@/components/console/PageBanner'
 import { SendEventField } from '@/components/console/SendEventField'
 import { SettingsCopyValue } from '@/components/console/SettingsCatalog'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -22,6 +24,8 @@ type EndpointDialogsProps = {
   onCreateOpenChange: (open: boolean) => void
   editTarget: Endpoint | null
   onEditTargetChange: (endpoint: Endpoint | null) => void
+  rotateTarget: Endpoint | null
+  onRotateTargetChange: (endpoint: Endpoint | null) => void
   onChanged: () => Promise<unknown>
 }
 
@@ -30,6 +34,8 @@ export function EndpointDialogs({
   onCreateOpenChange,
   editTarget,
   onEditTargetChange,
+  rotateTarget,
+  onRotateTargetChange,
   onChanged,
 }: EndpointDialogsProps) {
   const [url, setUrl] = useState('')
@@ -37,6 +43,7 @@ export function EndpointDialogs({
   const [submitting, setSubmitting] = useState(false)
   const [editDescription, setEditDescription] = useState('')
   const [editSubmitting, setEditSubmitting] = useState(false)
+  const [rotating, setRotating] = useState(false)
   const [secretEndpoint, setSecretEndpoint] = useState<EndpointWithSecret | null>(null)
 
   useEffect(() => {
@@ -58,6 +65,11 @@ export function EndpointDialogs({
     onEditTargetChange(null)
     setEditDescription('')
     setEditSubmitting(false)
+  }
+
+  function handleRotateClose() {
+    if (rotating) return
+    onRotateTargetChange(null)
   }
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
@@ -97,6 +109,24 @@ export function EndpointDialogs({
       toast.error(err instanceof ApiError ? err.message : 'Failed to update endpoint')
     } finally {
       setEditSubmitting(false)
+    }
+  }
+
+  async function handleRotate() {
+    if (!rotateTarget) return
+
+    setRotating(true)
+
+    try {
+      const rotated = await rotateEndpointSecret(rotateTarget.id)
+      onRotateTargetChange(null)
+      setSecretEndpoint(rotated)
+      await onChanged()
+      toast.success('Signing secret rotated')
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Failed to rotate signing secret')
+    } finally {
+      setRotating(false)
     }
   }
 
@@ -226,6 +256,47 @@ export function EndpointDialogs({
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={rotateTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) handleRotateClose()
+        }}
+      >
+        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+          <div className="flex gap-3 border-b border-border bg-surface-muted/40 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5 pr-12">
+            <div className="flex size-9 shrink-0 items-center justify-center border border-destructive/30 bg-destructive/10 text-destructive">
+              <TriangleAlert className="size-4" aria-hidden="true" />
+            </div>
+            <DialogHeader className="gap-1.5 text-left">
+              <DialogTitle className="text-lg leading-tight">Rotate signing secret?</DialogTitle>
+              <DialogDescription className="text-muted-strong">
+                Update receivers with the new secret before closing the next dialog.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="px-[clamp(1.25rem,4vw,var(--space-s2))] py-5">
+            <Alert variant="destructive">
+              <TriangleAlert aria-hidden="true" />
+              <AlertTitle>Old signatures will fail verification</AlertTitle>
+              <AlertDescription>
+                The endpoint URL stays the same. Deliveries keep using this endpoint id, but
+                receivers still configured with the previous secret will reject signed POSTs.
+              </AlertDescription>
+            </Alert>
+          </div>
+
+          <DialogFooter className="mx-0 mb-0 mt-0">
+            <Button size="sm" variant="secondary" onClick={handleRotateClose} disabled={rotating}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={() => void handleRotate()} disabled={rotating}>
+              {rotating ? 'Rotating…' : 'Rotate secret'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <SecretEndpointDialog
         secretEndpoint={secretEndpoint}
         onSecretEndpointChange={setSecretEndpoint}
@@ -245,7 +316,7 @@ function SecretEndpointDialog({
 
   useEffect(() => {
     setSecretSaved(false)
-  }, [secretEndpoint?.id])
+  }, [secretEndpoint?.id, secretEndpoint?.secret])
 
   function dismiss() {
     onSecretEndpointChange(null)
