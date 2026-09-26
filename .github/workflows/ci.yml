@@ -72,4 +72,28 @@ jobs:
 
       - run: pnpm exec playwright install --with-deps chromium
 
+      # Unit/integration share webhooks_test + Redis db 15; flush so bootstrap sees zero users
+      # and auth rate-limit keys do not leak into smoke.
+      - name: Reset smoke test inputs
+        working-directory: apps/api
+        run: |
+          node --input-type=module <<'EOF'
+          import pg from 'pg'
+          import Redis from 'ioredis'
+
+          const redis = new Redis(process.env.TEST_REDIS_URL)
+          await redis.flushdb()
+          await redis.quit()
+
+          const client = new pg.Client({ connectionString: process.env.TEST_DATABASE_URL })
+          await client.connect()
+          await client.query(`
+            TRUNCATE delivery_attempts, delivery_outbox, deliveries, events, endpoints,
+                     api_keys, invites, sessions, users, tenants
+            RESTART IDENTITY CASCADE
+          `)
+          await client.end()
+          console.log('smoke inputs reset')
+          EOF
+
       - run: pnpm test:smoke e2e/00-onboarding.spec.ts
