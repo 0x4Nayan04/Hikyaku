@@ -10,12 +10,12 @@ import { maybeSeedSuperAdmin } from './seedSuperAdmin.js'
 const SEED_TENANTS = [
   {
     name: 'Acme',
-    email: 'acme@localhost',
+    email: 'acme@example.com',
     password: 'dev-password-min-12-chars',
   },
   {
     name: 'Globex',
-    email: 'globex@localhost',
+    email: 'globex@example.com',
     password: 'dev-password-min-12-chars',
   },
 ] as const
