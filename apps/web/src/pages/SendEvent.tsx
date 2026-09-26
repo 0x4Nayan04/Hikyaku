@@ -19,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { formatDateTime } from '@/lib/format'
 import { toast } from '@/lib/toast'
 import type { IngestEventInput } from '@webhook/shared/zod'
-import { ArrowRight, RefreshCw, RotateCcw, Send, Webhook } from 'lucide-react'
+import { ArrowRight, PowerOff, RefreshCw, RotateCcw, Send, Webhook } from 'lucide-react'
 import { useEffect, useReducer, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -53,7 +53,8 @@ function fieldDescribedBy(id: string, hasHint: boolean, hasError: boolean): stri
 
 type EndpointGate =
   | { status: 'loading' }
-  | { status: 'ready'; canSend: boolean }
+  | { status: 'ready'; canSend: true }
+  | { status: 'ready'; canSend: false; reason: 'none' | 'all_disabled' }
   | { status: 'error'; message: string }
 
 type EventFormState = {
@@ -90,11 +91,18 @@ export default function SendEvent() {
 
   useEffect(() => {
     let cancelled = false
-    listEndpoints({ status: 'active', limit: 1 })
-      .then((result) => {
-        if (!cancelled) {
-          setGate({ status: 'ready', canSend: result.data.length > 0 })
+    Promise.all([listEndpoints({ limit: 1 }), listEndpoints({ status: 'active', limit: 1 })])
+      .then(([anyEndpoints, activeEndpoints]) => {
+        if (cancelled) return
+        if (activeEndpoints.data.length > 0) {
+          setGate({ status: 'ready', canSend: true })
+          return
         }
+        setGate({
+          status: 'ready',
+          canSend: false,
+          reason: anyEndpoints.data.length > 0 ? 'all_disabled' : 'none',
+        })
       })
       .catch((err) => {
         if (!cancelled) {
@@ -170,25 +178,8 @@ export default function SendEvent() {
 
       {gate.status === 'loading' ? <PageLoading variant="detail" /> : null}
 
-      {gate.status === 'ready' && !gate.canSend ? (
-        <DataPanel
-          emptyFlush
-          empty={
-            <DataPanelEmpty
-              icon={Webhook}
-              title="Create an endpoint first"
-              description={
-                <>
-                  Ingest can succeed with zero deliveries if nothing is listening.{' '}
-                  <Link to="/endpoints" className="font-medium text-primary hover:underline">
-                    Create an endpoint
-                  </Link>
-                  , then send your sample event.
-                </>
-              }
-            />
-          }
-        >
+      {gate.status === 'ready' && gate.canSend === false ? (
+        <DataPanel emptyFlush empty={endpointGateEmpty(gate.reason)}>
           {null}
         </DataPanel>
       ) : null}
@@ -239,6 +230,47 @@ export default function SendEvent() {
       ) : null}
     </ConsolePage>
   )
+}
+
+function endpointGateEmpty(reason: 'none' | 'all_disabled') {
+  switch (reason) {
+    case 'none':
+      return (
+        <DataPanelEmpty
+          icon={Webhook}
+          title="Create an endpoint first"
+          description={
+            <>
+              Ingest can succeed with zero deliveries if nothing is listening.{' '}
+              <Link to="/endpoints" className="font-medium text-primary hover:underline">
+                Create an endpoint
+              </Link>
+              , then send your sample event.
+            </>
+          }
+        />
+      )
+    case 'all_disabled':
+      return (
+        <DataPanelEmpty
+          icon={PowerOff}
+          title="Enable an endpoint"
+          description={
+            <>
+              Disabled endpoints are not receiving webhooks.{' '}
+              <Link to="/endpoints" className="font-medium text-primary hover:underline">
+                Enable an endpoint
+              </Link>
+              , then send your sample event.
+            </>
+          }
+        />
+      )
+    default: {
+      const unreachable: never = reason
+      return unreachable
+    }
+  }
 }
 
 function SendEventForm({

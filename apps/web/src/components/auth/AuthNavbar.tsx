@@ -6,8 +6,8 @@ import { APP_HOME_LABEL, APP_NAME } from '@/lib/app-meta'
 
 export function AuthNavbar() {
   return (
-    <header className="sticky top-0 z-50 h-[var(--nav-height)] border-b border-border bg-surface">
-      <LandingFrameInner className="!px-0 h-full">
+    <header className="sticky top-0 z-50 h-(--nav-height) border-b border-border bg-surface">
+      <LandingFrameInner className="px-0! h-full">
         <div className="landing-frame-px flex h-full items-center justify-between gap-4">
           <Link to="/" className="landing-nav-brand focus-ring" aria-label={APP_HOME_LABEL}>
             <HikyakuMark decorative className="size-7 shrink-0" />

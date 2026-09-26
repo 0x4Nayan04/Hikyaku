@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { Endpoint, EndpointLastDelivery } from '@/api/types'
+import { StatusBadge } from '@/components/console/StatusBadge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -222,6 +223,9 @@ function EndpointCatalogRow({
               Add label
             </button>
           )}
+          {endpoint.status === 'disabled' ? (
+            <StatusBadge kind="endpoint" status="disabled" />
+          ) : null}
         </div>
       </div>
 
