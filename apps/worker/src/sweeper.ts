@@ -16,10 +16,7 @@ const SWEEPER_LOCK_TTL_MS = 4 * 60 * 1000
 
 let sweepTimer: ReturnType<typeof setInterval> | undefined
 
-async function drainDeliveryOutbox(
-  sweepQueue: Queue,
-  lockDeadlineMs: number,
-): Promise<number> {
+async function drainDeliveryOutbox(sweepQueue: Queue, lockDeadlineMs: number): Promise<number> {
   const db = getDb()
   let totalEnqueued = 0
 
@@ -90,37 +87,19 @@ export async function sweepOrphanDeliveries(
       .filter((row) => row.status === 'in_progress')
       .map((row) => row.id)
 
-    const jobs: { deliveryId: string; tenantId: string }[] = []
-
-    if (pendingIds.length > 0) {
-      const pending = await db
-        .update(deliveries)
-        .set({ updatedAt: now })
-        .where(
-          and(
-            inArray(deliveries.id, pendingIds),
-            eq(deliveries.status, 'pending'),
-            lte(deliveries.updatedAt, staleBefore),
+    const jobs = await db
+      .update(deliveries)
+      .set({ status: 'pending', updatedAt: now })
+      .where(
+        and(
+          lte(deliveries.updatedAt, staleBefore),
+          or(
+            and(inArray(deliveries.id, pendingIds), eq(deliveries.status, 'pending')),
+            and(inArray(deliveries.id, inProgressIds), eq(deliveries.status, 'in_progress')),
           ),
-        )
-        .returning({ id: deliveries.id, tenantId: deliveries.tenantId })
-      jobs.push(...pending.map((row) => ({ deliveryId: row.id, tenantId: row.tenantId })))
-    }
-
-    if (inProgressIds.length > 0) {
-      const reclaimed = await db
-        .update(deliveries)
-        .set({ status: 'pending', updatedAt: now })
-        .where(
-          and(
-            inArray(deliveries.id, inProgressIds),
-            eq(deliveries.status, 'in_progress'),
-            lte(deliveries.updatedAt, staleBefore),
-          ),
-        )
-        .returning({ id: deliveries.id, tenantId: deliveries.tenantId })
-      jobs.push(...reclaimed.map((row) => ({ deliveryId: row.id, tenantId: row.tenantId })))
-    }
+        ),
+      )
+      .returning({ deliveryId: deliveries.id, tenantId: deliveries.tenantId })
 
     await enqueueDeliveryJobs(sweepQueue, jobs)
     totalEnqueued += jobs.length

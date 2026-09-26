@@ -61,6 +61,14 @@ export function AuthLayout({
                 <p className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-primary">
                   {eyebrow}
                 </p>
+                {title ? (
+                  <h1 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
+                    {title}
+                  </h1>
+                ) : null}
+                {description ? (
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-strong">{description}</p>
+                ) : null}
               </header>
 
               {children}

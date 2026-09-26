@@ -1,4 +1,9 @@
-import { createWorkspaceSchema } from '@webhook/shared/zod'
+import {
+  bootstrapSchema,
+  changePasswordSchema,
+  createWorkspaceSchema,
+  loginSchema,
+} from '@webhook/shared/zod'
 import { parseSchema } from '../../lib/validation.js'
 import { count, eq, sql } from 'drizzle-orm'
 import type { Request, Response } from 'express'
@@ -11,12 +16,7 @@ import { asyncHandler } from '../../lib/asyncHandler.js'
 import { userEmailMatches } from '../../lib/invites.js'
 import { revokeUserSessions } from '../../lib/revokeSessions.js'
 import { toUserJson, userColumns } from './serialize.js'
-import {
-  parseBootstrapBody,
-  parseChangePasswordBody,
-  parseLoginBody,
-  requireAdminSecret,
-} from './validation.js'
+import { requireAdminSecret } from './validation.js'
 
 /** Transaction-scoped advisory lock so concurrent bootstrap cannot create two super-admins. */
 const BOOTSTRAP_LOCK_KEY = 872_014_001
@@ -70,7 +70,7 @@ export const bootstrapStatus = asyncHandler(async (_req: Request, res: Response)
 
 export const bootstrap = asyncHandler(async (req: Request, res: Response) => {
   requireAdminSecret(req)
-  const body = parseBootstrapBody(req.body)
+  const body = parseSchema(bootstrapSchema, req.body)
   const passwordHash = await hashPassword(body.password)
   const db = getDb()
 
@@ -103,7 +103,7 @@ export const bootstrap = asyncHandler(async (req: Request, res: Response) => {
 })
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
-  const body = parseLoginBody(req.body)
+  const body = parseSchema(loginSchema, req.body)
   const db = getDb()
 
   const rows = await db
@@ -184,7 +184,7 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
 })
 
 export const changePassword = asyncHandler(async (req: Request, res: Response) => {
-  const body = parseChangePasswordBody(req.body)
+  const body = parseSchema(changePasswordSchema, req.body)
   const userId = req.userId
   if (!userId) {
     throw new AppError(401, 'unauthorized', 'Missing or invalid session')

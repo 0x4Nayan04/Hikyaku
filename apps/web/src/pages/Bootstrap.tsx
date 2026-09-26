@@ -111,8 +111,12 @@ export default function Bootstrap() {
       <AuthLayout
         variant="split"
         eyebrow="One-time setup"
+        title="Create your workspace"
+        description="Checking whether this deployment still needs first-time setup."
       >
-        <p className="text-sm text-muted-foreground">Checking deployment status…</p>
+        <div className="app-panel border border-border bg-surface p-6">
+          <p className="text-sm text-muted-foreground">Checking deployment status…</p>
+        </div>
       </AuthLayout>
     )
   }
@@ -122,16 +126,21 @@ export default function Bootstrap() {
       <AuthLayout
         variant="split"
         eyebrow="One-time setup"
+        title="Setup unavailable"
+        description="The setup check failed. Retry, or sign in if this deployment is already configured."
       >
-        <div className="flex flex-col gap-3">
-          <PageBanner variant="error" title="Setup check failed" description={loadError} />
-          <button
-            type="button"
-            onClick={retryAvailabilityCheck}
-            className="sm-btn sm-btn-primary sm-btn-block"
-          >
-            Try again
-          </button>
+        <div className="app-panel border border-border bg-surface p-6">
+          <div className="flex flex-col gap-3">
+            <PageBanner variant="error" title="Setup check failed" description={loadError} />
+            <button
+              type="button"
+              onClick={retryAvailabilityCheck}
+              className="sm-btn sm-btn-primary sm-btn-block"
+            >
+              Try again
+            </button>
+            <AuthFooterLink prompt="Already set up?" linkLabel="Sign in" to="/login" />
+          </div>
         </div>
       </AuthLayout>
     )
@@ -141,6 +150,8 @@ export default function Bootstrap() {
     <AuthLayout
       variant="split"
       eyebrow="One-time setup"
+      title="Create your workspace"
+      description="Create the first account and tenant workspace for this deployment."
       sidePanel={
         <div className="flex flex-col gap-6 h-full">
           <div className="flex flex-col gap-6 flex-1">
@@ -182,6 +193,7 @@ export default function Bootstrap() {
         </div>
       }
     >
+      <div className="app-panel border border-border bg-surface p-6">
       <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
         {error ? <PageBanner variant="error" title="Setup failed" description={error} /> : null}
 
@@ -252,6 +264,7 @@ export default function Bootstrap() {
           {submitting ? 'Creating workspace…' : 'Create account and workspace'}
         </button>
       </form>
+      </div>
     </AuthLayout>
   )
 }

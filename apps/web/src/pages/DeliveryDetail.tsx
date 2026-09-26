@@ -231,15 +231,17 @@ export default function DeliveryDetail() {
       ) : null}
 
       <Dialog open={replayOpen} onOpenChange={setReplayOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Replay delivery</DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              This starts a new delivery run, preserves prior attempt history, and clears the terminal
-              error before scheduling delivery again.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+        <DialogContent className="gap-0 p-0 sm:max-w-md">
+          <div className="catalog-dialog-secret px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))] pb-4">
+            <DialogHeader className="gap-1.5 text-left">
+              <DialogTitle className="catalog-dialog-secret__title">Replay delivery</DialogTitle>
+              <DialogDescription className="catalog-dialog-secret__desc">
+                This starts a new delivery run, preserves prior attempt history, and clears the
+                terminal error before scheduling delivery again.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <DialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/6 px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
             <Button
               size="sm"
               variant="secondary"

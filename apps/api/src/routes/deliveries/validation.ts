@@ -8,12 +8,6 @@ export function parseDeliveryId(id: string): void {
   requireUuid(id, 'Delivery not found')
 }
 
-export function assertReplayableStatus(status: string): void {
-  if (status !== 'failed') {
-    throw new AppError(400, 'invalid_state', 'Only failed deliveries can be replayed')
-  }
-}
-
 export function parseListQuery(query: {
   status?: string | string[]
   event_id?: string | string[]

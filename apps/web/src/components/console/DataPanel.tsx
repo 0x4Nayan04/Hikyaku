@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { PageEmpty } from '@/components/console/PageEmpty'
 import { cn } from '@/lib/utils'
 
 type DataPanelProps = {
@@ -45,7 +44,9 @@ export function DataPanel({
         emptyFlush ? (
           empty
         ) : (
-          <PageEmpty>{empty}</PageEmpty>
+          <div className="flex min-h-28 flex-col items-center justify-center gap-1.5 px-6 py-8 text-center text-sm text-muted-strong">
+            {empty}
+          </div>
         )
       ) : (
         <CardContent className="p-0">{children}</CardContent>

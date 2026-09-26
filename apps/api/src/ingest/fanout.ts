@@ -48,7 +48,7 @@ async function findEvent(
   return row
 }
 
-function toListRow(row: EventRow, status: EventListRow['status']): EventListRow {
+function toListRow(row: EventListRow, status: EventListRow['status']): EventListRow {
   return {
     id: row.id,
     tenantId: row.tenantId,
@@ -84,7 +84,9 @@ async function insertDeliveries(
 
   const ids = inserted.map((row) => row.id)
   if (ids.length > 0) {
-    await executor.insert(deliveryOutbox).values(ids.map((deliveryId) => ({ deliveryId, tenantId })))
+    await executor
+      .insert(deliveryOutbox)
+      .values(ids.map((deliveryId) => ({ deliveryId, tenantId })))
   }
 
   return ids
@@ -108,6 +110,7 @@ export async function ingestFanout(
       .onConflictDoNothing({ target: [events.tenantId, events.idempotencyKey] })
       .returning(eventListColumns)
 
+    let event = inserted
     if (!inserted) {
       const concurrent = await findEvent(tx, tenantId, input.idempotency_key)
       if (!concurrent) {
@@ -122,15 +125,12 @@ export async function ingestFanout(
         )
       }
 
-      const newDeliveryIds = await insertDeliveries(tx, tenantId, concurrent.id)
-      const status = await reevaluateEventStatus(concurrent.id, tx)
-
-      return { event: toListRow(concurrent, status), newDeliveryIds, isDuplicate: true }
+      event = concurrent
     }
 
-    const newDeliveryIds = await insertDeliveries(tx, tenantId, inserted.id)
-    const status = await reevaluateEventStatus(inserted.id, tx)
+    const newDeliveryIds = await insertDeliveries(tx, tenantId, event.id)
+    const status = await reevaluateEventStatus(event.id, tx)
 
-    return { event: { ...inserted, status }, newDeliveryIds, isDuplicate: false }
+    return { event: toListRow(event, status), newDeliveryIds, isDuplicate: !inserted }
   })
 }

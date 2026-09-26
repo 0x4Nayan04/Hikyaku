@@ -4,16 +4,14 @@ import { deliveries, deliveryAttempts, events } from '@webhook/shared/schema'
 import type { Job } from 'bullmq'
 import { asc, eq } from 'drizzle-orm'
 import request from 'supertest'
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../../../api/src/config.js'
-import { closePool as closeApiPool } from '../../../api/src/db/client.js'
-import { closeRedis } from '../../../api/src/lib/redis.js'
 import { queue } from '../../../api/src/queue/client.js'
 import { createApp } from '../../../api/src/server.js'
 import { createTenantWithKey, deleteTenant } from '../../../api/test/helpers/tenant.js'
 import { createTenantSession } from '../../../api/test/helpers/user.js'
 import '../../src/config.js'
-import { closePool, getDb } from '../../src/db/client.js'
+import { getDb } from '../../src/db/client.js'
 import { processor } from '../../src/processor.js'
 
 const app = createApp()
@@ -145,13 +143,6 @@ describe('retry integration', () => {
       await job.remove()
     }
     await deleteTenant(tenantId)
-  })
-
-  afterAll(async () => {
-    await queue.close()
-    await closePool()
-    await closeApiPool()
-    await closeRedis()
   })
 
   it('succeeds after three 503 responses then 200 (#2)', async () => {

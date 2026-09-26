@@ -1,11 +1,6 @@
-import { DELIVERY_STATUSES } from '@webhook/shared/constants'
 import { describe, expect, it } from 'vitest'
 import { AppError } from '../../../../src/lib/errors.js'
-import {
-  assertReplayableStatus,
-  parseDeliveryId,
-  parseListQuery,
-} from '../../../../src/routes/deliveries/validation.js'
+import { parseDeliveryId, parseListQuery } from '../../../../src/routes/deliveries/validation.js'
 
 describe('parseDeliveryId', () => {
   it('accepts a valid uuid', () => {
@@ -24,28 +19,6 @@ describe('parseDeliveryId', () => {
       })
     }
   })
-})
-
-describe('assertReplayableStatus', () => {
-  it('allows failed deliveries', () => {
-    expect(() => assertReplayableStatus('failed')).not.toThrow()
-  })
-
-  it.each(DELIVERY_STATUSES.filter((status) => status !== 'failed'))(
-    'rejects %s with invalid_state',
-    (status) => {
-      expect(() => assertReplayableStatus(status)).toThrow(AppError)
-      try {
-        assertReplayableStatus(status)
-      } catch (err) {
-        expect(err).toMatchObject({
-          statusCode: 400,
-          code: 'invalid_state',
-          message: 'Only failed deliveries can be replayed',
-        })
-      }
-    },
-  )
 })
 
 describe('parseListQuery', () => {
@@ -67,9 +40,9 @@ describe('parseListQuery', () => {
   })
 
   it('accepts a valid event_id filter', () => {
-    expect(
-      parseListQuery({ event_id: '550e8400-e29b-41d4-a716-446655440000' }),
-    ).toEqual({ eventId: '550e8400-e29b-41d4-a716-446655440000' })
+    expect(parseListQuery({ event_id: '550e8400-e29b-41d4-a716-446655440000' })).toEqual({
+      eventId: '550e8400-e29b-41d4-a716-446655440000',
+    })
   })
 
   it('accepts status and event_id together', () => {

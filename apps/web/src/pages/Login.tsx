@@ -86,6 +86,8 @@ export default function Login() {
     <AuthLayout
       variant="split"
       eyebrow="Sign in"
+      title="Welcome back"
+      description="Sign in to manage endpoints, events, and deliveries for your tenant."
       sidePanel={
         <div className="flex flex-col gap-6 h-full">
           <div className="flex flex-col gap-6 flex-1">
@@ -117,7 +119,7 @@ export default function Login() {
 
           <div className="space-y-3">
             <p className="text-sm text-muted-strong">
-              Need a workspace? Ask the platform admin for an invite.
+              Need a workspace? Ask Admin for an invite.
             </p>
             {showBootstrapLink ? (
               <AuthFooterLink

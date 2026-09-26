@@ -11,7 +11,7 @@ import { LandingFaq } from '@/components/landing/LandingFaq'
 import { LandingFinalCta } from '@/components/landing/LandingFinalCta'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 import '@/styles/domains/chrome.css'
-import '@/styles/domains/landing-revamp.css'
+import '@/styles/domains/landing.css'
 
 export function Landing() {
   const { hash, pathname } = useLocation()

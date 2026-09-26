@@ -12,6 +12,7 @@ import {
   DataTableRow,
 } from '@/components/console/DataTable'
 import { DataPanel } from '@/components/console/DataPanel'
+import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { PageLoading } from '@/components/console/PageLoading'
 import { PaginationBar } from '@/components/console/PaginationBar'
 import { PAGE_SIZE, pageRange, shouldPaginate } from '@/components/console/pagination-utils'
@@ -67,9 +68,19 @@ export function AdminTenantTable({
   const canGoForward = hasMore
   const isSearching = searchQuery && searchQuery.trim().length > 0
 
-  const emptyMessage = isSearching
-    ? `No tenants matching "${searchQuery}". Try a different search term.`
-    : 'No tenants yet. Invite the first tenant owner.'
+  const emptyState = isSearching ? (
+    <DataPanelEmpty
+      icon={Users}
+      title="No matching tenants"
+      description={`No tenants matching “${searchQuery}”. Try a different search term.`}
+    />
+  ) : (
+    <DataPanelEmpty
+      icon={Users}
+      title="No tenants yet"
+      description="Invite the first tenant owner to populate this directory."
+    />
+  )
 
   if (loading && tenants.length === 0) {
     return <PageLoading variant="table" />
@@ -79,7 +90,8 @@ export function AdminTenantTable({
     <DataPanel
       title="Tenant directory"
       loading={loading && tenants.length > 0}
-      empty={!loading && tenants.length === 0 ? emptyMessage : undefined}
+      empty={!loading && tenants.length === 0 ? emptyState : undefined}
+      emptyFlush
       footer={
         !loading && shouldPaginate(hasMore, offset) ? (
           <PaginationBar
