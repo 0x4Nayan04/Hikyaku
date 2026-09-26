@@ -2,7 +2,6 @@ import { generateApiKey, hashApiKey, prefixOf } from '@webhook/shared/crypto'
 import { apiKeys } from '@webhook/shared/schema'
 import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm'
 import type { Request, Response } from 'express'
-import { invalidateApiKeyCache } from '../../auth/apiKey.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
@@ -65,7 +64,6 @@ export const createApiKey = asyncHandler(async (req: Request, res: Response) => 
     })
     .returning(apiKeyColumns)
 
-  invalidateApiKeyCache(hashApiKey(apiKey))
   res.status(201).json(toApiKeyJson(row, apiKey))
 })
 
@@ -77,7 +75,7 @@ export const revokeApiKey = asyncHandler(async (req: Request, res: Response) => 
   const tenantId = getTenantId(req)
 
   const [existing] = await db
-    .select({ ...apiKeyColumns, keyHash: apiKeys.keyHash })
+    .select(apiKeyColumns)
     .from(apiKeys)
     .where(and(eq(apiKeys.id, id), eq(apiKeys.tenantId, tenantId)))
 
@@ -99,7 +97,6 @@ export const revokeApiKey = asyncHandler(async (req: Request, res: Response) => 
     throw new AppError(409, 'already_revoked', 'API key is already revoked')
   }
 
-  invalidateApiKeyCache(existing.keyHash)
   res.json(toApiKeyJson(row))
 })
 
@@ -111,7 +108,7 @@ export const rotateApiKey = asyncHandler(async (req: Request, res: Response) => 
   const tenantId = getTenantId(req)
 
   const [existing] = await db
-    .select({ id: apiKeys.id, revokedAt: apiKeys.revokedAt, keyHash: apiKeys.keyHash })
+    .select({ id: apiKeys.id, revokedAt: apiKeys.revokedAt })
     .from(apiKeys)
     .where(and(eq(apiKeys.id, id), eq(apiKeys.tenantId, tenantId)))
 
@@ -147,6 +144,5 @@ export const rotateApiKey = asyncHandler(async (req: Request, res: Response) => 
     return created
   })
 
-  invalidateApiKeyCache(existing.keyHash)
   res.status(201).json(toApiKeyJson(row, apiKey))
 })

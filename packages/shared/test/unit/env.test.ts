@@ -183,6 +183,7 @@ describe('workerEnvSchema', () => {
     expect(env.MAX_DELIVERY_ATTEMPTS).toBe(5)
     expect(env.RATE_LIMIT_PER_MINUTE).toBe(100)
     expect(env.WORKER_CONCURRENCY).toBe(5)
+    expect(env.SWEEP_INTERVAL_MS).toBe(300_000)
     expect(env.DB_POOL_MAX).toBe(10)
   })
 
