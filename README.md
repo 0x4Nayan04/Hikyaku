@@ -115,14 +115,14 @@ Seed prints login emails/passwords and one API key per tenant (local/dev only). 
 
 | Tenant | Email              | Password                    |
 | ------ | ------------------ | --------------------------- |
-| Acme   | `acme@localhost`   | `dev-password-min-12-chars` |
-| Globex | `globex@localhost` | `dev-password-min-12-chars` |
+| Acme   | `acme@example.com`   | `dev-password-min-12-chars` |
+| Globex | `globex@example.com` | `dev-password-min-12-chars` |
 
 Optional super-admin seed (only when no users exist):
 
 ```bash
 # In .env:
-# SEED_SUPER_ADMIN_EMAIL=admin@localhost
+# SEED_SUPER_ADMIN_EMAIL=admin@example.com
 # SEED_SUPER_ADMIN_PASSWORD=dev-password-min-12-chars
 ```
 
