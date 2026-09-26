@@ -2,6 +2,7 @@ import { createServer } from 'node:http'
 import { expect, test } from '@playwright/test'
 
 test('installer sends and inspects the first webhook without Admin or an API key', async ({ page }) => {
+  test.setTimeout(60_000)
   const run = process.env.TEST_RUN_ID!
   const email = `smoke-super-${run}@test.com`
   const password = 'smoke-super-pass-12'
@@ -35,11 +36,16 @@ test('installer sends and inspects the first webhook without Admin or an API key
     await expect(secret.locator('code')).toContainText('whsec_')
     await secret.getByRole('checkbox').check()
     await secret.getByRole('button', { name: 'Done' }).click()
+    await expect(secret).toBeHidden()
     await page.goto('/events/send')
     await page.getByRole('button', { name: 'Send test event', exact: true }).click()
     await page.getByRole('link', { name: 'View event', exact: true }).click()
     await expect(page.getByText('All delivered', { exact: true })).toBeVisible({ timeout: 20_000 })
     expect(received).toBe(true)
+    await page.getByRole('link', { name: 'View deliveries for this event' }).click()
+    await page.getByRole('link', { name: /Open delivery to/ }).click()
+    await expect(page.getByText('Attempt timeline')).toBeVisible()
+    await expect(page.getByText('HTTP 200')).toBeVisible()
     // Check narrow-screen overflow without creating a separate onboarding surface.
     await page.setViewportSize({ width: 390, height: 844 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)

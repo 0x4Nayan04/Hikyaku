@@ -20,7 +20,6 @@ import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { LiveChip } from '@/components/console/LiveChip'
 import { usePolling } from '@/hooks/usePolling'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
-import { hasActiveDeliveryWork } from '@/lib/polling-utils'
 
 const STATUS_OPTIONS: Array<{ value: 'all' | DeliveryStatus; label: string }> = [
   { value: 'all', label: 'All statuses' },
@@ -71,9 +70,9 @@ export default function Deliveries() {
     queryKey: JSON.stringify([statusFilter, eventIdFilter]),
   })
 
-  usePolling({ enabled: hasActiveDeliveryWork(deliveries), onPoll: reload })
+  usePolling({ intervalMs: 10_000, onPoll: reload })
 
-  const isLive = error === null
+  const isLive = !isInitial && error === null
   const showEmpty = !isInitial && deliveries.length === 0
   const isDatasetEmpty = showEmpty && statusFilter === 'all' && !eventIdFilter && offset === 0
 
