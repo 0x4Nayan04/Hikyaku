@@ -1,4 +1,5 @@
 import { DocumentTitle } from '@/components/DocumentTitle'
+import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { RequireSession } from '@/components/layout/RequireSession'
 import { RequireSuperAdmin } from '@/components/layout/RequireSuperAdmin'
 import { RequireTenantUser } from '@/components/layout/RequireTenantUser'
@@ -26,7 +27,18 @@ const Settings = lazy(() => import('@/pages/Settings'))
 const TenantAdmin = lazy(() => import('@/pages/TenantAdmin'))
 
 function PublicRouteFallback() {
-  return <div className="min-h-svh bg-background" role="status" aria-label="Loading" />
+  return (
+    <div
+      className="flex min-h-svh flex-col items-center justify-center gap-3 bg-background"
+      role="status"
+      aria-label="Loading"
+    >
+      <HikyakuMark decorative className="size-10 opacity-80" />
+      <p className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-muted-strong">
+        Loading
+      </p>
+    </div>
+  )
 }
 
 export default function App() {

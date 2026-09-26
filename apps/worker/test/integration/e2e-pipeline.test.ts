@@ -8,14 +8,12 @@ import { eq } from 'drizzle-orm'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../../api/src/config.js'
-import { closePool as closeApiPool } from '../../../api/src/db/client.js'
-import { closeRedis } from '../../../api/src/lib/redis.js'
 import { queue } from '../../../api/src/queue/client.js'
 import { createApp } from '../../../api/src/server.js'
 import { createTenantWithKey, deleteTenant } from '../../../api/test/helpers/tenant.js'
 import { createTenantSession } from '../../../api/test/helpers/user.js'
 import '../../src/config.js'
-import { closePool, getDb } from '../../src/db/client.js'
+import { getDb } from '../../src/db/client.js'
 import { getRedisConnectionOptions } from '../../src/lib/redis.js'
 import { processor } from '../../src/processor.js'
 
@@ -128,11 +126,7 @@ describe('e2e pipeline', () => {
     for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
       await job.remove()
     }
-    await queue.close()
     await deleteTenant(tenantId)
-    await closePool()
-    await closeApiPool()
-    await closeRedis()
   })
 
   it('delivers a signed payload after ingest', async () => {

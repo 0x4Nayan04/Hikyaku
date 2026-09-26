@@ -1,6 +1,6 @@
 import { generateInviteToken, hashInviteToken } from '@webhook/shared/crypto'
 import { invites, tenants, users } from '@webhook/shared/schema'
-import { adminCreateInviteSchema } from '@webhook/shared/zod'
+import { adminCreateInviteSchema, adminPatchTenantSchema } from '@webhook/shared/zod'
 import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import type { Request, Response } from 'express'
 import { env } from '../../config.js'
@@ -16,7 +16,7 @@ import {
 } from '../../lib/revokeSessions.js'
 import { isUuid, parseSchema } from '../../lib/validation.js'
 import { toAdminTenantJson } from './serialize.js'
-import { parsePatchTenantBody, parseTenantId, parseUserId } from './validation.js'
+import { parseTenantId, parseUserId } from './validation.js'
 import { toUserJson, userColumns } from '../auth/serialize.js'
 
 const tenantColumns = {
@@ -112,7 +112,7 @@ export const patchTenant = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params
   parseTenantId(id)
 
-  const body = parsePatchTenantBody(req.body)
+  const body = parseSchema(adminPatchTenantSchema, req.body)
   const db = getDb()
 
   const [row] = await db

@@ -3,7 +3,7 @@
 Requires Docker Engine with Compose v2 and **Node.js 22+** for `node deploy/setup.mjs` (the one-time configuration command). Local app development stays on **Node.js 20** (see repo `.nvmrc` / root README).
 The existing `docker-compose.yml` and `pnpm dev` remain the development workflow.
 
-**Production hosting:** one VPS running this Compose stack (API + worker + Postgres + Redis + Caddy-served web). That keeps cookies same-site and TLS on one host. Do not split the web app onto Vercel for the portfolio deploy — `apps/web/vercel.json` is leftover SPA-rewrite config, not the supported path.
+**Production hosting:** one VPS running this Compose stack (API + worker + Postgres + Redis + Caddy-served web). That keeps cookies same-site and TLS on one host. Do not split the web app onto a separate static host (for example Vercel) — same-site cookies and TLS on one origin are the supported path.
 
 ## Start
 

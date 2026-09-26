@@ -6,7 +6,7 @@ vi.mock('../../../src/lib/redis.js', () => ({
   getRedis: () => ({ eval: evalMock }),
 }))
 
-describe('takeFixedWindowToken', () => {
+describe('takeFixedWindowTokens with one key', () => {
   beforeEach(() => {
     evalMock.mockReset()
   })
@@ -14,9 +14,9 @@ describe('takeFixedWindowToken', () => {
   it('allows requests under the limit', async () => {
     evalMock.mockResolvedValueOnce(1).mockResolvedValueOnce(1)
 
-    const { takeFixedWindowToken } = await import('../../../src/lib/rateLimit.js')
+    const { takeFixedWindowTokens } = await import('../../../src/lib/rateLimit.js')
 
-    await expect(takeFixedWindowToken('auth:ratelimit:ip:127.0.0.1', 2)).resolves.toBe(true)
+    await expect(takeFixedWindowTokens(['auth:ratelimit:ip:127.0.0.1'], 2)).resolves.toBe(true)
     expect(evalMock).toHaveBeenCalledWith(
       expect.stringContaining('INCR'),
       1,
@@ -25,15 +25,15 @@ describe('takeFixedWindowToken', () => {
       expect.stringMatching(/^\d+$/),
     )
 
-    await expect(takeFixedWindowToken('auth:ratelimit:ip:127.0.0.1', 2)).resolves.toBe(true)
+    await expect(takeFixedWindowTokens(['auth:ratelimit:ip:127.0.0.1'], 2)).resolves.toBe(true)
   })
 
   it('rejects once the fixed window is exhausted', async () => {
     evalMock.mockResolvedValue(0)
 
-    const { takeFixedWindowToken } = await import('../../../src/lib/rateLimit.js')
+    const { takeFixedWindowTokens } = await import('../../../src/lib/rateLimit.js')
 
-    await expect(takeFixedWindowToken('ingest:ratelimit:tenant-a', 2)).resolves.toBe(false)
+    await expect(takeFixedWindowTokens(['ingest:ratelimit:tenant-a'], 2)).resolves.toBe(false)
   })
 })
 

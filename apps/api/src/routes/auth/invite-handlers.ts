@@ -1,4 +1,5 @@
 import { invites, tenants, users } from '@webhook/shared/schema'
+import { acceptInviteSchema } from '@webhook/shared/zod'
 import { and, eq, gt, isNull } from 'drizzle-orm'
 import type { Request, Response } from 'express'
 import { hashPassword } from '@webhook/shared/password'
@@ -6,8 +7,8 @@ import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
 import { assertEmailAvailable, assertInviteUsable, findInviteByToken } from '../../lib/invites.js'
+import { parseSchema } from '../../lib/validation.js'
 import { toUserJson, userColumns } from './serialize.js'
-import { parseAcceptInviteBody } from './invite-validation.js'
 
 export const validateInvite = asyncHandler(async (req: Request, res: Response) => {
   const token = req.query.token
@@ -32,7 +33,7 @@ export const validateInvite = asyncHandler(async (req: Request, res: Response) =
 })
 
 export const acceptInvite = asyncHandler(async (req: Request, res: Response) => {
-  const body = parseAcceptInviteBody(req.body)
+  const body = parseSchema(acceptInviteSchema, req.body)
   const invite = await findInviteByToken(body.token)
 
   if (!invite) {

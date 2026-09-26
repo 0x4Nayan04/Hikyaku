@@ -32,7 +32,7 @@ const FAQ_ITEMS = [
   {
     id: 'pricing',
     q: 'Is there billing?',
-    a: 'No. This is a self-hosted project with no paid plans. A platform admin invites each tenant owner. Per-tenant rate limits still apply.',
+    a: 'No. This is a self-hosted project with no paid plans. Admin invites each tenant owner. Per-tenant rate limits still apply.',
   },
 ] as const
 

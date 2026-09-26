@@ -10,7 +10,6 @@
     "typecheck": "tsc -b",
     "preview": "vite preview",
     "test:unit": "vitest run --passWithNoTests",
-    "test:browser": "pnpm --dir ../.. test:smoke",
     "lint": "eslint src --ext .ts,.tsx"
   },
   "dependencies": {

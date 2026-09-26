@@ -17,7 +17,13 @@ const queue = new Queue(`${QUEUE_NAME}-sweeper-test-${process.pid}`, {
 async function clearQueue(): Promise<void> {
   await queue.pause()
   try {
-    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+    for (const job of await queue.getJobs([
+      'waiting',
+      'delayed',
+      'completed',
+      'failed',
+      'paused',
+    ])) {
       await job.remove()
     }
   } finally {
@@ -75,7 +81,8 @@ async function seedPendingDelivery(): Promise<{ id: string; tenantId: string }> 
 
 async function clearOrphanCandidates(): Promise<void> {
   const db = getDb()
-  if (seededTenantIds.length) await db.delete(tenants).where(inArray(tenants.id, seededTenantIds.splice(0)))
+  if (seededTenantIds.length)
+    await db.delete(tenants).where(inArray(tenants.id, seededTenantIds.splice(0)))
 }
 
 describe('sweepOrphanDeliveries', () => {
@@ -93,12 +100,19 @@ describe('sweepOrphanDeliveries', () => {
   })
 
   it('fixture cleanup preserves rows outside this test run', async () => {
-    const [sentinel] = await getDb().insert(tenants).values({ name: 'outside-run-sentinel' }).returning()
+    const [sentinel] = await getDb()
+      .insert(tenants)
+      .values({ name: 'outside-run-sentinel' })
+      .returning()
     try {
       await seedPendingDelivery()
       await clearOrphanCandidates()
-      expect(await getDb().select().from(tenants).where(eq(tenants.id, sentinel.id))).toHaveLength(1)
-    } finally { await getDb().delete(tenants).where(eq(tenants.id, sentinel.id)) }
+      expect(await getDb().select().from(tenants).where(eq(tenants.id, sentinel.id))).toHaveLength(
+        1,
+      )
+    } finally {
+      await getDb().delete(tenants).where(eq(tenants.id, sentinel.id))
+    }
   })
 
   it('re-enqueues pending deliveries missing from the queue', async () => {
@@ -129,7 +143,9 @@ describe('sweepOrphanDeliveries', () => {
       .where(eq(deliveryOutbox.deliveryId, seeded.id))
     expect(leftover).toEqual([])
     await sweepOrphanDeliveries(queue)
-    const matching = (await queue.getJobs(['waiting', 'delayed', 'active'])).filter((item) => item.data.deliveryId === seeded.id)
+    const matching = (await queue.getJobs(['waiting', 'delayed', 'active'])).filter(
+      (item) => item.data.deliveryId === seeded.id,
+    )
     expect(matching).toHaveLength(1)
   })
 
@@ -146,6 +162,24 @@ describe('sweepOrphanDeliveries', () => {
 
     expect(await findDeliveryJob(fresh.id)).toBeUndefined()
     expect(await findDeliveryJob(futureRetry.id)).toBeUndefined()
+  })
+
+  it('recovers pending and stale in-progress deliveries in the same batch', async () => {
+    const [pending, stale] = await seedPendingDeliveries(2)
+    await getDb()
+      .update(deliveries)
+      .set({ status: 'in_progress' })
+      .where(eq(deliveries.id, stale.id))
+
+    await sweepOrphanDeliveries(queue)
+
+    expect(await findDeliveryJob(pending.id)).toBeDefined()
+    expect(await findDeliveryJob(stale.id)).toBeDefined()
+    const recovered = await getDb()
+      .select()
+      .from(deliveries)
+      .where(inArray(deliveries.id, [pending.id, stale.id]))
+    expect(recovered.map((row) => row.status)).toEqual(['pending', 'pending'])
   })
 
   it('drains remaining eligible deliveries after each 100-row batch', async () => {

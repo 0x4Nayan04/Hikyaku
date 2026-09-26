@@ -162,8 +162,7 @@ export function isRetryableHttpStatus(status: number): boolean {
   return status === 408 || status === 429 || status >= 500
 }
 
-type DeliveryTransportError =
-  'timeout' | 'network_error' | 'blocked_url' | 'too_many_redirects'
+type DeliveryTransportError = 'timeout' | 'network_error' | 'blocked_url' | 'too_many_redirects'
 
 function isTerminalTransportError(
   error: DeliveryTransportError,
@@ -348,57 +347,50 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     }
   }
 
-  const delivery: DeliveryOutcome =
-    decision.action === 'succeeded'
-      ? {
-          status: 'succeeded',
-          attemptCount: nextAttempt,
-          lastError: null,
-          nextRetryAt: null,
-        }
-      : decision.action === 'retry'
-        ? {
-            status: 'pending',
-            attemptCount: nextAttempt,
-            lastError: decision.lastError,
-            nextRetryAt: decision.retryAt,
-          }
-        : {
-            status: 'failed',
-            lastError: decision.lastError,
-            nextRetryAt: null,
-            ...(decision.attemptCount !== undefined
-              ? { attemptCount: decision.attemptCount }
-              : {}),
-          }
-
   const attempt = decision.attempt
-  const wrote = await recordOutcome(
-    row.id,
-    row.eventId,
-    leaseStartedAt,
-    row.replayCount,
-    delivery,
-    attempt,
-    attempt !== undefined ? nextAttempt : undefined,
-  )
+  const persist = (delivery: DeliveryOutcome) =>
+    recordOutcome(
+      row.id,
+      row.eventId,
+      leaseStartedAt,
+      row.replayCount,
+      delivery,
+      attempt,
+      attempt !== undefined ? nextAttempt : undefined,
+    )
 
   switch (decision.action) {
     case 'succeeded':
+      await persist({
+        status: 'succeeded',
+        attemptCount: nextAttempt,
+        lastError: null,
+        nextRetryAt: null,
+      })
       log.info({ http_status: decision.httpStatus }, 'delivery_succeeded')
       return
     case 'fail_fast':
+      await persist({
+        status: 'failed',
+        lastError: decision.lastError,
+        nextRetryAt: null,
+        ...(decision.attemptCount !== undefined ? { attemptCount: decision.attemptCount } : {}),
+      })
       if (decision.logFields) log.info(decision.logFields, decision.log)
       else log.info(decision.log)
       return
-    case 'retry':
+    case 'retry': {
+      const wrote = await persist({
+        status: 'pending',
+        attemptCount: nextAttempt,
+        lastError: decision.lastError,
+        nextRetryAt: decision.retryAt,
+      })
       if (!wrote) return
       await job.moveToDelayed(decision.retryAt.getTime(), token)
-      log.info(
-        { last_error: decision.lastError, attempt_count: nextAttempt },
-        'delivery_retrying',
-      )
+      log.info({ last_error: decision.lastError, attempt_count: nextAttempt }, 'delivery_retrying')
       throw new DelayedError()
+    }
     default: {
       const _exhaustive: never = decision
       throw new Error(`unexpected decision: ${_exhaustive}`)

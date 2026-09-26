@@ -66,11 +66,6 @@
     padding-inline: 0.875rem;
     font-size: 0.8125rem;
   }
-  .sm-btn-lg {
-    height: var(--btn-h-lg);
-    padding-inline: 1.75rem;
-    font-size: 16px;
-  }
   .sm-btn-block {
     width: 100%;
   }
@@ -166,10 +161,6 @@
   .sm-btn.sm-btn-sm .sm-btn-split-icon {
     width: var(--btn-h-sm);
     min-width: var(--btn-h-sm);
-  }
-  .sm-btn.sm-btn-lg .sm-btn-split-icon {
-    width: var(--btn-h-lg);
-    min-width: var(--btn-h-lg);
   }
   .sm-btn.sm-btn-sm .sm-btn-split-label {
     padding-inline: 0.875rem;

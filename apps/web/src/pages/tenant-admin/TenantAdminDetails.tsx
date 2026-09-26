@@ -1,3 +1,4 @@
+import { Users } from 'lucide-react'
 import type { AdminTenant, User } from '@/api/types'
 import {
   DataTable,
@@ -8,6 +9,7 @@ import {
   DataTableRow,
 } from '@/components/console/DataTable'
 import { DataPanel } from '@/components/console/DataPanel'
+import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { FormPanel } from '@/components/console/FormPanel'
 import { PaginationBar } from '@/components/console/PaginationBar'
 import { pageRange, shouldPaginate } from '@/components/console/pagination-utils'
@@ -71,8 +73,15 @@ export function TenantAdminDetails({
           ) : undefined
         }
         empty={
-          users.length === 0 ? 'No users found for this tenant. Send an invite to get started.' : undefined
+          users.length === 0 ? (
+            <DataPanelEmpty
+              icon={Users}
+              title="No users yet"
+              description="Send an invite to add the first user for this tenant."
+            />
+          ) : undefined
         }
+        emptyFlush
       >
         {users.length > 0 && (
           <DataTable>

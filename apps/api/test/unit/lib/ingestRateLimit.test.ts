@@ -2,10 +2,10 @@ import type { NextFunction, Request, Response } from 'express'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppError } from '../../../src/lib/errors.js'
 
-const takeFixedWindowToken = vi.fn()
+const takeFixedWindowTokens = vi.fn()
 
 vi.mock('../../../src/lib/rateLimit.js', () => ({
-  takeFixedWindowToken: (...args: unknown[]) => takeFixedWindowToken(...args),
+  takeFixedWindowTokens: (...args: unknown[]) => takeFixedWindowTokens(...args),
 }))
 
 vi.mock('../../../src/config.js', () => ({
@@ -42,7 +42,7 @@ async function runMiddleware(
 
 describe('ingestIpRateLimit', () => {
   beforeEach(() => {
-    takeFixedWindowToken.mockReset()
+    takeFixedWindowTokens.mockReset()
   })
 
   it('skips Redis when the request is not Bearer ingest', async () => {
@@ -50,20 +50,23 @@ describe('ingestIpRateLimit', () => {
     const result = await runMiddleware(ingestIpRateLimit, createRequest())
 
     expect(result.error).toBeUndefined()
-    expect(takeFixedWindowToken).not.toHaveBeenCalled()
+    expect(takeFixedWindowTokens).not.toHaveBeenCalled()
   })
 
   it('takes an IP token before API-key lookup', async () => {
-    takeFixedWindowToken.mockResolvedValue(true)
+    takeFixedWindowTokens.mockResolvedValue(true)
     const { ingestIpRateLimit } = await import('../../../src/lib/ingestRateLimit.js')
     const result = await runMiddleware(ingestIpRateLimit, createRequest('Bearer whk_test'))
 
     expect(result.error).toBeUndefined()
-    expect(takeFixedWindowToken).toHaveBeenCalledWith('ingest:ratelimit:ip:203.0.113.10', 120)
+    expect(takeFixedWindowTokens).toHaveBeenCalledWith(
+      ['ingest:ratelimit:ip:203.0.113.10'],
+      120,
+    )
   })
 
   it('returns 429 when the IP window is exhausted', async () => {
-    takeFixedWindowToken.mockResolvedValue(false)
+    takeFixedWindowTokens.mockResolvedValue(false)
     const { ingestIpRateLimit } = await import('../../../src/lib/ingestRateLimit.js')
     const result = await runMiddleware(ingestIpRateLimit, createRequest('Bearer whk_test'))
 
@@ -72,7 +75,7 @@ describe('ingestIpRateLimit', () => {
   })
 
   it('fails closed when Redis errors', async () => {
-    takeFixedWindowToken.mockRejectedValue(new Error('redis down'))
+    takeFixedWindowTokens.mockRejectedValue(new Error('redis down'))
     const { ingestIpRateLimit } = await import('../../../src/lib/ingestRateLimit.js')
     const result = await runMiddleware(ingestIpRateLimit, createRequest('Bearer whk_test'))
 

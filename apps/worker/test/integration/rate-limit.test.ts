@@ -7,20 +7,14 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../../api/src/config.js'
-import { closePool as closeApiPool } from '../../../api/src/db/client.js'
-import { closeRedis as closeApiRedis } from '../../../api/src/lib/redis.js'
 import { queue } from '../../../api/src/queue/client.js'
 import { createApp } from '../../../api/src/server.js'
 import { createTenantWithKey, deleteTenant } from '../../../api/test/helpers/tenant.js'
 import { createTenantSession } from '../../../api/test/helpers/user.js'
 import '../../src/config.js'
 import { env } from '../../src/config.js'
-import { closePool, getDb } from '../../src/db/client.js'
-import {
-  closeRedis as closeWorkerRedis,
-  getRedis,
-  getRedisConnectionOptions,
-} from '../../src/lib/redis.js'
+import { getDb } from '../../src/db/client.js'
+import { getRedis, getRedisConnectionOptions } from '../../src/lib/redis.js'
 import { processor } from '../../src/processor.js'
 
 const app = createApp()
@@ -123,10 +117,18 @@ async function promoteDelayedJobs(): Promise<void> {
   await Promise.all(delayed.map((job) => job.promote()))
 }
 
-async function clearTenantRateLimit(tenantId: string): Promise<void> {
+async function clearRateLimitKeys(tenantId: string): Promise<void> {
   const redis = getRedis()
-  const keys = await redis.keys(`ratelimit:tenant:${tenantId}:*`)
-  if (keys.length > 0) await redis.del(...keys)
+  const runId = process.env.TEST_RUN_ID
+  const patterns = [
+    `ratelimit:tenant:${tenantId}:*`,
+    `test-${runId}:ingest:ratelimit:${tenantId}:*`,
+    `test-${runId}:ingest:ratelimit:ip:*`,
+  ]
+  for (const pattern of patterns) {
+    const keys = await redis.keys(pattern)
+    if (keys.length > 0) await redis.del(...keys)
+  }
 }
 
 describe('rate limit integration', () => {
@@ -156,12 +158,7 @@ describe('rate limit integration', () => {
   afterAll(async () => {
     await mockServer.close()
     await clearQueue()
-    await queue.close()
     await deleteTenant(tenantId)
-    await closePool()
-    await closeApiPool()
-    await closeApiRedis()
-    await closeWorkerRedis()
   })
 
   it('defers deliveries over the tenant burst cap then delivers after refill', async () => {
@@ -169,7 +166,7 @@ describe('rate limit integration', () => {
     const eventCount = limit + 10
     const overLimit = eventCount - limit
 
-    await clearTenantRateLimit(tenantId)
+    await clearRateLimitKeys(tenantId)
 
     for (let i = 0; i < eventCount; i += 1) {
       const ingestRes = await request(app)
@@ -181,7 +178,7 @@ describe('rate limit integration', () => {
           payload: { index: i },
         })
 
-      expect(ingestRes.status).toBe(202)
+      expect(ingestRes.status, JSON.stringify(ingestRes.body)).toBe(202)
     }
 
     const worker = new Worker(QUEUE_NAME, processor, {
@@ -226,7 +223,7 @@ describe('rate limit integration', () => {
         expect(attempts).toHaveLength(0)
       }
 
-      await clearTenantRateLimit(tenantId)
+      await clearRateLimitKeys(tenantId)
       await promoteDelayedJobs()
 
       const finalCounts = await waitForDeliveryCounts(

@@ -16,7 +16,3 @@ export async function takeFixedWindowTokens(keys: readonly string[], max: number
   )
   return Number(allowed) === 1
 }
-
-export async function takeFixedWindowToken(key: string, max: number): Promise<boolean> {
-  return takeFixedWindowTokens([key], max)
-}

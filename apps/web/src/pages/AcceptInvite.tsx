@@ -7,7 +7,6 @@ import type { ValidateInviteResponse } from '@/api/types'
 import { AuthFooterLink } from '@/components/auth/AuthFooterLink'
 import { AuthFormField } from '@/components/auth/AuthFormField'
 import { PageBanner } from '@/components/console/PageBanner'
-import { AuthCard } from '@/components/auth/AuthCard'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { getDefaultHomePath } from '@/lib/auth-redirect'
 import { useSession } from '@/providers/session-context'
@@ -15,14 +14,14 @@ import { useSession } from '@/providers/session-context'
 function resolveInviteLoadError(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.code === 'invite_expired') {
-      return 'This invite has expired. Ask the person who invited you to send a new link from Admin.'
+      return 'This invite has expired. Ask Admin to send a new link.'
     }
     if (err.code === 'invite_used') {
       return 'This invite has already been used. Sign in with your account instead.'
     }
     return err.message
   }
-  return 'Unable to load invite. Try again, or ask for a new invite link from your administrator.'
+  return 'Unable to load invite. Try again, or ask Admin for a new invite link.'
 }
 
 export default function AcceptInvite() {
@@ -97,9 +96,7 @@ export default function AcceptInvite() {
         },
       })
     } catch (err) {
-      setSubmitError(
-        err instanceof ApiError ? err.message : 'Unable to accept invite. Try again.',
-      )
+      setSubmitError(err instanceof ApiError ? err.message : 'Unable to accept invite. Try again.')
     } finally {
       setSubmitting(false)
     }
@@ -128,19 +125,19 @@ export default function AcceptInvite() {
       }
     >
       {loadError ? (
-        <AuthCard>
+        <div className="app-panel border border-border bg-surface p-6">
           <PageBanner variant="error" title="Invite unavailable" description={loadError} />
           <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-            <p>Need a new invite? Ask the platform admin to send another link.</p>
+            <p>Need a new invite? Ask Admin to send another link.</p>
             <AuthFooterLink prompt="Already have an account?" linkLabel="Sign in" to="/login" />
           </div>
-        </AuthCard>
+        </div>
       ) : loading ? (
-        <AuthCard>
+        <div className="app-panel border border-border bg-surface p-6">
           <p className="text-sm text-muted-foreground">Loading invite details…</p>
-        </AuthCard>
+        </div>
       ) : invite ? (
-        <AuthCard>
+        <div className="app-panel border border-border bg-surface p-6">
           <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
             {submitError ? (
               <PageBanner
@@ -204,7 +201,7 @@ export default function AcceptInvite() {
               {!submitting ? <ArrowRight className="size-4" aria-hidden="true" /> : null}
             </button>
           </form>
-        </AuthCard>
+        </div>
       ) : null}
 
       {!loadError ? (

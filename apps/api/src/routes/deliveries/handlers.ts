@@ -11,7 +11,7 @@ import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.j
 import { getTenantId } from '../../lib/tenant.js'
 import { queue } from '../../queue/client.js'
 import { toDeliveryDetailJson, toDeliveryListJson } from './serialize.js'
-import { assertReplayableStatus, parseDeliveryId, parseListQuery } from './validation.js'
+import { parseDeliveryId, parseListQuery } from './validation.js'
 
 const deliverySelect = {
   id: deliveries.id,
@@ -119,9 +119,7 @@ export const replayDelivery = asyncHandler(async (req: Request, res: Response) =
     throw new AppError(404, 'not_found', 'Delivery not found')
   }
 
-  if (existing.status !== 'pending' && existing.status !== 'in_progress') {
-    assertReplayableStatus(existing.status)
-
+  if (existing.status === 'failed') {
     await db.transaction(async (tx) => {
       const [updated] = await tx
         .update(deliveries)
@@ -147,11 +145,10 @@ export const replayDelivery = asyncHandler(async (req: Request, res: Response) =
       }
 
       await reevaluateEventStatus(updated.eventId, tx)
-      await tx
-        .insert(deliveryOutbox)
-        .values({ deliveryId: id, tenantId })
-        .onConflictDoNothing()
+      await tx.insert(deliveryOutbox).values({ deliveryId: id, tenantId }).onConflictDoNothing()
     })
+  } else if (existing.status !== 'pending' && existing.status !== 'in_progress') {
+    throw new AppError(400, 'invalid_state', 'Only failed deliveries can be replayed')
   }
 
   await enqueueOr503(
@@ -160,7 +157,9 @@ export const replayDelivery = asyncHandler(async (req: Request, res: Response) =
     'replay_enqueue_failed',
   )
 
-  await getDb().delete(deliveryOutbox).where(inArray(deliveryOutbox.deliveryId, [id]))
+  await getDb()
+    .delete(deliveryOutbox)
+    .where(inArray(deliveryOutbox.deliveryId, [id]))
 
   const body: ReplayDeliveryJson = {
     id,

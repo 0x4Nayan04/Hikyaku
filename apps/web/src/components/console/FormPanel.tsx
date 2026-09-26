@@ -7,7 +7,7 @@ type FormPanelProps = {
   description?: ReactNode
   children: ReactNode
   footer?: ReactNode
-  footerAlign?: 'start' | 'end' | 'between'
+  footerAlign?: 'start' | 'end'
   titleVariant?: 'default' | 'prominent'
   className?: string
 }
@@ -55,7 +55,6 @@ export function FormPanel({
           className={cn(
             'flex w-full flex-wrap items-center gap-3 border-t border-border/40 bg-muted/[0.06] px-4 py-3 md:px-5',
             footerAlign === 'end' && 'justify-end',
-            footerAlign === 'between' && 'justify-between',
           )}
         >
           {footer}
