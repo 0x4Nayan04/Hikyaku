@@ -1,4 +1,4 @@
-export type AdminTenantRow = {
+type AdminTenantRow = {
   id: string
   name: string
   createdAt: Date

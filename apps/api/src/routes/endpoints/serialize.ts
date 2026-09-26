@@ -1,7 +1,7 @@
 import type { EndpointJson, EndpointWithSecretJson } from '@webhook/shared/apiJson'
 import type { DeliveryStatus, EndpointStatus } from '@webhook/shared/constants'
 
-export type EndpointRow = {
+type EndpointRow = {
   id: string
   url: string
   status: EndpointStatus

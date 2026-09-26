@@ -18,7 +18,7 @@ export type AppNavItem = {
   tenantOnly?: boolean
 }
 
-export type AppNavSection = {
+type AppNavSection = {
   id: string
   label: string
   items: AppNavItem[]

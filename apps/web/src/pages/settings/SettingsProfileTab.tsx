@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ExternalLink, Lock, RotateCcw } from 'lucide-react'
+import { MIN_PASSWORD_LENGTH } from '@webhook/shared/constants'
 import { ApiError, changePassword } from '@/api/client'
 import { AuthFormField } from '@/components/auth/AuthFormField'
 import { PageBanner } from '@/components/console/PageBanner'
@@ -14,8 +15,6 @@ import { useSession } from '@/providers/session-context'
 import { copyToClipboard } from '@/lib/clipboard'
 import { toast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
-
-const MIN_PASSWORD_LENGTH = 12
 
 function calculateStrength(password: string): { score: number; label: string } {
   let score = 0
@@ -170,7 +169,7 @@ export function SettingsProfileTab() {
 
                 {!strength ? (
                   <p className="settings-password-block__hint">
-                    At least 12 characters, at most 128 UTF-8 bytes. No complexity rules — pick something long.
+                    At least {MIN_PASSWORD_LENGTH} characters, at most 128 UTF-8 bytes. No complexity rules — pick something long.
                   </p>
                 ) : null}
 

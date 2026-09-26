@@ -1,4 +1,4 @@
-export type ApiKeyRow = {
+type ApiKeyRow = {
   id: string
   prefix: string
   lastUsedAt: Date | null

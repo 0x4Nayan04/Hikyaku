@@ -28,7 +28,7 @@ export const eventDetailColumns = {
 export type EventListRow = Omit<typeof events.$inferSelect, 'payload'>
 export type EventRow = typeof events.$inferSelect
 
-export type FanoutResult = {
+type FanoutResult = {
   event: EventListRow
   newDeliveryIds: string[]
   isDuplicate: boolean

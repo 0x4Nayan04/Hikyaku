@@ -3,11 +3,11 @@ import type { Request, RequestHandler } from 'express'
 import session from 'express-session'
 import { env } from '../config.js'
 import { getPool } from '../db/client.js'
+import { BEARER_PREFIX } from './bearer.js'
 
 const PgSession = connectPgSimple(session)
 
 export const SESSION_COOKIE_NAME = 'sid'
-const BEARER_PREFIX = 'Bearer '
 
 /** Health probes and Bearer ingest skip express-session + CSRF. Cookie ingest still uses both. */
 export function shouldSkipSessionStack(req: Pick<Request, 'method' | 'path' | 'headers'>): boolean {

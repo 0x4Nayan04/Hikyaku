@@ -1,12 +1,11 @@
 import type { NextFunction, Request, Response } from 'express'
+import { BEARER_PREFIX } from '../auth/bearer.js'
 import { env } from '../config.js'
 import { AppError } from './errors.js'
 import { asyncHandler } from './asyncHandler.js'
 import { readAuthRateLimitIp } from './authRateLimit.js'
 import { takeFixedWindowToken } from './rateLimit.js'
 import { getTenantId } from './tenant.js'
-
-const BEARER_PREFIX = 'Bearer '
 
 /** Cheap IP window before API-key DB lookup. Cookie ingest skips this and uses the tenant limiter. */
 export const ingestIpRateLimit = asyncHandler(

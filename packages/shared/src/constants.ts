@@ -9,6 +9,7 @@ export type DeliveryJobData = {
 }
 
 export const MAX_INGEST_BODY_BYTES = 256 * 1024
+export const MIN_PASSWORD_LENGTH = 12
 
 export const CONFIG_DEFAULTS = {
   NODE_ENV: 'development',

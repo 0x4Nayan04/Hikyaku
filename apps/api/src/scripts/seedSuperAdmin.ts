@@ -7,7 +7,7 @@ import { userEmailMatches } from '../lib/invites.js'
 
 type SeedDb = NodePgDatabase<typeof schema>
 
-export type SeedSuperAdminEnv = {
+type SeedSuperAdminEnv = {
   SEED_SUPER_ADMIN_EMAIL?: string
   SEED_SUPER_ADMIN_PASSWORD?: string
   SEED_SUPER_ADMIN_NAME?: string

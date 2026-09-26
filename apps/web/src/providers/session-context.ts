@@ -1,7 +1,7 @@
 import { createContext, use, type ReactNode } from 'react'
 import type { MeResponse } from '@/api/types'
 
-export type SessionContextValue = {
+type SessionContextValue = {
   session: MeResponse | null
   loading: boolean
   refresh: () => Promise<void>

@@ -1,7 +1,7 @@
 import { AppError } from '../../lib/errors.js'
 import { requireUuid } from '../../lib/validation.js'
 
-export type ApiKeyStatus = 'active' | 'revoked'
+type ApiKeyStatus = 'active' | 'revoked'
 
 export function parseApiKeyId(id: string): void {
   requireUuid(id, 'API key not found')
