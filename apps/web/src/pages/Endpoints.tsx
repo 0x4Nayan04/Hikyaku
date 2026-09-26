@@ -63,6 +63,7 @@ export default function Endpoints() {
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Endpoint | null>(null)
+  const [rotateTarget, setRotateTarget] = useState<Endpoint | null>(null)
 
   const showEmpty = !isInitial && endpoints.length === 0
   const showLoading = isInitial && endpoints.length === 0
@@ -99,7 +100,7 @@ export default function Endpoints() {
   return (
     <ConsolePage
       title="Endpoints"
-      description="Receiver URLs for this tenant. Signing secrets are shown once on create."
+      description="Receiver URLs for this tenant. Signing secrets are shown once on create or rotate."
     >
       {error ? (
         <PageBanner variant="error" title="Could not load endpoints" description={error} />
@@ -160,6 +161,7 @@ export default function Endpoints() {
               endpoints={endpoints}
               togglingId={togglingId}
               onEdit={(endpoint) => setEditTarget(endpoint)}
+              onRotate={(endpoint) => setRotateTarget(endpoint)}
               onToggle={handleToggleStatus}
             />
           ) : showEmpty ? (
@@ -193,6 +195,8 @@ export default function Endpoints() {
         onCreateOpenChange={setCreateOpen}
         editTarget={editTarget}
         onEditTargetChange={setEditTarget}
+        rotateTarget={rotateTarget}
+        onRotateTargetChange={setRotateTarget}
         onChanged={reload}
       />
     </ConsolePage>

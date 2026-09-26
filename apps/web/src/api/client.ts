@@ -176,6 +176,10 @@ export function patchEndpoint(id: string, body: PatchEndpointInput): Promise<End
   })
 }
 
+export function rotateEndpointSecret(id: string): Promise<EndpointWithSecret> {
+  return apiFetch(`/v1/endpoints/${id}/rotate`, { method: 'POST' })
+}
+
 export function listEvents(
   params: PaginationParams = {},
   options?: ApiFetchOptions,

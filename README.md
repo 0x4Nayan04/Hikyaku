@@ -24,7 +24,7 @@ No hosted demo yet — run it locally (below). After `pnpm dev`:
 | Docs    | http://localhost:5173/docs  |
 | Console | http://localhost:5173/login |
 
-Bootstrap once at `/bootstrap`, invite a tenant owner from **Admin**, then use the tenant console.
+Bootstrap once at `/bootstrap`, then use the tenant console. Use **Admin** separately if you need to invite other users or manage tenants.
 
 ## Architecture
 
@@ -52,7 +52,7 @@ Producer ──POST /v1/events──► API ──fan-out + enqueue deliveries�
 | Postgres      | Tenants, events, deliveries, attempt history |
 | Redis         | BullMQ delivery queue                        |
 
-Each delivery is claimed with a database lease before its HTTP attempt, so a crashed worker is recoverable: a sweeper resets deliveries stuck in `in_progress` and re-enqueues them. Queue jobs are deduplicated per delivery, so fan-out and replay never double-schedule. Subscribers should verify `X-Webhook-Signature` and reject timestamps older than 5 minutes — see [docs → Signing](http://localhost:5173/docs#signing).
+Each delivery is claimed with a database lease before its HTTP attempt, so a crashed worker is recoverable: a sweeper resets deliveries stuck in `in_progress` and re-enqueues them. Queue jobs are deduplicated per delivery for the current live queue job, so fan-out and replay do not double-schedule that job — HTTP delivery remains at-least-once. Subscribers should verify `X-Webhook-Signature` and reject timestamps older than 5 minutes — see [docs → Signing](http://localhost:5173/docs#signing).
 
 ## Screenshots
 
@@ -144,7 +144,7 @@ Optional super-admin seed (only when no users exist):
 | Admin         | `/admin`             | Super-admin only       |
 | Tenant admin  | `/admin/tenants/:id` | Super-admin only       |
 
-**Roles:** Super-admins invite tenant owners and manage tenants and users. Tenant users manage endpoints, events, deliveries, and API keys. Super-admins are not tenant-scoped and cannot open tenant dashboard pages.
+**Roles:** Super-admins invite tenant owners and manage tenants and users. Tenant users manage endpoints, events, deliveries, and API keys. Super-admins with an assigned workspace can use that workspace’s console pages; Admin remains a separate area.
 
 API usage, signing, retries, and the full route table live in the in-app docs: http://localhost:5173/docs
 
@@ -153,10 +153,10 @@ API usage, signing, retries, and the full route table live in the in-app docs: h
 - **At-least-once** — a delivery retries until 2xx, a permanent failure, or the attempt cap. `X-Webhook-Id` is the delivery UUID and stays constant across retries; use it to dedupe on the subscriber side.
 - **Transactional outbox** — fan-out inserts each delivery and an outbox row in the same Postgres transaction; the worker drains the outbox before sweeping stale leases, so a committed delivery is not lost if Redis is unavailable at ingest.
 - **Lease + sweeper** — each HTTP attempt is claimed with a DB lease; a background sweeper resets deliveries stuck in `in_progress` and re-enqueues them.
-- **Idempotent enqueue** — BullMQ jobs are deduplicated per delivery, so fan-out and replay never double-schedule.
-- **Rate limited** — 100 outbound attempts per minute per tenant (see `RATE_LIMIT_PER_MINUTE`); exceeding it pauses a delivery for ~60s without counting toward the 5-attempt cap.
+- **Idempotent enqueue** — BullMQ jobs are deduplicated per delivery for the current live queue job, so fan-out and replay do not double-schedule that job (HTTP delivery is still at-least-once).
+- **Rate limited** — 100 outbound admissions per minute per tenant (see `RATE_LIMIT_PER_MINUTE`); exceeding it defers the delivery until the next UTC minute plus jitter, without counting toward the 5-attempt cap. The pause appears in worker logs; the delivery row is not marked `rate_limited`.
 - **Retry policy** — exponential backoff (1m → 2m → 4m → 8m) for network errors, timeouts, 408, 429, and 5xx; other 4xx fail fast.
-- **Replay** — only `failed` deliveries can be re-queued (`POST /v1/deliveries/:id/replay` or the delivery detail page); replay increments `replay_count` and preserves prior attempts under earlier `run_number` values.
+- **Replay** — `failed` deliveries can be re-queued (`POST /v1/deliveries/:id/replay` or the delivery detail page); open `pending`/`in_progress` deliveries may be re-enqueued for recovery without starting another run. Replay increments `replay_count` and preserves prior attempts under earlier `run_number` values.
 - **Timestamped + signed** — every POST carries `X-Webhook-Timestamp`; receivers should require `|now − timestamp| ≤ 300s`.
 
 ## Health checks

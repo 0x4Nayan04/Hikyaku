@@ -52,7 +52,7 @@ A successful ingest returns `202 Accepted` with the event id and enqueues one de
 Fresh deploys create a super-admin and their workspace at [/bootstrap](/bootstrap). Additional users arrive through invitation links. Console data is scoped to the signed-in tenant.
 
 - **Dashboard** — ingest volume, queue depth, 24h outcomes, and recent activity.
-- **Endpoints** — register a receiver URL and copy the signing secret shown once at create.
+- **Endpoints** — register a receiver URL, copy the signing secret shown once at create, and rotate it in place when needed.
 - **Events** — browse ingested events and open one to see its deliveries.
 - **Test event** — POST a smoke-test payload from the UI (real traffic should use `POST /v1/events`).
 - **Deliveries** — filter by status, inspect attempt timelines, and replay failures.
@@ -64,11 +64,11 @@ Super-admins use **Admin** to invite tenant owners, list, rename, or delete tena
 
 Backends use an API key. The console uses a session cookie. Platform ops use a super-admin session.
 
-| Mode                | How                             | Scope                                         |
-| ------------------- | ------------------------------- | --------------------------------------------- |
-| API key             | `Authorization: Bearer whk_…`   | Single tenant                                 |
-| Session cookie      | Email/password login (httpOnly) | Tenant user console + APIs                    |
-| Super-admin session | Session cookie only             | **Admin** platform routes — not tenant-scoped |
+| Mode                | How                             | Scope                                                                  |
+| ------------------- | ------------------------------- | ---------------------------------------------------------------------- |
+| API key             | `Authorization: Bearer whk_…`   | Single tenant                                                          |
+| Session cookie      | Email/password login (httpOnly) | Tenant user console + APIs                                             |
+| Super-admin session | Session cookie only             | **Admin** platform routes; assigned workspace uses tenant console too |
 
 ```http
 Authorization: Bearer whk_your_api_key
@@ -145,9 +145,9 @@ curl -X POST "{{API_BASE}}/v1/endpoints" \
   }'
 ```
 
-URL and secret cannot change after create. Update status or description with `PATCH /v1/endpoints/:id`. To change a URL or rotate a signing secret, create a new endpoint and disable the old one.
+URL cannot change after create. Update status or description with `PATCH /v1/endpoints/:id`. Rotate the signing secret in place with `POST /v1/endpoints/:id/rotate` — the new secret is returned once; the endpoint id and URL stay the same. To change a URL, create a new endpoint and disable the old one.
 
-> **Save the secret now:** The server cannot show the signing secret again. Copy it into your secret manager when the endpoint is created.
+> **Save the secret now:** The server cannot show the signing secret again after create or rotate. Copy it into your secret manager immediately.
 
 ## Outbound
 
@@ -268,6 +268,7 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 | POST   | `/v1/endpoints`                         | Create endpoint (secret shown once)      |
 | GET    | `/v1/endpoints`                         | List endpoints                           |
 | PATCH  | `/v1/endpoints/:id`                     | Update status or description             |
+| POST   | `/v1/endpoints/:id/rotate`              | Rotate signing secret (shown once)       |
 | POST   | `/v1/events`                            | Ingest event → 202 Accepted              |
 | GET    | `/v1/events`                            | List events (paginated)                  |
 | GET    | `/v1/events/:id`                        | Event detail + delivery summary          |
@@ -282,7 +283,7 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 | DELETE | `/v1/admin/tenants/:id/users/:userId`   | Delete a user from a tenant              |
 | POST   | `/v1/admin/invites`                     | Create tenant-owner or user invite       |
 
-All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (default 50, max 100). `api-keys` filter by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` plus `?event_id=`. Responses look like `{ data, total, limit, offset }`.
+All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (default 50, max 100). `api-keys` filter by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` plus `?event_id=`. Responses look like `{ data, has_more, limit, offset }`.
 
 Ingest (`POST /v1/events`) accepts a Bearer API key or a tenant session cookie. Every other tenant route requires a tenant session cookie. Admin routes require a super-admin session. Auth routes are public except logout, me, change-password, and workspace creation.
 
@@ -299,7 +300,7 @@ Transient failures retry automatically. Permanent client errors fail fast. After
 | Fail-fast         | 4xx (except 408, 429)                                |
 | Rate limit        | 100 HTTP delivery attempts / minute / tenant         |
 
-> When a tenant hits the rate limit, the delivery stays `pending` for about 60 seconds (`last_error: rate_limited`). That pause is not a failure and does not count toward the five-attempt cap.
+> When a tenant hits the rate limit, the worker defers the delivery until the next UTC minute plus a small jitter (logged as `rate_limited`). That pause is not a failure, does not update the delivery row’s `last_error`, and does not count toward the five-attempt cap.
 
 Delivery is at-least-once — dedupe on your side with `X-Webhook-Id` (stable across retries). A background sweeper reclaims deliveries left `in_progress` after a worker crash and re-enqueues them.
 
@@ -307,8 +308,8 @@ Only `failed` deliveries can be re-queued. Call `POST /v1/deliveries/:id/replay`
 
 ## Privacy
 
-API keys are stored as SHA-256 hashes; the full secret is shown only on create or rotate. Endpoint signing secrets are kept server-side so the worker can sign outbound POSTs, and are shown once at creation. Session cookies power the console. Delivery attempt logs may include a truncated response body (~1KB) for debugging. There is no application-level encryption at rest beyond what your database and filesystem provide.
+API keys are stored as SHA-256 hashes; the full secret is shown only on create or rotate. Endpoint signing secrets are kept server-side so the worker can sign outbound POSTs, and are shown once at creation or when rotated in place. Session cookies power the console. Delivery attempt logs may include a truncated response body (~1KB) for debugging. There is no application-level encryption at rest beyond what your database and filesystem provide.
 
-> **Protect secrets:** Do not commit API keys or signing secrets to source control or paste them into tickets. Revoke a compromised key from Settings immediately. To rotate an endpoint signing secret, create a new endpoint, point subscribers at it, then disable the old one — secrets cannot be rotated in place.
+> **Protect secrets:** Do not commit API keys or signing secrets to source control or paste them into tickets. Revoke a compromised API key from Settings immediately. Rotate a compromised endpoint signing secret with `POST /v1/endpoints/:id/rotate` (or **Rotate signing secret** in the console), then update receivers before they reject the new signatures.
 
 Temporary DNS lookup failures use the normal bounded delivery retries. Invalid, private, or unsafe URLs remain blocked, and endpoint registration rejects unresolved hostnames.

@@ -6,6 +6,7 @@ import {
   Circle,
   Copy,
   Globe,
+  KeyRound,
   MoreVertical,
   Pencil,
   Power,
@@ -173,6 +174,7 @@ type EndpointCatalogRowProps = {
   lastDelivery?: EndpointLastDelivery | null
   toggling: boolean
   onEdit: (endpoint: Endpoint) => void
+  onRotate: (endpoint: Endpoint) => void
   onToggle: (endpoint: Endpoint) => void
 }
 
@@ -181,6 +183,7 @@ function EndpointCatalogRow({
   lastDelivery,
   toggling,
   onEdit,
+  onRotate,
   onToggle,
 }: EndpointCatalogRowProps) {
   const iconVariant = getEndpointIconVariant(endpoint)
@@ -241,6 +244,10 @@ function EndpointCatalogRow({
               <Pencil className="size-3.5" aria-hidden="true" />
               Edit label
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onRotate(endpoint)}>
+              <KeyRound className="size-3.5" aria-hidden="true" />
+              Rotate signing secret
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => void copyToClipboard(endpoint.url, 'URL')}>
               <Copy className="size-3.5" aria-hidden="true" />
               Copy URL
@@ -273,6 +280,7 @@ type EndpointCatalogListProps = {
   endpoints: Endpoint[]
   togglingId: string | null
   onEdit: (endpoint: Endpoint) => void
+  onRotate: (endpoint: Endpoint) => void
   onToggle: (endpoint: Endpoint) => void
 }
 
@@ -280,6 +288,7 @@ export function EndpointCatalogList({
   endpoints,
   togglingId,
   onEdit,
+  onRotate,
   onToggle,
 }: EndpointCatalogListProps) {
   return (
@@ -291,6 +300,7 @@ export function EndpointCatalogList({
           lastDelivery={endpoint.last_delivery}
           toggling={togglingId === endpoint.id}
           onEdit={onEdit}
+          onRotate={onRotate}
           onToggle={onToggle}
         />
       ))}

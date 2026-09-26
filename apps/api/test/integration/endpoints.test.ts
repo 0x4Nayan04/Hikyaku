@@ -105,4 +105,35 @@ describe('endpoints', () => {
     expect(disabled.body.has_more).toBe(false)
     expect(disabled.body.data[0]).toMatchObject({ id: endpointId, status: 'disabled' })
   })
+
+  it('rotates the signing secret in place and returns it once', async () => {
+    const res = await agent.post(`/v1/endpoints/${endpointId}/rotate`)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({
+      id: endpointId,
+      url: 'https://webhook.site/test',
+      status: 'disabled',
+      description: 'test',
+    })
+    expect(res.body.secret).toMatch(/^whsec_[0-9a-f]{32}$/)
+    expect(res.body.secret).not.toBe(endpointSecret)
+
+    endpointSecret = res.body.secret
+
+    const listRes = await agent.get('/v1/endpoints')
+    expect(listRes.status).toBe(200)
+    expect(listRes.body.data[0]).toMatchObject({ id: endpointId })
+    expect(listRes.body.data[0].secret).toBeUndefined()
+    expect(listRes.body.data[0]).not.toHaveProperty('secret')
+  })
+
+  it('returns 404 when rotating an unknown endpoint', async () => {
+    const res = await agent.post('/v1/endpoints/00000000-0000-4000-8000-000000000000/rotate')
+
+    expect(res.status).toBe(404)
+    expect(res.body).toEqual({
+      error: { code: 'not_found', message: 'Endpoint not found' },
+    })
+  })
 })

@@ -37,7 +37,7 @@ const FEATURES: Feature[] = [
     icon: Users,
     title: 'Multi-tenant isolation',
     description:
-      'Each tenant gets its own API keys, endpoints, events, and delivery history. Keys are hashed at rest; endpoint secrets are shown once.',
+      'Each tenant gets its own API keys, endpoints, events, and delivery history. Keys are hashed at rest; endpoint secrets are shown once on create or rotate.',
   },
   {
     icon: Server,

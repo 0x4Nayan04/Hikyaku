@@ -138,3 +138,22 @@ export const patchEndpoint = asyncHandler(async (req: Request, res: Response) =>
 
   res.json(toEndpointJson(row))
 })
+
+export const rotateEndpointSecret = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params
+  parseEndpointId(id)
+
+  const secret = generateEndpointSecret()
+  const db = getDb()
+  const [row] = await db
+    .update(endpoints)
+    .set({ secret })
+    .where(and(eq(endpoints.id, id), eq(endpoints.tenantId, getTenantId(req))))
+    .returning(endpointColumns)
+
+  if (!row) {
+    throw new AppError(404, 'not_found', 'Endpoint not found')
+  }
+
+  res.json(toEndpointJson(row, secret))
+})
