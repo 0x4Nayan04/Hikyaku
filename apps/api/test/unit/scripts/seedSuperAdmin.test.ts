@@ -1,4 +1,4 @@
-import { count, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { users } from '@webhook/shared/schema'
 import '../../../src/config.js'
@@ -21,13 +21,8 @@ describe('maybeSeedSuperAdmin', () => {
     await expect(maybeSeedSuperAdmin(getDb(), {})).resolves.toBe(false)
   })
 
-  it('creates a super-admin when env is set and no users exist', async () => {
+  it('creates a super-admin when env is set and email is free', async () => {
     const db = getDb()
-    const [countRow] = await db.select({ value: count() }).from(users)
-    if ((countRow?.value ?? 0) > 0) {
-      return
-    }
-
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined)
     await expect(maybeSeedSuperAdmin(db, seedEnv)).resolves.toBe(true)
     expect(log).toHaveBeenCalledWith('Super-admin seeded')
@@ -55,17 +50,45 @@ describe('maybeSeedSuperAdmin', () => {
     await deleteUser(row.id)
   })
 
-  it('skips seeding when users already exist', async () => {
+  it('creates a super-admin even when other users already exist', async () => {
     const { userId } = await createUser({ tenantId: null, isSuperAdmin: true })
+    const email = `seed-admin-with-peers-${Date.now()}@test.com`
+    const env = {
+      SEED_SUPER_ADMIN_EMAIL: email,
+      SEED_SUPER_ADMIN_PASSWORD: 'dev-password-min-12-chars',
+      SEED_SUPER_ADMIN_NAME: 'Peer Admin',
+    }
 
-    await expect(maybeSeedSuperAdmin(getDb(), seedEnv)).resolves.toBe(false)
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    await expect(maybeSeedSuperAdmin(getDb(), env)).resolves.toBe(true)
+    expect(log).toHaveBeenCalledWith('Super-admin seeded')
+    log.mockRestore()
 
-    const rows = await getDb()
-      .select({ email: users.email })
+    const [row] = await getDb()
+      .select({ id: users.id, isSuperAdmin: users.isSuperAdmin })
       .from(users)
-      .where(eq(users.email, seedEnv.SEED_SUPER_ADMIN_EMAIL))
+      .where(eq(users.email, email))
 
-    expect(rows).toHaveLength(0)
+    expect(row?.isSuperAdmin).toBe(true)
+
+    await deleteUser(row!.id)
+    await deleteUser(userId)
+  })
+
+  it('skips seeding when that email already exists', async () => {
+    const email = `seed-admin-exists-${Date.now()}@test.com`
+    const { userId } = await createUser({
+      tenantId: null,
+      isSuperAdmin: true,
+      email,
+    })
+
+    await expect(
+      maybeSeedSuperAdmin(getDb(), {
+        SEED_SUPER_ADMIN_EMAIL: email,
+        SEED_SUPER_ADMIN_PASSWORD: 'dev-password-min-12-chars',
+      }),
+    ).resolves.toBe(false)
 
     await deleteUser(userId)
   })

@@ -238,7 +238,7 @@ export default function Bootstrap() {
             maxLength={128}
             value={password}
             onChange={setPassword}
-            hint="Use at least 12 characters."
+            hint="At least 12 characters, at most 128 UTF-8 bytes."
             required
           />
         </section>

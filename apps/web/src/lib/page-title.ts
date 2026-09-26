@@ -9,9 +9,10 @@ export function titleForPath(pathname: string, hash = ''): string {
     return section ? `${section.label} · ${APP_NAME} Docs` : `${APP_NAME} Docs`
   }
   if (pathname === '/') return APP_NAME
+  // Avoid "Why Hikyaku · Hikyaku" from the generic `Label · APP_NAME` pattern.
+  if (pathname === '/why-haiku') return `Why ${APP_NAME}`
 
   const routes: Array<[RegExp | string, string]> = [
-    ['/why-haiku', 'Why Haiku'],
     ['/login', 'Sign in'],
     ['/bootstrap', 'Setup'],
     ['/accept-invite', 'Accept invite'],

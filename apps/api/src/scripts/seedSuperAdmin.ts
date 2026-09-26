@@ -1,9 +1,9 @@
-import { count } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import * as schema from '@webhook/shared/schema'
 import { users } from '@webhook/shared/schema'
 import { bootstrapSchema } from '@webhook/shared/zod'
 import { hashPassword } from '@webhook/shared/password'
+import { userEmailMatches } from '../lib/invites.js'
 
 type SeedDb = NodePgDatabase<typeof schema>
 
@@ -31,9 +31,14 @@ export async function maybeSeedSuperAdmin(
     throw new Error(`Super-admin seed env invalid: ${message}`)
   }
 
-  const [countRow] = await db.select({ value: count() }).from(users)
-  if ((countRow?.value ?? 0) > 0) {
-    console.log('Super-admin seed skipped: users already exist')
+  const [existing] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(userEmailMatches(parsed.data.email))
+    .limit(1)
+
+  if (existing) {
+    console.log(`Super-admin seed skipped: ${parsed.data.email} already exists`)
     return false
   }
 

@@ -62,7 +62,7 @@ Each delivery is claimed with a database lease before its HTTP attempt, so a cra
 
 ## Prerequisites
 
-- Node.js 20 (`nvm use`)
+- Node.js 20 for local app development (`nvm use` / `.nvmrc`). The one-time production config command in `deploy/` needs Node.js 22+.
 - [pnpm](https://pnpm.io/)
 - Docker (Postgres 16 + Redis 7 for local development)
 
@@ -118,13 +118,15 @@ Seed prints login emails/passwords and one API key per tenant (local/dev only). 
 | Acme   | `acme@example.com`   | `dev-password-min-12-chars` |
 | Globex | `globex@example.com` | `dev-password-min-12-chars` |
 
-Optional super-admin seed (only when no users exist):
+Optional super-admin seed (creates that email if unused):
 
 ```bash
 # In .env:
-# SEED_SUPER_ADMIN_EMAIL=admin@example.com
-# SEED_SUPER_ADMIN_PASSWORD=dev-password-min-12-chars
+SEED_SUPER_ADMIN_EMAIL=admin@example.com
+SEED_SUPER_ADMIN_PASSWORD=dev-password-min-12-chars
 ```
+
+Then `pnpm db:seed` and sign in as that email for **Admin**.
 
 ## Console overview
 
@@ -132,14 +134,17 @@ Optional super-admin seed (only when no users exist):
 | ------------- | -------------------- | ---------------------- |
 | Landing       | `/`                  | Public                 |
 | Docs          | `/docs`              | Public                 |
+| Why Hikyaku   | `/why-haiku`         | Public                 |
 | Login         | `/login`             | Public                 |
 | Bootstrap     | `/bootstrap`         | First deploy only      |
 | Accept invite | `/accept-invite`     | Invite recipients      |
 | Dashboard     | `/dashboard`         | Tenant users           |
 | Endpoints     | `/endpoints`         | Tenant users           |
 | Events        | `/events`            | Tenant users           |
+| Event detail  | `/events/:id`        | Tenant users           |
 | Send event    | `/events/send`       | Tenant users           |
 | Deliveries    | `/deliveries`        | Tenant users (polling, replay) |
+| Delivery detail | `/deliveries/:id`  | Tenant users           |
 | Settings      | `/settings`          | Tenant users                   |
 | Admin         | `/admin`             | Super-admin only       |
 | Tenant admin  | `/admin/tenants/:id` | Super-admin only       |
@@ -192,7 +197,7 @@ Needs API, worker, and a tenant API key (printed by `pnpm db:seed`, or create on
 | `INVITE_TTL_MS`          | Invite link expiry (default 7 days)        |
 | `CORS_ORIGIN`            | Allowed browser origins                    |
 | `TRUST_PROXY`            | Proxy hops for `X-Forwarded-*` (default 0) |
-| `INGEST_RATE_LIMIT_PER_MINUTE` | Max `POST /v1/events` calls per tenant/minute |
+| `INGEST_RATE_LIMIT_PER_MINUTE` | Max `POST /v1/events` per tenant/minute (Bearer also uses the same limit per client IP before the key lookup) |
 | `AUTH_RATE_LIMIT_PER_MINUTE`   | Max login attempts per IP/minute               |
 | `LOG_LEVEL`                    | Log verbosity                                  |
 | `VITE_API_URL`                 | API base URL for the web app (build-time)      |

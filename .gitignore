@@ -1,4 +1,5 @@
 node_modules
+.pnpm-store
 dist
 build
 coverage
@@ -11,3 +12,18 @@ coverage
 skills-lock.json
 .agents/skills/ponytail/SKILL.md
 apps/web/.agents/skills/react-grab/SKILL.md
+
+test-results/
+
+.agents/skills/*
+apps/web/.agents/*
+
+.env.production
+CURRENT_APP_ASSESSMENT.md
+DEPLOY_READINESS_PLAN.md
+.cursor
+
+# Local planning notes; keep out of the public repository.
+/docs/v1-scope.md
+/docs/v1-audit.md
+/.scratch/

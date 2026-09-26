@@ -170,7 +170,7 @@ export function SettingsProfileTab() {
 
                 {!strength ? (
                   <p className="settings-password-block__hint">
-                    12–128 characters. No complexity rules — pick something long.
+                    At least 12 characters, at most 128 UTF-8 bytes. No complexity rules — pick something long.
                   </p>
                 ) : null}
 
