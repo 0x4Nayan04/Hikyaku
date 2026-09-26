@@ -76,7 +76,7 @@ Authorization: Bearer whk_your_api_key
 
 Keys belong to one tenant. The tenant is resolved from the key, never from the request body. The full secret is shown once on create or rotate; only a SHA-256 hash is stored.
 
-Passwords must be 12–128 characters. Browser login and API keys are separate credentials that resolve to the same tenant for tenant users. Changing your password signs you out of all sessions.
+Passwords must be at least 12 characters and at most 128 UTF-8 bytes. Browser login and API keys are separate credentials that resolve to the same tenant for tenant users. Changing your password signs you out of all sessions.
 
 - **Bootstrap** — create the first super-admin once via `POST /v1/auth/bootstrap` (requires `ADMIN_BOOTSTRAP_SECRET`).
 - **Invite** — the super-admin creates a tenant-owner or tenant-user link via `POST /v1/admin/invites`; the recipient accepts at [/accept-invite](/accept-invite).
@@ -101,7 +101,7 @@ Post an event to `POST /v1/events`. The body must include three fields and stay 
 
 ```json
 {
-  "id": "evt_uuid",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "status": "pending",
   "created_at": "2026-06-05T12:00:00Z"
 }
@@ -111,7 +111,7 @@ Post an event to `POST /v1/events`. The body must include three fields and stay 
 | ------ | ------------------------------------------------------------------ |
 | `400`  | Missing or invalid fields — check the request body and rules above |
 | `409`  | The idempotency key was already used with a different event body   |
-| `429`  | Too many requests — wait and retry after a short delay (default 120 per minute per tenant) |
+| `429`  | Too many requests — wait and retry (default 120/min per tenant; Bearer ingest also has a matching per-IP window before the key lookup) |
 
 An event is `pending` while any delivery is open; `completed` only when all deliveries succeeded; `partial_failure` when all are terminal with mixed results; `failed` when all failed; and `no_recipients` when it has zero deliveries. List events with `GET /v1/events`, or open a single event with `GET /v1/events/:id`.
 
@@ -157,7 +157,7 @@ Subscribers receive JSON. Your ingest `payload` is nested under `data`:
 
 ```json
 {
-  "id": "evt_uuid",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "type": "order.paid",
   "created_at": "2026-06-05T12:00:00Z",
   "data": { "order_id": "123", "amount": 4999 }
@@ -243,6 +243,10 @@ def verify_webhook(raw_body: bytes, signature_header: str, timestamp: str, secre
     return hmac.compare_digest(expected, received)
 ```
 
+## Outbox
+
+Fan-out writes each delivery and a matching outbox row in the same Postgres transaction as the ingest. The worker drains that outbox into BullMQ before sweeping stale leases, so a committed delivery is not lost if Redis is unavailable at ingest time. Queue jobs are still at-least-once over HTTP — subscribers should dedupe on `X-Webhook-Id`.
+
 ## API reference
 
 All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_API_URL` at build time.
@@ -302,7 +306,7 @@ Transient failures retry automatically. Permanent client errors fail fast. After
 
 > When a tenant hits the rate limit, the worker defers the delivery until the next UTC minute plus a small jitter (logged as `rate_limited`). That pause is not a failure, does not update the delivery row’s `last_error`, and does not count toward the five-attempt cap.
 
-Delivery is at-least-once — dedupe on your side with `X-Webhook-Id` (stable across retries). A background sweeper reclaims deliveries left `in_progress` after a worker crash and re-enqueues them.
+Delivery is at-least-once — dedupe on your side with `X-Webhook-Id` (stable across retries). A transactional outbox covers ingest→queue handoff (see [Outbox](#outbox)). A background sweeper reclaims deliveries left `in_progress` after a worker crash and re-enqueues them.
 
 Only `failed` deliveries can be re-queued. Call `POST /v1/deliveries/:id/replay` (returns `202`), or use **Replay** on the delivery detail page. Replaying increments `replay_count`, resets the current run’s attempt counter, and preserves all previous attempts. Attempts expose `run_number`, starting at 0; the delivery ID and X-Webhook-Id remain unchanged. Replaying a delivery that's already `pending`/`in_progress` returns `202` without creating another run (an existing open delivery may be re-enqueued for recovery).
 

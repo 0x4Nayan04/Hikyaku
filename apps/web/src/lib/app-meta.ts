@@ -7,7 +7,10 @@ export const PRODUCT_LINKS = {
   /** Real console entry (sign-in / app). */
   console: '/login',
   faq: '/#faq',
-  /** Brand story — why the name Hikyaku / 飛脚. */
+  /**
+   * Brand story — why the name Hikyaku / 飛脚.
+   * Path stays `/why-haiku` (stable URL); document.title is `Why Hikyaku` (not the pun "Haiku").
+   */
   whyHaiku: '/why-haiku',
   home: '/',
 } as const

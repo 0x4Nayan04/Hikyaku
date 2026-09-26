@@ -180,7 +180,7 @@ export default function AcceptInvite() {
               maxLength={128}
               value={password}
               onChange={setPassword}
-              hint={`Use at least ${MIN_PASSWORD_LENGTH} characters.`}
+              hint={`At least ${MIN_PASSWORD_LENGTH} characters, at most 128 UTF-8 bytes.`}
               required
             />
             <AuthFormField

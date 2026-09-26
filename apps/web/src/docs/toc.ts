@@ -8,6 +8,7 @@ export const DOCS_TOC = [
   { id: 'endpoints', label: 'Endpoints' },
   { id: 'outbound', label: 'Outbound' },
   { id: 'signing', label: 'Signing' },
+  { id: 'outbox', label: 'Outbox' },
   { id: 'api-reference', label: 'API reference' },
   { id: 'retries', label: 'Retries' },
   { id: 'privacy', label: 'Privacy' },
