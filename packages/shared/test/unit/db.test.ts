@@ -18,5 +18,6 @@ describe('createDbClient', () => {
     expect(pool.options.connectionTimeoutMillis).toBe(5_000)
     expect(pool.options.options).toContain('statement_timeout=5000')
     expect(pool.options.options).toContain('idle_in_transaction_session_timeout=10000')
+    expect(pool.listenerCount('error')).toBeGreaterThan(0)
   })
 })

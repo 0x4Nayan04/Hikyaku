@@ -1,25 +1,17 @@
 import { eq } from 'drizzle-orm'
-import { afterAll, afterEach, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { endpoints } from '@webhook/shared/schema'
 import '../../../src/config.js'
 import { closePool, getDb } from '../../../src/db/client.js'
-import {
-  clearActiveEndpointCache,
-  getActiveEndpointIds,
-  invalidateActiveEndpointIds,
-} from '../../../src/lib/activeEndpoints.js'
+import { getActiveEndpointIds } from '../../../src/lib/activeEndpoints.js'
 import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
 
 describe('getActiveEndpointIds', () => {
-  afterEach(() => {
-    clearActiveEndpointCache()
-  })
-
   afterAll(async () => {
     await closePool()
   })
 
-  it('serves cached ids until invalidated', async () => {
+  it('reads current active endpoint ids after a change', async () => {
     const { tenantId } = await createTenantWithKey()
     const db = getDb()
 
@@ -35,9 +27,6 @@ describe('getActiveEndpointIds', () => {
     await expect(getActiveEndpointIds(db, tenantId)).resolves.toEqual([endpoint.id])
 
     await db.delete(endpoints).where(eq(endpoints.id, endpoint.id))
-    await expect(getActiveEndpointIds(db, tenantId)).resolves.toEqual([endpoint.id])
-
-    invalidateActiveEndpointIds(tenantId)
     await expect(getActiveEndpointIds(db, tenantId)).resolves.toEqual([])
 
     await deleteTenant(tenantId)

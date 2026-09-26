@@ -131,7 +131,7 @@ describe('bootstrap one-time guard', () => {
       tenantId: expect.any(String),
       isSuperAdmin: true,
     })
-    expect(row?.passwordHash).toMatch(/^\$2[aby]\$12\$/)
+    expect(row?.passwordHash).toMatch(/^sha256:\$2[aby]\$12\$/)
     await expect(verifyPassword(bootstrapPayload.password, row!.passwordHash)).resolves.toBe(true)
 
     createdBootstrapUserId = row?.id

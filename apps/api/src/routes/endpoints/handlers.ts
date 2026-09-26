@@ -8,7 +8,6 @@ import { env } from '../../config.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
-import { invalidateActiveEndpointIds } from '../../lib/activeEndpoints.js'
 import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
 import { toEndpointJson, type EndpointLastDeliveryRow } from './serialize.js'
@@ -74,7 +73,6 @@ export const createEndpoint = asyncHandler(async (req: Request, res: Response) =
     })
     .returning(endpointColumns)
 
-  invalidateActiveEndpointIds(getTenantId(req))
   res.status(201).json(toEndpointJson(row, secret))
 })
 
@@ -138,6 +136,5 @@ export const patchEndpoint = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError(404, 'not_found', 'Endpoint not found')
   }
 
-  invalidateActiveEndpointIds(getTenantId(req))
   res.json(toEndpointJson(row))
 })

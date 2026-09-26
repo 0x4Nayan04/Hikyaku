@@ -1,6 +1,7 @@
 import { Redis } from 'ioredis'
 import type { ConnectionOptions } from 'bullmq'
 import { env } from '../config.js'
+import { logger } from './logger.js'
 
 let redis: Redis | undefined
 
@@ -8,6 +9,9 @@ let redis: Redis | undefined
 export function getRedis(): Redis {
   if (!redis) {
     redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null })
+    redis.on('error', (err) => {
+      logger.error({ err }, 'redis_error')
+    })
   }
   return redis
 }

@@ -28,6 +28,10 @@ export function createDbClient(
         connectionTimeoutMillis: 5_000,
         options: '-c statement_timeout=5000 -c idle_in_transaction_session_timeout=10000',
       })
+      // Idle-client errors crash Node without a listener.
+      pool.on('error', (err) => {
+        console.error('postgres_pool_error', err)
+      })
     }
     return pool
   }

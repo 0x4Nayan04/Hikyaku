@@ -62,6 +62,7 @@ async function shutdown(signal: string): Promise<void> {
     (async () => {
       await worker.pause(true)
       await worker.close()
+      await queue.close()
       await closePool()
       await closeRedis()
     })(),
@@ -82,4 +83,14 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   void shutdown('SIGINT')
+})
+
+process.on('unhandledRejection', (reason) => {
+  logger.fatal({ err: reason }, 'unhandled_rejection')
+  process.exit(1)
+})
+
+process.on('uncaughtException', (err) => {
+  logger.fatal({ err }, 'uncaught_exception')
+  process.exit(1)
 })

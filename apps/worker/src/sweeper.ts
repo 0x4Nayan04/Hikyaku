@@ -4,13 +4,12 @@ import { deliveries, deliveryOutbox } from '@webhook/shared/schema'
 import { enqueueDeliveryJobs } from '@webhook/shared/enqueueDelivery'
 import type { Queue } from 'bullmq'
 import { and, asc, eq, inArray, isNull, lte, or } from 'drizzle-orm'
-import { WORKER_LOCK_DURATION_MS } from './config.js'
+import { env, WORKER_LOCK_DURATION_MS } from './config.js'
 import { getDb } from './db/client.js'
 import { logger } from './lib/logger.js'
 import { queue } from './queue/client.js'
 import { getRedis } from './lib/redis.js'
 
-const SWEEP_INTERVAL_MS = 5 * 60 * 1000
 const SWEEP_BATCH_SIZE = 100
 const SWEEPER_LOCK_KEY = `${QUEUE_NAME}:sweeper-lock`
 const SWEEPER_LOCK_TTL_MS = 4 * 60 * 1000
@@ -162,7 +161,7 @@ export function startSweeper(): void {
 
   void runSweep()
 
-  sweepTimer = setInterval(() => void runSweep(), SWEEP_INTERVAL_MS)
+  sweepTimer = setInterval(() => void runSweep(), env.SWEEP_INTERVAL_MS)
 }
 
 export function stopSweeper(): void {
