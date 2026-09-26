@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "pnpm --filter @webhook/shared build && pnpm dev:serve",
+    "dev:serve": "tsx watch src/index.ts",
     "build": "tsc --build",
     "start": "node dist/index.js",
     "test:unit": "vitest run --config vitest.config.ts",

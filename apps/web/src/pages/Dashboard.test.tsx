@@ -98,7 +98,7 @@ afterEach(async () => {
 })
 
 describe('Dashboard polling', () => {
-  it('does not poll while the queue is idle', async () => {
+  it('polls while the queue is idle', async () => {
     vi.mocked(getStats).mockResolvedValue(emptyStats)
     await renderDashboard()
 
@@ -106,10 +106,10 @@ describe('Dashboard polling', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30_000)
     })
-    expect(getStats).toHaveBeenCalledTimes(1)
+    expect(getStats).toHaveBeenCalledTimes(4)
   })
 
-  it('polls every 10s while deliveries are active and stops when the queue drains', async () => {
+  it('keeps polling every 10s after the queue drains', async () => {
     vi.mocked(getStats)
       .mockResolvedValueOnce(activeStats)
       .mockResolvedValueOnce({ ...activeStats, deliveries_active: 0 })
@@ -124,7 +124,7 @@ describe('Dashboard polling', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20_000)
     })
-    expect(getStats).toHaveBeenCalledTimes(2)
+    expect(getStats).toHaveBeenCalledTimes(4)
   })
 
   it('aborts in-flight stats on unmount and does not flash an error', async () => {
@@ -147,6 +147,15 @@ describe('Dashboard polling', () => {
 })
 
 describe('Dashboard empty-state probes', () => {
+  it('describes disabled endpoints without claiming a total from the one-row probe', async () => {
+    vi.mocked(getStats).mockResolvedValue(activeStats)
+    vi.mocked(listEndpoints).mockResolvedValue(page([{ id: 'disabled' }] as never[]))
+    await renderDashboard()
+
+    expect(container.textContent).toContain('Disabled endpoints present')
+    expect(container.textContent).not.toContain('1 disabled endpoint')
+  })
+
   it('reuses activity totals and fetches onboarding lists only when empty', async () => {
     vi.mocked(getStats).mockResolvedValue(emptyStats)
     vi.mocked(listEvents).mockResolvedValue(page())

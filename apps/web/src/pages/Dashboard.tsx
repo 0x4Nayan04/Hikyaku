@@ -127,7 +127,7 @@ export function Dashboard() {
 
       setStats(data)
       setOnboarding(nextOnboarding)
-      setAttention(buildAttentionItems(data, disabled.data.length))
+      setAttention(buildAttentionItems(data, disabled.data.length > 0))
       setActivity(merged)
       setLastUpdated(new Date().toISOString())
       setError(null)
@@ -150,7 +150,6 @@ export function Dashboard() {
   }, [load])
 
   usePolling({
-    enabled: (stats?.deliveries_active ?? 0) > 0,
     intervalMs: 10_000,
     onPoll: load,
   })
@@ -202,7 +201,7 @@ export function Dashboard() {
 
 export default Dashboard
 
-function buildAttentionItems(stats: Stats, disabledCount: number): AttentionItem[] {
+function buildAttentionItems(stats: Stats, hasDisabledEndpoints: boolean): AttentionItem[] {
   const items: AttentionItem[] = []
 
   if (stats.deliveries_failed_24h > 0) {
@@ -227,10 +226,10 @@ function buildAttentionItems(stats: Stats, disabledCount: number): AttentionItem
     })
   }
 
-  if (disabledCount > 0) {
+  if (hasDisabledEndpoints) {
     items.push({
       id: 'disabled',
-      label: `${disabledCount.toLocaleString()} disabled endpoint${disabledCount === 1 ? '' : 's'}`,
+      label: 'Disabled endpoints present',
       hint: 'Not receiving webhooks',
       to: '/endpoints?status=disabled',
       tone: 'neutral',

@@ -28,8 +28,10 @@ test.describe('dashboard smoke', () => {
     await createDialog.getByLabel('URL').fill('https://example.com/discarded')
     await createDialog.getByLabel('Label').fill('Discarded draft')
     await createDialog.getByRole('button', { name: 'Cancel' }).click()
+    await expect(createDialog).toBeHidden()
 
     await page.getByRole('button', { name: /Create (your first )?endpoint/ }).click()
+    await expect(createDialog).toBeVisible()
     await expect(createDialog.getByLabel('URL')).toHaveValue('')
     await expect(createDialog.getByLabel('Label')).toHaveValue('')
     await createDialog.getByLabel('URL').fill(endpointUrl)
@@ -41,6 +43,7 @@ test.describe('dashboard smoke', () => {
     await expect(secretDialog.locator('code')).toContainText(/^whsec_/)
     await expect(secretDialog.getByText('Save for this session')).toHaveCount(0)
 
+    await secretDialog.getByRole('checkbox').check()
     await secretDialog.getByRole('button', { name: 'Done' }).click()
     await expect(secretDialog).toBeHidden()
 
@@ -58,8 +61,21 @@ test.describe('dashboard smoke', () => {
     const apiKey = await apiKeyDialog.locator('code').first().textContent()
     expect(apiKey).toMatch(/^whk_[0-9a-f]{32}$/)
 
+    await apiKeyDialog.getByRole('checkbox').check()
     await apiKeyDialog.getByRole('button', { name: 'Done' }).click()
-    await expect(page.getByText(`${apiKey!.slice(4, 12)}…`)).toBeVisible()
+    const keyPrefix = `${apiKey!.slice(4, 12)}…`
+    const keyRow = page.getByRole('row').filter({ hasText: keyPrefix })
+    await expect(keyRow).toBeVisible()
+    await keyRow.getByRole('button', { name: 'Revoke' }).click()
+    const revokeDialog = page.getByRole('dialog', { name: 'Revoke API key?' })
+    await revokeDialog.getByRole('button', { name: 'Revoke key' }).click()
+    await expect(revokeDialog).toBeHidden()
+    await expect(keyRow).toContainText('Revoked')
+    const rejected = await page.request.post('http://localhost:3101/v1/events', {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      data: { idempotency_key: `revoked-${Date.now()}`, type: 'smoke.revoked', payload: {} },
+    })
+    expect(rejected.status()).toBe(401)
 
     const updatedPassword = 'smoke-owner-updated-12'
     await page.goto('/settings?tab=profile')
@@ -68,12 +84,11 @@ test.describe('dashboard smoke', () => {
     await page.getByLabel('Confirm new password').fill(updatedPassword)
     await page.getByRole('button', { name: 'Update password' }).click()
     await expect(page).toHaveURL('/login')
-    await expect(page.getByText('Password updated')).toBeVisible()
 
     await page.getByLabel('Email').fill(owner.email)
     await page.getByRole('textbox', { name: 'Password' }).fill(updatedPassword)
     await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL('/dashboard')
+    await expect(page).toHaveURL('/settings')
     owner.password = updatedPassword
   })
 

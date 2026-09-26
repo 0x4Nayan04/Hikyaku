@@ -8,7 +8,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "concurrently \"pnpm --filter @webhook/api dev\" \"pnpm --filter @webhook/worker dev\" \"pnpm --filter @webhook/web dev\"",
+    "dev": "pnpm --filter @webhook/shared build && concurrently \"pnpm --filter @webhook/api dev:serve\" \"pnpm --filter @webhook/worker dev:serve\" \"pnpm --filter @webhook/web dev:serve\"",
     "build": "pnpm -r build",
     "test": "pnpm test:unit && pnpm test:integration",
     "test:unit": "pnpm -r --workspace-concurrency=1 test:unit",

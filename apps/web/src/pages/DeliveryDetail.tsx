@@ -90,6 +90,7 @@ export default function DeliveryDetail() {
   })
   usePolling({
     enabled: delivery?.status === 'pending' || delivery?.status === 'in_progress',
+    intervalMs: 10_000,
     onPoll: reload,
   })
 
@@ -122,7 +123,12 @@ export default function DeliveryDetail() {
       }
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <LiveChip active={error === null} />
+          <LiveChip
+            active={
+              error === null &&
+              (delivery?.status === 'pending' || delivery?.status === 'in_progress')
+            }
+          />
           <Button size="sm" variant="secondary" asChild>
             <Link to="/deliveries">
               <ArrowLeft className="size-3.5" aria-hidden="true" />
