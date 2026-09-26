@@ -40,6 +40,10 @@ function httpStatusTone(status: number): BadgeTone {
   return 'neutral'
 }
 
+function formatAttemptCount(count: number): string {
+  return `${count} attempt${count === 1 ? '' : 's'}`
+}
+
 function AttemptTimelineItem({ attempt }: { attempt: DeliveryAttempt }) {
   const isError = attempt.error || (attempt.http_status !== null && attempt.http_status >= 400)
 
@@ -82,7 +86,12 @@ export default function DeliveryDetail() {
   const { id } = useParams<{ id: string }>()
   const [replayOpen, setReplayOpen] = useState(false)
   const [replaying, setReplaying] = useState(false)
-  const { data: delivery, loading, error, reload } = useDetailFetch<DeliveryDetailType>({
+  const {
+    data: delivery,
+    loading,
+    error,
+    reload,
+  } = useDetailFetch<DeliveryDetailType>({
     id,
     fetchDetail: getDelivery,
     missingError: 'Delivery ID is missing',
@@ -115,10 +124,16 @@ export default function DeliveryDetail() {
 
   return (
     <ConsolePage
-      title={delivery ? `Delivery ${delivery.id.slice(0, 8)}…` : 'Loading delivery…'}
+      title={
+        delivery
+          ? `Delivery ${delivery.id.slice(0, 8)}…`
+          : loading
+            ? 'Loading delivery…'
+            : 'Delivery'
+      }
       description={
         delivery
-          ? `Last updated ${formatDateTime(delivery.updated_at)} · ${delivery.attempt_count} attempt(s)`
+          ? `Last updated ${formatDateTime(delivery.updated_at)} · ${formatAttemptCount(delivery.attempts.length)}`
           : 'Attempt history and replay for one delivery.'
       }
       actions={
@@ -161,7 +176,7 @@ export default function DeliveryDetail() {
               </SettingsCatalogRow>
               <SettingsCatalogRow label="Attempts">
                 <span className="text-sm text-ink">
-                  {delivery.attempt_count} attempt{delivery.attempt_count !== 1 ? 's' : ''}
+                  {formatAttemptCount(delivery.attempts.length)}
                 </span>
               </SettingsCatalogRow>
               <SettingsCatalogRow
@@ -218,8 +233,13 @@ export default function DeliveryDetail() {
               <ol className="mt-3 flex flex-col gap-3">
                 {delivery.attempts.map((attempt, index) => (
                   <li key={`${attempt.run_number}-${attempt.attempt_number}`}>
-                    {(index === 0 || delivery.attempts[index - 1].run_number !== attempt.run_number) && (
-                      <h3 className="mb-3 text-sm font-semibold">{attempt.run_number === 0 ? 'Original delivery' : `Replay ${attempt.run_number}`}</h3>
+                    {(index === 0 ||
+                      delivery.attempts[index - 1].run_number !== attempt.run_number) && (
+                      <h3 className="mb-3 text-sm font-semibold">
+                        {attempt.run_number === 0
+                          ? 'Original delivery'
+                          : `Replay ${attempt.run_number}`}
+                      </h3>
                     )}
                     <AttemptTimelineItem attempt={attempt} />
                   </li>

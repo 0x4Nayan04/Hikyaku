@@ -20,7 +20,12 @@ import { usePolling } from '@/hooks/usePolling'
 
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
-  const { data: event, loading, error, reload } = useDetailFetch<EventDetailType>({
+  const {
+    data: event,
+    loading,
+    error,
+    reload,
+  } = useDetailFetch<EventDetailType>({
     id,
     fetchDetail: getEvent,
     missingError: 'Event ID is missing',
@@ -32,7 +37,7 @@ export default function EventDetail() {
 
   return (
     <ConsolePage
-      title={event?.type ?? 'Loading event…'}
+      title={event ? event.type : loading ? 'Loading event…' : 'Event'}
       description={
         event
           ? `Ingested ${formatDateTime(event.created_at)}`
