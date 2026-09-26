@@ -14,8 +14,6 @@ export const DOCS_TOC = [
   { id: 'privacy', label: 'Privacy' },
 ] as const
 
-export type DocSectionId = (typeof DOCS_TOC)[number]['id']
-
 const LEGACY_SLUGS = new Set<string>(DOCS_TOC.map((item) => item.id))
 
 /** Old multi-page slugs → section anchors on the single docs page. */

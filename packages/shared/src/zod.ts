@@ -1,10 +1,10 @@
 import { z } from 'zod'
-import { ENDPOINT_STATUSES, MAX_INGEST_BODY_BYTES } from './constants.js'
+import { ENDPOINT_STATUSES, MAX_INGEST_BODY_BYTES, MIN_PASSWORD_LENGTH } from './constants.js'
 
 const emailSchema = z.string().trim().toLowerCase().email().max(320)
 const userNameSchema = z.string().trim().min(1).max(256)
 const newPasswordByteLimit = (value: string) => Buffer.byteLength(value, 'utf8') <= 128
-const newPasswordSchema = z.string().min(12).refine(newPasswordByteLimit, {
+const newPasswordSchema = z.string().min(MIN_PASSWORD_LENGTH).refine(newPasswordByteLimit, {
   message: 'Password must be 128 UTF-8 bytes or fewer',
 })
 

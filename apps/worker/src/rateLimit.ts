@@ -3,7 +3,7 @@ import { TAKE_FIXED_WINDOW_TOKENS_LUA, fixedWindowRedisKeys } from '@webhook/sha
 import { env } from './config.js'
 import { getRedis } from './lib/redis.js'
 
-export type RateLimitDecision = { allowed: true } | { allowed: false; retryAt: Date }
+type RateLimitDecision = { allowed: true } | { allowed: false; retryAt: Date }
 
 function retryAtForCurrentWindow(now = Date.now()): Date {
   const windowEnd = (Math.floor(now / RATE_LIMIT_DEFER_MS) + 1) * RATE_LIMIT_DEFER_MS

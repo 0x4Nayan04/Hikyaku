@@ -2068,21 +2068,6 @@
     box-shadow: var(--shadow-focus);
   }
 
-  .send-event-footer-note {
-    margin: 0;
-    max-width: 22rem;
-    font-size: 0.75rem;
-    line-height: 1.45;
-    color: var(--color-muted-strong);
-  }
-
-  @media (max-width: 639px) {
-    .send-event-footer-note {
-      width: 100%;
-      max-width: none;
-    }
-  }
-
   /* Catalog section tabs — Settings, console filters */
   .catalog-tabs {
     gap: 0;

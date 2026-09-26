@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Lock, Mail, User } from 'lucide-react'
+import { MIN_PASSWORD_LENGTH } from '@webhook/shared/constants'
 import { ApiError, acceptInvite, validateInvite } from '@/api/client'
 import type { ValidateInviteResponse } from '@/api/types'
 import { AuthFooterLink } from '@/components/auth/AuthFooterLink'
@@ -10,8 +11,6 @@ import { AuthCard } from '@/components/auth/AuthCard'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { getDefaultHomePath } from '@/lib/auth-redirect'
 import { useSession } from '@/providers/session-context'
-
-const MIN_PASSWORD_LENGTH = 12
 
 function resolveInviteLoadError(err: unknown): string {
   if (err instanceof ApiError) {

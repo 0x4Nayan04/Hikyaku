@@ -8,7 +8,7 @@ export const userColumns = {
   tenantId: users.tenantId,
 }
 
-export type UserRow = {
+type UserRow = {
   id: string
   email: string
   name: string

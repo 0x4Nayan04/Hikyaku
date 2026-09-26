@@ -2,9 +2,9 @@ import type { NextFunction, Request, Response } from 'express'
 import { AppError } from '../lib/errors.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { resolveTenantId } from './apiKey.js'
+import { BEARER_PREFIX } from './bearer.js'
 import { attachSessionUser } from './requireSession.js'
 
-const BEARER_PREFIX = 'Bearer '
 const UNAUTHORIZED_MESSAGE = 'Missing or invalid Bearer token or session'
 
 function parseBearerToken(header: string | undefined): string | null {

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { AuthNavbar } from '@/components/auth/AuthNavbar'
-import { AppCatalogShell, LandingSectionBlock } from '@/components/app/AppCatalogShell'
+import { AppCatalogShell } from '@/components/app/AppCatalogShell'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { DotPattern } from '@/components/ui/dot-pattern'
 import { cn } from '@/lib/utils'
@@ -75,7 +75,7 @@ export function AuthLayout({
     <AppCatalogShell>
       <AuthNavbar />
       <main id="main-content" className="flex flex-1 flex-col">
-        <LandingSectionBlock className="auth-section-block flex flex-1 flex-col">
+        <div className="auth-section-block flex flex-1 flex-col">
           <AuthDots wrapClassName="auth-page-dot-grid bg-surface" className="auth-page-inner">
             <LandingFrameInner>
               <div className="auth-form-shell mx-auto w-full max-w-md">
@@ -95,7 +95,7 @@ export function AuthLayout({
               </div>
             </LandingFrameInner>
           </AuthDots>
-        </LandingSectionBlock>
+        </div>
       </main>
     </AppCatalogShell>
   )

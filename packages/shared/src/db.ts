@@ -5,7 +5,7 @@ import * as schema from './schema.js'
 
 const { Pool } = pg
 
-export type DbClient = {
+type DbClient = {
   getPool(): pg.Pool
   getDb(): NodePgDatabase<typeof schema>
   checkPostgres(): Promise<boolean>

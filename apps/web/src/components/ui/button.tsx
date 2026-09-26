@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost'
 type ButtonSize = 'default' | 'sm' | 'lg'
 
-export type ButtonProps = React.ComponentProps<'button'> & {
+type ButtonProps = React.ComponentProps<'button'> & {
   variant?: ButtonVariant
   size?: ButtonSize
   block?: boolean

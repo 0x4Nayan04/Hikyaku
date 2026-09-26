@@ -8,5 +8,3 @@ export function AppCatalogShell({ children }: { children: ReactNode }) {
     </div>
   )
 }
-
-export { LandingSectionBlock } from '@/components/landing/LandingSectionBlock'

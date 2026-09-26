@@ -7,7 +7,7 @@ const API_KEY_RANDOM_BYTES = 16
 const ENDPOINT_SECRET_RANDOM_BYTES = 16
 const API_KEY_PREFIX_LENGTH = 8
 
-export type VerifyPayloadOptions = {
+type VerifyPayloadOptions = {
   nowSeconds?: number
   toleranceSeconds?: number
 }

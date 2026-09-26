@@ -5,7 +5,7 @@ import type {
 } from '@webhook/shared/apiJson'
 import type { DeliveryStatus } from '@webhook/shared/constants'
 
-export type DeliveryRow = {
+type DeliveryRow = {
   id: string
   eventId: string
   endpointId: string
@@ -19,7 +19,7 @@ export type DeliveryRow = {
   updatedAt: Date
 }
 
-export type AttemptRow = {
+type AttemptRow = {
   runNumber: number
   attemptNumber: number
   httpStatus: number | null

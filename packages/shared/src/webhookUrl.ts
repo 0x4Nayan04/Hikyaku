@@ -2,7 +2,7 @@ import type { LookupAddress } from 'node:dns'
 import { lookup } from 'node:dns/promises'
 import { BlockList, isIP } from 'node:net'
 
-export type WebhookUrlCheck = { ok: true } | { ok: false; reason: string }
+type WebhookUrlCheck = { ok: true } | { ok: false; reason: string }
 type ResolvedWebhookUrlCheck =
   | { ok: true; url: URL; addresses: LookupAddress[] }
   | { ok: false; reason: string; kind?: 'dns_error' }

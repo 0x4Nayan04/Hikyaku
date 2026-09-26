@@ -3,7 +3,7 @@ export function shouldShowBootstrapSetupLink(available: boolean | null): boolean
   return available === true
 }
 
-export type GuestLandingPrimaryCta =
+type GuestLandingPrimaryCta =
   | { label: 'Run one-time setup'; path: '/bootstrap' }
   | { label: 'Sign in'; path: '/login' }
 
@@ -31,7 +31,7 @@ export type LoginBannerKind =
   | 'already_set_up'
   | 'password_updated'
 
-export type LoginBanner = {
+type LoginBanner = {
   title: string
   variant: 'success' | 'info'
   description: string
