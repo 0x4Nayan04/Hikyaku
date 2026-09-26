@@ -74,6 +74,7 @@ cd Hikyaku
 cp .env.example .env
 pnpm install
 pnpm docker:up
+pnpm --filter @webhook/shared build
 pnpm db:migrate
 pnpm dev
 ```
@@ -86,10 +87,13 @@ pnpm dev
 | Worker      | background process (BullMQ consumer) |
 
 ```bash
+# Run each in its own terminal after the setup commands above.
 pnpm --filter @webhook/api dev
 pnpm --filter @webhook/worker dev
 pnpm --filter @webhook/web dev
 ```
+
+Both `pnpm dev` and the individual `dev` commands build the shared package before starting. The explicit build above also makes `pnpm db:migrate` work on a fresh checkout.
 
 ## First-time setup
 
@@ -147,11 +151,12 @@ API usage, signing, retries, and the full route table live in the in-app docs: h
 ## Delivery guarantees
 
 - **At-least-once** — a delivery retries until 2xx, a permanent failure, or the attempt cap. `X-Webhook-Id` is the delivery UUID and stays constant across retries; use it to dedupe on the subscriber side.
+- **Transactional outbox** — fan-out inserts each delivery and an outbox row in the same Postgres transaction; the worker drains the outbox before sweeping stale leases, so a committed delivery is not lost if Redis is unavailable at ingest.
 - **Lease + sweeper** — each HTTP attempt is claimed with a DB lease; a background sweeper resets deliveries stuck in `in_progress` and re-enqueues them.
 - **Idempotent enqueue** — BullMQ jobs are deduplicated per delivery, so fan-out and replay never double-schedule.
 - **Rate limited** — 100 outbound attempts per minute per tenant (see `RATE_LIMIT_PER_MINUTE`); exceeding it pauses a delivery for ~60s without counting toward the 5-attempt cap.
 - **Retry policy** — exponential backoff (1m → 2m → 4m → 8m) for network errors, timeouts, 408, 429, and 5xx; other 4xx fail fast.
-- **Replay** — only `failed` deliveries can be re-queued (`POST /v1/deliveries/:id/replay` or the delivery detail page); attempt history is cleared on replay.
+- **Replay** — only `failed` deliveries can be re-queued (`POST /v1/deliveries/:id/replay` or the delivery detail page); replay increments `replay_count` and preserves prior attempts under earlier `run_number` values.
 - **Timestamped + signed** — every POST carries `X-Webhook-Timestamp`; receivers should require `|now − timestamp| ≤ 300s`.
 
 ## Health checks
@@ -192,7 +197,7 @@ Needs API, worker, and a tenant API key (printed by `pnpm db:seed`, or create on
 | `LOG_LEVEL`                    | Log verbosity                                  |
 | `VITE_API_URL`                 | API base URL for the web app (build-time)      |
 
-See `.env.example` for worker tuning (`DELIVERY_TIMEOUT_MS`, `MAX_DELIVERY_ATTEMPTS`, `RATE_LIMIT_PER_MINUTE`, `WORKER_CONCURRENCY`, etc.).
+See `.env.example` for local worker tuning and [production tuning](deploy/README.md#tuning) for variables Compose passes through, their defaults, and how to apply changes.
 
 ## Scripts
 

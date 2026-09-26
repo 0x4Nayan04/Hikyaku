@@ -7,11 +7,8 @@ x-app: &app
     NODE_ENV: production
     DATABASE_URL: postgresql://webhook:${POSTGRES_PASSWORD:?Run node deploy/setup.mjs}@postgres:5432/webhooks
     REDIS_URL: redis://redis:6379
-    ADMIN_BOOTSTRAP_SECRET: ${ADMIN_BOOTSTRAP_SECRET:?Run node deploy/setup.mjs}
-    SESSION_SECRET: ${SESSION_SECRET:?Run node deploy/setup.mjs}
-    WEB_APP_URL: https://${SITE_ADDRESS:-localhost}
-    CORS_ORIGIN: https://${SITE_ADDRESS:-localhost}
-    TRUST_PROXY: 1
+    DB_POOL_MAX: ${DB_POOL_MAX:-10}
+    LOG_LEVEL: ${LOG_LEVEL:-info}
   restart: unless-stopped
 
 services:
@@ -49,6 +46,17 @@ services:
         condition: service_healthy
   api:
     <<: *app
+    environment:
+      <<: *app-env
+      ADMIN_BOOTSTRAP_SECRET: ${ADMIN_BOOTSTRAP_SECRET:?Run node deploy/setup.mjs}
+      SESSION_SECRET: ${SESSION_SECRET:?Run node deploy/setup.mjs}
+      WEB_APP_URL: https://${SITE_ADDRESS:-localhost}
+      CORS_ORIGIN: https://${SITE_ADDRESS:-localhost}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      SESSION_COOKIE_MAX_AGE: ${SESSION_COOKIE_MAX_AGE:-604800000}
+      INVITE_TTL_MS: ${INVITE_TTL_MS:-604800000}
+      INGEST_RATE_LIMIT_PER_MINUTE: ${INGEST_RATE_LIMIT_PER_MINUTE:-120}
+      AUTH_RATE_LIMIT_PER_MINUTE: ${AUTH_RATE_LIMIT_PER_MINUTE:-20}
     command: ['node', 'apps/api/dist/index.js']
     depends_on:
       migrate:
@@ -62,6 +70,14 @@ services:
       retries: 10
   worker:
     <<: *app
+    environment:
+      <<: *app-env
+      DELIVERY_TIMEOUT_MS: ${DELIVERY_TIMEOUT_MS:-30000}
+      MAX_DELIVERY_ATTEMPTS: ${MAX_DELIVERY_ATTEMPTS:-5}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-100}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
+      # Production stack keeps its existing 30s recovery interval (code default: 5m).
+      SWEEP_INTERVAL_MS: ${SWEEP_INTERVAL_MS:-30000}
     command: ['node', 'apps/worker/dist/index.js']
     depends_on:
       migrate:
