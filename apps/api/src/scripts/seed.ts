@@ -1,9 +1,10 @@
 import { generateApiKey, hashApiKey, prefixOf } from '@webhook/shared/crypto'
 import { hashPassword } from '@webhook/shared/password'
 import { apiKeys, tenants, users } from '@webhook/shared/schema'
-import '../config.js'
+import { env } from '../config.js'
 import { closePool, getDb } from '../db/client.js'
 import { userEmailMatches } from '../lib/invites.js'
+import { assertSeedAllowed } from './seedGuard.js'
 import { maybeSeedSuperAdmin } from './seedSuperAdmin.js'
 
 /** Local-only demo tenants. Password meets min-12 validation. */
@@ -21,6 +22,8 @@ const SEED_TENANTS = [
 ] as const
 
 async function seed(): Promise<void> {
+  assertSeedAllowed(env.NODE_ENV)
+
   const db = getDb()
 
   await maybeSeedSuperAdmin(db)
