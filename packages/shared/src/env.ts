@@ -28,6 +28,8 @@ export const apiEnvSchema = baseSchema
       .number().int().positive()
       .default(CONFIG_DEFAULTS.AUTH_RATE_LIMIT_PER_MINUTE),
     TRUST_PROXY: z.coerce.number().int().min(0).default(CONFIG_DEFAULTS.TRUST_PROXY),
+
+    PROXY_IP_SECRET: z.string().min(16).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV !== 'production') return

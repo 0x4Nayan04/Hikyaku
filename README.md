@@ -201,7 +201,9 @@ Needs API, worker, and a tenant API key (printed by `pnpm db:seed`, or create on
 | `INGEST_RATE_LIMIT_PER_MINUTE` | Max `POST /v1/events` per tenant/minute (Bearer also uses the same limit per client IP before the key lookup)                                   |
 | `AUTH_RATE_LIMIT_PER_MINUTE`   | Auth attempts per IP/minute; login also limits normalized email                                                                                 |
 | `LOG_LEVEL`                    | Log verbosity                                                                                                                                   |
-| `VITE_API_URL`                 | API base URL for the web app (build-time)                                                                                                       |
+| `VITE_API_URL`                 | API base URL for the web app (build-time). Empty or unset in the Vercel production build so the browser calls same-origin `/v1`.               |
+| `VITE_PUBLIC_API_URL`          | Public API origin baked into docs and curl samples (the Railway URL). Unset locally; the samples then use `VITE_API_URL`.                        |
+| `PROXY_IP_SECRET`              | Shared secret so the Vercel `/v1` proxy can pass the browser IP. Set the same value on Vercel. Omit on the single-host Compose stack.           |
 
 See `.env.example` for local worker tuning and [production tuning](deploy/README.md#tuning) for variables Compose passes through, their defaults, and how to apply changes.
 

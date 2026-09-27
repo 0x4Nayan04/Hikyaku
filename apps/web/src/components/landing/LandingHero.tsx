@@ -1,4 +1,4 @@
-import { API_BASE } from '@/api/client'
+import { PUBLIC_API_BASE } from '@/api/client'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { DotPattern } from '@/components/ui/dot-pattern'
 import { APP_NAME, PRODUCT_LINKS, PUBLIC_LINKS } from '@/lib/app-meta'
@@ -14,8 +14,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 const INGEST_EXAMPLE_KEY = 'whk_your_api_key'
-const CURL_COPY = buildIngestCurl(INGEST_EXAMPLE_KEY, API_BASE)
-const INGEST_URL = `${API_BASE}/v1/events`
+const CURL_COPY = buildIngestCurl(INGEST_EXAMPLE_KEY, PUBLIC_API_BASE)
+const INGEST_URL = `${PUBLIC_API_BASE}/v1/events`
 
 export function LandingHero() {
   const navigate = useNavigate()
