@@ -572,7 +572,6 @@
   }
 
   .landing-mobile-menu-btn {
-    display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 2.5rem;
@@ -583,6 +582,13 @@
     transition:
       border-color var(--duration-interaction) var(--ease-default),
       color var(--duration-interaction) var(--ease-default);
+  }
+
+  /* Match Tailwind `lg` (1024px). Unscoped `display` here overrides `lg:hidden`. */
+  @media (max-width: 1023px) {
+    .landing-mobile-menu-btn {
+      display: inline-flex;
+    }
   }
   .landing-mobile-menu-btn:hover {
     border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));

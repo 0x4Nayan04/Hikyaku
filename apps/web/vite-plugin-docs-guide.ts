@@ -30,6 +30,7 @@ const APP_NAME = 'Hikyaku'
 export type DocsSearchEntry = {
   id: string
   label: string
+  text: string
 }
 
 function headingId(children: ReactNode): string {
@@ -130,20 +131,51 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, '')
 }
 
+function plainText(markdown: string): string {
+  return markdown
+    .replace(/```[\w-]*/g, ' ')
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    // Keep "_" so snake_case names such as replay_count stay searchable.
+    .replace(/[*~]/g, '')
+    .replace(/[>#|]/g, ' ')
+    .replace(/^\s*[-+]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function buildSearchIndex(source: string): DocsSearchEntry[] {
   const entries: DocsSearchEntry[] = []
   const seen = new Set<string>()
+  let current: { id: string; label: string; lines: string[] } | null = null
+
+  const flush = () => {
+    const section = current
+    current = null
+    if (!section) return
+    seen.add(section.id)
+    entries.push({
+      id: section.id,
+      label: section.label,
+      text: plainText(section.lines.join('\n')),
+    })
+  }
 
   for (const line of source.split('\n')) {
     const match = /^(#{2,3})\s+(.+)$/.exec(line)
-    if (!match) continue
+    if (!match) {
+      current?.lines.push(line)
+      continue
+    }
+    flush()
     const label = match[2].trim()
     const id = slugify(label)
     if (!id || seen.has(id)) continue
-    seen.add(id)
-    entries.push({ id, label })
+    current = { id, label, lines: [] }
   }
 
+  flush()
   return entries
 }
 

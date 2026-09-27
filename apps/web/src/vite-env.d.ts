@@ -14,7 +14,7 @@ declare module '*.md?html' {
 }
 
 declare module '*.md?search' {
-  const entries: { id: string; label: string }[]
+  const entries: { id: string; label: string; text: string }[]
   export default entries
 }
 

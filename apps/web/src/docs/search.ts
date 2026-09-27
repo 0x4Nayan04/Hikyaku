@@ -4,6 +4,7 @@ import { DOCS_TOC } from '@/docs/toc'
 export type DocsSearchEntry = {
   id: string
   label: string
+  text: string
 }
 
 export function buildDocsSearchIndex(): DocsSearchEntry[] {
@@ -12,7 +13,7 @@ export function buildDocsSearchIndex(): DocsSearchEntry[] {
   for (const item of DOCS_TOC) {
     if (seen.has(item.id)) continue
     seen.add(item.id)
-    entries.push({ id: item.id, label: item.label })
+    entries.push({ id: item.id, label: item.label, text: '' })
   }
   return entries
 }
@@ -21,6 +22,9 @@ export function filterDocsSearch(entries: DocsSearchEntry[], query: string): Doc
   const needle = query.trim().toLowerCase()
   if (!needle) return entries.filter((entry) => DOCS_TOC.some((item) => item.id === entry.id))
   return entries.filter(
-    (entry) => entry.label.toLowerCase().includes(needle) || entry.id.includes(needle),
+    (entry) =>
+      entry.label.toLowerCase().includes(needle) ||
+      entry.id.includes(needle) ||
+      entry.text.toLowerCase().includes(needle),
   )
 }

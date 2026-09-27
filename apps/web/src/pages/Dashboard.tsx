@@ -120,6 +120,7 @@ export function Dashboard() {
           to: `/deliveries/${delivery.id}`,
           createdAt: delivery.created_at,
           attemptCount: delivery.attempt_count,
+          replayCount: delivery.replay_count,
         })),
       ]
         .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))

@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/dialog'
 
 import { usePolling } from '@/hooks/usePolling'
-import { formatDateTime, formatDeliveryError } from '@/lib/format'
+import { formatDateTime, formatDeliveryAttempts, formatDeliveryError } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { toast } from '@/lib/toast'
 import { useDetailFetch } from '@/hooks/useDetailFetch'
@@ -40,8 +40,12 @@ function httpStatusTone(status: number): BadgeTone {
   return 'neutral'
 }
 
-function formatAttemptCount(count: number): string {
-  return `${count} attempt${count === 1 ? '' : 's'}`
+function formatDeliveryAttemptLabel(delivery: DeliveryDetailType): string {
+  return formatDeliveryAttempts({
+    attemptCount: delivery.attempt_count,
+    replayCount: delivery.replay_count,
+    totalAttempts: delivery.attempts.length,
+  })
 }
 
 function AttemptTimelineItem({ attempt }: { attempt: DeliveryAttempt }) {
@@ -133,7 +137,7 @@ export default function DeliveryDetail() {
       }
       description={
         delivery
-          ? `Last updated ${formatDateTime(delivery.updated_at)} · ${formatAttemptCount(delivery.attempts.length)}`
+          ? `Last updated ${formatDateTime(delivery.updated_at)} · ${formatDeliveryAttemptLabel(delivery)}`
           : 'Attempt history and replay for one delivery.'
       }
       actions={
@@ -176,7 +180,7 @@ export default function DeliveryDetail() {
               </SettingsCatalogRow>
               <SettingsCatalogRow label="Attempts">
                 <span className="text-sm text-ink">
-                  {formatAttemptCount(delivery.attempts.length)}
+                  {formatDeliveryAttemptLabel(delivery)}
                 </span>
               </SettingsCatalogRow>
               <SettingsCatalogRow
@@ -205,6 +209,19 @@ export default function DeliveryDetail() {
                 </code>
               </SettingsCatalogRow>
             </SettingsCatalogList>
+
+            {delivery.status === 'failed' && delivery.endpoint_status === 'disabled' ? (
+              <p className="border-t border-border/60 px-4 py-3 text-sm text-muted-strong md:px-5">
+                Replay is unavailable because the{' '}
+                <Link
+                  to="/endpoints?status=disabled"
+                  className="font-medium text-primary hover:underline"
+                >
+                  endpoint is disabled
+                </Link>
+                .
+              </p>
+            ) : null}
 
             {delivery.last_error ? (
               <div className="border-t border-border/60 px-4 py-3 md:px-5">

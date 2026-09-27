@@ -2,7 +2,12 @@ import { Link } from 'react-router-dom'
 import { Activity, ArrowRight, ChevronRight, Package, RefreshCw, Send } from 'lucide-react'
 import type { DeliveryStatus, EventStatus } from '@/api/types'
 import { DataPanel } from '@/components/console/DataPanel'
-import { formatCreatedStacked, formatDateTime, formatStatusLabel } from '@/lib/format'
+import {
+  formatCreatedStacked,
+  formatDateTime,
+  formatDeliveryAttempts,
+  formatStatusLabel,
+} from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 export type ActivityItem = {
@@ -13,6 +18,7 @@ export type ActivityItem = {
   to: string
   createdAt: string
   attemptCount?: number
+  replayCount?: number
 }
 
 type RecentActivityProps = {
@@ -30,7 +36,14 @@ function formatActivityMeta(item: ActivityItem): string {
   ]
 
   if (item.attemptCount != null) {
-    parts.splice(2, 0, `${item.attemptCount} attempt${item.attemptCount !== 1 ? 's' : ''}`)
+    parts.splice(
+      2,
+      0,
+      formatDeliveryAttempts({
+        attemptCount: item.attemptCount,
+        replayCount: item.replayCount ?? 0,
+      }),
+    )
   }
 
   return parts.join(' · ')
