@@ -6,11 +6,12 @@ RUN pnpm install --frozen-lockfile
 ENV VITE_API_URL=""
 RUN pnpm build
 
+FROM caddy:2-alpine AS web
+COPY --from=build /app/apps/web/dist /srv
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+
+# Last stage is the default build target (Railway builds it; Compose selects stages by name).
 FROM build AS runtime
 ENV NODE_ENV=production
 USER node
 CMD ["node", "apps/api/dist/index.js"]
-
-FROM caddy:2-alpine AS web
-COPY --from=build /app/apps/web/dist /srv
-COPY deploy/Caddyfile /etc/caddy/Caddyfile
