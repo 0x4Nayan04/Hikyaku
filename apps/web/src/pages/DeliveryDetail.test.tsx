@@ -23,6 +23,7 @@ const replayedDelivery: DeliveryDetailType = {
   event_id: 'event-1',
   endpoint_id: 'endpoint-1',
   endpoint_url: 'https://example.com/hook',
+  endpoint_status: 'active',
   status: 'failed',
   replay_count: 1,
   attempt_count: 1,
@@ -106,5 +107,24 @@ describe('DeliveryDetail', () => {
 
     expect(container.textContent?.match(/3 attempts/g)?.length).toBe(2)
     expect(container.textContent).not.toContain('1 attempt')
+    expect(replayButton()).not.toBeNull()
+  })
+
+  it('hides replay when the endpoint is disabled', async () => {
+    vi.mocked(getDelivery).mockResolvedValue({
+      ...replayedDelivery,
+      endpoint_status: 'disabled',
+      last_error: 'endpoint_disabled',
+    })
+    await renderDelivery(replayedDelivery.id)
+
+    expect(replayButton()).toBeNull()
   })
 })
+
+function replayButton(): HTMLButtonElement | null {
+  const match = Array.from(container.querySelectorAll('button')).find(
+    (button) => button.textContent?.trim() === 'Replay',
+  )
+  return match ?? null
+}

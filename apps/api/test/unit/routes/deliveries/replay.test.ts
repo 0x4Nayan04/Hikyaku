@@ -115,6 +115,76 @@ describe('replayDelivery validation', () => {
     }
   }, 15_000)
 
+  it('does not replay a failed delivery when the endpoint is disabled', async () => {
+    enqueueMock.mockClear()
+    const { tenantId } = await createTenantWithKey()
+
+    try {
+      const db = getDb()
+      const [endpoint] = await db
+        .insert(endpoints)
+        .values({
+          tenantId,
+          url: 'https://example.com/hook',
+          secret: 'whsec_test',
+          status: 'disabled',
+        })
+        .returning({ id: endpoints.id })
+
+      const [event] = await db
+        .insert(events)
+        .values({
+          tenantId,
+          idempotencyKey: `replay-disabled-${randomUUID()}`,
+          type: 'test',
+          payload: {},
+          status: 'failed',
+        })
+        .returning({ id: events.id })
+
+      const [delivery] = await db
+        .insert(deliveries)
+        .values({
+          tenantId,
+          eventId: event.id,
+          endpointId: endpoint.id,
+          status: 'failed',
+          lastError: 'endpoint_disabled',
+          attemptCount: 5,
+        })
+        .returning({ id: deliveries.id })
+
+      const result = await runReplayDelivery(delivery.id, tenantId)
+
+      expect(result.error).toBeInstanceOf(AppError)
+      expect(result.error).toMatchObject({
+        statusCode: 400,
+        code: 'invalid_state',
+        message: 'Endpoint is disabled',
+      })
+
+      const [updated] = await db
+        .select({
+          status: deliveries.status,
+          lastError: deliveries.lastError,
+          attemptCount: deliveries.attemptCount,
+          replayCount: deliveries.replayCount,
+        })
+        .from(deliveries)
+        .where(eq(deliveries.id, delivery.id))
+
+      expect(updated).toMatchObject({
+        status: 'failed',
+        lastError: 'endpoint_disabled',
+        attemptCount: 5,
+        replayCount: 0,
+      })
+      expect(enqueueMock).not.toHaveBeenCalled()
+    } finally {
+      await deleteTenant(tenantId)
+    }
+  })
+
   it('returns 400 when the delivery is not failed', async () => {
     const { tenantId } = await createTenantWithKey()
 

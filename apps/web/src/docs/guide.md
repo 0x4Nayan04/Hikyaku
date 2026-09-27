@@ -287,7 +287,7 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 | DELETE | `/v1/admin/tenants/:id/users/:userId`   | Delete a user from a tenant              |
 | POST   | `/v1/admin/invites`                     | Create tenant-owner or user invite       |
 
-All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (default 50, max 100). `api-keys` filter by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` plus `?event_id=`. Responses look like `{ data, has_more, limit, offset }`.
+All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (default 50, max 100). `events` filter by `?status=pending|completed|partial_failure|failed|no_recipients`, `api-keys` by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` plus `?event_id=`. Responses look like `{ data, has_more, limit, offset }`.
 
 Ingest (`POST /v1/events`) accepts a Bearer API key or a tenant session cookie. Every other tenant route requires a tenant session cookie. Admin routes require a super-admin session. Auth routes are public except logout, me, change-password, and workspace creation.
 

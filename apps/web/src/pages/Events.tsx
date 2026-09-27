@@ -1,8 +1,15 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { Send } from 'lucide-react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Search, Send } from 'lucide-react'
 import { listEvents } from '@/api/client'
-import type { EventSummary } from '@/api/types'
+import type { EventStatus, EventSummary } from '@/api/types'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ConsolePage } from '@/components/console/ConsolePage'
 import {
   DataTable,
@@ -23,8 +30,32 @@ import { formatDateTime } from '@/lib/format'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { usePolling } from '@/hooks/usePolling'
 
+const STATUS_OPTIONS: Array<{ value: 'all' | EventStatus; label: string }> = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'pending', label: 'In progress' },
+  { value: 'completed', label: 'All delivered' },
+  { value: 'partial_failure', label: 'Partial Failure' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'no_recipients', label: 'No Recipients' },
+]
+
+function parseStatusParam(value: string | null): 'all' | EventStatus {
+  switch (value) {
+    case 'pending':
+    case 'completed':
+    case 'partial_failure':
+    case 'failed':
+    case 'no_recipients':
+      return value
+    default:
+      return 'all'
+  }
+}
+
 export default function Events() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const statusFilter = parseStatusParam(searchParams.get('status'))
   const {
     data: events,
     hasMore,
@@ -36,29 +67,73 @@ export default function Events() {
     reload,
   } = usePaginatedList<EventSummary>({
     pageSize: PAGE_SIZE,
-    fetchPage: ({ limit, offset, signal }) => listEvents({ limit, offset }, { signal }),
+    fetchPage: ({ limit, offset, signal }) =>
+      listEvents(
+        {
+          limit,
+          offset,
+          status: statusFilter === 'all' ? undefined : statusFilter,
+        },
+        { signal },
+      ),
     fallbackError: 'Failed to load events',
+    queryKey: statusFilter,
   })
   usePolling({ intervalMs: 10_000, onPoll: reload })
 
   const showEmpty = !isInitial && events.length === 0
-  const isDatasetEmpty = showEmpty && offset === 0
+  const isDatasetEmpty = showEmpty && statusFilter === 'all' && offset === 0
 
-  const emptyState = (
-    <DataPanelEmpty
-      icon={Send}
-      title="No events yet"
-      description={
-        <>
-          Ingested events appear here after you send one.
-          <br />
-          <Link to="/events/send" className="font-medium text-primary hover:underline">
-            Send a test event
-          </Link>
-          .
-        </>
-      }
-    />
+  function setStatusFilter(value: 'all' | EventStatus) {
+    const next = new URLSearchParams(searchParams)
+    if (value === 'all') next.delete('status')
+    else next.set('status', value)
+    setSearchParams(next, { replace: true })
+    setOffset(0)
+  }
+
+  const emptyState =
+    statusFilter === 'all' ? (
+      <DataPanelEmpty
+        icon={Send}
+        title="No events yet"
+        description={
+          <>
+            Ingested events appear here after you send one.
+            <br />
+            <Link to="/events/send" className="font-medium text-primary hover:underline">
+              Send a test event
+            </Link>
+            .
+          </>
+        }
+      />
+    ) : (
+      <DataPanelEmpty
+        icon={Search}
+        title="No events match this status"
+        description="Choose a different status or view all events."
+      />
+    )
+
+  const eventPanelActions = (
+    <search className="log-panel-actions" aria-label="Filter events">
+      <Select
+        value={statusFilter}
+        onValueChange={(value) => setStatusFilter(parseStatusParam(value))}
+      >
+        <SelectTrigger className="log-panel-toolbar__filter" aria-label="Filter by status">
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent>
+          {STATUS_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </search>
   )
 
   const { pageStart, pageEnd } = pageRange(offset, events.length)
@@ -91,6 +166,7 @@ export default function Events() {
         <DataPanel
           title={isDatasetEmpty ? undefined : 'Ingest log'}
           loading={isRefreshing}
+          actions={isDatasetEmpty ? undefined : eventPanelActions}
           footer={
             showFooter ? (
               <div className="pagination-bar-footer">
