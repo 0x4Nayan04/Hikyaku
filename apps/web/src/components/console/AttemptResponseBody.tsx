@@ -19,7 +19,7 @@ export function AttemptResponseBody({ body }: AttemptResponseBodyProps) {
     <div className="mt-3 overflow-hidden rounded-none border border-border bg-muted/30">
       <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-1.5">
         <p className="text-[0.6875rem] font-medium uppercase tracking-wider text-muted-strong">
-          Response body
+          Response body · up to 1 KB
         </p>
         <button
           type="button"

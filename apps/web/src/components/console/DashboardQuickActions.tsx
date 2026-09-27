@@ -23,7 +23,7 @@ const actions: QuickAction[] = [
     icon: Package,
     tone: 'success',
     title: 'View deliveries',
-    hint: 'Outbound attempts',
+    hint: 'Outbound deliveries',
   },
   {
     to: '/endpoints',

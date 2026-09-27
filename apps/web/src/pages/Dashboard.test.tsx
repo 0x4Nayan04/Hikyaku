@@ -194,4 +194,24 @@ describe('Dashboard empty-state probes', () => {
     )
     expect(container.textContent).not.toContain('Create an endpoint')
   })
+
+  it('links active and 24h counts to the same filters the numbers use', async () => {
+    vi.mocked(getStats).mockResolvedValue({
+      ...activeStats,
+      deliveries_failed_24h: 1,
+      success_rate_24h: 0.75,
+    })
+    await renderDashboard()
+
+    expect(container.querySelector('a[href="/deliveries?status=open"]')).not.toBeNull()
+    expect(container.querySelector('a[href="/deliveries?status=pending"]')).toBeNull()
+    expect(
+      container.querySelector('a[href="/deliveries?status=succeeded&updated_within=24h"]'),
+    ).not.toBeNull()
+    expect(
+      container.querySelector('a[href="/deliveries?status=failed&updated_within=24h"]'),
+    ).not.toBeNull()
+    expect(container.textContent).toContain('active deliveries')
+    expect(container.textContent).not.toContain('queue depth')
+  })
 })

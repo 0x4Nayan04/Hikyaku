@@ -30,6 +30,30 @@ describe('parseListQuery', () => {
     expect(parseListQuery({ status: 'succeeded' })).toEqual({ status: 'succeeded' })
   })
 
+  it('treats open as pending and in progress', () => {
+    expect(parseListQuery({ status: 'open' })).toEqual({ open: true })
+  })
+
+  it('accepts the 24h updated window', () => {
+    expect(parseListQuery({ status: 'failed', updated_within: '24h' })).toEqual({
+      status: 'failed',
+      updatedWithin24h: true,
+    })
+  })
+
+  it('rejects an unknown updated_within value', () => {
+    expect(() => parseListQuery({ updated_within: '1h' })).toThrow(AppError)
+    try {
+      parseListQuery({ updated_within: '1h' })
+    } catch (err) {
+      expect(err).toMatchObject({
+        statusCode: 400,
+        code: 'validation_error',
+        message: 'Invalid updated_within filter',
+      })
+    }
+  })
+
   it('rejects an invalid status filter', () => {
     expect(() => parseListQuery({ status: 'paused' })).toThrow(AppError)
     try {

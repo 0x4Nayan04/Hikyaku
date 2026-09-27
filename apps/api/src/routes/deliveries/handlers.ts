@@ -2,8 +2,8 @@ import type { ReplayDeliveryJson } from '@webhook/shared/apiJson'
 import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
 import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
 import { deliveries, deliveryAttempts, deliveryOutbox, endpoints } from '@webhook/shared/schema'
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
-import type { Request, Response } from 'express'
+import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm'
+import type { Request, RequestHandler, Response } from 'express'
 import { getDb } from '../../db/client.js'
 import { AppError, enqueueOr503 } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
@@ -38,7 +38,7 @@ const attemptColumns = {
   createdAt: deliveryAttempts.createdAt,
 }
 
-export const listDeliveries = asyncHandler(async (req: Request, res: Response) => {
+export const listDeliveries: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
   const { limit, offset } = parsePagination(req.query)
   const { status, eventId } = parseListQuery(req.query)
   const tenantId = getTenantId(req)
@@ -73,7 +73,7 @@ export const listDeliveries = asyncHandler(async (req: Request, res: Response) =
   )
 })
 
-export const getDelivery = asyncHandler(async (req: Request, res: Response) => {
+export const getDelivery: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params
   parseDeliveryId(id)
 
@@ -101,7 +101,7 @@ export const getDelivery = asyncHandler(async (req: Request, res: Response) => {
   res.json(toDeliveryDetailJson(row, attempts))
 })
 
-export const replayDelivery = asyncHandler(async (req: Request, res: Response) => {
+export const replayDelivery: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params
   parseDeliveryId(id)
 

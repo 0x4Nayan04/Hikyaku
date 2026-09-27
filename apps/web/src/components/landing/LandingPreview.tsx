@@ -8,13 +8,13 @@ const SECONDARY_SHOTS = [
     src: '/landing/console-deliveries.png',
     alt: 'Hikyaku deliveries log showing outbound webhook attempts and their status',
     label: 'Deliveries',
-    caption: 'Every outbound attempt, filterable by status.',
+    caption: 'Every delivery, filterable by status.',
   },
   {
     src: '/landing/console-delivery-detail.png',
     alt: 'Hikyaku delivery detail page showing the attempt timeline and response body',
     label: 'Attempt detail',
-    caption: 'Response code, timing, and body for every attempt.',
+    caption: 'Status, timing, and up to 1 KB of body for each attempt.',
   },
 ] as const
 
@@ -23,15 +23,7 @@ function previewWebpSrcSet(pngSrc: string): string {
   return `${base}-800w.webp 800w, ${base}.webp 1512w`
 }
 
-function PreviewImage({
-  src,
-  alt,
-  className,
-}: {
-  src: string
-  alt: string
-  className?: string
-}) {
+function PreviewImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
   return (
     <picture>
       <source type="image/webp" srcSet={previewWebpSrcSet(src)} sizes={PREVIEW_SIZES} />
@@ -50,7 +42,11 @@ function PreviewImage({
 
 export function LandingPreview() {
   return (
-    <section id="preview" className="lp-preview scroll-mt-(--nav-height)" aria-labelledby="preview-heading">
+    <section
+      id="preview"
+      className="lp-preview scroll-mt-(--nav-height)"
+      aria-labelledby="preview-heading"
+    >
       <LandingFrameInner className="lp-section">
         <header className="lp-split-heading">
           <h2 id="preview-heading">

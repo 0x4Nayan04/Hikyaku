@@ -10,13 +10,7 @@ import {
   Webhook,
   type LucideIcon,
 } from 'lucide-react'
-import {
-  ApiError,
-  getStats,
-  listDeliveries,
-  listEndpoints,
-  listEvents,
-} from '@/api/client'
+import { ApiError, getStats, listDeliveries, listEndpoints, listEvents } from '@/api/client'
 import type { Stats } from '@/api/types'
 import { PageBanner } from '@/components/console/PageBanner'
 import { ConsolePage } from '@/components/console/ConsolePage'
@@ -161,7 +155,7 @@ export function Dashboard() {
     <ConsolePage
       marker="Overview"
       title="Dashboard"
-      description="Ingest volume, queue depth, and 24-hour delivery outcomes."
+      description="Ingest volume, active deliveries, and 24-hour final outcomes."
       actions={<LiveChip active={isLive} lastUpdated={lastUpdated} />}
     >
       {error ? (
@@ -210,7 +204,7 @@ function buildAttentionItems(stats: Stats, hasDisabledEndpoints: boolean): Atten
       id: 'failed',
       label: `${stats.deliveries_failed_24h.toLocaleString()} failed (24h)`,
       hint: 'Open failed deliveries to replay',
-      to: '/deliveries?status=failed',
+      to: '/deliveries?status=failed&updated_within=24h',
       tone: 'danger',
       icon: AlertTriangle,
     })
@@ -221,7 +215,7 @@ function buildAttentionItems(stats: Stats, hasDisabledEndpoints: boolean): Atten
       id: 'active',
       label: `${stats.deliveries_active.toLocaleString()} active`,
       hint: 'Pending or in flight',
-      to: '/deliveries?status=pending',
+      to: '/deliveries?status=open',
       tone: 'warning',
       icon: Send,
     })
@@ -285,24 +279,24 @@ function OutcomesPanel({ stats }: { stats: Stats }) {
   const rows = [
     {
       label: 'Success rate',
-      hint: 'Rolling 24-hour delivery success',
+      hint: 'Share of deliveries updated to a final status in the last 24 hours',
       value: formatPercent(stats.success_rate_24h, 'No data yet'),
       primary: true,
       to: null,
     },
     {
       label: 'Succeeded',
-      hint: 'Completed deliveries',
+      hint: 'Updated to succeeded in the last 24 hours',
       value: stats.deliveries_succeeded_24h.toLocaleString(),
       primary: false,
-      to: '/deliveries?status=succeeded',
+      to: '/deliveries?status=succeeded&updated_within=24h',
     },
     {
       label: 'Failed',
-      hint: 'Exhausted retries or errors',
+      hint: 'Updated to failed in the last 24 hours',
       value: stats.deliveries_failed_24h.toLocaleString(),
       primary: false,
-      to: '/deliveries?status=failed',
+      to: '/deliveries?status=failed&updated_within=24h',
     },
   ] as const
 

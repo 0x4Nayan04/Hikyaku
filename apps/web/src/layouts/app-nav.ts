@@ -1,13 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import {
-  LayoutDashboard,
-  List,
-  Package,
-  Send,
-  Settings,
-  Shield,
-  Webhook,
-} from 'lucide-react'
+import { LayoutDashboard, List, Package, Send, Settings, Shield, Webhook } from 'lucide-react'
 
 export type AppNavItem = {
   title: string
@@ -24,7 +16,10 @@ type AppNavSection = {
   items: AppNavItem[]
 }
 
-export function filterNavSections(isSuperAdmin: boolean, hasWorkspace = !isSuperAdmin): AppNavSection[] {
+export function filterNavSections(
+  isSuperAdmin: boolean,
+  hasWorkspace = !isSuperAdmin,
+): AppNavSection[] {
   return appNavSections
     .map((section) => ({
       ...section,
@@ -91,7 +86,7 @@ const appNavSections: AppNavSection[] = [
         title: 'Deliveries',
         to: '/deliveries',
         icon: Package,
-        description: 'Outbound attempts',
+        description: 'Outbound deliveries',
         tenantOnly: true,
       },
     ],

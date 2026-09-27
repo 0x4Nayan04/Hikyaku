@@ -12,7 +12,7 @@ const FAQ_ITEMS = [
   {
     id: 'failures',
     q: 'What if my endpoint is down?',
-    a: 'Hikyaku retries with exponential backoff, up to five HTTP attempts. Each attempt records status, timing, and body. Replay from the console when the endpoint recovers.',
+    a: 'Hikyaku retries with exponential backoff, up to five HTTP attempts. An HTTP attempt records status when the subscriber responds, timing, and up to 1 KB of body. Replay a failed delivery from its detail page once the endpoint is active again.',
   },
   {
     id: 'signing',

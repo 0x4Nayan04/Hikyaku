@@ -51,7 +51,7 @@ A successful ingest returns `202 Accepted` with the event id and enqueues one de
 
 Fresh deploys create a super-admin and their workspace at [/bootstrap](/bootstrap). Additional users arrive through invitation links. Console data is scoped to the signed-in tenant.
 
-- **Dashboard** — ingest volume, queue depth, 24h outcomes, and recent activity.
+- **Dashboard** — ingest volume, active deliveries, 24h final outcomes, and recent activity.
 - **Endpoints** — register a receiver URL, copy the signing secret shown once at create, and rotate it in place when needed.
 - **Events** — browse ingested events and open one to see its deliveries.
 - **Test event** — POST a smoke-test payload from the UI (real traffic should use `POST /v1/events`).
@@ -181,7 +181,7 @@ User-Agent: Hikyaku/1.0
 - `succeeded` — subscriber returned 2xx
 - `failed` — retries exhausted or fail-fast 4xx
 
-List deliveries with `GET /v1/deliveries` (`?status=` any delivery status, `?event_id=`, `?limit`, `?offset`), or open one with `GET /v1/deliveries/:id` for the attempt timeline. Attempts may include a truncated response body (~1KB). The console polls while deliveries are in flight (and pauses in hidden tabs).
+List deliveries with `GET /v1/deliveries` (`?status=` a delivery status, or `open` for pending and in progress; `?updated_within=24h` for rows updated in the last 24 hours; `?event_id=`, `?limit`, `?offset`), or open one with `GET /v1/deliveries/:id` for the attempt timeline. Attempts may include a truncated response body (~1KB). The console polls while deliveries are in flight (and pauses in hidden tabs).
 
 ## Signing
 
@@ -292,7 +292,7 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 | POST   | `/v1/admin/tenants/:id/users/:userId/reset-password` | Issue a one-time password reset link |
 | POST   | `/v1/admin/invites`                     | Create tenant-owner or user invite       |
 
-All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (default 50, max 100). `events` filter by `?status=pending|completed|partial_failure|failed|no_recipients`, `api-keys` by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` plus `?event_id=`. Responses look like `{ data, has_more, limit, offset }`.
+All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (default 50, max 100). `events` filter by `?status=pending|completed|partial_failure|failed|no_recipients`, `api-keys` by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` (a delivery status, or `open` for pending and in progress), `?updated_within=24h`, and `?event_id=`. Responses look like `{ data, has_more, limit, offset }`.
 
 Ingest (`POST /v1/events`) accepts a Bearer API key or a tenant session cookie. Every other tenant route requires a tenant session cookie. Admin routes require a super-admin session. Auth routes are public except logout, me, change-password, and workspace creation.
 
@@ -307,9 +307,9 @@ Transient failures retry automatically. Permanent client errors fail fast. After
 | Success           | HTTP 2xx within 30s                                  |
 | Retryable         | Network error, timeout, 408, 429, 5xx                |
 | Fail-fast         | 4xx (except 408, 429)                                |
-| Rate limit        | 100 HTTP delivery attempts / minute / tenant         |
+| Rate limit        | 100 outbound admissions / minute / tenant            |
 
-> When a tenant hits the rate limit, the worker defers the delivery until the next UTC minute plus a small jitter (logged as `rate_limited`). That pause is not a failure, does not update the delivery row’s `last_error`, and does not count toward the five-attempt cap.
+> When a tenant hits the rate limit, the worker defers the delivery until the next UTC minute plus a small jitter (logged as `rate_limited`). That pause is not a failure, does not update the delivery row’s `last_error`, and does not count toward the five-attempt cap. The admission is taken before the HTTP call, so a lost claim or a disabled endpoint spends a slot without sending.
 
 Delivery is at-least-once — dedupe on your side with `X-Webhook-Id` (stable across retries). A transactional outbox covers ingest→queue handoff (see [Outbox](#outbox)). A background sweeper reclaims deliveries left `in_progress` after a worker crash and re-enqueues them.
 

@@ -93,6 +93,18 @@ describe('GET /v1/deliveries', () => {
     expect(empty.status).toBe(200)
     expect(empty.body.data).toHaveLength(0)
     expect(empty.body.has_more).toBe(false)
+
+    const open = await agent.get('/v1/deliveries?status=open&updated_within=24h')
+
+    expect(open.status).toBe(200)
+    expect(open.body.data.map((row: { id: string }) => row.id)).toContain(deliveryId)
+
+    const outsideWindow = await agent.get('/v1/deliveries?updated_within=1h')
+
+    expect(outsideWindow.status).toBe(400)
+    expect(outsideWindow.body).toEqual({
+      error: { code: 'validation_error', message: 'Invalid updated_within filter' },
+    })
   })
 
   it('filters deliveries by event_id', async () => {
