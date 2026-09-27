@@ -6,7 +6,12 @@ import { hashPassword } from '@webhook/shared/password'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
-import { assertEmailAvailable, assertInviteUsable, findInviteByToken } from '../../lib/invites.js'
+import {
+  assertEmailAvailable,
+  assertInviteUsable,
+  findInviteByToken,
+  PASSWORD_RESET_KIND,
+} from '../../lib/invites.js'
 import { parseSchema } from '../../lib/validation.js'
 import { toUserJson, userColumns } from './serialize.js'
 
@@ -38,6 +43,10 @@ export const acceptInvite = asyncHandler(async (req: Request, res: Response) => 
 
   if (!invite) {
     throw new AppError(404, 'not_found', 'Invite not found')
+  }
+
+  if (invite.kind === PASSWORD_RESET_KIND) {
+    throw new AppError(400, 'validation_error', 'This link resets a password')
   }
 
   assertInviteUsable(invite)

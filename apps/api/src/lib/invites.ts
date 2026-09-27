@@ -81,6 +81,8 @@ export async function findInviteByToken(token: string): Promise<InviteRow | null
   return invite ?? null
 }
 
+export const PASSWORD_RESET_KIND = 'password_reset'
+
 export function assertInviteUsable(invite: InviteRow): void {
   if (invite.acceptedAt) {
     throw new AppError(410, 'invite_used', 'Invite has already been used')
@@ -88,5 +90,19 @@ export function assertInviteUsable(invite: InviteRow): void {
 
   if (invite.expiresAt.getTime() <= Date.now()) {
     throw new AppError(410, 'invite_expired', 'Invite has expired')
+  }
+}
+
+export function assertPasswordResetUsable(invite: InviteRow): void {
+  if (invite.kind !== PASSWORD_RESET_KIND) {
+    throw new AppError(404, 'not_found', 'Reset link not found')
+  }
+
+  if (invite.acceptedAt) {
+    throw new AppError(410, 'reset_used', 'This reset link has already been used')
+  }
+
+  if (invite.expiresAt.getTime() <= Date.now()) {
+    throw new AppError(410, 'reset_expired', 'This reset link has expired')
   }
 }

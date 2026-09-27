@@ -58,7 +58,7 @@ Fresh deploys create a super-admin and their workspace at [/bootstrap](/bootstra
 - **Deliveries** — filter by status, inspect attempt timelines, and replay failures.
 - **Settings** — API keys, tenant identity, and account password. Super-admins with a workspace also have API key and tenant tabs.
 
-Super-admins use **Admin** to invite tenant owners, list, rename, or delete tenants, and invite or remove tenant users. A super-admin can use their own assigned workspace, including deliveries and API keys. Admin remains a separate area. Workspaces linked to a super-admin cannot be deleted.
+Super-admins use **Admin** to invite tenant owners, list, rename, or delete tenants, invite or remove tenant users, and issue a one-time password reset link. A super-admin can use their own assigned workspace, including deliveries and API keys. Admin remains a separate area. Workspaces linked to a super-admin cannot be deleted.
 
 ## Authentication
 
@@ -77,6 +77,8 @@ Authorization: Bearer whk_your_api_key
 Keys belong to one tenant. The tenant is resolved from the key, never from the request body. The full secret is shown once on create or rotate; only a SHA-256 hash is stored.
 
 Passwords must be at least 12 characters and at most 128 UTF-8 bytes. Browser login and API keys are separate credentials that resolve to the same tenant for tenant users. Changing your password signs you out of all sessions.
+
+A super-admin issues a password reset with `POST /v1/admin/tenants/:id/users/:userId/reset-password`. The response is a one-time link to copy, the same way invites work. The user sets a new password at [/reset-password](/reset-password), and every session for that user is signed out. There is no emailed self-serve reset.
 
 - **Bootstrap** — create the first super-admin once via `POST /v1/auth/bootstrap` (requires `ADMIN_BOOTSTRAP_SECRET`).
 - **Invite** — the super-admin creates a tenant-owner or tenant-user link via `POST /v1/admin/invites`; the recipient accepts at [/accept-invite](/accept-invite).
@@ -264,6 +266,8 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 | POST   | `/v1/auth/logout`                       | End session                              |
 | GET    | `/v1/auth/me`                           | Current user + tenant                    |
 | POST   | `/v1/auth/change-password`              | Change password (session)                |
+| GET    | `/v1/auth/password-reset/validate`      | Validate a password reset link           |
+| POST   | `/v1/auth/password-reset`               | Set a new password from a reset link     |
 | GET    | `/v1/stats`                             | Dashboard metrics (tenant auth)          |
 | GET    | `/v1/api-keys`                          | List API keys (prefix only)              |
 | POST   | `/v1/api-keys`                          | Create API key (shown once)              |
@@ -285,6 +289,7 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 | DELETE | `/v1/admin/tenants/:id`                 | Delete tenant                            |
 | GET    | `/v1/admin/tenants/:id/users`           | List users in a tenant                   |
 | DELETE | `/v1/admin/tenants/:id/users/:userId`   | Delete a user from a tenant              |
+| POST   | `/v1/admin/tenants/:id/users/:userId/reset-password` | Issue a one-time password reset link |
 | POST   | `/v1/admin/invites`                     | Create tenant-owner or user invite       |
 
 All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (default 50, max 100). `events` filter by `?status=pending|completed|partial_failure|failed|no_recipients`, `api-keys` by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` plus `?event_id=`. Responses look like `{ data, has_more, limit, offset }`.

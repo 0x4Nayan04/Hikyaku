@@ -1,13 +1,17 @@
 import { generateInviteToken, hashInviteToken } from '@webhook/shared/crypto'
 import { invites, tenants, users } from '@webhook/shared/schema'
 import { adminCreateInviteSchema, adminPatchTenantSchema } from '@webhook/shared/zod'
-import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm'
 import type { Request, Response } from 'express'
 import { env } from '../../config.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
-import { assertEmailAvailable, assertNoPendingInvite } from '../../lib/invites.js'
+import {
+  assertEmailAvailable,
+  assertNoPendingInvite,
+  PASSWORD_RESET_KIND,
+} from '../../lib/invites.js'
 import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import {
   refreshTenantNameInSessions,
@@ -265,6 +269,58 @@ export const createInvite = asyncHandler(async (req: Request, res: Response) => 
 
   res.status(201).json({
     invite_url: inviteUrl,
+    expires_at: expiresAt.toISOString(),
+  })
+})
+
+export const createPasswordReset = asyncHandler(async (req: Request, res: Response) => {
+  const { id, userId } = req.params
+  parseTenantId(id)
+  parseUserId(userId)
+  const createdByUserId = req.userId
+  if (!createdByUserId) {
+    throw new AppError(401, 'unauthorized', 'Missing or invalid session')
+  }
+
+  const db = getDb()
+  const rawToken = generateInviteToken()
+  const tokenHash = hashInviteToken(rawToken)
+  const expiresAt = new Date(Date.now() + env.INVITE_TTL_MS)
+
+  await db.transaction(async (tx) => {
+    const [target] = await tx
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(and(eq(users.id, userId), eq(users.tenantId, id)))
+      .limit(1)
+
+    if (!target) {
+      throw new AppError(404, 'not_found', 'User not found')
+    }
+
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${target.email}))`)
+    await tx
+      .update(invites)
+      .set({ acceptedAt: new Date() })
+      .where(
+        and(
+          eq(invites.email, target.email),
+          eq(invites.kind, PASSWORD_RESET_KIND),
+          isNull(invites.acceptedAt),
+        ),
+      )
+    await tx.insert(invites).values({
+      tokenHash,
+      kind: PASSWORD_RESET_KIND,
+      email: target.email,
+      tenantId: id,
+      createdByUserId,
+      expiresAt,
+    })
+  })
+
+  res.status(201).json({
+    reset_url: `${env.WEB_APP_URL}/reset-password?token=${encodeURIComponent(rawToken)}`,
     expires_at: expiresAt.toISOString(),
   })
 })

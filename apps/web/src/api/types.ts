@@ -80,10 +80,20 @@ export type CreateInviteResponse = {
 }
 
 export type ValidateInviteResponse = {
-  kind: 'tenant_owner' | 'tenant_user'
+  kind: 'tenant_owner' | 'tenant_user' | 'password_reset'
   email: string
   tenant_name: string | null
   invited_name: string | null
+  expires_at: string
+}
+
+export type PasswordResetLinkResponse = {
+  reset_url: string
+  expires_at: string
+}
+
+export type ValidatePasswordResetResponse = {
+  email: string
   expires_at: string
 }
 

@@ -19,11 +19,11 @@ export function resolveGuestLandingPrimaryCta(
 
 /** Password policy shown up front on the login form (no self-serve reset). */
 export const LOGIN_PASSWORD_RESET_HINT =
-  'Ask Admin to delete your user and send a fresh invite. There is no self-serve password reset.'
+  'Ask Admin for a one-time reset link. There is no self-serve password reset.'
 
 /** Combined invite + reset next steps after a failed sign-in. */
 export const LOGIN_FAILED_RECOVERY =
-  'Need an invite? Ask Admin. Need a password reset? Ask them to delete your user and send a fresh invite — there is no self-serve reset.'
+  'Need an invite? Ask Admin. Need a password reset? Ask them for a one-time reset link. There is no self-serve reset.'
 
 export type LoginBannerKind =
   | 'bootstrap_complete'

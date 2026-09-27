@@ -10,6 +10,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 
 const ConsoleLayout = lazy(() => import('@/layouts/ConsoleLayout'))
 const AcceptInvite = lazy(() => import('@/pages/AcceptInvite'))
+const ResetPassword = lazy(() => import('@/pages/ResetPassword'))
 const Bootstrap = lazy(() => import('@/pages/Bootstrap'))
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
 const Deliveries = lazy(() => import('@/pages/Deliveries'))
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/bootstrap" element={<Bootstrap />} />
           <Route path="/accept-invite" element={<AcceptInvite />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route element={<ConsoleLayout />}>
             <Route element={<RequireSession />}>
               <Route element={<RequireTenantUser />}>

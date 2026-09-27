@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowRight, Lock, Mail, User } from 'lucide-react'
+import { ArrowRight, Lock, Mail } from 'lucide-react'
 import { MIN_PASSWORD_LENGTH } from '@webhook/shared/constants'
-import { ApiError, acceptInvite, validateInvite } from '@/api/client'
-import type { ValidateInviteResponse } from '@/api/types'
+import { ApiError, submitPasswordReset, validatePasswordReset } from '@/api/client'
+import type { ValidatePasswordResetResponse } from '@/api/types'
 import { AuthFooterLink } from '@/components/auth/AuthFooterLink'
 import { AuthFormField } from '@/components/auth/AuthFormField'
 import { PageBanner } from '@/components/console/PageBanner'
@@ -11,31 +11,30 @@ import { AuthLayout } from '@/layouts/AuthLayout'
 import { getDefaultHomePath } from '@/lib/auth-redirect'
 import { useSession } from '@/providers/session-context'
 
-function resolveInviteLoadError(err: unknown): string {
+function resolveResetLoadError(err: unknown): string {
   if (err instanceof ApiError) {
-    if (err.code === 'invite_expired') {
-      return 'This invite has expired. Ask Admin to send a new link.'
+    if (err.code === 'reset_expired') {
+      return 'This reset link has expired. Ask Admin for a new one.'
     }
-    if (err.code === 'invite_used') {
-      return 'This invite has already been used. Sign in with your account instead.'
+    if (err.code === 'reset_used') {
+      return 'This reset link has already been used. Ask Admin for a new one, or sign in if you already set a password.'
     }
     return err.message
   }
-  return 'Unable to load invite. Try again, or ask Admin for a new invite link.'
+  return 'Unable to load this reset link. Try again, or ask Admin for a new one.'
 }
 
-export default function AcceptInvite() {
+export default function ResetPassword() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') ?? ''
   const { session, loading: sessionLoading } = useSession()
 
-  const [invite, setInvite] = useState<ValidateInviteResponse | null>(null)
+  const [reset, setReset] = useState<ValidatePasswordResetResponse | null>(null)
   const [loading, setLoading] = useState(Boolean(token))
   const [loadError, setLoadError] = useState<string | null>(
-    token ? null : 'This invite link is missing a token.',
+    token ? null : 'This reset link is missing a token.',
   )
-  const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -54,31 +53,25 @@ export default function AcceptInvite() {
 
     let cancelled = false
 
-    validateInvite(token)
+    validatePasswordReset(token)
       .then((result) => {
-        if (cancelled) {
-          return
+        if (!cancelled) {
+          setReset(result)
+          setLoading(false)
+          setLoadError(null)
         }
-        if (result.kind === 'password_reset') {
-          navigate(`/reset-password?token=${encodeURIComponent(token)}`, { replace: true })
-          return
-        }
-        setInvite(result)
-        setLoading(false)
-        setLoadError(null)
-        setName(result.invited_name ?? '')
       })
       .catch((err) => {
         if (!cancelled) {
           setLoading(false)
-          setLoadError(resolveInviteLoadError(err))
+          setLoadError(resolveResetLoadError(err))
         }
       })
 
     return () => {
       cancelled = true
     }
-  }, [token, session, navigate])
+  }, [token, session])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -92,64 +85,50 @@ export default function AcceptInvite() {
     setSubmitting(true)
 
     try {
-      await acceptInvite({ token, name: name.trim(), password })
+      await submitPasswordReset({ token, password })
       navigate('/login', {
         replace: true,
         state: {
-          banner: 'invite_accepted',
-          message: 'Account created. Sign in with your new password.',
+          banner: 'password_updated',
+          message: 'Password updated. Sign in with your new password.',
         },
       })
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Unable to accept invite. Try again.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Unable to reset password. Try again.')
     } finally {
       setSubmitting(false)
     }
   }
 
-  const title =
-    invite?.kind === 'tenant_owner'
-      ? `Join ${invite.tenant_name ?? 'your organization'}`
-      : 'Accept your invite'
-
-  const description =
-    invite?.kind === 'tenant_owner'
-      ? 'Set your name and password to create your tenant owner account.'
-      : 'Set your name and password to join your team.'
-
   return (
     <AuthLayout
-      eyebrow="Invite"
-      title={loading ? 'Checking invite…' : loadError ? 'Invite unavailable' : title}
+      eyebrow="Password"
+      title={loading ? 'Checking reset link…' : loadError ? 'Reset link unavailable' : 'Set a new password'}
       description={
         loading
-          ? 'Verifying your invite link.'
+          ? 'Verifying your reset link.'
           : loadError
-            ? 'This link cannot be used. Request a new invite from the person who sent it, or sign in if you already have an account.'
-            : description
+            ? 'This link cannot be used. Ask Admin for a new reset link, or sign in if you already have a password.'
+            : 'Choose a new password for this account. Other sessions will be signed out.'
       }
     >
       {loadError ? (
         <div className="app-panel border border-border bg-surface p-6">
-          <PageBanner variant="error" title="Invite unavailable" description={loadError} />
+          <PageBanner variant="error" title="Reset link unavailable" description={loadError} />
           <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-            <p>Need a new invite? Ask Admin to send another link.</p>
-            <AuthFooterLink prompt="Already have an account?" linkLabel="Sign in" to="/login" />
+            <p>Need a new link? Ask Admin.</p>
+            <AuthFooterLink prompt="Already know your password?" linkLabel="Sign in" to="/login" />
           </div>
         </div>
       ) : loading ? (
         <div className="app-panel border border-border bg-surface p-6">
-          <p className="text-sm text-muted-foreground">Loading invite details…</p>
+          <p className="text-sm text-muted-foreground">Loading reset details…</p>
         </div>
-      ) : invite ? (
+      ) : reset ? (
         <div className="app-panel border border-border bg-surface p-6">
           <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
             {submitError ? (
-              <PageBanner
-                variant="error"
-                title="Could not accept invite"
-                description={submitError}
-              />
+              <PageBanner variant="error" title="Could not reset password" description={submitError} />
             ) : null}
 
             <AuthFormField
@@ -157,23 +136,14 @@ export default function AcceptInvite() {
               label="Email"
               type="email"
               icon={Mail}
-              value={invite.email}
+              value={reset.email}
               onChange={() => {}}
               readOnly
               required
             />
             <AuthFormField
-              id="name"
-              label="Full name"
-              icon={User}
-              autoComplete="name"
-              value={name}
-              onChange={setName}
-              required
-            />
-            <AuthFormField
               id="password"
-              label="Password"
+              label="New password"
               type="password"
               icon={Lock}
               autoComplete="new-password"
@@ -202,7 +172,7 @@ export default function AcceptInvite() {
               disabled={submitting}
               className="sm-btn sm-btn-primary sm-btn-block mt-1 inline-flex items-center justify-center gap-2"
             >
-              {submitting ? 'Creating account…' : 'Create account'}
+              {submitting ? 'Updating password…' : 'Update password'}
               {!submitting ? <ArrowRight className="size-4" aria-hidden="true" /> : null}
             </button>
           </form>
@@ -211,7 +181,7 @@ export default function AcceptInvite() {
 
       {!loadError ? (
         <div className="mt-6">
-          <AuthFooterLink prompt="Already have an account?" linkLabel="Sign in" to="/login" />
+          <AuthFooterLink prompt="Remember your password?" linkLabel="Sign in" to="/login" />
         </div>
       ) : null}
     </AuthLayout>

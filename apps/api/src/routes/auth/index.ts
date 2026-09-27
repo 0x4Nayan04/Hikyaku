@@ -2,6 +2,7 @@ import { Router, type IRouter } from 'express'
 import { requireSession } from '../../auth/requireSession.js'
 import { authRateLimit } from '../../lib/authRateLimit.js'
 import { acceptInvite, validateInvite } from './invite-handlers.js'
+import { resetPassword, validatePasswordReset } from './password-reset-handlers.js'
 import { bootstrap, bootstrapStatus, createMyWorkspace, changePassword, login, logout, me } from './handlers.js'
 
 export const authRouter: IRouter = Router()
@@ -11,6 +12,8 @@ authRouter.post('/auth/bootstrap', bootstrap)
 authRouter.post('/auth/workspace', requireSession, createMyWorkspace)
 authRouter.get('/auth/invites/validate', validateInvite)
 authRouter.post('/auth/accept-invite', acceptInvite)
+authRouter.get('/auth/password-reset/validate', validatePasswordReset)
+authRouter.post('/auth/password-reset', authRateLimit, resetPassword)
 authRouter.post('/auth/login', authRateLimit, login)
 authRouter.post('/auth/logout', requireSession, logout)
 authRouter.get('/auth/me', requireSession, me)

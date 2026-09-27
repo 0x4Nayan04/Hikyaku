@@ -6,6 +6,7 @@ import type {
   CreateEndpointInput,
   IngestEventInput,
   LoginInput,
+  PasswordResetInput,
   PatchEndpointInput,
 } from '@webhook/shared/zod'
 import type {
@@ -27,10 +28,12 @@ import type {
   ListEventsParams,
   Paginated,
   PaginationParams,
+  PasswordResetLinkResponse,
   ReplayDeliveryResponse,
   Stats,
   User,
   ValidateInviteResponse,
+  ValidatePasswordResetResponse,
 } from './types'
 
 export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
@@ -268,6 +271,15 @@ export function deleteAdminTenantUser(tenantId: string, userId: string): Promise
   return apiFetch(`/v1/admin/tenants/${tenantId}/users/${userId}`, { method: 'DELETE' })
 }
 
+export function createPasswordReset(
+  tenantId: string,
+  userId: string,
+): Promise<PasswordResetLinkResponse> {
+  return apiFetch(`/v1/admin/tenants/${tenantId}/users/${userId}/reset-password`, {
+    method: 'POST',
+  })
+}
+
 export function createAdminInvite(body: AdminCreateInviteInput): Promise<CreateInviteResponse> {
   return apiFetch('/v1/admin/invites', {
     method: 'POST',
@@ -283,6 +295,20 @@ export function validateInvite(token: string): Promise<ValidateInviteResponse> {
 
 export function acceptInvite(body: AcceptInviteInput): Promise<{ user: User }> {
   return apiFetch('/v1/auth/accept-invite', {
+    method: 'POST',
+    skipAuthRedirect: true,
+    body: JSON.stringify(body),
+  })
+}
+
+export function validatePasswordReset(token: string): Promise<ValidatePasswordResetResponse> {
+  return apiFetch(`/v1/auth/password-reset/validate${buildQuery({ token })}`, {
+    skipAuthRedirect: true,
+  })
+}
+
+export function submitPasswordReset(body: PasswordResetInput): Promise<void> {
+  return apiFetch('/v1/auth/password-reset', {
     method: 'POST',
     skipAuthRedirect: true,
     body: JSON.stringify(body),
