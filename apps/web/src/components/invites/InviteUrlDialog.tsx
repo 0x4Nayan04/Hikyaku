@@ -17,6 +17,9 @@ type InviteUrlDialogProps = {
   inviteUrl: string | null
   expiresAt: string | null
   onOpenChange: (open: boolean) => void
+  title?: string
+  description?: string
+  copyLabel?: string
 }
 
 export function InviteUrlDialog({
@@ -24,13 +27,16 @@ export function InviteUrlDialog({
   inviteUrl,
   expiresAt,
   onOpenChange,
+  title = 'Invite link',
+  description = 'Copy this link now and send it to the invitee. The server cannot show it again after you close this dialog.',
+  copyLabel = 'Invite link',
 }: InviteUrlDialogProps) {
   async function copyInviteUrl() {
     if (!inviteUrl) {
       return
     }
 
-    await copyToClipboard(inviteUrl, 'Invite link')
+    await copyToClipboard(inviteUrl, copyLabel)
   }
 
   return (
@@ -38,10 +44,9 @@ export function InviteUrlDialog({
       <DialogContent className="gap-0 p-0 sm:max-w-lg">
         <div className="catalog-dialog-secret px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))] pb-4">
           <DialogHeader className="gap-1.5 text-left">
-            <DialogTitle className="catalog-dialog-secret__title">Invite link</DialogTitle>
+            <DialogTitle className="catalog-dialog-secret__title">{title}</DialogTitle>
             <DialogDescription className="catalog-dialog-secret__desc">
-              Copy this link now and send it to the invitee. The server cannot show it again after you
-              close this dialog.
+              {description}
             </DialogDescription>
           </DialogHeader>
 
@@ -66,7 +71,7 @@ export function InviteUrlDialog({
                   variant="secondary"
                   className="shrink-0 px-2.5"
                   onClick={copyInviteUrl}
-                  aria-label="Copy invite link"
+                  aria-label={`Copy ${copyLabel.toLowerCase()}`}
                 >
                   <Copy className="size-4" />
                 </Button>

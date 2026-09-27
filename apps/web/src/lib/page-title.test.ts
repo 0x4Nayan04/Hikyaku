@@ -6,6 +6,7 @@ describe('titleForPath', () => {
     expect(titleForPath('/')).toBe('Hikyaku')
     expect(titleForPath('/why-haiku')).toBe('Why Hikyaku')
     expect(titleForPath('/login')).toBe('Sign in · Hikyaku')
+    expect(titleForPath('/reset-password')).toBe('Reset password · Hikyaku')
     expect(titleForPath('/docs')).toBe('Hikyaku Docs')
     expect(titleForPath('/docs', '#signing')).toBe('Signing · Hikyaku Docs')
     expect(titleForPath('/docs/anything')).toBe('Hikyaku Docs')

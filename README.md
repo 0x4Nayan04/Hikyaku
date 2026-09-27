@@ -138,6 +138,7 @@ Then `pnpm db:seed` and sign in as that email for **Admin**.
 | Login         | `/login`             | Public                 |
 | Bootstrap     | `/bootstrap`         | First deploy only      |
 | Accept invite | `/accept-invite`     | Invite recipients      |
+| Reset password | `/reset-password` | Reset-link recipients  |
 | Dashboard     | `/dashboard`         | Tenant users           |
 | Endpoints     | `/endpoints`         | Tenant users           |
 | Events        | `/events`            | Tenant users           |

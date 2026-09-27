@@ -56,12 +56,17 @@ export default function AcceptInvite() {
 
     validateInvite(token)
       .then((result) => {
-        if (!cancelled) {
-          setInvite(result)
-          setLoading(false)
-          setLoadError(null)
-          setName(result.invited_name ?? '')
+        if (cancelled) {
+          return
         }
+        if (result.kind === 'password_reset') {
+          navigate(`/reset-password?token=${encodeURIComponent(token)}`, { replace: true })
+          return
+        }
+        setInvite(result)
+        setLoading(false)
+        setLoadError(null)
+        setName(result.invited_name ?? '')
       })
       .catch((err) => {
         if (!cancelled) {
@@ -73,7 +78,7 @@ export default function AcceptInvite() {
     return () => {
       cancelled = true
     }
-  }, [token, session])
+  }, [token, session, navigate])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()

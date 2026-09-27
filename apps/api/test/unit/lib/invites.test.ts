@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { AppError } from '../../../src/lib/errors.js'
-import { assertInviteUsable, type InviteRow } from '../../../src/lib/invites.js'
+import {
+  assertInviteUsable,
+  assertPasswordResetUsable,
+  type InviteRow,
+} from '../../../src/lib/invites.js'
 
 function makeInvite(overrides: Partial<InviteRow> = {}): InviteRow {
   return {
@@ -39,6 +43,42 @@ describe('assertInviteUsable', () => {
     } catch (err) {
       expect(err).toBeInstanceOf(AppError)
       expect((err as AppError).code).toBe('invite_expired')
+      expect((err as AppError).statusCode).toBe(410)
+    }
+  })
+})
+
+describe('assertPasswordResetUsable', () => {
+  it('allows a fresh password reset', () => {
+    expect(() => assertPasswordResetUsable(makeInvite({ kind: 'password_reset' }))).not.toThrow()
+  })
+
+  it('rejects an invite token', () => {
+    expect(() => assertPasswordResetUsable(makeInvite())).toThrow(AppError)
+    try {
+      assertPasswordResetUsable(makeInvite())
+    } catch (err) {
+      expect((err as AppError).code).toBe('not_found')
+      expect((err as AppError).statusCode).toBe(404)
+    }
+  })
+
+  it('rejects a used reset link', () => {
+    try {
+      assertPasswordResetUsable(makeInvite({ kind: 'password_reset', acceptedAt: new Date() }))
+    } catch (err) {
+      expect((err as AppError).code).toBe('reset_used')
+      expect((err as AppError).statusCode).toBe(410)
+    }
+  })
+
+  it('rejects an expired reset link', () => {
+    try {
+      assertPasswordResetUsable(
+        makeInvite({ kind: 'password_reset', expiresAt: new Date(Date.now() - 1) }),
+      )
+    } catch (err) {
+      expect((err as AppError).code).toBe('reset_expired')
       expect((err as AppError).statusCode).toBe(410)
     }
   })

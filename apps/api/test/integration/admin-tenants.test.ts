@@ -76,19 +76,12 @@ describe('minimal super-admin tenant management', () => {
     expect(response.body.name).toBe(name)
   })
 
-  it('does not expose direct tenant or user creation and password reset', async () => {
+  it('does not expose direct tenant or user creation', async () => {
     const agent = await loginSuperAdmin()
     expect((await agent.post('/v1/admin/tenants').send({})).status).toBe(404)
     expect((await agent.post(`/v1/admin/tenants/${existingTenantId}/users`).send({})).status).toBe(
       404,
     )
-    expect(
-      (
-        await agent
-          .post(`/v1/admin/tenants/${existingTenantId}/users/${tenantUserId}/reset-password`)
-          .send({})
-      ).status,
-    ).toBe(404)
   })
 
   it('deletes a tenant user but protects the last tenant user', async () => {

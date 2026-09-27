@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
-import { ApiError, deleteAdminTenantUser } from '@/api/client'
+import { KeyRound, Trash2 } from 'lucide-react'
+import { ApiError, createPasswordReset, deleteAdminTenantUser } from '@/api/client'
 import type { User } from '@/api/types'
+import { InviteUrlDialog } from '@/components/invites/InviteUrlDialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -30,7 +31,21 @@ export function TenantAdminUserActions({
 }: TenantAdminUserActionsProps) {
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [issuingReset, setIssuingReset] = useState(false)
+  const [resetLink, setResetLink] = useState<{ url: string; expiresAt: string } | null>(null)
   const cannotDelete = isSoleUser || currentUserId === user.id
+
+  async function handleResetPassword() {
+    setIssuingReset(true)
+    try {
+      const result = await createPasswordReset(tenantId, user.id)
+      setResetLink({ url: result.reset_url, expiresAt: result.expires_at })
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Failed to create reset link')
+    } finally {
+      setIssuingReset(false)
+    }
+  }
 
   async function handleDelete() {
     setSubmitting(true)
@@ -48,7 +63,16 @@ export function TenantAdminUserActions({
 
   return (
     <>
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={issuingReset}
+          onClick={() => void handleResetPassword()}
+        >
+          <KeyRound className="size-3.5" aria-hidden="true" />
+          {issuingReset ? 'Creating link…' : 'Reset password'}
+        </Button>
         <Button
           size="sm"
           variant="secondary"
@@ -91,6 +115,18 @@ export function TenantAdminUserActions({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <InviteUrlDialog
+        open={resetLink !== null}
+        inviteUrl={resetLink?.url ?? null}
+        expiresAt={resetLink?.expiresAt ?? null}
+        onOpenChange={(next) => {
+          if (!next) setResetLink(null)
+        }}
+        title="Password reset link"
+        description="Copy this link now and send it to the user. The server cannot show it again after you close this dialog."
+        copyLabel="Reset link"
+      />
     </>
   )
 }

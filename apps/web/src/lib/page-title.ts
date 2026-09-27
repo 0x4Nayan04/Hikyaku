@@ -16,6 +16,7 @@ export function titleForPath(pathname: string, hash = ''): string {
     ['/login', 'Sign in'],
     ['/bootstrap', 'Setup'],
     ['/accept-invite', 'Accept invite'],
+    ['/reset-password', 'Reset password'],
     ['/dashboard', 'Dashboard'],
     ['/endpoints', 'Endpoints'],
     ['/events/send', 'Test event'],

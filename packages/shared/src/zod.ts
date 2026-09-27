@@ -108,6 +108,11 @@ export const acceptInviteSchema = z.object({
   password: newPasswordSchema,
 })
 
+export const passwordResetSchema = z.object({
+  token: z.string().min(1),
+  password: newPasswordSchema,
+})
+
 export type CreateEndpointInput = z.infer<typeof createEndpointSchema>
 export type PatchEndpointInput = z.infer<typeof patchEndpointSchema>
 export type IngestEventInput = z.infer<typeof ingestEventSchema>
@@ -116,3 +121,4 @@ export type BootstrapInput = z.infer<typeof bootstrapSchema>
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>
 export type AdminCreateInviteInput = z.infer<typeof adminCreateInviteSchema>
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>
+export type PasswordResetInput = z.infer<typeof passwordResetSchema>
