@@ -35,6 +35,7 @@ import type {
   ValidateInviteResponse,
   ValidatePasswordResetResponse,
 } from './types'
+import { getLoginPath } from '@/lib/auth-redirect'
 
 export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
@@ -103,7 +104,7 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
   if (!res.ok) {
     const error = await parseErrorResponse(res)
     if (res.status === 401 && error.code === 'unauthorized' && !skipAuthRedirect) {
-      window.location.assign('/login')
+      window.location.assign(getLoginPath(window.location))
     }
     throw error
   }
@@ -145,7 +146,7 @@ export function login(body: LoginInput): Promise<{ user: User }> {
 }
 
 export function logout(): Promise<void> {
-  return apiFetch('/v1/auth/logout', { method: 'POST' })
+  return apiFetch('/v1/auth/logout', { method: 'POST', skipAuthRedirect: true })
 }
 
 export function changePassword(body: ChangePasswordInput): Promise<void> {

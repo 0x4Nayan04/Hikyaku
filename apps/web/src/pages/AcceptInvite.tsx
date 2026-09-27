@@ -6,9 +6,9 @@ import { ApiError, acceptInvite, validateInvite } from '@/api/client'
 import type { ValidateInviteResponse } from '@/api/types'
 import { AuthFooterLink } from '@/components/auth/AuthFooterLink'
 import { AuthFormField } from '@/components/auth/AuthFormField'
+import { SignedInLinkPrompt } from '@/components/auth/SignedInLinkPrompt'
 import { PageBanner } from '@/components/console/PageBanner'
 import { AuthLayout } from '@/layouts/AuthLayout'
-import { getDefaultHomePath } from '@/lib/auth-redirect'
 import { useSession } from '@/providers/session-context'
 
 function resolveInviteLoadError(err: unknown): string {
@@ -42,16 +42,20 @@ export default function AcceptInvite() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    if (!sessionLoading && session) {
-      navigate(getDefaultHomePath(session.user), { replace: true })
-    }
-  }, [sessionLoading, session, navigate])
+    setInvite(null)
+    setName('')
+    setPassword('')
+    setConfirmPassword('')
+    setSubmitError(null)
 
-  useEffect(() => {
-    if (!token || session) {
+    if (!token) {
+      setLoading(false)
+      setLoadError('This invite link is missing a token.')
       return
     }
 
+    setLoading(true)
+    setLoadError(null)
     let cancelled = false
 
     validateInvite(token)
@@ -78,7 +82,7 @@ export default function AcceptInvite() {
     return () => {
       cancelled = true
     }
-  }, [token, session, navigate])
+  }, [token, navigate])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -120,9 +124,11 @@ export default function AcceptInvite() {
   return (
     <AuthLayout
       eyebrow="Invite"
-      title={loading ? 'Checking invite…' : loadError ? 'Invite unavailable' : title}
+      title={
+        loading || sessionLoading ? 'Checking invite…' : loadError ? 'Invite unavailable' : title
+      }
       description={
-        loading
+        loading || sessionLoading
           ? 'Verifying your invite link.'
           : loadError
             ? 'This link cannot be used. Request a new invite from the person who sent it, or sign in if you already have an account.'
@@ -137,10 +143,12 @@ export default function AcceptInvite() {
             <AuthFooterLink prompt="Already have an account?" linkLabel="Sign in" to="/login" />
           </div>
         </div>
-      ) : loading ? (
+      ) : loading || sessionLoading ? (
         <div className="app-panel border border-border bg-surface p-6">
           <p className="text-sm text-muted-foreground">Loading invite details…</p>
         </div>
+      ) : invite && session ? (
+        <SignedInLinkPrompt currentEmail={session.user.email} targetEmail={invite.email} />
       ) : invite ? (
         <div className="app-panel border border-border bg-surface p-6">
           <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
@@ -209,7 +217,7 @@ export default function AcceptInvite() {
         </div>
       ) : null}
 
-      {!loadError ? (
+      {!loadError && !sessionLoading && !session ? (
         <div className="mt-6">
           <AuthFooterLink prompt="Already have an account?" linkLabel="Sign in" to="/login" />
         </div>

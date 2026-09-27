@@ -125,7 +125,7 @@ export const listEvents = asyncHandler(async (req: Request, res: Response) => {
     .select(eventListColumns)
     .from(events)
     .where(where)
-    .orderBy(desc(events.createdAt))
+    .orderBy(desc(events.createdAt), desc(events.id))
     .limit(limit + 1)
     .offset(offset)
   const page = takePage(rows, limit)

@@ -44,8 +44,8 @@ export const listTenants = asyncHandler(async (req: Request, res: Response) => {
   let idFilter
   if (isUuid(searchQuery ?? '')) {
     idFilter = eq(tenants.id, searchQuery!)
-  } else if (isIdPrefix) {
-    idFilter = sql`${tenants.id}::text LIKE ${`${searchQuery!.toLowerCase()}%`}`
+  } else if (isIdPrefix && compactId !== undefined) {
+    idFilter = sql`replace(${tenants.id}::text, '-', '') LIKE ${`${compactId.toLowerCase()}%`}`
   }
   const nameFilter = escaped ? ilike(tenants.name, `%${escaped}%`) : undefined
   const filter = nameFilter && idFilter ? or(nameFilter, idFilter) : (nameFilter ?? idFilter)
@@ -53,7 +53,7 @@ export const listTenants = asyncHandler(async (req: Request, res: Response) => {
   const query = db
     .select(tenantColumns)
     .from(tenants)
-    .orderBy(desc(tenants.createdAt))
+    .orderBy(desc(tenants.createdAt), desc(tenants.id))
     .limit(limit + 1)
     .offset(offset)
   const rows = searchQuery ? await query.where(filter) : await query
@@ -101,9 +101,17 @@ export const deleteTenant = asyncHandler(async (req: Request, res: Response) => 
       throw new AppError(404, 'not_found', 'Tenant not found')
     }
 
-    const [admin] = await tx.select({ id: users.id }).from(users)
-      .where(and(eq(users.tenantId, id), eq(users.isSuperAdmin, true))).limit(1)
-    if (admin) throw new AppError(409, 'workspace_has_admin', 'Cannot delete a workspace linked to a super-admin')
+    const [admin] = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.tenantId, id), eq(users.isSuperAdmin, true)))
+      .limit(1)
+    if (admin)
+      throw new AppError(
+        409,
+        'workspace_has_admin',
+        'Cannot delete a workspace linked to a super-admin',
+      )
 
     await revokeTenantSessions(id, tx)
     await tx.delete(tenants).where(eq(tenants.id, id))
@@ -156,18 +164,32 @@ export const deleteTenantUser = asyncHandler(async (req: Request, res: Response)
       throw new AppError(404, 'not_found', 'User not found')
     }
 
-    if (target.isSuperAdmin) throw new AppError(409, 'cannot_delete_admin', 'Cannot delete a super-admin through workspace management')
+    if (target.isSuperAdmin)
+      throw new AppError(
+        409,
+        'cannot_delete_admin',
+        'Cannot delete a super-admin through workspace management',
+      )
 
-    const [countRow] = await tx
-      .select({ value: count() })
-      .from(users)
-      .where(eq(users.tenantId, id))
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${target.email}))`)
+
+    const [countRow] = await tx.select({ value: count() }).from(users).where(eq(users.tenantId, id))
 
     if ((countRow?.value ?? 0) <= 1) {
       throw new AppError(409, 'last_tenant_user', 'Cannot delete the last user in a tenant')
     }
 
     await revokeUserSessions(target.id, tx)
+    await tx
+      .update(invites)
+      .set({ acceptedAt: new Date() })
+      .where(
+        and(
+          eq(invites.email, target.email),
+          eq(invites.kind, PASSWORD_RESET_KIND),
+          isNull(invites.acceptedAt),
+        ),
+      )
     await tx.delete(users).where(eq(users.id, target.id))
   })
 
@@ -299,12 +321,22 @@ export const createPasswordReset = asyncHandler(async (req: Request, res: Respon
     }
 
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${target.email}))`)
+    const [lockedTarget] = await tx
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(and(eq(users.id, userId), eq(users.tenantId, id)))
+      .limit(1)
+
+    if (!lockedTarget) {
+      throw new AppError(404, 'not_found', 'User not found')
+    }
+
     await tx
       .update(invites)
       .set({ acceptedAt: new Date() })
       .where(
         and(
-          eq(invites.email, target.email),
+          eq(invites.email, lockedTarget.email),
           eq(invites.kind, PASSWORD_RESET_KIND),
           isNull(invites.acceptedAt),
         ),
@@ -312,7 +344,7 @@ export const createPasswordReset = asyncHandler(async (req: Request, res: Respon
     await tx.insert(invites).values({
       tokenHash,
       kind: PASSWORD_RESET_KIND,
-      email: target.email,
+      email: lockedTarget.email,
       tenantId: id,
       createdByUserId,
       expiresAt,

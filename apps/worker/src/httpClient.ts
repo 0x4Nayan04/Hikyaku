@@ -71,15 +71,23 @@ function requestOnce(
         const chunks: Buffer[] = []
         let length = 0
         let settled = false
+        let complete = false
 
         const finish = () => {
           if (settled) return
+          complete = true
           settled = true
           resolve({
             status: res.statusCode ?? 0,
             body: Buffer.concat(chunks).toString('utf8'),
             location: res.headers.location,
           })
+        }
+
+        const fail = (err: unknown) => {
+          if (settled) return
+          settled = true
+          reject(err)
         }
 
         res.on('data', (chunk: Buffer) => {
@@ -90,14 +98,19 @@ function requestOnce(
           length += slice.length
         })
         res.on('end', finish)
-        res.on('close', finish)
         res.on('error', (err) => {
-          if (length > 0) finish()
-          else reject(err)
+          fail(signal.aborted ? timeoutError() : err)
+        })
+        res.on('close', () => {
+          if (complete) return
+          fail(signal.aborted ? timeoutError() : new Error('response_closed'))
         })
       },
     )
-    req.on('error', reject)
+    req.on('error', (err) => {
+      if (signal.aborted) reject(timeoutError())
+      else reject(err)
+    })
     req.end(body)
   })
 }
@@ -117,7 +130,9 @@ export async function postWithTimeout(
     const remainingMs = Math.max(0, timeoutMs - (Date.now() - start))
     const target = await resolveWithTimeout(currentUrl, allowPrivate, remainingMs)
     if (!target.ok) {
-      throw new Error(`${target.kind === 'dns_error' ? 'dns_error' : 'blocked_url'}: ${target.reason}`)
+      throw new Error(
+        `${target.kind === 'dns_error' ? 'dns_error' : 'blocked_url'}: ${target.reason}`,
+      )
     }
 
     const result = await requestOnce(target, body, headers, signal)

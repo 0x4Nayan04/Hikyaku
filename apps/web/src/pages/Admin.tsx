@@ -28,6 +28,7 @@ export default function Admin() {
   } | null>(null)
   const {
     data: tenants,
+    isEmpty,
     hasMore,
     offset,
     setOffset,
@@ -122,6 +123,7 @@ export default function Admin() {
 
       <AdminTenantTable
         tenants={tenants}
+        isEmpty={isEmpty}
         hasMore={hasMore}
         offset={offset}
         loading={isInitial || isRefreshing}

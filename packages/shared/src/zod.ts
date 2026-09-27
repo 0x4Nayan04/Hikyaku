@@ -16,6 +16,9 @@ const jsonNumberSchema = z
   .refine((value) => !Object.is(value, -0), {
     message: 'JSON numbers must be finite and cannot be negative zero',
   })
+  .refine((value) => !Number.isInteger(value) || Number.isSafeInteger(value), {
+    message: 'JSON integers must be safe integers',
+  })
 const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
   z.union([
     z.string(),

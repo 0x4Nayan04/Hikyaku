@@ -80,24 +80,27 @@ describe('processor', () => {
   })
 
   afterAll(async () => {
-    if (seededTenantIds.length) await getDb().delete(tenants).where(inArray(tenants.id, seededTenantIds))
+    if (seededTenantIds.length)
+      await getDb().delete(tenants).where(inArray(tenants.id, seededTenantIds))
     await closePool()
   })
 
   it('sets status to in_progress before HTTP POST', async () => {
     const db = getDb()
     let statusDuringRequest: string | undefined
+    let attemptDuringRequest: number | undefined
     let deliveryId = ''
 
     const mock = await startMockServer(async (_req, res) => {
       const [row] = await db.select().from(deliveries).where(eq(deliveries.id, deliveryId))
       statusDuringRequest = row?.status
+      attemptDuringRequest = row?.attemptCount
       res.writeHead(200)
       res.end('ok')
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor InProgress' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -129,6 +132,7 @@ describe('processor', () => {
     await processor(makeJob(delivery))
 
     expect(statusDuringRequest).toBe('in_progress')
+    expect(attemptDuringRequest).toBe(1)
 
     const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
     expect(updated.status).toBe('succeeded')
@@ -154,7 +158,7 @@ describe('processor', () => {
 
     const secret = generateEndpointSecret()
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Test' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -227,7 +231,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Retry' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -292,7 +296,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Backoff' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -347,7 +351,7 @@ describe('processor', () => {
       .insert(tenants)
       .values({ name: `Processor Retry ${status}` })
       .returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -398,7 +402,7 @@ describe('processor', () => {
     vi.spyOn(httpClient, 'postWithTimeout').mockRejectedValue(abortErr)
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Timeout' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -448,7 +452,7 @@ describe('processor', () => {
     vi.spyOn(httpClient, 'postWithTimeout').mockRejectedValue(abortErr)
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor DNS' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -496,7 +500,7 @@ describe('processor', () => {
     const db = getDb()
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Network' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -551,7 +555,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor FailFast' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -609,7 +613,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Event Rollup' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -654,7 +658,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor DeadLetter' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -711,7 +715,7 @@ describe('processor', () => {
       .insert(tenants)
       .values({ name: 'Processor DeadLetter Timeout' })
       .returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -759,7 +763,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor MaxCap' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -814,7 +818,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor HttpCount' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -870,7 +874,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Disabled' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -920,7 +924,7 @@ describe('processor', () => {
   it('counts a blocked URL rejected before HTTP', async () => {
     const db = getDb()
     const [tenant] = await db.insert(tenants).values({ name: 'Processor BlockedUrl' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -969,7 +973,7 @@ describe('processor', () => {
     })
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Replay' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -1042,7 +1046,7 @@ describe('processor', () => {
     const postSpy = vi.spyOn(httpClient, 'postWithTimeout')
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor RateLimit' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -1102,7 +1106,7 @@ describe('processor', () => {
     const postSpy = vi.spyOn(httpClient, 'postWithTimeout')
 
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Legacy Job' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -1149,7 +1153,7 @@ describe('processor', () => {
       allowed: true,
     })
     const [tenant] = await db.insert(tenants).values({ name: 'Processor Claimed' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -1196,7 +1200,7 @@ describe('processor', () => {
   it('does not overwrite a newer in_progress lease after sweeper reclaim', async () => {
     const db = getDb()
     const [tenant] = await db.insert(tenants).values({ name: 'Processor LeaseLost' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -1248,7 +1252,7 @@ describe('processor', () => {
 
     expect(updated.status).toBe('in_progress')
     expect(updated.lastError).toBeNull()
-    expect(updated.attemptCount).toBe(0)
+    expect(updated.attemptCount).toBe(1)
     expect(attempts).toHaveLength(0)
   })
 
@@ -1262,7 +1266,7 @@ describe('processor', () => {
       .insert(tenants)
       .values({ name: 'Processor BlockedRedirect' })
       .returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [endpoint] = await db
       .insert(endpoints)
       .values({
@@ -1298,5 +1302,340 @@ describe('processor', () => {
     expect(updated.lastError).toBe('blocked_url')
     expect(updated.attemptCount).toBe(1)
     expect(job.moveToDelayed).not.toHaveBeenCalled()
+  })
+
+  it('keeps a reserved attempt when the outcome write loses the lease', async () => {
+    const db = getDb()
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor ReserveCrash' }).returning()
+    seededTenantIds.push(tenant.id)
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: 'http://127.0.0.1:9/hook',
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-reserve-crash',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({ tenantId: tenant.id, eventId: event.id, endpointId: endpoint.id })
+      .returning()
+
+    vi.spyOn(httpClient, 'postWithTimeout').mockImplementation(async () => {
+      const [during] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+      expect(during?.status).toBe('in_progress')
+      expect(during?.attemptCount).toBe(1)
+      await db
+        .update(deliveries)
+        .set({ status: 'pending', updatedAt: new Date(Date.now() + 1_000) })
+        .where(eq(deliveries.id, delivery.id))
+      return { status: 500, body: 'fail' }
+    })
+
+    await processor(makeJob(delivery))
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    const attempts = await db
+      .select()
+      .from(deliveryAttempts)
+      .where(eq(deliveryAttempts.deliveryId, delivery.id))
+
+    expect(updated.status).toBe('pending')
+    expect(updated.attemptCount).toBe(1)
+    expect(updated.lastError).toBeNull()
+    expect(attempts).toHaveLength(0)
+  })
+
+  it('finalizes at the cap after reserved crashes without another HTTP call', async () => {
+    const db = getDb()
+    let httpCalls = 0
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor CapRecovery' }).returning()
+    seededTenantIds.push(tenant.id)
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: 'http://127.0.0.1:9/hook',
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-cap-recovery',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({
+        tenantId: tenant.id,
+        eventId: event.id,
+        endpointId: endpoint.id,
+        attemptCount: 4,
+      })
+      .returning()
+
+    vi.spyOn(httpClient, 'postWithTimeout').mockImplementation(async () => {
+      httpCalls += 1
+      await db
+        .update(deliveries)
+        .set({ status: 'pending', updatedAt: new Date(Date.now() + 1_000) })
+        .where(eq(deliveries.id, delivery.id))
+      return { status: 500, body: 'fail' }
+    })
+
+    await processor(makeJob(delivery))
+
+    const [crashed] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    expect(httpCalls).toBe(1)
+    expect(crashed.status).toBe('pending')
+    expect(crashed.attemptCount).toBe(5)
+
+    await processor(makeJob(delivery))
+
+    const [final] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    const [eventRow] = await db.select().from(events).where(eq(events.id, event.id))
+    const attempts = await db
+      .select()
+      .from(deliveryAttempts)
+      .where(eq(deliveryAttempts.deliveryId, delivery.id))
+
+    expect(httpCalls).toBe(1)
+    expect(final.status).toBe('failed')
+    expect(final.attemptCount).toBe(5)
+    expect(final.lastError).toBe('max_attempts')
+    expect(eventRow?.status).toBe('failed')
+    expect(attempts).toHaveLength(0)
+  })
+
+  it('does not send before next_retry_at when the delay was not scheduled', async () => {
+    const db = getDb()
+    let requestCount = 0
+    const mock = await startMockServer((_req, res) => {
+      requestCount += 1
+      res.writeHead(503)
+      res.end('unavailable')
+    })
+
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor EarlyRetry' }).returning()
+    seededTenantIds.push(tenant.id)
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: `http://127.0.0.1:${mock.port}/hook`,
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-early-retry',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({ tenantId: tenant.id, eventId: event.id, endpointId: endpoint.id })
+      .returning()
+
+    const job = makeJob(delivery)
+    job.moveToDelayed = vi.fn().mockRejectedValue(new Error('crash-before-delay'))
+    await expect(processor(job)).rejects.toThrow('crash-before-delay')
+
+    const [retried] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    expect(requestCount).toBe(1)
+    expect(retried.status).toBe('pending')
+    expect(retried.attemptCount).toBe(1)
+    expect(retried.nextRetryAt).not.toBeNull()
+
+    await processor(makeJob(delivery))
+
+    const [early] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    expect(requestCount).toBe(1)
+    expect(early.attemptCount).toBe(1)
+    expect(early.status).toBe('pending')
+    expect(early.nextRetryAt?.getTime()).toBe(retried.nextRetryAt?.getTime())
+
+    await db
+      .update(deliveries)
+      .set({ nextRetryAt: new Date(Date.now() - 1_000) })
+      .where(eq(deliveries.id, delivery.id))
+
+    await expect(processor(makeJob(delivery))).rejects.toThrow(DelayedError)
+    const [due] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    expect(requestCount).toBe(2)
+    expect(due.attemptCount).toBe(2)
+    expect(due.status).toBe('pending')
+
+    await mock.close()
+  })
+
+  it('does not claim a delivery whose next_retry_at is still in the future', async () => {
+    const db = getDb()
+    const postSpy = vi.spyOn(httpClient, 'postWithTimeout')
+    const retryAt = new Date(Date.now() + 60_000)
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor FutureRetry' }).returning()
+    seededTenantIds.push(tenant.id)
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: 'http://127.0.0.1:9/hook',
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-future-retry',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({
+        tenantId: tenant.id,
+        eventId: event.id,
+        endpointId: endpoint.id,
+        attemptCount: 1,
+        nextRetryAt: retryAt,
+        lastError: 'http_503',
+      })
+      .returning()
+
+    await processor(makeJob(delivery))
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    expect(postSpy).not.toHaveBeenCalled()
+    expect(updated.status).toBe('pending')
+    expect(updated.attemptCount).toBe(1)
+    expect(updated.nextRetryAt?.getTime()).toBe(retryAt.getTime())
+  })
+
+  it('does not commit an outcome after a new replay run starts', async () => {
+    const db = getDb()
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor ReplayRun' }).returning()
+    seededTenantIds.push(tenant.id)
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: 'http://127.0.0.1:9/hook',
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-replay-run',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({ tenantId: tenant.id, eventId: event.id, endpointId: endpoint.id })
+      .returning()
+
+    vi.spyOn(httpClient, 'postWithTimeout').mockImplementation(async () => {
+      await db
+        .update(deliveries)
+        .set({
+          status: 'pending',
+          attemptCount: 0,
+          replayCount: 1,
+          lastError: null,
+          nextRetryAt: null,
+          updatedAt: new Date(Date.now() + 1_000),
+        })
+        .where(eq(deliveries.id, delivery.id))
+      return { status: 200, body: 'ok' }
+    })
+
+    await processor(makeJob(delivery))
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    const attempts = await db
+      .select()
+      .from(deliveryAttempts)
+      .where(eq(deliveryAttempts.deliveryId, delivery.id))
+
+    expect(updated.status).toBe('pending')
+    expect(updated.attemptCount).toBe(0)
+    expect(updated.replayCount).toBe(1)
+    expect(attempts).toHaveLength(0)
+  })
+
+  it('retries a truncated 200 response', async () => {
+    const db = getDb()
+    const mock = await startMockServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.write('partial')
+      res.destroy()
+    })
+
+    const [tenant] = await db.insert(tenants).values({ name: 'Processor Truncated' }).returning()
+    seededTenantIds.push(tenant.id)
+    const [endpoint] = await db
+      .insert(endpoints)
+      .values({
+        tenantId: tenant.id,
+        url: `http://127.0.0.1:${mock.port}/hook`,
+        secret: generateEndpointSecret(),
+        status: 'active',
+      })
+      .returning()
+    const [event] = await db
+      .insert(events)
+      .values({
+        tenantId: tenant.id,
+        idempotencyKey: 'proc-truncated-200',
+        type: 'test.event',
+        payload: {},
+      })
+      .returning()
+    const [delivery] = await db
+      .insert(deliveries)
+      .values({ tenantId: tenant.id, eventId: event.id, endpointId: endpoint.id })
+      .returning()
+
+    await expect(processor(makeJob(delivery))).rejects.toThrow(DelayedError)
+
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id))
+    const attempts = await db
+      .select()
+      .from(deliveryAttempts)
+      .where(eq(deliveryAttempts.deliveryId, delivery.id))
+
+    expect(updated.status).toBe('pending')
+    expect(updated.attemptCount).toBe(1)
+    expect(attempts).toHaveLength(1)
+    expect(attempts[0]?.error).toBe('network_error')
+    expect(attempts[0]?.httpStatus).toBeNull()
+
+    await mock.close()
   })
 })

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import request from 'supertest'
-import { eq } from 'drizzle-orm'
-import { sessions, users } from '@webhook/shared/schema'
+import { eq, inArray } from 'drizzle-orm'
+import { invites, sessions, tenants, users } from '@webhook/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
@@ -65,6 +65,105 @@ describe('minimal super-admin tenant management', () => {
     ).toBe(true)
   })
 
+  it('matches dashed and dashless ids, prefixes, names, and literal wildcards', async () => {
+    const id = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
+    const wildcardId = 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff'
+    const decoyId = 'cccccccc-dddd-4eee-8fff-aaaaaaaaaaaa'
+    const name = 'Acme Catalog qjw'
+    const ids = [id, wildcardId, decoyId]
+    const db = getDb()
+    await db.insert(tenants).values([
+      { id, name },
+      { id: wildcardId, name: 'Quota 100%_met qjw' },
+      { id: decoyId, name: 'Quota 100XXmet qjw' },
+    ])
+
+    try {
+      const agent = await loginSuperAdmin()
+      const idsFor = async (search: string) => {
+        const response = await agent.get('/v1/admin/tenants').query({ search })
+        expect(response.status).toBe(200)
+        return response.body.data.map((row: { id: string }) => row.id) as string[]
+      }
+
+      for (const search of [
+        id,
+        id.toUpperCase(),
+        id.replaceAll('-', ''),
+        id.replaceAll('-', '').toUpperCase(),
+        id.slice(0, 8),
+        id.replaceAll('-', '').slice(0, 9),
+        id.slice(0, 13),
+      ]) {
+        expect(await idsFor(search)).toContain(id)
+      }
+
+      expect(await idsFor('01234567')).not.toContain(id)
+      expect(await idsFor(name)).toEqual([id])
+
+      const wildcard = await idsFor('100%_')
+      expect(wildcard).toContain(wildcardId)
+      expect(wildcard).not.toContain(decoyId)
+
+      for (const search of ['%', '_']) {
+        const matches = await idsFor(search)
+        expect(matches).toContain(wildcardId)
+        expect(matches).not.toContain(decoyId)
+      }
+    } finally {
+      await db.delete(tenants).where(inArray(tenants.id, ids))
+    }
+  })
+
+  it('orders tenants by creation time, then id', async () => {
+    const newer = '20000000-0000-4000-8000-000000000001'
+    const high = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3'
+    const mid = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2'
+    const low = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1'
+    const ids = [newer, high, mid, low]
+    const sameCreatedAt = new Date('2020-01-01T00:00:00.000Z')
+    const newerCreatedAt = new Date('2020-01-02T00:00:00.000Z')
+    const label = 'tie order label qjw'
+    const db = getDb()
+    await db.insert(tenants).values(
+      ids.map((id) => ({
+        id,
+        name: `${label} ${id.slice(-1)}`,
+        createdAt: id === newer ? newerCreatedAt : sameCreatedAt,
+      })),
+    )
+
+    try {
+      const agent = await loginSuperAdmin()
+      const page = async (offset: number) => {
+        const response = await agent
+          .get('/v1/admin/tenants')
+          .query({ search: label, limit: 2, offset })
+        expect(response.status).toBe(200)
+        return response.body as {
+          data: Array<{ id: string; created_at: string }>
+          has_more: boolean
+        }
+      }
+
+      const first = await page(0)
+      const second = await page(2)
+      const firstIds = first.data.map((row) => row.id)
+      const secondIds = second.data.map((row) => row.id)
+
+      expect(firstIds).toEqual([newer, high])
+      expect(secondIds).toEqual([mid, low])
+      expect(firstIds.filter((rowId) => secondIds.includes(rowId))).toEqual([])
+      expect([...firstIds, ...secondIds]).toEqual(ids)
+      expect(first.has_more).toBe(true)
+      expect(second.has_more).toBe(false)
+      expect(first.data[0].created_at).toBe(newerCreatedAt.toISOString())
+      expect(first.data[1].created_at).toBe(sameCreatedAt.toISOString())
+    } finally {
+      await db.delete(tenants).where(inArray(tenants.id, ids))
+    }
+  })
+
   it('renames a tenant', async () => {
     const name = `Renamed-${randomUUID().slice(0, 8)}`
     const response = await (
@@ -105,6 +204,12 @@ describe('minimal super-admin tenant management', () => {
       )
       expect(protectedResponse.status).toBe(409)
 
+      const resetResponse = await agent.post(
+        `/v1/admin/tenants/${existingTenantId}/users/${deletable.userId}/reset-password`,
+      )
+      expect(resetResponse.status).toBe(201)
+      const resetToken = new URL(resetResponse.body.reset_url).searchParams.get('token')
+
       const deleteResponse = await agent.delete(
         `/v1/admin/tenants/${existingTenantId}/users/${deletable.userId}`,
       )
@@ -120,8 +225,22 @@ describe('minimal super-admin tenant management', () => {
         .from(sessions)
         .where(eq(sessions.sid, deletableSessionId))
       expect(revokedSessions).toEqual([])
+
+      const replacementInvite = await agent.post('/v1/admin/invites').send({
+        kind: 'tenant_user',
+        tenant_id: existingTenantId,
+        email: deletable.email,
+      })
+      expect(replacementInvite.status).toBe(201)
+
+      const oldReset = await request(app)
+        .get('/v1/auth/password-reset/validate')
+        .query({ token: resetToken })
+      expect(oldReset.status).toBe(410)
+      expect(oldReset.body.error.code).toBe('reset_used')
     } finally {
       await getDb().delete(sessions).where(eq(sessions.sid, deletableSessionId))
+      await getDb().delete(invites).where(eq(invites.email, deletable.email))
       await deleteUser(deletable.userId)
       await deleteUser(lastUser.userId)
       await deleteTenant(singleUserTenant.tenantId)

@@ -182,6 +182,26 @@ describe('Dashboard empty-state probes', () => {
     expect(container.textContent).toContain('Create an endpoint')
   })
 
+  it('surfaces a failed endpoint check without inventing onboarding and recovers', async () => {
+    vi.mocked(getStats).mockResolvedValue(emptyStats)
+    vi.mocked(listEndpoints).mockImplementation(async (params) => {
+      if (params?.status === 'active') throw new Error('unavailable')
+      return page()
+    })
+    await renderDashboard()
+
+    expect(container.textContent).toContain('Could not check endpoints')
+    expect(container.textContent).not.toContain('Create an endpoint')
+    expect(container.textContent).toContain('Metrics')
+
+    vi.mocked(listEndpoints).mockResolvedValue(page())
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000)
+    })
+    expect(container.textContent).not.toContain('Could not check endpoints')
+    expect(container.textContent).toContain('Create an endpoint')
+  })
+
   it('skips onboarding probes when the tenant already has data', async () => {
     vi.mocked(getStats).mockResolvedValue(activeStats)
     await renderDashboard()

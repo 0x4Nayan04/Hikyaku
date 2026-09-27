@@ -36,7 +36,7 @@ export const listApiKeys = asyncHandler(async (req: Request, res: Response) => {
     .select(apiKeyColumns)
     .from(apiKeys)
     .where(where)
-    .orderBy(desc(apiKeys.createdAt))
+    .orderBy(desc(apiKeys.createdAt), desc(apiKeys.id))
     .limit(limit + 1)
     .offset(offset)
   const page = takePage(rows, limit)

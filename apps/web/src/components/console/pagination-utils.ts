@@ -13,6 +13,6 @@ export function shouldPaginate(hasMore: boolean, offset: number): boolean {
 export function pageRange(offset: number, count: number): { pageStart: number; pageEnd: number } {
   return {
     pageStart: count === 0 ? 0 : offset + 1,
-    pageEnd: offset + count,
+    pageEnd: count === 0 ? 0 : offset + count,
   }
 }

@@ -44,15 +44,15 @@ Producer ──POST /v1/events──► API ──fan-out + enqueue deliveries�
                                     (events, deliveries, polling)
 ```
 
-| Piece         | Role                                         |
-| ------------- | -------------------------------------------- |
-| `apps/api`    | Auth, ingest, endpoints, deliveries, admin   |
+| Piece         | Role                                                         |
+| ------------- | ------------------------------------------------------------ |
+| `apps/api`    | Auth, ingest, endpoints, deliveries, admin                   |
 | `apps/worker` | Signed outbound HTTP, retries, rate limits, recovery sweeper |
-| `apps/web`    | Landing, docs, operator console              |
-| Postgres      | Tenants, events, deliveries, attempt history |
-| Redis         | BullMQ delivery queue                        |
+| `apps/web`    | Landing, docs, operator console                              |
+| Postgres      | Tenants, events, deliveries, attempt history                 |
+| Redis         | BullMQ delivery queue                                        |
 
-Each delivery is claimed with a database lease before its HTTP attempt, so a crashed worker is recoverable: a sweeper resets deliveries stuck in `in_progress` and re-enqueues them. Queue jobs are deduplicated per delivery for the current live queue job, so fan-out and replay do not double-schedule that job — HTTP delivery remains at-least-once. Subscribers should verify `X-Webhook-Signature` and reject timestamps older than 5 minutes — see [docs → Signing](http://localhost:5173/docs#signing).
+Each delivery is claimed with a database lease, and its attempt number is reserved before the HTTP call, so a crashed worker is recoverable without granting an extra attempt: a sweeper resets deliveries stuck in `in_progress` and re-enqueues them. Queue jobs are deduplicated per delivery for the current live queue job, so fan-out and replay do not double-schedule that job — HTTP delivery remains at-least-once. Subscribers should verify `X-Webhook-Signature` and reject timestamps older than 5 minutes — see [docs → Signing](http://localhost:5173/docs#signing).
 
 ## Screenshots
 
@@ -113,8 +113,8 @@ pnpm db:seed
 
 Seed prints login emails/passwords and one API key per tenant (local/dev only). It exits before writing when `NODE_ENV=production`. Sign in at `/login`, or use the printed key for ingest. You can also create keys under **Settings → API keys**.
 
-| Tenant | Email              | Password                    |
-| ------ | ------------------ | --------------------------- |
+| Tenant | Email                | Password                    |
+| ------ | -------------------- | --------------------------- |
 | Acme   | `acme@example.com`   | `dev-password-min-12-chars` |
 | Globex | `globex@example.com` | `dev-password-min-12-chars` |
 
@@ -130,25 +130,25 @@ Then `pnpm db:seed` and sign in as that email for **Admin**.
 
 ## Console overview
 
-| Page          | Route                | Who                    |
-| ------------- | -------------------- | ---------------------- |
-| Landing       | `/`                  | Public                 |
-| Docs          | `/docs`              | Public                 |
-| Why Hikyaku   | `/why-haiku`         | Public                 |
-| Login         | `/login`             | Public                 |
-| Bootstrap     | `/bootstrap`         | First deploy only      |
-| Accept invite | `/accept-invite`     | Invite recipients      |
-| Reset password | `/reset-password` | Reset-link recipients  |
-| Dashboard     | `/dashboard`         | Tenant users           |
-| Endpoints     | `/endpoints`         | Tenant users           |
-| Events        | `/events`            | Tenant users           |
-| Event detail  | `/events/:id`        | Tenant users           |
-| Send event    | `/events/send`       | Tenant users           |
-| Deliveries    | `/deliveries`        | Tenant users (polling, replay) |
-| Delivery detail | `/deliveries/:id`  | Tenant users           |
-| Settings      | `/settings`          | Tenant users                   |
-| Admin         | `/admin`             | Super-admin only       |
-| Tenant admin  | `/admin/tenants/:id` | Super-admin only       |
+| Page            | Route                | Who                            |
+| --------------- | -------------------- | ------------------------------ |
+| Landing         | `/`                  | Public                         |
+| Docs            | `/docs`              | Public                         |
+| Why Hikyaku     | `/why-haiku`         | Public                         |
+| Login           | `/login`             | Public                         |
+| Bootstrap       | `/bootstrap`         | First deploy only              |
+| Accept invite   | `/accept-invite`     | Invite recipients              |
+| Reset password  | `/reset-password`    | Reset-link recipients          |
+| Dashboard       | `/dashboard`         | Tenant users                   |
+| Endpoints       | `/endpoints`         | Tenant users                   |
+| Events          | `/events`            | Tenant users                   |
+| Event detail    | `/events/:id`        | Tenant users                   |
+| Send event      | `/events/send`       | Tenant users                   |
+| Deliveries      | `/deliveries`        | Tenant users (polling, replay) |
+| Delivery detail | `/deliveries/:id`    | Tenant users                   |
+| Settings        | `/settings`          | Tenant users                   |
+| Admin           | `/admin`             | Super-admin only               |
+| Tenant admin    | `/admin/tenants/:id` | Super-admin only               |
 
 **Roles:** Super-admins invite tenant owners and manage tenants and users. Tenant users manage endpoints, events, deliveries, and API keys. Super-admins with an assigned workspace can use that workspace’s console pages; Admin remains a separate area.
 
@@ -158,11 +158,11 @@ API usage, signing, retries, and the full route table live in the in-app docs: h
 
 - **At-least-once** — a delivery retries until 2xx, a permanent failure, or the attempt cap. `X-Webhook-Id` is the delivery UUID and stays constant across retries; use it to dedupe on the subscriber side.
 - **Transactional outbox** — fan-out inserts each delivery and an outbox row in the same Postgres transaction; the worker drains the outbox before sweeping stale leases, so a committed delivery is not lost if Redis is unavailable at ingest.
-- **Lease + sweeper** — each HTTP attempt is claimed with a DB lease; a background sweeper resets deliveries stuck in `in_progress` and re-enqueues them.
+- **Lease + sweeper** — each HTTP attempt is reserved in the database before the request; a crash still consumes that slot. A background sweeper resets deliveries stuck in `in_progress` after the worker lease expires and re-enqueues them without clearing the attempt count. It waits for `next_retry_at` before sending a deferred retry.
 - **Idempotent enqueue** — BullMQ jobs are deduplicated per delivery for the current live queue job, so fan-out and replay do not double-schedule that job (HTTP delivery is still at-least-once).
 - **Rate limited** — 100 outbound admissions per minute per tenant (see `RATE_LIMIT_PER_MINUTE`); exceeding it defers the delivery until the next UTC minute plus jitter, without counting toward the 5-attempt cap. The pause appears in worker logs; the delivery row is not marked `rate_limited`.
 - **Retry policy** — exponential backoff (1m → 2m → 4m → 8m) for network errors, timeouts, 408, 429, and 5xx; other 4xx fail fast.
-- **Replay** — `failed` deliveries can be re-queued (`POST /v1/deliveries/:id/replay` or the delivery detail page); open `pending`/`in_progress` deliveries may be re-enqueued for recovery without starting another run. Replay increments `replay_count` and preserves prior attempts under earlier `run_number` values.
+- **Replay** — `failed` deliveries start a new run (`POST /v1/deliveries/:id/replay` or the delivery detail page), which increments `replay_count` and keeps prior attempts under earlier `run_number` values. A `pending` replay returns `202` without resetting that run. An `in_progress` replay returns `400`; the sweeper recovers it. Disabled endpoints and succeeded deliveries are rejected.
 - **Timestamped + signed** — every POST carries `X-Webhook-Timestamp`; receivers should require `|now − timestamp| ≤ 300s`.
 
 ## Health checks
@@ -186,24 +186,28 @@ Needs API, worker, and a tenant API key (printed by `pnpm db:seed`, or create on
 
 ## Environment variables
 
-| Variable                 | Purpose                                    |
-| ------------------------ | ------------------------------------------ |
-| `DATABASE_URL`           | Postgres                                   |
-| `DB_POOL_MAX`            | Max PostgreSQL connections per process     |
-| `REDIS_URL`              | Redis / BullMQ                             |
-| `ADMIN_BOOTSTRAP_SECRET` | One-time super-admin bootstrap             |
-| `SESSION_SECRET`         | Session cookie signing (min 32 chars)      |
-| `SESSION_COOKIE_MAX_AGE` | Session cookie lifetime (ms)               |
-| `WEB_APP_URL`            | Invite link base URL                       |
-| `INVITE_TTL_MS`          | Invite link expiry (default 7 days)        |
-| `CORS_ORIGIN`            | Allowed browser origins                    |
-| `TRUST_PROXY`            | Proxy hops for `X-Forwarded-*` (default 0) |
-| `INGEST_RATE_LIMIT_PER_MINUTE` | Max `POST /v1/events` per tenant/minute (Bearer also uses the same limit per client IP before the key lookup) |
-| `AUTH_RATE_LIMIT_PER_MINUTE`   | Max login attempts per IP/minute               |
-| `LOG_LEVEL`                    | Log verbosity                                  |
-| `VITE_API_URL`                 | API base URL for the web app (build-time)      |
+| Variable                       | Purpose                                                                                                                                         |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                 | Postgres                                                                                                                                        |
+| `DB_POOL_MAX`                  | Max PostgreSQL connections per process                                                                                                          |
+| `REDIS_URL`                    | Redis / BullMQ                                                                                                                                  |
+| `ADMIN_BOOTSTRAP_SECRET`       | One-time super-admin bootstrap                                                                                                                  |
+| `SESSION_SECRET`               | Session cookie signing (min 32 chars)                                                                                                           |
+| `SESSION_COOKIE_MAX_AGE`       | Session cookie lifetime (ms)                                                                                                                    |
+| `WEB_APP_URL`                  | Invite link base URL                                                                                                                            |
+| `INVITE_TTL_MS`                | Invite link expiry (default 7 days)                                                                                                             |
+| `CORS_ORIGIN`                  | Allowed browser origins                                                                                                                         |
+| `TRUST_PROXY`                  | Proxy hops for `X-Forwarded-*`. Local development defaults to `0`. Production requires an explicit value and refuses startup when it is absent. |
+| `INGEST_RATE_LIMIT_PER_MINUTE` | Max `POST /v1/events` per tenant/minute (Bearer also uses the same limit per client IP before the key lookup)                                   |
+| `AUTH_RATE_LIMIT_PER_MINUTE`   | Auth attempts per IP/minute; login also limits normalized email                                                                                 |
+| `LOG_LEVEL`                    | Log verbosity                                                                                                                                   |
+| `VITE_API_URL`                 | API base URL for the web app (build-time)                                                                                                       |
 
 See `.env.example` for local worker tuning and [production tuning](deploy/README.md#tuning) for variables Compose passes through, their defaults, and how to apply changes.
+
+`TRUST_PROXY=1` means one trusted reverse-proxy hop, and the value must match the deployment. Use `0` only when the API itself terminates TLS.
+
+Login is throttled by both client IP and normalized email. Password-reset submissions share the same per-IP auth window, so exhausting that window can temporarily block a reset submission.
 
 ## Scripts
 

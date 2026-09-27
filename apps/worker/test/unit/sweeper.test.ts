@@ -269,15 +269,25 @@ describe('sweepOrphanDeliveries', () => {
   it('re-enqueues stuck in_progress deliveries missing from the queue', async () => {
     const seeded = await seedPendingDelivery()
     const db = getDb()
-    await db.update(deliveries).set({ status: 'in_progress' }).where(eq(deliveries.id, seeded.id))
+    const retryAt = new Date(Date.now() - 1_000)
+    await db
+      .update(deliveries)
+      .set({ status: 'in_progress', attemptCount: 3, nextRetryAt: retryAt })
+      .where(eq(deliveries.id, seeded.id))
 
     await sweepOrphanDeliveries(queue)
 
     const [row] = await db
-      .select({ status: deliveries.status })
+      .select({
+        status: deliveries.status,
+        attemptCount: deliveries.attemptCount,
+        nextRetryAt: deliveries.nextRetryAt,
+      })
       .from(deliveries)
       .where(eq(deliveries.id, seeded.id))
     expect(row?.status).toBe('pending')
+    expect(row?.attemptCount).toBe(3)
+    expect(row?.nextRetryAt?.getTime()).toBe(retryAt.getTime())
 
     const jobs = await queue.getJobs(['waiting', 'delayed', 'active'])
     expect(jobs.some((job) => job.data.deliveryId === seeded.id)).toBe(true)

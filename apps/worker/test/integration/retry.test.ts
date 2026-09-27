@@ -103,22 +103,37 @@ async function runProcessorUntilSettled(
   tenantId: string,
   maxRuns: number,
 ): Promise<void> {
+  const db = getDb()
+
   for (let run = 0; run < maxRuns; run += 1) {
+    const [current] = await db
+      .select({ status: deliveries.status, nextRetryAt: deliveries.nextRetryAt })
+      .from(deliveries)
+      .where(eq(deliveries.id, deliveryId))
+
+    if (current?.status === 'succeeded') return
+    if (current?.status === 'failed') {
+      throw new Error(`delivery ${deliveryId} failed before max runs`)
+    }
+    if (current?.nextRetryAt && current.nextRetryAt.getTime() > Date.now()) {
+      await db
+        .update(deliveries)
+        .set({ nextRetryAt: new Date(Date.now() - 1_000) })
+        .where(eq(deliveries.id, deliveryId))
+    }
+
     try {
       await processor(makeJob(deliveryId, tenantId))
-      return
     } catch {
-      const db = getDb()
-      const [delivery] = await db
-        .select({ status: deliveries.status })
-        .from(deliveries)
-        .where(eq(deliveries.id, deliveryId))
-
-      if (delivery?.status === 'failed') {
-        throw new Error(`delivery ${deliveryId} failed before max runs`)
-      }
+      // A retry throws DelayedError after the outcome is saved. The next loop marks it due.
     }
   }
+
+  const [delivery] = await db
+    .select({ status: deliveries.status })
+    .from(deliveries)
+    .where(eq(deliveries.id, deliveryId))
+  if (delivery?.status === 'succeeded') return
 
   throw new Error(`delivery ${deliveryId} did not settle within ${maxRuns} processor runs`)
 }
@@ -129,7 +144,13 @@ describe('retry integration', () => {
   let agent: ReturnType<typeof request.agent>
 
   beforeEach(async () => {
-    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+    for (const job of await queue.getJobs([
+      'waiting',
+      'delayed',
+      'completed',
+      'failed',
+      'paused',
+    ])) {
       await job.remove()
     }
     const tenant = await createTenantWithKey()
@@ -139,7 +160,13 @@ describe('retry integration', () => {
   })
 
   afterEach(async () => {
-    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+    for (const job of await queue.getJobs([
+      'waiting',
+      'delayed',
+      'completed',
+      'failed',
+      'paused',
+    ])) {
       await job.remove()
     }
     await deleteTenant(tenantId)
@@ -148,12 +175,10 @@ describe('retry integration', () => {
   it('succeeds after three 503 responses then 200 (#2)', async () => {
     const mock = await startFlakyMockServer(3, 503)
 
-    const endpointRes = await agent
-      .post('/v1/endpoints')
-      .send({
-        url: `http://127.0.0.1:${mock.port}/hook`,
-        description: 'retry test',
-      })
+    const endpointRes = await agent.post('/v1/endpoints').send({
+      url: `http://127.0.0.1:${mock.port}/hook`,
+      description: 'retry test',
+    })
 
     expect(endpointRes.status).toBe(201)
 
@@ -171,10 +196,7 @@ describe('retry integration', () => {
     const db = getDb()
     const eventId = ingestRes.body.id as string
 
-    const [delivery] = await db
-      .select()
-      .from(deliveries)
-      .where(eq(deliveries.eventId, eventId))
+    const [delivery] = await db.select().from(deliveries).where(eq(deliveries.eventId, eventId))
 
     await runProcessorUntilSettled(delivery.id, tenantId, 4)
 
@@ -204,12 +226,10 @@ describe('retry integration', () => {
   it('fails fast on 400 with a single attempt (#3)', async () => {
     const mock = await startFixedStatusMockServer(400)
 
-    const endpointRes = await agent
-      .post('/v1/endpoints')
-      .send({
-        url: `http://127.0.0.1:${mock.port}/hook`,
-        description: 'fail-fast test',
-      })
+    const endpointRes = await agent.post('/v1/endpoints').send({
+      url: `http://127.0.0.1:${mock.port}/hook`,
+      description: 'fail-fast test',
+    })
 
     expect(endpointRes.status).toBe(201)
 
@@ -227,10 +247,7 @@ describe('retry integration', () => {
     const db = getDb()
     const eventId = ingestRes.body.id as string
 
-    const [delivery] = await db
-      .select()
-      .from(deliveries)
-      .where(eq(deliveries.eventId, eventId))
+    const [delivery] = await db.select().from(deliveries).where(eq(deliveries.eventId, eventId))
 
     await processor(makeJob(delivery.id, tenantId))
 

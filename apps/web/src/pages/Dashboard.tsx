@@ -56,6 +56,7 @@ export function Dashboard() {
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [attention, setAttention] = useState<AttentionItem[]>([])
   const [onboarding, setOnboarding] = useState<OnboardingStep[] | null>(null)
+  const [onboardingError, setOnboardingError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isInitial, setIsInitial] = useState(true)
   const [isLive, setIsLive] = useState(false)
@@ -77,6 +78,7 @@ export function Dashboard() {
       ])
 
       let nextOnboarding: OnboardingStep[] | null = null
+      let nextOnboardingError: string | null = null
       if (!hasDashboardData(data)) {
         try {
           const activeEndpoints = await listEndpoints({ status: 'active', limit: 1 }, { signal })
@@ -87,11 +89,8 @@ export function Dashboard() {
           })
         } catch (err) {
           if (isAbortError(err)) throw err
-          nextOnboarding = buildOnboardingSteps({
-            hasEndpoint: false,
-            hasTestEvent: eventsResult.data.length > 0,
-            hasDeliveries: deliveriesResult.data.length > 0,
-          })
+          nextOnboardingError =
+            err instanceof ApiError ? err.message : 'Failed to check active endpoints'
         }
       }
 
@@ -122,6 +121,7 @@ export function Dashboard() {
 
       setStats(data)
       setOnboarding(nextOnboarding)
+      setOnboardingError(nextOnboardingError)
       setAttention(buildAttentionItems(data, disabled.data.length > 0))
       setActivity(merged)
       setLastUpdated(new Date().toISOString())
@@ -160,6 +160,14 @@ export function Dashboard() {
     >
       {error ? (
         <PageBanner variant="error" title="Could not load stats" description={error} />
+      ) : null}
+
+      {onboardingError ? (
+        <PageBanner
+          variant="error"
+          title="Could not check endpoints"
+          description={onboardingError}
+        />
       ) : null}
 
       {isInitial && !stats ? (

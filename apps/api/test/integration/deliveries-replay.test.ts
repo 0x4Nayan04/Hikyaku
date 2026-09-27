@@ -1,6 +1,6 @@
 import request from 'supertest'
 import { eq } from 'drizzle-orm'
-import { deliveries, deliveryAttempts, events } from '@webhook/shared/schema'
+import { deliveries, deliveryAttempts, endpoints, events } from '@webhook/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
@@ -103,20 +103,132 @@ describe('POST /v1/deliveries/:id/replay', () => {
     expect(event.status).toBe('pending')
   })
 
-  it('returns the current state when a replay is already in flight', async () => {
+  it('re-enqueues a pending delivery without resetting its run', async () => {
+    const retryAt = new Date(Date.now() + 120_000)
+    await getDb()
+      .update(deliveries)
+      .set({
+        status: 'pending',
+        attemptCount: 2,
+        replayCount: 1,
+        nextRetryAt: retryAt,
+        lastError: 'http_503',
+      })
+      .where(eq(deliveries.id, deliveryId))
+
     const res = await agent.post(`/v1/deliveries/${deliveryId}/replay`)
 
     expect(res.status).toBe(202)
     expect(res.body).toEqual({ id: deliveryId, status: 'pending' })
 
-    await getDb()
-      .update(deliveries)
-      .set({ status: 'in_progress' })
+    const [delivery] = await getDb()
+      .select({
+        status: deliveries.status,
+        attemptCount: deliveries.attemptCount,
+        replayCount: deliveries.replayCount,
+        nextRetryAt: deliveries.nextRetryAt,
+        lastError: deliveries.lastError,
+      })
+      .from(deliveries)
       .where(eq(deliveries.id, deliveryId))
 
-    const inProgress = await agent.post(`/v1/deliveries/${deliveryId}/replay`)
-    expect(inProgress.status).toBe(202)
-    expect(inProgress.body).toEqual({ id: deliveryId, status: 'in_progress' })
+    expect(delivery).toMatchObject({
+      status: 'pending',
+      attemptCount: 2,
+      replayCount: 1,
+      lastError: 'http_503',
+    })
+    expect(delivery?.nextRetryAt?.getTime()).toBe(retryAt.getTime())
+  })
+
+  it('rejects an in-progress replay without mutating the delivery or enqueueing a job', async () => {
+    const retryAt = new Date(Date.now() + 120_000)
+    await getDb()
+      .update(deliveries)
+      .set({
+        status: 'in_progress',
+        attemptCount: 2,
+        replayCount: 1,
+        nextRetryAt: retryAt,
+        lastError: 'http_503',
+      })
+      .where(eq(deliveries.id, deliveryId))
+
+    for (const job of await queue.getJobs(['waiting', 'delayed', 'active', 'paused'])) {
+      if (job.data.deliveryId === deliveryId) await job.remove()
+    }
+
+    const res = await agent.post(`/v1/deliveries/${deliveryId}/replay`)
+
+    expect(res.status).toBe(400)
+    expect(res.body.error.code).toBe('invalid_state')
+    expect(res.body.error.message).toContain('sweeper')
+
+    const [delivery] = await getDb()
+      .select({
+        status: deliveries.status,
+        attemptCount: deliveries.attemptCount,
+        replayCount: deliveries.replayCount,
+        nextRetryAt: deliveries.nextRetryAt,
+        lastError: deliveries.lastError,
+      })
+      .from(deliveries)
+      .where(eq(deliveries.id, deliveryId))
+
+    expect(delivery).toMatchObject({
+      status: 'in_progress',
+      attemptCount: 2,
+      replayCount: 1,
+      lastError: 'http_503',
+    })
+    expect(delivery?.nextRetryAt?.getTime()).toBe(retryAt.getTime())
+
+    const jobs = await queue.getJobs(['waiting', 'delayed', 'active', 'paused'])
+    expect(jobs.some((job) => job.data.deliveryId === deliveryId)).toBe(false)
+  })
+
+  it('rejects replay of a succeeded delivery', async () => {
+    const seeded = await seedDeliveryRow({
+      tenantId,
+      idempotencyKey: 'replay-succeeded',
+      deliveryStatus: 'succeeded',
+      eventStatus: 'completed',
+    })
+
+    const res = await agent.post(`/v1/deliveries/${seeded.deliveryId}/replay`)
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatchObject({
+      code: 'invalid_state',
+      message: 'Only failed deliveries can be replayed',
+    })
+  })
+
+  it('rejects replay when the endpoint is disabled', async () => {
+    const seeded = await seedDeliveryRow({
+      tenantId,
+      idempotencyKey: 'replay-disabled',
+      deliveryStatus: 'pending',
+      attemptCount: 1,
+    })
+    await getDb()
+      .update(endpoints)
+      .set({ status: 'disabled' })
+      .where(eq(endpoints.id, seeded.endpointId))
+
+    const res = await agent.post(`/v1/deliveries/${seeded.deliveryId}/replay`)
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatchObject({
+      code: 'invalid_state',
+      message: 'Endpoint is disabled',
+    })
+
+    const [delivery] = await getDb()
+      .select({ status: deliveries.status, attemptCount: deliveries.attemptCount })
+      .from(deliveries)
+      .where(eq(deliveries.id, seeded.deliveryId))
+    expect(delivery).toMatchObject({ status: 'pending', attemptCount: 1 })
   })
 
   it('returns 404 for cross-tenant replay', async () => {

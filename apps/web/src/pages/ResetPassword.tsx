@@ -6,9 +6,9 @@ import { ApiError, submitPasswordReset, validatePasswordReset } from '@/api/clie
 import type { ValidatePasswordResetResponse } from '@/api/types'
 import { AuthFooterLink } from '@/components/auth/AuthFooterLink'
 import { AuthFormField } from '@/components/auth/AuthFormField'
+import { SignedInLinkPrompt } from '@/components/auth/SignedInLinkPrompt'
 import { PageBanner } from '@/components/console/PageBanner'
 import { AuthLayout } from '@/layouts/AuthLayout'
-import { getDefaultHomePath } from '@/lib/auth-redirect'
 import { useSession } from '@/providers/session-context'
 
 function resolveResetLoadError(err: unknown): string {
@@ -41,16 +41,19 @@ export default function ResetPassword() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    if (!sessionLoading && session) {
-      navigate(getDefaultHomePath(session.user), { replace: true })
-    }
-  }, [sessionLoading, session, navigate])
+    setReset(null)
+    setPassword('')
+    setConfirmPassword('')
+    setSubmitError(null)
 
-  useEffect(() => {
-    if (!token || session) {
+    if (!token) {
+      setLoading(false)
+      setLoadError('This reset link is missing a token.')
       return
     }
 
+    setLoading(true)
+    setLoadError(null)
     let cancelled = false
 
     validatePasswordReset(token)
@@ -71,7 +74,7 @@ export default function ResetPassword() {
     return () => {
       cancelled = true
     }
-  }, [token, session])
+  }, [token])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -103,9 +106,15 @@ export default function ResetPassword() {
   return (
     <AuthLayout
       eyebrow="Password"
-      title={loading ? 'Checking reset link…' : loadError ? 'Reset link unavailable' : 'Set a new password'}
+      title={
+        loading || sessionLoading
+          ? 'Checking reset link…'
+          : loadError
+            ? 'Reset link unavailable'
+            : 'Set a new password'
+      }
       description={
-        loading
+        loading || sessionLoading
           ? 'Verifying your reset link.'
           : loadError
             ? 'This link cannot be used. Ask Admin for a new reset link, or sign in if you already have a password.'
@@ -120,15 +129,21 @@ export default function ResetPassword() {
             <AuthFooterLink prompt="Already know your password?" linkLabel="Sign in" to="/login" />
           </div>
         </div>
-      ) : loading ? (
+      ) : loading || sessionLoading ? (
         <div className="app-panel border border-border bg-surface p-6">
           <p className="text-sm text-muted-foreground">Loading reset details…</p>
         </div>
+      ) : reset && session ? (
+        <SignedInLinkPrompt currentEmail={session.user.email} targetEmail={reset.email} />
       ) : reset ? (
         <div className="app-panel border border-border bg-surface p-6">
           <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
             {submitError ? (
-              <PageBanner variant="error" title="Could not reset password" description={submitError} />
+              <PageBanner
+                variant="error"
+                title="Could not reset password"
+                description={submitError}
+              />
             ) : null}
 
             <AuthFormField
@@ -179,7 +194,7 @@ export default function ResetPassword() {
         </div>
       ) : null}
 
-      {!loadError ? (
+      {!loadError && !sessionLoading && !session ? (
         <div className="mt-6">
           <AuthFooterLink prompt="Remember your password?" linkLabel="Sign in" to="/login" />
         </div>
