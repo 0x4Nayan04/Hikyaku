@@ -3,7 +3,9 @@
 Requires Docker Engine with Compose v2 and **Node.js 22+** for `node deploy/setup.mjs` (the one-time configuration command). Local app development stays on **Node.js 20** (see repo `.nvmrc` / root README).
 The existing `docker-compose.yml` and `pnpm dev` remain the development workflow.
 
-**Production hosting:** one VPS running this Compose stack (API + worker + Postgres + Redis + Caddy-served web). That keeps cookies same-site and TLS on one host. Do not split the web app onto a separate static host (for example Vercel) — same-site cookies and TLS on one origin are the supported path.
+**Production hosting:** one VPS running this Compose stack (API + worker + Postgres + Redis + Caddy-served web). That keeps cookies on one host.
+
+**Split hosting:** the web app can run on Vercel and the API plus worker on Railway. `vercel.json` proxies browser `/v1` calls to Railway so the session cookie stays on the Vercel origin. On Vercel set `API_UPSTREAM_URL` to the public Railway API origin, `PROXY_IP_SECRET` (at least 16 characters), and `ENABLE_EXPERIMENTAL_COREPACK=1` so the build uses the `packageManager` pnpm version. Leave `VITE_API_URL` unset on Vercel. Vercel preview URLs are separate origins; add them to `CORS_ORIGIN` if previews need signed-in writes. On the Railway API set that same `PROXY_IP_SECRET`, `CORS_ORIGIN` and `WEB_APP_URL` to the Vercel origin, and `TRUST_PROXY=1`. Set `VITE_PUBLIC_API_URL` to the Railway origin for the Vercel build so docs and curl samples show a public URL. Pre-deploy command: `node apps/api/dist/scripts/migrate.js`. Build and start from the repo root (`pnpm --filter @webhook/api... build`, `pnpm --filter @webhook/api start`, and the same for `@webhook/worker`). Do not set a root directory of `apps/api` or `apps/worker`. The worker gets no public domain and no healthcheck. Point the API healthcheck at `/v1/ready`.
 
 ## Start
 

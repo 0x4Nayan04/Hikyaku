@@ -1,0 +1,10 @@
+{
+  "framework": null,
+  "installCommand": "pnpm install --frozen-lockfile --filter \"@webhook/web...\"",
+  "buildCommand": "pnpm --filter \"@webhook/web...\" build",
+  "outputDirectory": "apps/web/dist",
+  "rewrites": [
+    { "source": "/v1/:path*", "destination": "/api/proxy?__hikyaku_path=:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

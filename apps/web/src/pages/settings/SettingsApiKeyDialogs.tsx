@@ -13,7 +13,7 @@ import {
 import { SecretOnceConfirm } from '@/components/ui/secret-once-confirm'
 import { SecretReveal } from '@/components/ui/secret-reveal'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { API_BASE } from '@/api/client'
+import { PUBLIC_API_BASE } from '@/api/client'
 import { copyToClipboard } from '@/lib/clipboard'
 import { buildIngestCurl } from '@/lib/tenant-onboarding'
 
@@ -34,7 +34,7 @@ export function SettingsApiKeyDialogs({
   onRevokeTargetChange,
   onRevoke,
 }: SettingsApiKeyDialogsProps) {
-  const ingestCurl = secretKey ? buildIngestCurl(secretKey.api_key, API_BASE) : null
+  const ingestCurl = secretKey ? buildIngestCurl(secretKey.api_key, PUBLIC_API_BASE) : null
   const [secretSaved, setSecretSaved] = useState(false)
 
   useEffect(() => {

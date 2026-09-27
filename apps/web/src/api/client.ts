@@ -37,7 +37,16 @@ import type {
 } from './types'
 import { getLoginPath } from '@/lib/auth-redirect'
 
-export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+const configuredApiUrl = import.meta.env.VITE_API_URL
+export const API_BASE =
+  configuredApiUrl !== undefined
+    ? configuredApiUrl
+    : import.meta.env.DEV
+      ? 'http://localhost:3000'
+      : ''
+
+/** Absolute API origin for curl samples and docs. The browser uses API_BASE, which stays same-origin on Vercel. */
+export const PUBLIC_API_BASE = import.meta.env.VITE_PUBLIC_API_URL || API_BASE
 
 export class ApiError extends Error {
   readonly status: number
@@ -317,5 +326,8 @@ export function submitPasswordReset(body: PasswordResetInput): Promise<void> {
 }
 
 export function createMyWorkspace(workspaceName: string): Promise<{ id: string; name: string }> {
-  return apiFetch('/v1/auth/workspace', { method: 'POST', body: JSON.stringify({ workspace_name: workspaceName }) })
+  return apiFetch('/v1/auth/workspace', {
+    method: 'POST',
+    body: JSON.stringify({ workspace_name: workspaceName }),
+  })
 }

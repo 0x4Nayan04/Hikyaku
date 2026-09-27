@@ -1,7 +1,10 @@
+import { timingSafeEqual } from 'node:crypto'
+import { isIP } from 'node:net'
 import type { NextFunction, Request, Response } from 'express'
 import { env } from '../config.js'
 import { AppError } from './errors.js'
 import { asyncHandler } from './asyncHandler.js'
+import { PROXY_CLIENT_IP_HEADER, PROXY_SECRET_HEADER } from './proxyUpstream.js'
 import { takeFixedWindowTokens } from './rateLimit.js'
 
 function readAuthEmail(req: Request): string | undefined {
@@ -15,9 +18,25 @@ function readAuthEmail(req: Request): string | undefined {
     : undefined
 }
 
-/** Client IP for auth throttling. Honors X-Forwarded-For only when TRUST_PROXY > 0. */
+function proxyClientIp(req: Request): string | undefined {
+  const secret = env.PROXY_IP_SECRET
+  if (!secret) return undefined
+
+  const provided = req.header(PROXY_SECRET_HEADER)
+  const ip = req.header(PROXY_CLIENT_IP_HEADER)
+  if (!provided || !ip || isIP(ip) === 0) return undefined
+
+  const providedBytes = Buffer.from(provided)
+  const secretBytes = Buffer.from(secret)
+  if (providedBytes.length !== secretBytes.length || !timingSafeEqual(providedBytes, secretBytes)) {
+    return undefined
+  }
+  return ip
+}
+
+/** Client IP for auth throttling. The Vercel proxy may supply the browser IP with a shared secret. */
 export function readAuthRateLimitIp(req: Request): string {
-  return req.ip || req.socket.remoteAddress || 'unknown'
+  return proxyClientIp(req) || req.ip || req.socket.remoteAddress || 'unknown'
 }
 
 export const authRateLimit = asyncHandler(
