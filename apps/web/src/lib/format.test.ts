@@ -1,8 +1,28 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatDeliveryAttempts,
   formatEndpointUrlDistinctive,
   formatEndpointUrlForDisplay,
 } from './format'
+
+describe('formatDeliveryAttempts', () => {
+  it('pluralizes the current run', () => {
+    expect(formatDeliveryAttempts({ attemptCount: 1, replayCount: 0 })).toBe('1 attempt')
+    expect(formatDeliveryAttempts({ attemptCount: 2, replayCount: 0 })).toBe('2 attempts')
+  })
+
+  it('marks replays on the list and dashboard', () => {
+    expect(formatDeliveryAttempts({ attemptCount: 1, replayCount: 1 })).toBe(
+      '1 attempt · replayed 1x',
+    )
+  })
+
+  it('adds the all-runs total on the detail page', () => {
+    expect(
+      formatDeliveryAttempts({ attemptCount: 1, replayCount: 1, totalAttempts: 2 }),
+    ).toBe('1 attempt this run · 2 total')
+  })
+})
 
 describe('formatEndpointUrlDistinctive', () => {
   it('keeps short URLs intact', () => {

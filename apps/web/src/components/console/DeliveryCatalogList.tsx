@@ -11,6 +11,7 @@ import {
 import { StatusBadge } from '@/components/console/StatusBadge'
 import {
   formatDateTime,
+  formatDeliveryAttempts,
   formatDeliveryError,
   formatEndpointUrlDistinctive,
   shortId,
@@ -18,10 +19,6 @@ import {
 
 type DeliveryCatalogListProps = {
   deliveries: Delivery[]
-}
-
-function formatAttempts(count: number): string {
-  return `${count} attempt${count !== 1 ? 's' : ''}`
 }
 
 export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
@@ -82,7 +79,10 @@ export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
               <StatusBadge kind="delivery" status={delivery.status} />
             </DataTableCell>
             <DataTableCell className="hidden text-sm text-muted-strong sm:table-cell">
-              {formatAttempts(delivery.attempt_count)}
+              {formatDeliveryAttempts({
+                attemptCount: delivery.attempt_count,
+                replayCount: delivery.replay_count,
+              })}
             </DataTableCell>
             <DataTableCell className="whitespace-nowrap text-sm text-muted-strong">
               <time dateTime={delivery.updated_at}>{formatDateTime(delivery.updated_at)}</time>

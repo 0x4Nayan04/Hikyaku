@@ -14,12 +14,29 @@ describe('docs search', () => {
     expect(index.some((entry) => /console path/i.test(entry.label))).toBe(true)
   })
 
-  it('filters by label or id', () => {
+  it('filters by label, id, or section body', () => {
     const results = filterDocsSearch(index, 'sign')
     expect(results.length).toBeGreaterThan(0)
-    expect(results.every((entry) => /sign/i.test(entry.label) || entry.id.includes('sign'))).toBe(
-      true,
-    )
+    expect(
+      results.every(
+        (entry) =>
+          /sign/i.test(entry.label) ||
+          entry.id.includes('sign') ||
+          entry.text.toLowerCase().includes('sign'),
+      ),
+    ).toBe(true)
+  })
+
+  it('matches replay in the Console guide and Retries bodies', () => {
+    const results = filterDocsSearch(index, 'replay')
+    const ids = results.map((entry) => entry.id)
+    expect(ids).toContain('console-guide')
+    expect(ids).toContain('retries')
+  })
+
+  it('matches snake_case field names in section bodies', () => {
+    const ids = filterDocsSearch(index, 'replay_count').map((entry) => entry.id)
+    expect(ids).toContain('retries')
   })
 
   it('returns TOC-only rows when the query is empty', () => {

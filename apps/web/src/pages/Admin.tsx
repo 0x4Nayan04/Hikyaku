@@ -73,25 +73,47 @@ export default function Admin() {
       }
     >
       {!session?.tenant && (
-        <form className="mb-6 flex flex-col gap-3" onSubmit={async (event) => {
-          event.preventDefault()
-          setCreatingWorkspace(true)
-          setWorkspaceError(null)
-          try {
-            await createMyWorkspace(workspaceName)
-            await refresh()
-            navigate('/dashboard')
-          } catch (err) {
-            setWorkspaceError(err instanceof ApiError ? err.message : 'Could not create workspace. Try again.')
-          } finally {
-            setCreatingWorkspace(false)
-          }
-        }}>
-          <h2 className="text-lg font-semibold">Send your first webhook</h2>
+        <form
+          className="mb-6 flex flex-col gap-3"
+          onSubmit={async (event) => {
+            event.preventDefault()
+            setCreatingWorkspace(true)
+            setWorkspaceError(null)
+            try {
+              await createMyWorkspace(workspaceName)
+              await refresh()
+              navigate('/dashboard')
+            } catch (err) {
+              setWorkspaceError(
+                err instanceof ApiError ? err.message : 'Could not create workspace. Try again.',
+              )
+            } finally {
+              setCreatingWorkspace(false)
+            }
+          }}
+        >
+          <h2 className="text-lg font-semibold">Create your workspace</h2>
+          <p className="text-sm text-muted-strong">
+            A super-admin needs a workspace before sending events.
+          </p>
           <label htmlFor="workspace-name">Workspace name</label>
-          <Input id="workspace-name" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} maxLength={200} required />
-          {workspaceError && <PageBanner variant="error" title="Workspace setup failed" description={workspaceError} />}
-          <Button type="submit" disabled={creatingWorkspace}>{creatingWorkspace ? 'Creating…' : 'Create my workspace'}</Button>
+          <Input
+            id="workspace-name"
+            value={workspaceName}
+            onChange={(event) => setWorkspaceName(event.target.value)}
+            maxLength={200}
+            required
+          />
+          {workspaceError && (
+            <PageBanner
+              variant="error"
+              title="Workspace setup failed"
+              description={workspaceError}
+            />
+          )}
+          <Button type="submit" disabled={creatingWorkspace}>
+            {creatingWorkspace ? 'Creating…' : 'Create my workspace'}
+          </Button>
         </form>
       )}
       {error ? (

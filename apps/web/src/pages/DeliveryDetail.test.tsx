@@ -101,16 +101,17 @@ describe('DeliveryDetail', () => {
     expect(container.textContent).not.toContain('Loading delivery…')
   })
 
-  it('counts every recorded attempt after a replay', async () => {
+  it('labels the current run and the total after a replay', async () => {
     vi.mocked(getDelivery).mockResolvedValue(replayedDelivery)
     await renderDelivery(replayedDelivery.id)
 
-    expect(container.textContent?.match(/3 attempts/g)?.length).toBe(2)
-    expect(container.textContent).not.toContain('1 attempt')
+    const label = '1 attempt this run · 3 total'
+    expect(container.textContent?.split(label).length).toBe(3)
+    expect(container.textContent).not.toContain('3 attempts')
     expect(replayButton()).not.toBeNull()
   })
 
-  it('hides replay when the endpoint is disabled', async () => {
+  it('explains that replay is unavailable when the endpoint is disabled', async () => {
     vi.mocked(getDelivery).mockResolvedValue({
       ...replayedDelivery,
       endpoint_status: 'disabled',
@@ -119,6 +120,10 @@ describe('DeliveryDetail', () => {
     await renderDelivery(replayedDelivery.id)
 
     expect(replayButton()).toBeNull()
+    expect(container.textContent).toContain(
+      'Replay is unavailable because the endpoint is disabled.',
+    )
+    expect(container.querySelector('a[href="/endpoints?status=disabled"]')).not.toBeNull()
   })
 })
 

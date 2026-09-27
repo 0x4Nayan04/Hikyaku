@@ -7,6 +7,32 @@ export function formatStatusLabel(value: string): string {
   return value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
+function formatAttemptNoun(count: number): string {
+  return `${count} attempt${count === 1 ? '' : 's'}`
+}
+
+/**
+ * List and dashboard pass the current run only.
+ * Detail also passes `totalAttempts` (every recorded attempt row).
+ */
+export function formatDeliveryAttempts(input: {
+  attemptCount: number
+  replayCount: number
+  totalAttempts?: number
+}): string {
+  const current = formatAttemptNoun(input.attemptCount)
+
+  if (input.totalAttempts !== undefined) {
+    return `${current} this run · ${input.totalAttempts} total`
+  }
+
+  if (input.replayCount > 0) {
+    return `${current} · replayed ${input.replayCount}x`
+  }
+
+  return current
+}
+
 export function formatPercent(rate: number | null, emptyLabel = '—'): string {
   if (rate === null) {
     return emptyLabel
