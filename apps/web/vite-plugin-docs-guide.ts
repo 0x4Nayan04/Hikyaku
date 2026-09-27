@@ -1,11 +1,5 @@
 import { readFileSync } from 'node:fs'
-import {
-  Children,
-  createElement,
-  isValidElement,
-  type ComponentProps,
-  type ReactNode,
-} from 'react'
+import { Children, createElement, isValidElement, type ComponentProps, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -26,6 +20,10 @@ hljs.registerLanguage('json', json)
 hljs.registerLanguage('python', python)
 
 const APP_NAME = 'Hikyaku'
+
+function firstNonEmpty(...values: Array<string | undefined>): string | undefined {
+  return values.find((value) => value !== undefined && value.length > 0)
+}
 
 export type DocsSearchEntry = {
   id: string
@@ -132,17 +130,19 @@ function slugify(text: string): string {
 }
 
 function plainText(markdown: string): string {
-  return markdown
-    .replace(/```[\w-]*/g, ' ')
-    .replace(/`([^`]*)`/g, '$1')
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-    // Keep "_" so snake_case names such as replay_count stay searchable.
-    .replace(/[*~]/g, '')
-    .replace(/[>#|]/g, ' ')
-    .replace(/^\s*[-+]\s+/gm, '')
-    .replace(/^\s*\d+\.\s+/gm, '')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return (
+    markdown
+      .replace(/```[\w-]*/g, ' ')
+      .replace(/`([^`]*)`/g, '$1')
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      // Keep "_" so snake_case names such as replay_count stay searchable.
+      .replace(/[*~]/g, '')
+      .replace(/[>#|]/g, ' ')
+      .replace(/^\s*[-+]\s+/gm, '')
+      .replace(/^\s*\d+\.\s+/gm, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  )
 }
 
 function buildSearchIndex(source: string): DocsSearchEntry[] {
@@ -204,7 +204,9 @@ export function compileDocsGuide(): Plugin {
     enforce: 'pre',
     configResolved(config) {
       const env = loadEnv(config.mode, config.envDir ?? config.root, '')
-      apiBase = env.VITE_API_URL ?? apiBase
+      const publicUrl = firstNonEmpty(process.env.VITE_PUBLIC_API_URL, env.VITE_PUBLIC_API_URL)
+      const browserUrl = firstNonEmpty(process.env.VITE_API_URL, env.VITE_API_URL)
+      apiBase = publicUrl ?? browserUrl ?? apiBase
     },
     load(id) {
       const { filename, query } = parseId(id)

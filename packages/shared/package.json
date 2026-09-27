@@ -59,6 +59,10 @@
     "./testEnv": {
       "types": "./dist/testEnv.d.ts",
       "default": "./dist/testEnv.js"
+    },
+    "./redis": {
+      "types": "./dist/redis.d.ts",
+      "default": "./dist/redis.js"
     }
   },
   "scripts": {

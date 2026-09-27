@@ -1,5 +1,6 @@
 import { Redis } from 'ioredis'
 import type { ConnectionOptions } from 'bullmq'
+import { redisConnectionOptions } from '@webhook/shared/redis'
 import { env } from '../config.js'
 import { logger } from './logger.js'
 
@@ -8,7 +9,7 @@ let redis: Redis | undefined
 /** One ioredis client for sweeper lock + tenant rate-limit. BullMQ gets URL options, same as the API. */
 export function getRedis(): Redis {
   if (!redis) {
-    redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null })
+    redis = new Redis(redisConnectionOptions(env.REDIS_URL, null))
     redis.on('error', (err) => {
       logger.error({ err }, 'redis_error')
     })
@@ -17,10 +18,7 @@ export function getRedis(): Redis {
 }
 
 export function getRedisConnectionOptions(): ConnectionOptions {
-  return {
-    url: env.REDIS_URL,
-    maxRetriesPerRequest: null,
-  }
+  return redisConnectionOptions(env.REDIS_URL, null)
 }
 
 export async function closeRedis(): Promise<void> {
