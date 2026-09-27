@@ -1,7 +1,7 @@
 import { MAX_INGEST_BODY_BYTES } from '@webhook/shared/constants'
 import { describe, expect, it } from 'vitest'
 import { AppError } from '../../../../src/lib/errors.js'
-import { parseEventId, parseIngestBody } from '../../../../src/routes/events/validation.js'
+import { parseEventId, parseIngestBody, parseListQuery } from '../../../../src/routes/events/validation.js'
 
 function expectValidationError(fn: () => unknown, message?: string) {
   expect(fn).toThrow(AppError)
@@ -101,6 +101,18 @@ describe('parseIngestBody', () => {
         }),
       'Request body must be 256 KiB or less',
     )
+  })
+})
+
+describe('parseListQuery', () => {
+  it('accepts an event status filter', () => {
+    expect(parseListQuery({ status: 'failed' })).toEqual({ status: 'failed' })
+    expect(parseListQuery({ status: ['no_recipients'] })).toEqual({ status: 'no_recipients' })
+    expect(parseListQuery({})).toEqual({})
+  })
+
+  it('rejects an invalid event status filter', () => {
+    expectValidationError(() => parseListQuery({ status: 'paused' }), 'Invalid status filter')
   })
 })
 

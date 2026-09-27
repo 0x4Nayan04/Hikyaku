@@ -24,6 +24,7 @@ import type {
   ListApiKeysParams,
   ListDeliveriesParams,
   ListEndpointsParams,
+  ListEventsParams,
   Paginated,
   PaginationParams,
   ReplayDeliveryResponse,
@@ -181,7 +182,7 @@ export function rotateEndpointSecret(id: string): Promise<EndpointWithSecret> {
 }
 
 export function listEvents(
-  params: PaginationParams = {},
+  params: ListEventsParams = {},
   options?: ApiFetchOptions,
 ): Promise<Paginated<EventSummary>> {
   return apiFetch(`/v1/events${buildQuery(params)}`, options)

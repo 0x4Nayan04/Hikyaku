@@ -51,6 +51,7 @@ export type DeliveryAttemptJson = {
 }
 
 export type DeliveryDetailJson = DeliveryListJson & {
+  endpoint_status: EndpointStatus
   attempts: DeliveryAttemptJson[]
 }
 

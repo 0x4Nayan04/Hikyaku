@@ -150,7 +150,7 @@ export default function DeliveryDetail() {
               Back to deliveries
             </Link>
           </Button>
-          {delivery?.status === 'failed' ? (
+          {delivery?.status === 'failed' && delivery.endpoint_status === 'active' ? (
             <Button size="sm" className="sm-btn-split" onClick={() => setReplayOpen(true)}>
               <span className="sm-btn-split-label">Replay</span>
               <span className="sm-btn-split-icon">

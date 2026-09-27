@@ -16,7 +16,7 @@ import {
   toEventListJson,
   toIngestEventJson,
 } from './serialize.js'
-import { parseEventId, parseIngestBody } from './validation.js'
+import { parseEventId, parseIngestBody, parseListQuery } from './validation.js'
 
 /** Open deliveries for an event — used so idempotent ingest retries re-enqueue orphans. */
 async function listOpenDeliveryIds(eventId: string, tenantId: string): Promise<string[]> {
@@ -112,9 +112,14 @@ export const ingestEvent = asyncHandler(async (req: Request, res: Response) => {
 
 export const listEvents = asyncHandler(async (req: Request, res: Response) => {
   const { limit, offset } = parsePagination(req.query)
+  const { status } = parseListQuery(req.query)
   const tenantId = getTenantId(req)
   const db = getDb()
-  const where = eq(events.tenantId, tenantId)
+  const conditions = [eq(events.tenantId, tenantId)]
+  if (status !== undefined) {
+    conditions.push(eq(events.status, status))
+  }
+  const where = and(...conditions)
 
   const rows = await db
     .select(eventListColumns)

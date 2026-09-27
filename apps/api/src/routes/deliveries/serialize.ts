@@ -3,13 +3,14 @@ import type {
   DeliveryDetailJson,
   DeliveryListJson,
 } from '@webhook/shared/apiJson'
-import type { DeliveryStatus } from '@webhook/shared/constants'
+import type { DeliveryStatus, EndpointStatus } from '@webhook/shared/constants'
 
 type DeliveryRow = {
   id: string
   eventId: string
   endpointId: string
   endpointUrl: string
+  endpointStatus: EndpointStatus
   status: DeliveryStatus
   replayCount: number
   attemptCount: number
@@ -60,6 +61,7 @@ function toAttemptJson(row: AttemptRow): DeliveryAttemptJson {
 export function toDeliveryDetailJson(row: DeliveryRow, attempts: AttemptRow[]): DeliveryDetailJson {
   return {
     ...toDeliveryListJson(row),
+    endpoint_status: row.endpointStatus,
     attempts: attempts.map((attempt) => toAttemptJson(attempt)),
   }
 }

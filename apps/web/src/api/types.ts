@@ -45,6 +45,10 @@ export type ListEndpointsParams = PaginationParams & {
   status?: EndpointStatus
 }
 
+export type ListEventsParams = PaginationParams & {
+  status?: EventStatus
+}
+
 export type Paginated<T> = {
   data: T[]
   has_more: boolean

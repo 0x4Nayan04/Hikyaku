@@ -18,6 +18,7 @@ const deliverySelect = {
   eventId: deliveries.eventId,
   endpointId: deliveries.endpointId,
   endpointUrl: endpoints.url,
+  endpointStatus: endpoints.status,
   status: deliveries.status,
   attemptCount: deliveries.attemptCount,
   replayCount: deliveries.replayCount,
@@ -110,13 +111,28 @@ export const replayDelivery = asyncHandler(async (req: Request, res: Response) =
   const [existing] = await db
     .select({
       status: deliveries.status,
+      endpointStatus: endpoints.status,
     })
     .from(deliveries)
+    .innerJoin(endpoints, eq(deliveries.endpointId, endpoints.id))
     .where(and(eq(deliveries.id, id), eq(deliveries.tenantId, tenantId)))
     .limit(1)
 
   if (!existing) {
     throw new AppError(404, 'not_found', 'Delivery not found')
+  }
+
+  const canReplay =
+    existing.status === 'failed' ||
+    existing.status === 'pending' ||
+    existing.status === 'in_progress'
+
+  if (!canReplay) {
+    throw new AppError(400, 'invalid_state', 'Only failed deliveries can be replayed')
+  }
+
+  if (existing.endpointStatus === 'disabled') {
+    throw new AppError(400, 'invalid_state', 'Endpoint is disabled')
   }
 
   if (existing.status === 'failed') {
@@ -147,8 +163,6 @@ export const replayDelivery = asyncHandler(async (req: Request, res: Response) =
       await reevaluateEventStatus(updated.eventId, tx)
       await tx.insert(deliveryOutbox).values({ deliveryId: id, tenantId }).onConflictDoNothing()
     })
-  } else if (existing.status !== 'pending' && existing.status !== 'in_progress') {
-    throw new AppError(400, 'invalid_state', 'Only failed deliveries can be replayed')
   }
 
   await enqueueOr503(

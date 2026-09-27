@@ -34,6 +34,21 @@ function parseStatusParam(value: string | null): 'all' | EndpointStatus {
   return 'all'
 }
 
+function emptyEndpointsTitle(statusFilter: 'all' | EndpointStatus): string {
+  switch (statusFilter) {
+    case 'active':
+      return 'No active endpoints'
+    case 'disabled':
+      return 'No disabled endpoints'
+    case 'all':
+      return 'No endpoints yet'
+    default: {
+      const exhaustive: never = statusFilter
+      return exhaustive
+    }
+  }
+}
+
 export default function Endpoints() {
   const [searchParams, setSearchParams] = useSearchParams()
   const statusFilter = parseStatusParam(searchParams.get('status'))
@@ -167,7 +182,7 @@ export default function Endpoints() {
           ) : showEmpty ? (
             <DataPanelEmpty
               icon={Globe}
-              title={statusFilter === 'disabled' ? 'No disabled endpoints' : 'No endpoints yet'}
+              title={emptyEndpointsTitle(statusFilter)}
               description={
                 statusFilter !== 'all' ? (
                   'Try another status filter.'
