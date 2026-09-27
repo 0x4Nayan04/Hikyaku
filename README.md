@@ -10,38 +10,44 @@ Self-hosted, multi-tenant webhook delivery. Ingest an event once; the API fans i
 
 **Stack:** Node.js, Express, BullMQ, Postgres, Redis, Vite/React.
 
-**Repo:** [github.com/0x4Nayan04/Hikyaku](https://github.com/0x4Nayan04/Hikyaku) · **License:** [MIT](./LICENSE)
+**Live:** [hikyaku.nayanswarnkar.com](https://hikyaku.nayanswarnkar.com) · **Docs:** [hikyaku.nayanswarnkar.com/docs](https://hikyaku.nayanswarnkar.com/docs) · **Repo:** [github.com/0x4Nayan04/Hikyaku](https://github.com/0x4Nayan04/Hikyaku) · **License:** [MIT](./LICENSE)
 
-**Product docs (after `pnpm dev`):** http://localhost:5173/docs
+## What is included
 
-## Demo
+- **Idempotent ingest and fan-out** — accept an event once, create only missing deliveries for active endpoints, and reject reuse of an idempotency key with a different payload.
+- **Durable delivery** — a transactional outbox covers the Postgres-to-Redis handoff; database leases, application-owned retries, and a recovery sweeper handle interrupted work.
+- **Operator console** — dashboard metrics, endpoint and API-key management, event and delivery filters, attempt timelines, and replay with history preserved across runs.
+- **Multi-tenant administration** — tenant-isolated data, invite-only accounts, tenant and user management, and admin-issued one-time password-reset links.
+- **Secret lifecycle** — API keys can be created, revoked, or rotated; endpoint signing secrets can be rotated in place. Full secrets are shown only when created or rotated.
+- **Two production layouts** — a single-host Docker Compose stack with Caddy, or a Vercel web app backed by an API and worker on Railway.
 
-No hosted demo yet — run it locally (below). After `pnpm dev`:
+## Live deployment
 
-| Surface | URL                         |
-| ------- | --------------------------- |
-| Landing | http://localhost:5173       |
-| Docs    | http://localhost:5173/docs  |
-| Console | http://localhost:5173/login |
+| Surface | Hosted                                  | Local after `pnpm dev`      |
+| ------- | --------------------------------------- | --------------------------- |
+| Landing | https://hikyaku.nayanswarnkar.com       | http://localhost:5173       |
+| Docs    | https://hikyaku.nayanswarnkar.com/docs  | http://localhost:5173/docs  |
+| Console | https://hikyaku.nayanswarnkar.com/login | http://localhost:5173/login |
+| API     | https://hikyakuapi.nayanswarnkar.com/v1 | http://localhost:3000/v1    |
 
-Bootstrap once at `/bootstrap`, then use the tenant console. Use **Admin** separately if you need to invite other users or manage tenants.
+The hosted landing page and docs are public. Console access is invite-only; there is no self-serve signup. For your own installation, bootstrap the first super-admin and workspace once at `/bootstrap`, then use **Admin** to invite users and manage tenants.
 
 ## Architecture
 
 ```
-Producer ──POST /v1/events──► API ──fan-out + enqueue deliveries──► Redis (BullMQ)
-                                                │
-                                                ▼
-                                    Worker (sign + deliver)
-                                                │
-                         ┌──────────────────────┼──────────────────────┐
-                         ▼                      ▼                      ▼
-                   Endpoint A             Endpoint B             Endpoint C
-                (HMAC-SHA256 POST)     (retry / backoff)      (attempt logs)
-                                                │
-                                                ▼
-                                         Postgres + console
-                                    (events, deliveries, polling)
+Producer ──POST /v1/events──► API ──transaction──► Postgres
+                              │                   (event + deliveries + outbox)
+                              │                              │
+                              └──── immediate enqueue ───────┼────► Redis (BullMQ)
+                                                             │            │
+Worker sweeper ──reads pending outbox─────────────────────────┘            ▼
+                                                                        Worker
+                                                                          │
+                                         HMAC-SHA256 POST + retries ───────┼────► Endpoints
+                                                                          │
+                                  Postgres ◄──── attempts + final state ───┘
+
+Console ──polls API──► Postgres
 ```
 
 | Piece         | Role                                                         |
@@ -52,7 +58,7 @@ Producer ──POST /v1/events──► API ──fan-out + enqueue deliveries�
 | Postgres      | Tenants, events, deliveries, attempt history                 |
 | Redis         | BullMQ delivery queue                                        |
 
-Each delivery is claimed with a database lease, and its attempt number is reserved before the HTTP call, so a crashed worker is recoverable without granting an extra attempt: a sweeper resets deliveries stuck in `in_progress` and re-enqueues them. Queue jobs are deduplicated per delivery for the current live queue job, so fan-out and replay do not double-schedule that job — HTTP delivery remains at-least-once. Subscribers should verify `X-Webhook-Signature` and reject timestamps older than 5 minutes — see [docs → Signing](http://localhost:5173/docs#signing).
+Each delivery is claimed with a database lease, and its attempt number is reserved before the HTTP call, so a crashed worker is recoverable without granting an extra attempt: a sweeper resets deliveries stuck in `in_progress` and re-enqueues them. Queue jobs are deduplicated per delivery for the current live queue job, so fan-out and replay do not double-schedule that job — HTTP delivery remains at-least-once. Subscribers should verify `X-Webhook-Signature` and reject timestamps older than 5 minutes — see [docs → Signing](https://hikyaku.nayanswarnkar.com/docs#signing).
 
 ## Screenshots
 
@@ -150,9 +156,9 @@ Then `pnpm db:seed` and sign in as that email for **Admin**.
 | Admin           | `/admin`             | Super-admin only               |
 | Tenant admin    | `/admin/tenants/:id` | Super-admin only               |
 
-**Roles:** Super-admins invite tenant owners and manage tenants and users. Tenant users manage endpoints, events, deliveries, and API keys. Super-admins with an assigned workspace can use that workspace’s console pages; Admin remains a separate area.
+**Roles:** Super-admins invite tenant owners; search, rename, or delete tenants; invite or remove tenant users; and issue one-time password-reset links. Tenant users manage endpoints, events, deliveries, and API keys. API keys and endpoint signing secrets can be rotated from the console. Super-admins with an assigned workspace can use that workspace’s console pages; Admin remains a separate area.
 
-API usage, signing, retries, and the full route table live in the in-app docs: http://localhost:5173/docs
+API usage, signing, retries, filters, replay behavior, and the full route table live in the [product docs](https://hikyaku.nayanswarnkar.com/docs).
 
 ## Delivery guarantees
 
@@ -164,6 +170,15 @@ API usage, signing, retries, and the full route table live in the in-app docs: h
 - **Retry policy** — exponential backoff (1m → 2m → 4m → 8m) for network errors, timeouts, 408, 429, and 5xx; other 4xx fail fast.
 - **Replay** — `failed` deliveries start a new run (`POST /v1/deliveries/:id/replay` or the delivery detail page), which increments `replay_count` and keeps prior attempts under earlier `run_number` values. A `pending` replay returns `202` without resetting that run. An `in_progress` replay returns `400`; the sweeper recovers it. Disabled endpoints and succeeded deliveries are rejected.
 - **Timestamped + signed** — every POST carries `X-Webhook-Timestamp`; receivers should require `|now − timestamp| ≤ 300s`.
+
+## Security boundaries
+
+- Tenant scope comes from the authenticated session or API key, never from a tenant id supplied in the request body.
+- API keys and invite/reset tokens are stored as SHA-256 hashes. Endpoint signing secrets remain recoverable server-side because the worker needs them to sign requests.
+- Production endpoint validation requires HTTPS and blocks loopback, private, link-local, metadata, CGNAT, and documentation address ranges. The worker resolves and pins DNS addresses for the request and validates every redirect again.
+- Production session writes require an allowed `Origin`; cookies are `httpOnly`, `Secure`, and `SameSite=None`. Login is limited by client IP and normalized email.
+- Stored subscriber response bodies are truncated to about 1 KiB. Hikyaku does not add application-level encryption at rest beyond the configured database and filesystem.
+- Invite and password-reset links are returned to the super-admin for manual delivery; the application does not send email.
 
 ## Health checks
 
@@ -180,9 +195,9 @@ Needs API, worker, and a tenant API key (printed by `pnpm db:seed`, or create on
 
 1. Open [webhook.site](https://webhook.site) and copy the URL.
 2. Create an endpoint with that URL. Save the `secret`.
-3. Ingest an event (see [docs → Quick start](http://localhost:5173/docs#quick-start)).
+3. Ingest an event (see [docs → Quick start](https://hikyaku.nayanswarnkar.com/docs#quick-start)).
 4. On webhook.site, confirm body `{ id, type, created_at, data }` and signature headers.
-5. Verify HMAC as in [docs → Signing](http://localhost:5173/docs#signing).
+5. Verify HMAC as in [docs → Signing](https://hikyaku.nayanswarnkar.com/docs#signing).
 
 ## Environment variables
 
@@ -200,9 +215,15 @@ Needs API, worker, and a tenant API key (printed by `pnpm db:seed`, or create on
 | `TRUST_PROXY`                  | Proxy hops for `X-Forwarded-*`. Local development defaults to `0`. Production requires an explicit value and refuses startup when it is absent. |
 | `INGEST_RATE_LIMIT_PER_MINUTE` | Max `POST /v1/events` per tenant/minute (Bearer also uses the same limit per client IP before the key lookup)                                   |
 | `AUTH_RATE_LIMIT_PER_MINUTE`   | Auth attempts per IP/minute; login also limits normalized email                                                                                 |
+| `DELIVERY_TIMEOUT_MS`          | Outbound request timeout and basis for the worker lease                                                                                         |
+| `MAX_DELIVERY_ATTEMPTS`        | HTTP attempt cap for each delivery run                                                                                                          |
+| `RATE_LIMIT_PER_MINUTE`        | Outbound delivery admissions per tenant/minute                                                                                                  |
+| `WORKER_CONCURRENCY`           | Concurrent BullMQ jobs handled by a worker                                                                                                      |
+| `SWEEP_INTERVAL_MS`            | Interval for draining the outbox and reclaiming stale deliveries                                                                                |
 | `LOG_LEVEL`                    | Log verbosity                                                                                                                                   |
-| `VITE_API_URL`                 | API base URL for the web app (build-time). Empty or unset in the Vercel production build so the browser calls same-origin `/v1`.               |
-| `VITE_PUBLIC_API_URL`          | Public API origin baked into docs and curl samples (the Railway URL). Unset locally; the samples then use `VITE_API_URL`.                        |
+| `VITE_API_URL`                 | API base URL for the web app (build-time). Empty or unset in the Vercel production build so the browser calls same-origin `/v1`.                |
+| `VITE_PUBLIC_API_URL`          | Public API origin baked into docs and curl samples (the Railway URL). Unset locally; the samples then use `VITE_API_URL`.                       |
+| `API_UPSTREAM_URL`             | Railway API origin used by the Vercel `/v1` proxy                                                                                               |
 | `PROXY_IP_SECRET`              | Shared secret so the Vercel `/v1` proxy can pass the browser IP. Set the same value on Vercel. Omit on the single-host Compose stack.           |
 
 See `.env.example` for local worker tuning and [production tuning](deploy/README.md#tuning) for variables Compose passes through, their defaults, and how to apply changes.
@@ -221,6 +242,7 @@ Login is throttled by both client IP and normalized email. Password-reset submis
 | `pnpm lint`             | ESLint                                      |
 | `pnpm format`           | Prettier                                    |
 | `pnpm test`             | Unit + integration tests                    |
+| `pnpm test:unit`        | Unit tests across the workspace             |
 | `pnpm test:integration` | API and worker integration tests            |
 | `pnpm test:smoke`       | Playwright smoke / visual tests             |
 | `pnpm test:smoke:ui`    | Playwright UI mode                          |
@@ -230,6 +252,7 @@ Login is throttled by both client IP and normalized email. Password-reset submis
 | `pnpm docker:up`        | Start Postgres and Redis                    |
 | `pnpm docker:down`      | Stop Docker services                        |
 | `pnpm db:migrate`       | Apply database migrations                   |
+| `pnpm db:migrate:prod`  | Run the built API migration script          |
 | `pnpm db:seed`          | Seed demo tenants, users, and API keys      |
 | `pnpm db:generate`      | Generate Drizzle migrations                 |
 
@@ -240,12 +263,19 @@ apps/api         REST API (Express) — auth, ingest, deliveries, admin
 apps/worker      Delivery worker (BullMQ)
 apps/web         Operator console + docs (Vite + React)
 packages/shared  Shared types, schema, env parsing, crypto
+api/proxy.ts     Same-origin Vercel proxy for /v1
+deploy/          Production setup, Caddy config, and operations guide
 e2e/             Playwright smoke and visual tests
 ```
 
-## Complete self-hosted startup
+## Production deployment
 
-See [deployment instructions](deploy/README.md) for the separate production Compose stack, HTTPS, backups, and upgrades. Start with `node deploy/setup.mjs`; the existing `pnpm dev` workflow is unchanged.
+See [deployment instructions](deploy/README.md) for both supported layouts:
+
+- **Single host:** API, worker, Postgres, Redis, and Caddy in Docker Compose, with only Caddy publishing ports. Start with `node deploy/setup.mjs`.
+- **Split host:** static web app and same-origin `/v1` proxy on Vercel; API and worker on Railway. The proxy forwards browser cookies and, when configured with `PROXY_IP_SECRET`, the verified client IP used by rate limits.
+
+The existing `pnpm dev` workflow is unchanged.
 
 ## Safe tests
 
