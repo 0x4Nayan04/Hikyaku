@@ -1,3 +1,4 @@
+import { redisConnectionOptions } from '@webhook/shared/redis'
 import { Redis } from 'ioredis'
 import { env } from '../config.js'
 
@@ -12,7 +13,11 @@ let redis: Redis | undefined
 
 export function getRedis(): Redis {
   if (!redis) {
-    redis = new Redis(env.REDIS_URL, RATE_LIMIT_REDIS_OPTIONS)
+    redis = new Redis({
+      ...redisConnectionOptions(env.REDIS_URL, RATE_LIMIT_REDIS_OPTIONS.maxRetriesPerRequest),
+      connectTimeout: RATE_LIMIT_REDIS_OPTIONS.connectTimeout,
+      commandTimeout: RATE_LIMIT_REDIS_OPTIONS.commandTimeout,
+    })
   }
   return redis
 }
