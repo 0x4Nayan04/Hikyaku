@@ -133,10 +133,14 @@ List responses show a short `prefix` for identification, never the full secret. 
 
 An endpoint is a subscriber URL that receives signed webhook POSTs. Create one with `POST /v1/endpoints` — the signing secret is returned once. Active endpoints receive fan-out; disabled endpoints do not.
 
-Endpoint routes require the console session cookie, not an API key.
+Endpoint routes require the console session cookie, not an API key. From a terminal, sign in once to save the cookie, then send it with each request. In production, requests that change data with a session cookie must also send an `Origin` header listed in `CORS_ORIGIN`.
 
 ```bash
-curl -X POST "{{API_BASE}}/v1/endpoints" \
+curl -c cookies.txt -X POST "{{API_BASE}}/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "you@example.com", "password": "your-password" }'
+
+curl -b cookies.txt -X POST "{{API_BASE}}/v1/endpoints" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com/webhooks",

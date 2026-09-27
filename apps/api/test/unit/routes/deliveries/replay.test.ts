@@ -232,7 +232,7 @@ describe('replayDelivery validation', () => {
       expect(result.error).toMatchObject({
         statusCode: 400,
         code: 'invalid_state',
-        message: 'Only failed deliveries can be replayed',
+        message: 'Only failed or pending deliveries can be replayed',
       })
     } finally {
       await deleteTenant(tenantId)
