@@ -111,7 +111,7 @@ Both `pnpm dev` and the individual `dev` commands build the shared package befor
 pnpm db:seed
 ```
 
-Seed prints login emails/passwords and one API key per tenant (local/dev only). Sign in at `/login`, or use the printed key for ingest. You can also create keys under **Settings → API keys**.
+Seed prints login emails/passwords and one API key per tenant (local/dev only). It exits before writing when `NODE_ENV=production`. Sign in at `/login`, or use the printed key for ingest. You can also create keys under **Settings → API keys**.
 
 | Tenant | Email              | Password                    |
 | ------ | ------------------ | --------------------------- |
