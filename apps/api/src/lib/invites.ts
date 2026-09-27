@@ -41,6 +41,10 @@ export function userEmailMatches(email: string) {
   return sql`lower(${users.email}) = lower(${email})`
 }
 
+export function inviteEmailMatches(email: string) {
+  return sql`lower(${invites.email}) = lower(${email})`
+}
+
 export async function assertEmailAvailable(email: string, tx?: DbExecutor): Promise<void> {
   const db = tx ?? getDb()
   const [existing] = await db
@@ -60,7 +64,7 @@ export async function assertNoPendingInvite(email: string, tx?: DbExecutor): Pro
     .select({ id: invites.id })
     .from(invites)
     .where(
-      and(eq(invites.email, email), isNull(invites.acceptedAt), gt(invites.expiresAt, new Date())),
+      and(inviteEmailMatches(email), isNull(invites.acceptedAt), gt(invites.expiresAt, new Date())),
     )
     .limit(1)
 

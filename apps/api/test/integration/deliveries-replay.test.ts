@@ -200,7 +200,7 @@ describe('POST /v1/deliveries/:id/replay', () => {
     expect(res.status).toBe(400)
     expect(res.body.error).toMatchObject({
       code: 'invalid_state',
-      message: 'Only failed deliveries can be replayed',
+      message: 'Only failed or pending deliveries can be replayed',
     })
   })
 

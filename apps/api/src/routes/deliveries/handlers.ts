@@ -133,7 +133,7 @@ export const replayDelivery: RequestHandler = asyncHandler(async (req: Request, 
     existing.status !== 'pending' &&
     existing.status !== 'in_progress'
   ) {
-    throw new AppError(400, 'invalid_state', 'Only failed deliveries can be replayed')
+    throw new AppError(400, 'invalid_state', 'Only failed or pending deliveries can be replayed')
   }
 
   if (existing.endpointStatus === 'disabled') {
@@ -170,7 +170,7 @@ export const replayDelivery: RequestHandler = asyncHandler(async (req: Request, 
         .returning({ eventId: deliveries.eventId })
 
       if (!updated) {
-        throw new AppError(400, 'invalid_state', 'Only failed deliveries can be replayed')
+        throw new AppError(400, 'invalid_state', 'Only failed or pending deliveries can be replayed')
       }
 
       await reevaluateEventStatus(updated.eventId, tx)

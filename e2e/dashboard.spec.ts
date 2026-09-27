@@ -88,7 +88,7 @@ test.describe('dashboard smoke', () => {
     await page.getByLabel('Email').fill(owner.email)
     await page.getByRole('textbox', { name: 'Password' }).fill(updatedPassword)
     await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL('/settings')
+    await expect(page).toHaveURL('/settings?tab=profile')
     owner.password = updatedPassword
   })
 

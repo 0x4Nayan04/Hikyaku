@@ -10,6 +10,7 @@ import { asyncHandler } from '../../lib/asyncHandler.js'
 import {
   assertEmailAvailable,
   assertNoPendingInvite,
+  inviteEmailMatches,
   PASSWORD_RESET_KIND,
 } from '../../lib/invites.js'
 import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
@@ -185,7 +186,7 @@ export const deleteTenantUser = asyncHandler(async (req: Request, res: Response)
       .set({ acceptedAt: new Date() })
       .where(
         and(
-          eq(invites.email, target.email),
+          inviteEmailMatches(target.email),
           eq(invites.kind, PASSWORD_RESET_KIND),
           isNull(invites.acceptedAt),
         ),
@@ -217,7 +218,7 @@ export const listTenantUsers = asyncHandler(async (req: Request, res: Response) 
     .select(userColumns)
     .from(users)
     .where(eq(users.tenantId, id))
-    .orderBy(desc(users.createdAt))
+    .orderBy(desc(users.createdAt), desc(users.id))
     .limit(limit + 1)
     .offset(offset)
   const page = takePage(rows, limit)
@@ -336,7 +337,7 @@ export const createPasswordReset = asyncHandler(async (req: Request, res: Respon
       .set({ acceptedAt: new Date() })
       .where(
         and(
-          eq(invites.email, lockedTarget.email),
+          inviteEmailMatches(lockedTarget.email),
           eq(invites.kind, PASSWORD_RESET_KIND),
           isNull(invites.acceptedAt),
         ),

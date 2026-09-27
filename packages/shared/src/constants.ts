@@ -1,4 +1,6 @@
-export const QUEUE_NAME = process.env.NODE_ENV === 'test' && process.env.TEST_RUN_ID
+// Browser bundles import this module, and `process` does not exist there under the Vite dev server.
+export const QUEUE_NAME =
+  typeof process !== 'undefined' && process.env.NODE_ENV === 'test' && process.env.TEST_RUN_ID
   ? `webhook-deliveries-test-${process.env.TEST_RUN_ID}`
   : 'webhook-deliveries'
 export const JOB_NAME = 'deliver'

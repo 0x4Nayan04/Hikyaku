@@ -389,8 +389,8 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
   const attempt = decision.attempt
 
   switch (decision.action) {
-    case 'succeeded':
-      await persist(
+    case 'succeeded': {
+      const wrote = await persist(
         {
           status: 'succeeded',
           attemptCount: reservedAttempt,
@@ -400,10 +400,12 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
         attempt,
         reservedAttempt,
       )
+      if (!wrote) return
       log.info({ http_status: decision.httpStatus }, 'delivery_succeeded')
       return
-    case 'fail_fast':
-      await persist(
+    }
+    case 'fail_fast': {
+      const wrote = await persist(
         {
           status: 'failed',
           lastError: decision.lastError,
@@ -413,9 +415,11 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
         attempt,
         attempt !== undefined ? reservedAttempt : undefined,
       )
+      if (!wrote) return
       if (decision.logFields) log.info(decision.logFields, decision.log)
       else log.info(decision.log)
       return
+    }
     case 'retry': {
       const wrote = await persist(
         {

@@ -1,13 +1,13 @@
 import request from 'supertest'
 import { eq } from 'drizzle-orm'
-import { apiKeys, deliveries, endpoints, events } from '@webhook/shared/schema'
+import { apiKeys, deliveries, endpoints, events, users } from '@webhook/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
 import { closeRedis } from '../../src/lib/redis.js'
 import { createApp } from '../../src/server.js'
 import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
-import { createTenantSession } from '../helpers/user.js'
+import { createTenantSession, createUser, deleteUser } from '../helpers/user.js'
 
 const app = createApp()
 
@@ -155,6 +155,47 @@ describe('list endpoint pagination', () => {
       }
     } finally {
       await deleteTenant(tieTenant.tenantId)
+    }
+  })
+
+  it('breaks timestamp ties by id on admin tenant users', async () => {
+    const newer = '10000000-0000-4000-8000-000000000011'
+    const high = 'ffffffff-ffff-4fff-8fff-fffffffffff6'
+    const mid = 'ffffffff-ffff-4fff-8fff-fffffffffff5'
+    const low = 'ffffffff-ffff-4fff-8fff-fffffffffff4'
+    const ids = [newer, high, mid, low]
+    const sameCreatedAt = new Date('2020-01-01T00:00:00.000Z')
+    const tieTenant = await createTenantWithKey()
+    const superAdmin = await createUser({ tenantId: null, isSuperAdmin: true })
+    const db = getDb()
+
+    try {
+      await db.insert(users).values(
+        ids.map((id) => ({
+          id,
+          tenantId: tieTenant.tenantId,
+          email: `tie-${id}@test.com`,
+          passwordHash: 'unused',
+          name: 'Tie User',
+          createdAt: id === newer ? new Date('2020-01-02T00:00:00.000Z') : sameCreatedAt,
+        })),
+      )
+      const superAgent = request.agent(app)
+      const login = await superAgent
+        .post('/v1/auth/login')
+        .send({ email: superAdmin.email, password: superAdmin.password })
+      expect(login.status).toBe(200)
+
+      const path = `/v1/admin/tenants/${tieTenant.tenantId}/users`
+      const first = await superAgent.get(path).query({ limit: 2, offset: 0 })
+      const second = await superAgent.get(path).query({ limit: 2, offset: 2 })
+      expect(first.status).toBe(200)
+      expect(second.status).toBe(200)
+      const pagedIds = [...first.body.data, ...second.body.data].map((row: { id: string }) => row.id)
+      expect(pagedIds).toEqual(ids)
+    } finally {
+      await deleteTenant(tieTenant.tenantId)
+      await deleteUser(superAdmin.userId)
     }
   })
 })
