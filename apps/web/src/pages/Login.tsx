@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Check, Lock, Mail } from 'lucide-react'
 import { ApiError, login } from '@/api/client'
 import { AuthFooterLink } from '@/components/auth/AuthFooterLink'
@@ -25,6 +25,7 @@ type LoginLocationState = {
 export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { session, loading, refresh } = useSession()
   const locationState = location.state as LoginLocationState | null
   const banner =
@@ -40,9 +41,12 @@ export default function Login() {
 
   useEffect(() => {
     if (!loading && session) {
-      navigate(getPostLoginPath(location.state, session.user), { replace: true })
+      navigate(
+        getPostLoginPath(location.state, session.user, searchParams.get('returnTo') ?? undefined),
+        { replace: true },
+      )
     }
-  }, [loading, session, navigate, location])
+  }, [loading, session, navigate, location.state, searchParams])
 
   useEffect(() => {
     let cancelled = false
@@ -71,7 +75,9 @@ export default function Login() {
     try {
       const { user } = await login({ email, password })
       await refresh()
-      navigate(getPostLoginPath(location.state, user), { replace: true })
+      navigate(getPostLoginPath(location.state, user, searchParams.get('returnTo') ?? undefined), {
+        replace: true,
+      })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Unable to sign in. Try again.')
       setShowRecovery(true)

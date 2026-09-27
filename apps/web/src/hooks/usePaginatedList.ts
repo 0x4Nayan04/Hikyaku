@@ -24,7 +24,9 @@ export function usePaginatedList<T>({
   const [data, setData] = useState<T[]>([])
   const [hasMore, setHasMore] = useState(false)
   const [offset, setOffset] = useState(0)
-  const [isInitial, setIsInitial] = useState(true)
+  const [loadedKey, setLoadedKey] = useState<string | null>(null)
+  const [settledKey, setSettledKey] = useState<string | null>(null)
+  const currentKey = JSON.stringify([queryKey, offset, pageSize])
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fetchPageRef = useRef<typeof fetchPage | null>(null)
@@ -57,6 +59,7 @@ export function usePaginatedList<T>({
     if (initializedRef.current) setIsRefreshing(true)
     const nextOffset = offsetRef.current
     const requestQueryKey = queryKeyRef.current
+    const requestKey = JSON.stringify([requestQueryKey, nextOffset, pageSize])
 
     try {
       const result = await fetch({ limit: pageSize, offset: nextOffset, signal: controller.signal })
@@ -65,6 +68,7 @@ export function usePaginatedList<T>({
         setOffset(Math.max(0, result.offset - pageSize))
         return true
       }
+      setLoadedKey(requestKey)
       setData(result.data)
       setHasMore(result.has_more)
       setOffset(result.offset)
@@ -79,7 +83,7 @@ export function usePaginatedList<T>({
       if (abortRef.current === controller) abortRef.current = null
       const stale = isStale(request, requestQueryKey)
       if (!stale) initializedRef.current = true
-      setIsInitial((initial) => (stale ? initial : false))
+      if (!stale) setSettledKey(requestKey)
       setIsRefreshing((refreshing) => (stale ? refreshing : false))
     }
   }, [fallbackError, pageSize])
@@ -103,14 +107,19 @@ export function usePaginatedList<T>({
     }
   }, [offset, pageSize, queryKey, load, enabled])
 
+  const isCurrent = loadedKey === currentKey
+  const currentError = settledKey === currentKey ? error : null
+  const isInitial = settledKey !== currentKey
+
   return {
-    data,
-    hasMore,
+    data: isCurrent ? data : [],
+    hasMore: isCurrent && hasMore,
+    isEmpty: isCurrent && !isInitial && !isRefreshing && currentError === null && data.length === 0,
     offset,
     setOffset,
     isInitial,
     isRefreshing,
-    error,
+    error: currentError,
     reload: load,
   }
 }

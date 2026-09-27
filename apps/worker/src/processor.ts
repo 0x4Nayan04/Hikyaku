@@ -195,15 +195,29 @@ async function resolveJobTenantId(
 
 async function claimPendingDelivery(
   deliveryId: string,
-): Promise<{ row: DeliveryContext; leaseStartedAt: Date } | null> {
+): Promise<{ row: DeliveryContext; leaseStartedAt: Date; reservedAttempt: number | null } | null> {
   const db = getDb()
   const leaseStartedAt = new Date()
+  const maxAttempts = env.MAX_DELIVERY_ATTEMPTS
   const result = (await db.execute(sql`
+    WITH target AS (
+      SELECT d.id, d.attempt_count AS previous_attempt_count
+      FROM deliveries AS d
+      WHERE d.id = ${deliveryId}
+        AND d.status = 'pending'
+        AND (d.next_retry_at IS NULL OR d.next_retry_at <= NOW())
+      FOR UPDATE
+    )
     UPDATE deliveries AS d
-    SET status = 'in_progress', updated_at = ${leaseStartedAt}
-    FROM events AS e, endpoints AS ep
-    WHERE d.id = ${deliveryId}
-      AND d.status = 'pending'
+    SET
+      status = 'in_progress',
+      attempt_count = CASE
+        WHEN target.previous_attempt_count < ${maxAttempts} THEN target.previous_attempt_count + 1
+        ELSE target.previous_attempt_count
+      END,
+      updated_at = ${leaseStartedAt}
+    FROM target, events AS e, endpoints AS ep
+    WHERE d.id = target.id
       AND e.id = d.event_id
       AND ep.id = d.endpoint_id
     RETURNING
@@ -212,17 +226,24 @@ async function claimPendingDelivery(
       d.event_id,
       d.attempt_count,
       d.replay_count,
+      target.previous_attempt_count,
       e.type AS event_type,
       e.payload AS event_payload,
       e.created_at AS event_created_at,
       ep.url,
       ep.secret,
       ep.status AS endpoint_status
-  `)) as { rows: ClaimRow[] }
+  `)) as { rows: Array<ClaimRow & { previous_attempt_count: number | string }> }
 
   const raw = result.rows[0]
   if (!raw) return null
-  return { row: toDeliveryContext(raw), leaseStartedAt }
+  const previousAttemptCount = Number(raw.previous_attempt_count)
+  const row = toDeliveryContext(raw)
+  return {
+    row,
+    leaseStartedAt,
+    reservedAttempt: previousAttemptCount < maxAttempts ? row.attemptCount : null,
+  }
 }
 
 export async function processor(job: Job<DeliveryJobData>, token?: string): Promise<void> {
@@ -245,8 +266,28 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     return
   }
 
-  const { row, leaseStartedAt } = claimed
-  const nextAttempt = row.attemptCount + 1
+  const { row, leaseStartedAt, reservedAttempt } = claimed
+
+  const persist = (delivery: DeliveryOutcome, attempt?: AttemptOutcome, attemptNumber?: number) =>
+    recordOutcome(
+      row.id,
+      row.eventId,
+      leaseStartedAt,
+      row.replayCount,
+      delivery,
+      attempt,
+      attemptNumber,
+    )
+
+  if (reservedAttempt === null) {
+    await persist({
+      status: 'failed',
+      lastError: 'max_attempts',
+      nextRetryAt: null,
+    })
+    log.info('max_attempts')
+    return
+  }
 
   let decision: OutcomeDecision
 
@@ -254,12 +295,10 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
     decision = {
       action: 'fail_fast',
       lastError: 'endpoint_disabled',
-      attemptCount: nextAttempt,
+      attemptCount: reservedAttempt,
       attempt: { error: 'endpoint_disabled' },
       log: 'endpoint_disabled',
     }
-  } else if (row.attemptCount >= env.MAX_DELIVERY_ATTEMPTS) {
-    decision = { action: 'fail_fast', lastError: 'max_attempts', log: 'max_attempts' }
   } else {
     const allowPrivate = env.NODE_ENV !== 'production'
     const body = buildOutboundBody(row)
@@ -299,7 +338,7 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
       decision = {
         action: 'fail_fast',
         lastError: error,
-        attemptCount: nextAttempt,
+        attemptCount: reservedAttempt,
         attempt: { httpStatus, responseBody, error, durationMs },
         log: 'delivery_failed_fast',
         logFields: { last_error: error },
@@ -319,28 +358,28 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
         decision = {
           action: 'fail_fast',
           lastError: `http_${httpStatus}`,
-          attemptCount: nextAttempt,
+          attemptCount: reservedAttempt,
           attempt: { httpStatus, responseBody, error: null, durationMs },
           log: 'delivery_failed_fast',
           logFields: { last_error: `http_${httpStatus}` },
         }
       } else {
         const attempt: HttpAttemptFields = { httpStatus, responseBody, error, durationMs }
-        if (nextAttempt >= env.MAX_DELIVERY_ATTEMPTS) {
+        if (reservedAttempt >= env.MAX_DELIVERY_ATTEMPTS) {
           decision = {
             action: 'fail_fast',
             lastError: 'max_attempts',
-            attemptCount: nextAttempt,
+            attemptCount: reservedAttempt,
             attempt,
             log: 'delivery_dead_letter',
-            logFields: { attempt_count: nextAttempt },
+            logFields: { attempt_count: reservedAttempt },
           }
         } else {
           decision = {
             action: 'retry',
             lastError: error ?? `http_${httpStatus}`,
             attempt,
-            retryAt: new Date(Date.now() + calculateBackoffDelayMs(nextAttempt)),
+            retryAt: new Date(Date.now() + calculateBackoffDelayMs(reservedAttempt)),
           }
         }
       }
@@ -348,47 +387,52 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
   }
 
   const attempt = decision.attempt
-  const persist = (delivery: DeliveryOutcome) =>
-    recordOutcome(
-      row.id,
-      row.eventId,
-      leaseStartedAt,
-      row.replayCount,
-      delivery,
-      attempt,
-      attempt !== undefined ? nextAttempt : undefined,
-    )
 
   switch (decision.action) {
     case 'succeeded':
-      await persist({
-        status: 'succeeded',
-        attemptCount: nextAttempt,
-        lastError: null,
-        nextRetryAt: null,
-      })
+      await persist(
+        {
+          status: 'succeeded',
+          attemptCount: reservedAttempt,
+          lastError: null,
+          nextRetryAt: null,
+        },
+        attempt,
+        reservedAttempt,
+      )
       log.info({ http_status: decision.httpStatus }, 'delivery_succeeded')
       return
     case 'fail_fast':
-      await persist({
-        status: 'failed',
-        lastError: decision.lastError,
-        nextRetryAt: null,
-        ...(decision.attemptCount !== undefined ? { attemptCount: decision.attemptCount } : {}),
-      })
+      await persist(
+        {
+          status: 'failed',
+          lastError: decision.lastError,
+          nextRetryAt: null,
+          ...(decision.attemptCount !== undefined ? { attemptCount: decision.attemptCount } : {}),
+        },
+        attempt,
+        attempt !== undefined ? reservedAttempt : undefined,
+      )
       if (decision.logFields) log.info(decision.logFields, decision.log)
       else log.info(decision.log)
       return
     case 'retry': {
-      const wrote = await persist({
-        status: 'pending',
-        attemptCount: nextAttempt,
-        lastError: decision.lastError,
-        nextRetryAt: decision.retryAt,
-      })
+      const wrote = await persist(
+        {
+          status: 'pending',
+          attemptCount: reservedAttempt,
+          lastError: decision.lastError,
+          nextRetryAt: decision.retryAt,
+        },
+        attempt,
+        reservedAttempt,
+      )
       if (!wrote) return
       await job.moveToDelayed(decision.retryAt.getTime(), token)
-      log.info({ last_error: decision.lastError, attempt_count: nextAttempt }, 'delivery_retrying')
+      log.info(
+        { last_error: decision.lastError, attempt_count: reservedAttempt },
+        'delivery_retrying',
+      )
       throw new DelayedError()
     }
     default: {

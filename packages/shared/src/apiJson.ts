@@ -57,7 +57,7 @@ export type DeliveryDetailJson = DeliveryListJson & {
 
 export type ReplayDeliveryJson = {
   id: string
-  status: Extract<DeliveryStatus, 'pending' | 'in_progress'>
+  status: Extract<DeliveryStatus, 'pending'>
 }
 
 export type EndpointLastDeliveryJson = {

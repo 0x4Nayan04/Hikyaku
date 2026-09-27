@@ -43,6 +43,7 @@ type AdminTenantTableProps = {
   tenants: AdminTenant[]
   hasMore: boolean
   offset: number
+  isEmpty: boolean
   loading: boolean
   onOffsetChange: (offset: number) => void
   onRefresh: () => void
@@ -54,6 +55,7 @@ export function AdminTenantTable({
   hasMore,
   offset,
   loading,
+  isEmpty,
   onOffsetChange,
   onRefresh,
   searchQuery,
@@ -90,7 +92,7 @@ export function AdminTenantTable({
     <DataPanel
       title="Tenant directory"
       loading={loading && tenants.length > 0}
-      empty={!loading && tenants.length === 0 ? emptyState : undefined}
+      empty={isEmpty ? emptyState : undefined}
       emptyFlush
       footer={
         !loading && shouldPaginate(hasMore, offset) ? (

@@ -22,6 +22,7 @@ type TenantAdminDetailsProps = {
   hasMore: boolean
   offset: number
   pageSize: number
+  isEmpty: boolean
   loading: boolean
   onOffsetChange: (offset: number) => void
   onUserDeleted: (userId: string) => void
@@ -34,6 +35,7 @@ export function TenantAdminDetails({
   offset,
   pageSize,
   loading,
+  isEmpty,
   onOffsetChange,
   onUserDeleted,
 }: TenantAdminDetailsProps) {
@@ -73,7 +75,7 @@ export function TenantAdminDetails({
           ) : undefined
         }
         empty={
-          users.length === 0 ? (
+          isEmpty ? (
             <DataPanelEmpty
               icon={Users}
               title="No users yet"

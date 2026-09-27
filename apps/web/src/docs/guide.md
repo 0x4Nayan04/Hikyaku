@@ -64,10 +64,10 @@ Super-admins use **Admin** to invite tenant owners, list, rename, or delete tena
 
 Backends use an API key. The console uses a session cookie. Platform ops use a super-admin session.
 
-| Mode                | How                             | Scope                                                                  |
-| ------------------- | ------------------------------- | ---------------------------------------------------------------------- |
-| API key             | `Authorization: Bearer whk_…`   | Single tenant                                                          |
-| Session cookie      | Email/password login (httpOnly) | Tenant user console + APIs                                             |
+| Mode                | How                             | Scope                                                                 |
+| ------------------- | ------------------------------- | --------------------------------------------------------------------- |
+| API key             | `Authorization: Bearer whk_…`   | Single tenant                                                         |
+| Session cookie      | Email/password login (httpOnly) | Tenant user console + APIs                                            |
 | Super-admin session | Session cookie only             | **Admin** platform routes; assigned workspace uses tenant console too |
 
 ```http
@@ -87,11 +87,11 @@ A super-admin issues a password reset with `POST /v1/admin/tenants/:id/users/:us
 
 Post an event to `POST /v1/events`. The body must include three fields and stay under **256 KiB** when serialized.
 
-| Field             | Rules                           |
-| ----------------- | ------------------------------- |
-| `idempotency_key` | 1–256 chars; unique per tenant  |
-| `type`            | 1–128 chars (e.g. `order.paid`) |
-| `payload`         | JSON object (string keys)       |
+| Field             | Rules                                                                                                                  |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `idempotency_key` | 1–256 chars; unique per tenant                                                                                         |
+| `type`            | 1–128 chars (e.g. `order.paid`)                                                                                        |
+| `payload`         | JSON object (string keys). Integers must be safe JavaScript integers (`-9007199254740991` through `9007199254740991`). |
 
 ```json
 {
@@ -109,26 +109,23 @@ Post an event to `POST /v1/events`. The body must include three fields and stay 
 }
 ```
 
-| Status | When                                                               |
-| ------ | ------------------------------------------------------------------ |
-| `400`  | Missing or invalid fields — check the request body and rules above |
-| `409`  | The idempotency key was already used with a different event body   |
+| Status | When                                                                                                                                   |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `400`  | Missing or invalid fields — check the request body and rules above                                                                     |
+| `409`  | The idempotency key was already used with a different event body                                                                       |
 | `429`  | Too many requests — wait and retry (default 120/min per tenant; Bearer ingest also has a matching per-IP window before the key lookup) |
 
 An event is `pending` while any delivery is open; `completed` only when all deliveries succeeded; `partial_failure` when all are terminal with mixed results; `failed` when all failed; and `no_recipients` when it has zero deliveries. List events with `GET /v1/events`, or open a single event with `GET /v1/events/:id`.
 
 > **Idempotency:** Reusing the same `idempotency_key` with the same type and payload returns the existing event with `202`. Reusing it with a different type or payload returns `409 idempotency_mismatch`. If active endpoints were added since the first request, the retry creates only the missing deliveries.
 
+> **Large numbers:** Put identifiers and amounts that need exact precision in strings. Ingest uses ordinary JSON parsing, so an integer outside the safe range is rejected instead of being stored losslessly. Finite fractions such as `1.5` are accepted.
+
 ## API keys
 
-Create keys in **Settings → API keys** or via the API. The create response includes the full secret once — store it immediately.
+Create a key in **Settings → API keys** and save the secret immediately. The console shows the full secret once.
 
-API key routes require the console session cookie, not an API key.
-
-```bash
-curl -X POST "{{API_BASE}}/v1/api-keys" \
-  -H "Content-Type: application/json"
-```
+API key routes, including `POST /v1/api-keys`, require the console session cookie. An API key cannot create another key.
 
 List responses show a short `prefix` for identification, never the full secret. Revoke with `POST /v1/api-keys/:id/revoke`. Rotate with `POST /v1/api-keys/:id/rotate` — it issues a replacement and invalidates the old one.
 
@@ -177,11 +174,11 @@ User-Agent: Hikyaku/1.0
 `X-Webhook-Id` is the delivery UUID. It stays the same across retries for that event×endpoint pair — use it to dedupe under at-least-once delivery.
 
 - `pending` — queued, waiting to retry, or rate-limited
-- `in_progress` — HTTP attempt running
+- `in_progress` — a reserved attempt is running. Replay returns `400 invalid_state`; the sweeper recovers a stale row after the worker lease expires.
 - `succeeded` — subscriber returned 2xx
 - `failed` — retries exhausted or fail-fast 4xx
 
-List deliveries with `GET /v1/deliveries` (`?status=` a delivery status, or `open` for pending and in progress; `?updated_within=24h` for rows updated in the last 24 hours; `?event_id=`, `?limit`, `?offset`), or open one with `GET /v1/deliveries/:id` for the attempt timeline. Attempts may include a truncated response body (~1KB). The console polls while deliveries are in flight (and pauses in hidden tabs).
+List deliveries with `GET /v1/deliveries` (`?status=` a delivery status, or `open` for pending and in progress; `?updated_within=24h` for rows updated in the last 24 hours; `?event_id=`, `?limit`, `?offset`), or open one with `GET /v1/deliveries/:id` for the attempt timeline. Attempts may include a truncated response body (~1KB). The delivery list polls every 10 seconds while a visible row is pending or in progress; the detail view polls while that delivery is in flight. Polling pauses in hidden tabs. Reload an idle list to discover new deliveries.
 
 ## Signing
 
@@ -206,10 +203,7 @@ function verifyWebhook(rawBody, signatureHeader, timestamp, secret) {
   const now = Math.floor(Date.now() / 1000)
   if (Math.abs(now - ts) > TOLERANCE_SECONDS) return false
 
-  const expected = crypto
-    .createHmac('sha256', secret)
-    .update(`${ts}.${rawBody}`)
-    .digest('hex')
+  const expected = crypto.createHmac('sha256', secret).update(`${ts}.${rawBody}`).digest('hex')
 
   const received = signatureHeader.replace(/^sha256=/, '')
   const a = Buffer.from(expected, 'hex')
@@ -253,44 +247,44 @@ Fan-out writes each delivery and a matching outbox row in the same Postgres tran
 
 All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_API_URL` at build time.
 
-| Method | Route                                   | Purpose                                  |
-| ------ | --------------------------------------- | ---------------------------------------- |
-| GET    | `/v1/health`                            | Liveness probe                           |
-| GET    | `/v1/ready`                             | Postgres + Redis connectivity            |
-| GET    | `/v1/auth/bootstrap-status`             | Whether first-run bootstrap is still available |
-| POST   | `/v1/auth/bootstrap`                    | Installer and first workspace (`workspace_name` optional) |
-| POST | `/v1/auth/workspace` | Create an existing admin-only account’s workspace (session required) |
-| GET    | `/v1/auth/invites/validate`             | Validate invite token                    |
-| POST   | `/v1/auth/accept-invite`                | Accept invite and create account         |
-| POST   | `/v1/auth/login`                        | Email/password login → session cookie    |
-| POST   | `/v1/auth/logout`                       | End session                              |
-| GET    | `/v1/auth/me`                           | Current user + tenant                    |
-| POST   | `/v1/auth/change-password`              | Change password (session)                |
-| GET    | `/v1/auth/password-reset/validate`      | Validate a password reset link           |
-| POST   | `/v1/auth/password-reset`               | Set a new password from a reset link     |
-| GET    | `/v1/stats`                             | Dashboard metrics (tenant auth)          |
-| GET    | `/v1/api-keys`                          | List API keys (prefix only)              |
-| POST   | `/v1/api-keys`                          | Create API key (shown once)              |
-| POST   | `/v1/api-keys/:id/revoke`               | Revoke API key                           |
-| POST   | `/v1/api-keys/:id/rotate`               | Rotate API key (new key shown once)      |
-| POST   | `/v1/endpoints`                         | Create endpoint (secret shown once)      |
-| GET    | `/v1/endpoints`                         | List endpoints                           |
-| PATCH  | `/v1/endpoints/:id`                     | Update status or description             |
-| POST   | `/v1/endpoints/:id/rotate`              | Rotate signing secret (shown once)       |
-| POST   | `/v1/events`                            | Ingest event → 202 Accepted              |
-| GET    | `/v1/events`                            | List events (paginated)                  |
-| GET    | `/v1/events/:id`                        | Event detail + delivery summary          |
-| GET    | `/v1/deliveries`                        | List deliveries                          |
-| GET    | `/v1/deliveries/:id`                    | Delivery + attempt timeline              |
-| POST   | `/v1/deliveries/:id/replay`             | Replay failed delivery → 202             |
-| GET    | `/v1/admin/tenants`                     | List tenants (super-admin)               |
-| GET    | `/v1/admin/tenants/:id`                 | Get tenant detail                        |
-| PATCH  | `/v1/admin/tenants/:id`                 | Rename tenant                            |
-| DELETE | `/v1/admin/tenants/:id`                 | Delete tenant                            |
-| GET    | `/v1/admin/tenants/:id/users`           | List users in a tenant                   |
-| DELETE | `/v1/admin/tenants/:id/users/:userId`   | Delete a user from a tenant              |
-| POST   | `/v1/admin/tenants/:id/users/:userId/reset-password` | Issue a one-time password reset link |
-| POST   | `/v1/admin/invites`                     | Create tenant-owner or user invite       |
+| Method | Route                                                | Purpose                                                              |
+| ------ | ---------------------------------------------------- | -------------------------------------------------------------------- |
+| GET    | `/v1/health`                                         | Liveness probe                                                       |
+| GET    | `/v1/ready`                                          | Postgres + Redis connectivity                                        |
+| GET    | `/v1/auth/bootstrap-status`                          | Whether first-run bootstrap is still available                       |
+| POST   | `/v1/auth/bootstrap`                                 | Installer and first workspace (`workspace_name` optional)            |
+| POST   | `/v1/auth/workspace`                                 | Create an existing admin-only account’s workspace (session required) |
+| GET    | `/v1/auth/invites/validate`                          | Validate invite token                                                |
+| POST   | `/v1/auth/accept-invite`                             | Accept invite and create account                                     |
+| POST   | `/v1/auth/login`                                     | Email/password login → session cookie                                |
+| POST   | `/v1/auth/logout`                                    | End session                                                          |
+| GET    | `/v1/auth/me`                                        | Current user + tenant                                                |
+| POST   | `/v1/auth/change-password`                           | Change password (session)                                            |
+| GET    | `/v1/auth/password-reset/validate`                   | Validate a password reset link                                       |
+| POST   | `/v1/auth/password-reset`                            | Set a new password from a reset link                                 |
+| GET    | `/v1/stats`                                          | Dashboard metrics (tenant auth)                                      |
+| GET    | `/v1/api-keys`                                       | List API keys (prefix only)                                          |
+| POST   | `/v1/api-keys`                                       | Create API key (shown once)                                          |
+| POST   | `/v1/api-keys/:id/revoke`                            | Revoke API key                                                       |
+| POST   | `/v1/api-keys/:id/rotate`                            | Rotate API key (new key shown once)                                  |
+| POST   | `/v1/endpoints`                                      | Create endpoint (secret shown once)                                  |
+| GET    | `/v1/endpoints`                                      | List endpoints                                                       |
+| PATCH  | `/v1/endpoints/:id`                                  | Update status or description                                         |
+| POST   | `/v1/endpoints/:id/rotate`                           | Rotate signing secret (shown once)                                   |
+| POST   | `/v1/events`                                         | Ingest event → 202 Accepted                                          |
+| GET    | `/v1/events`                                         | List events (paginated)                                              |
+| GET    | `/v1/events/:id`                                     | Event detail + delivery summary                                      |
+| GET    | `/v1/deliveries`                                     | List deliveries                                                      |
+| GET    | `/v1/deliveries/:id`                                 | Delivery + attempt timeline                                          |
+| POST   | `/v1/deliveries/:id/replay`                          | Replay a failed or pending delivery → 202; `in_progress` → 400       |
+| GET    | `/v1/admin/tenants`                                  | List tenants (super-admin)                                           |
+| GET    | `/v1/admin/tenants/:id`                              | Get tenant detail                                                    |
+| PATCH  | `/v1/admin/tenants/:id`                              | Rename tenant                                                        |
+| DELETE | `/v1/admin/tenants/:id`                              | Delete tenant                                                        |
+| GET    | `/v1/admin/tenants/:id/users`                        | List users in a tenant                                               |
+| DELETE | `/v1/admin/tenants/:id/users/:userId`                | Delete a user from a tenant                                          |
+| POST   | `/v1/admin/tenants/:id/users/:userId/reset-password` | Issue a one-time password reset link                                 |
+| POST   | `/v1/admin/invites`                                  | Create tenant-owner or user invite                                   |
 
 All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (default 50, max 100). `events` filter by `?status=pending|completed|partial_failure|failed|no_recipients`, `api-keys` by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` (a delivery status, or `open` for pending and in progress), `?updated_within=24h`, and `?event_id=`. Responses look like `{ data, has_more, limit, offset }`.
 
@@ -300,20 +294,24 @@ Ingest (`POST /v1/events`) accepts a Bearer API key or a tenant session cookie. 
 
 Transient failures retry automatically. Permanent client errors fail fast. After a delivery is exhausted, you can replay it from the API or the console.
 
-| Setting           | Value                                                |
-| ----------------- | ---------------------------------------------------- |
-| Max HTTP attempts | 5 per delivery run                                       |
+| Setting           | Value                                                      |
+| ----------------- | ---------------------------------------------------------- |
+| Max HTTP attempts | 5 per delivery run                                         |
 | Backoff           | Exponential backoff (1m → 2m → 4m → 8m), no jitter, no cap |
-| Success           | HTTP 2xx within 30s                                  |
-| Retryable         | Network error, timeout, 408, 429, 5xx                |
-| Fail-fast         | 4xx (except 408, 429)                                |
-| Rate limit        | 100 outbound admissions / minute / tenant            |
+| Success           | HTTP 2xx within 30s                                        |
+| Retryable         | Network error, timeout, 408, 429, 5xx                      |
+| Fail-fast         | 4xx (except 408, 429)                                      |
+| Rate limit        | 100 outbound admissions / minute / tenant                  |
 
-> When a tenant hits the rate limit, the worker defers the delivery until the next UTC minute plus a small jitter (logged as `rate_limited`). That pause is not a failure, does not update the delivery row’s `last_error`, and does not count toward the five-attempt cap. The admission is taken before the HTTP call, so a lost claim or a disabled endpoint spends a slot without sending.
+> When a tenant hits the rate limit, the worker defers the delivery until the next UTC minute plus a small jitter (logged as `rate_limited`). That pause is not a failure, does not update the delivery row’s `last_error`, and does not count toward the five-attempt cap. The admission is taken before the attempt is reserved, so a lost claim spends a rate-limit slot without sending or consuming an attempt.
 
-Delivery is at-least-once — dedupe on your side with `X-Webhook-Id` (stable across retries). A transactional outbox covers ingest→queue handoff (see [Outbox](#outbox)). A background sweeper reclaims deliveries left `in_progress` after a worker crash and re-enqueues them.
+The worker reserves the attempt number in the database before the HTTP call. A reserved attempt counts toward the cap, including one interrupted by a crash. If the process dies after reservation and before the request is sent, that slot is still consumed and no HTTP call was made. Attempt history stores only committed outcomes, so an interrupted attempt can leave a gap in the timeline. A pending row whose `next_retry_at` is still in the future is not claimed. An early queue job finishes without sending, and the sweeper enqueues the delivery once the retry time has passed and the row is stale.
 
-Only `failed` deliveries can be re-queued. Call `POST /v1/deliveries/:id/replay` (returns `202`), or use **Replay** on the delivery detail page. Replaying increments `replay_count`, resets the current run’s attempt counter, and preserves all previous attempts. Attempts expose `run_number`, starting at 0; the delivery ID and X-Webhook-Id remain unchanged. Replaying a delivery that's already `pending`/`in_progress` returns `202` without creating another run (an existing open delivery may be re-enqueued for recovery).
+A response counts as success only when it finishes. A stream error or a connection that closes before the body ends is a transport failure and follows the retry rules, even if some body bytes and a 2xx status already arrived. The receiver may already have processed the webhook, so the retry can deliver a duplicate. Response bodies stored on the attempt are still truncated to about 1 KB. Timeouts stay timeouts.
+
+Delivery is at-least-once — dedupe on your side with `X-Webhook-Id` (stable across retries). A transactional outbox covers ingest→queue handoff (see [Outbox](#outbox)). A background sweeper reclaims deliveries left `in_progress` after the worker lease expires (the delivery timeout plus 30 seconds) and re-enqueues them without resetting the attempt count. The sweeper runs every 5 minutes by default (`SWEEP_INTERVAL_MS`). It also re-enqueues a pending delivery once `next_retry_at` is due.
+
+`POST /v1/deliveries/:id/replay` starts a new run only for a `failed` delivery. That call returns `202`, increments `replay_count`, resets the current run’s attempt counter and `next_retry_at`, and keeps previous attempts. You can do the same with **Replay** on the delivery detail page. Attempts expose `run_number`, starting at 0; the delivery ID and X-Webhook-Id remain unchanged. Replaying a `pending` delivery also returns `202` and re-enqueues that same run without changing the attempt count, run number, or `next_retry_at`. Replaying `in_progress` returns `400 invalid_state`: the sweeper recovers that delivery after the lease expires, and resetting it could start a competing send. A succeeded delivery, or any delivery whose endpoint is disabled, returns `400 invalid_state`.
 
 ## Privacy
 
@@ -321,4 +319,4 @@ API keys are stored as SHA-256 hashes; the full secret is shown only on create o
 
 > **Protect secrets:** Do not commit API keys or signing secrets to source control or paste them into tickets. Revoke a compromised API key from Settings immediately. Rotate a compromised endpoint signing secret with `POST /v1/endpoints/:id/rotate` (or **Rotate signing secret** in the console), then update receivers before they reject the new signatures.
 
-Temporary DNS lookup failures use the normal bounded delivery retries. Invalid, private, or unsafe URLs remain blocked, and endpoint registration rejects unresolved hostnames.
+Temporary DNS lookup failures use the normal bounded delivery retries. Private and loopback addresses are blocked when `NODE_ENV=production` and allowed outside production for local testing. Supported protocols, URL safety checks, and hostname resolution still apply in every environment, and endpoint registration rejects unresolved hostnames.

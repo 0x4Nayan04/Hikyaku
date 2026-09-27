@@ -1,5 +1,6 @@
 import request from 'supertest'
-import { endpoints } from '@webhook/shared/schema'
+import { eq } from 'drizzle-orm'
+import { apiKeys, deliveries, endpoints, events } from '@webhook/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
@@ -81,5 +82,79 @@ describe('list endpoint pagination', () => {
       offset: 0,
     })
     expect(res.body.data).toHaveLength(2)
+  })
+
+  it('breaks timestamp ties by id on events, deliveries, endpoints, and API keys', async () => {
+    const newer = '10000000-0000-4000-8000-000000000001'
+    const high = 'ffffffff-ffff-4fff-8fff-fffffffffff3'
+    const mid = 'ffffffff-ffff-4fff-8fff-fffffffffff2'
+    const low = 'ffffffff-ffff-4fff-8fff-fffffffffff1'
+    const ids = [newer, high, mid, low]
+    const sameCreatedAt = new Date('2020-01-01T00:00:00.000Z')
+    const newerCreatedAt = new Date('2020-01-02T00:00:00.000Z')
+    const createdAtFor = (id: string) => (id === newer ? newerCreatedAt : sameCreatedAt)
+    const tieTenant = await createTenantWithKey()
+    const tieAgent = await createTenantSession(app, tieTenant.tenantId)
+    const db = getDb()
+
+    try {
+      await db.delete(apiKeys).where(eq(apiKeys.tenantId, tieTenant.tenantId))
+      await db.insert(endpoints).values(
+        ids.map((id) => ({
+          id,
+          tenantId: tieTenant.tenantId,
+          url: `https://example.com/tie/${id}`,
+          secret: 'whsec_' + 'b'.repeat(32),
+          createdAt: createdAtFor(id),
+        })),
+      )
+      await db.insert(events).values(
+        ids.map((id) => ({
+          id,
+          tenantId: tieTenant.tenantId,
+          idempotencyKey: `tie-${id}`,
+          type: 'test',
+          payload: {},
+          createdAt: createdAtFor(id),
+        })),
+      )
+      await db.insert(deliveries).values(
+        ids.map((id) => ({
+          id,
+          tenantId: tieTenant.tenantId,
+          eventId: id,
+          endpointId: low,
+          createdAt: createdAtFor(id),
+        })),
+      )
+      await db.insert(apiKeys).values(
+        ids.map((id) => ({
+          id,
+          tenantId: tieTenant.tenantId,
+          keyHash: `tie-hash-${id}`,
+          prefix: 'tiebreak',
+          createdAt: createdAtFor(id),
+        })),
+      )
+
+      for (const path of ['/v1/events', '/v1/deliveries', '/v1/endpoints', '/v1/api-keys']) {
+        const first = await tieAgent.get(path).query({ limit: 2, offset: 0 })
+        const second = await tieAgent.get(path).query({ limit: 2, offset: 2 })
+        expect(first.status).toBe(200)
+        expect(second.status).toBe(200)
+        const firstIds = first.body.data.map((row: { id: string }) => row.id)
+        const secondIds = second.body.data.map((row: { id: string }) => row.id)
+        expect(firstIds).toEqual([newer, high])
+        expect(secondIds).toEqual([mid, low])
+        expect(firstIds.filter((rowId: string) => secondIds.includes(rowId))).toEqual([])
+        expect([...firstIds, ...secondIds]).toEqual(ids)
+        expect(first.body.has_more).toBe(true)
+        expect(second.body.has_more).toBe(false)
+        expect(first.body.data[0].created_at).toBe(newerCreatedAt.toISOString())
+        expect(first.body.data[1].created_at).toBe(sameCreatedAt.toISOString())
+      }
+    } finally {
+      await deleteTenant(tieTenant.tenantId)
+    }
   })
 })

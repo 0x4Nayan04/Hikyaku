@@ -192,6 +192,69 @@ describe('usePaginatedList', () => {
     expect(state!.data).toEqual([{ id: 2 }])
   })
 
+  it.each(['filter', 'page'])('hides previous rows when a %s request fails', async (change) => {
+    const fetchPage = vi
+      .fn<FetchPage>()
+      .mockResolvedValueOnce(page([1], true, 0))
+      .mockRejectedValueOnce(new Error('unavailable'))
+    await renderHarness({ fetchPage, queryKey: 'all' })
+
+    if (change === 'filter') {
+      await renderHarness({ fetchPage, queryKey: 'failed' })
+    } else {
+      await act(async () => {
+        state!.setOffset(25)
+      })
+    }
+
+    expect(state!.data).toEqual([])
+    expect(state!.hasMore).toBe(false)
+    expect(state!.error).toBe('Failed to load')
+    expect(state!.isEmpty).toBe(false)
+  })
+
+  it('shows empty only after a successful current-page load', async () => {
+    const fetchPage = vi
+      .fn<FetchPage>()
+      .mockRejectedValueOnce(new Error('unavailable'))
+      .mockResolvedValueOnce(page([], false, 0))
+    await renderHarness({ fetchPage })
+    expect(state!.isInitial).toBe(false)
+    expect(state!.isEmpty).toBe(false)
+    await act(async () => {
+      await state!.reload()
+    })
+    expect(state!.isEmpty).toBe(true)
+    expect(state!.error).toBeNull()
+  })
+
+  it('hides old rows immediately while a new filter is loading and resets its offset', async () => {
+    const next = deferred<Paginated<Item>>()
+    const fetchPage = vi
+      .fn<FetchPage>()
+      .mockResolvedValueOnce(page([1], true, 0))
+      .mockResolvedValueOnce(page([2], false, 25))
+      .mockReturnValueOnce(next.promise)
+    await renderHarness({ fetchPage, queryKey: 'all' })
+    await act(async () => {
+      state!.setOffset(25)
+    })
+    await renderHarness({ fetchPage, queryKey: 'failed' })
+    expect(state!.data).toEqual([])
+    expect(state!.offset).toBe(0)
+    expect(state!.isInitial).toBe(true)
+    expect(state!.isEmpty).toBe(false)
+    expect(fetchPage).toHaveBeenLastCalledWith({
+      limit: 25,
+      offset: 0,
+      signal: expect.any(AbortSignal),
+    })
+    await act(async () => {
+      next.resolve(page([3], false, 0))
+    })
+    expect(state!.data).toEqual([{ id: 3 }])
+  })
+
   it('skips loading while disabled', async () => {
     const fetchPage = vi.fn<FetchPage>().mockResolvedValue(page([1], false, 0))
     await renderHarness({ fetchPage, enabled: false })

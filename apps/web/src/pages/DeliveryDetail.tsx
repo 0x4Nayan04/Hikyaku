@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { ApiError, getDelivery, replayDelivery } from '@/api/client'
@@ -90,6 +90,18 @@ export default function DeliveryDetail() {
   const { id } = useParams<{ id: string }>()
   const [replayOpen, setReplayOpen] = useState(false)
   const [replaying, setReplaying] = useState(false)
+  const [awaitingReplayId, setAwaitingReplayId] = useState<string | null>(null)
+  const replayRequestRef = useRef(0)
+  const awaitingReplay = awaitingReplayId === id
+
+  useEffect(() => {
+    setAwaitingReplayId(null)
+    setReplaying(false)
+    setReplayOpen(false)
+    return () => {
+      replayRequestRef.current += 1
+    }
+  }, [id])
   const {
     data: delivery,
     loading,
@@ -101,28 +113,36 @@ export default function DeliveryDetail() {
     missingError: 'Delivery ID is missing',
     fallbackError: 'Failed to load delivery',
   })
+  async function refreshDelivery() {
+    const refreshed = await reload()
+    if (refreshed) {
+      setAwaitingReplayId((pendingId) => (pendingId === id ? null : pendingId))
+    }
+  }
+
   usePolling({
-    enabled: delivery?.status === 'pending' || delivery?.status === 'in_progress',
+    enabled: awaitingReplay || delivery?.status === 'pending' || delivery?.status === 'in_progress',
     intervalMs: 10_000,
-    onPoll: reload,
+    onPoll: refreshDelivery,
   })
 
   async function handleReplay() {
-    if (!id) {
-      return
-    }
-
+    if (!id || replaying || awaitingReplay) return
+    const request = ++replayRequestRef.current
     setReplaying(true)
 
     try {
       await replayDelivery(id)
+      if (request !== replayRequestRef.current) return
+      setAwaitingReplayId(id)
       setReplayOpen(false)
       toast.success('Delivery replay queued')
-      await reload()
+      await refreshDelivery()
     } catch (err) {
+      if (request !== replayRequestRef.current) return
       toast.error(err instanceof ApiError ? err.message : 'Failed to replay delivery')
     } finally {
-      setReplaying(false)
+      if (request === replayRequestRef.current) setReplaying(false)
     }
   }
 
@@ -154,7 +174,9 @@ export default function DeliveryDetail() {
               Back to deliveries
             </Link>
           </Button>
-          {delivery?.status === 'failed' && delivery.endpoint_status === 'active' ? (
+          {!awaitingReplay &&
+          delivery?.status === 'failed' &&
+          delivery.endpoint_status === 'active' ? (
             <Button size="sm" className="sm-btn-split" onClick={() => setReplayOpen(true)}>
               <span className="sm-btn-split-label">Replay</span>
               <span className="sm-btn-split-icon">
@@ -165,7 +187,17 @@ export default function DeliveryDetail() {
         </div>
       }
     >
-      {error ? (
+      {awaitingReplay ? (
+        <PageBanner
+          variant={error ? 'error' : 'info'}
+          title={
+            error
+              ? 'Replay queued; could not refresh delivery. Retrying…'
+              : 'Replay queued; refreshing delivery…'
+          }
+          description={error ?? 'Waiting for the updated delivery status.'}
+        />
+      ) : error ? (
         <PageBanner variant="error" title="Could not load delivery" description={error} />
       ) : null}
 
@@ -179,9 +211,7 @@ export default function DeliveryDetail() {
                 <StatusBadge kind="delivery" status={delivery.status} />
               </SettingsCatalogRow>
               <SettingsCatalogRow label="Attempts">
-                <span className="text-sm text-ink">
-                  {formatDeliveryAttemptLabel(delivery)}
-                </span>
+                <span className="text-sm text-ink">{formatDeliveryAttemptLabel(delivery)}</span>
               </SettingsCatalogRow>
               <SettingsCatalogRow
                 label="Event"

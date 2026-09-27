@@ -38,6 +38,7 @@ export default function Settings() {
     setApiKeyOffset,
     loadingKeys,
     keysError,
+    keysEmpty,
     creatingKey,
     revokingId,
     rotatingId,
@@ -92,6 +93,7 @@ export default function Settings() {
                   pageSize={apiKeyPageSize}
                   loadingKeys={loadingKeys}
                   keysError={keysError}
+                  isEmpty={keysEmpty}
                   creatingKey={creatingKey}
                   rotatingId={rotatingId}
                   revokingId={revokingId}

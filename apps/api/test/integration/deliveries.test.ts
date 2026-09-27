@@ -1,6 +1,7 @@
 import request from 'supertest'
-import { deliveryAttempts } from '@webhook/shared/schema'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { eq } from 'drizzle-orm'
+import { deliveries, deliveryAttempts } from '@webhook/shared/schema'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
 import { closeRedis } from '../../src/lib/redis.js'
@@ -120,6 +121,62 @@ describe('GET /v1/deliveries', () => {
     expect(empty.status).toBe(200)
     expect(empty.body.data).toHaveLength(0)
     expect(empty.body.has_more).toBe(false)
+  })
+
+  it('combines open, inclusive updated-time and event filters before pagination', async () => {
+    const tenant = await createTenantWithKey()
+    const filteredAgent = await createTenantSession(app, tenant.tenantId)
+    const now = Date.now()
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now)
+    const cutoff = now - 24 * 60 * 60 * 1000
+    const rows: Array<{ id: string; eventId: string; status: string; updatedAt: number }> = []
+    try {
+      for (const status of ['pending', 'in_progress', 'succeeded', 'failed'] as const) {
+        for (const updatedAt of [cutoff - 1, cutoff, now]) {
+          const row = await seedDeliveryRow({
+            tenantId: tenant.tenantId,
+            idempotencyKey: `filter-${status}-${updatedAt}`,
+            deliveryStatus: status,
+          })
+          await getDb()
+            .update(deliveries)
+            .set({
+              updatedAt: new Date(updatedAt),
+              createdAt: new Date(now - rows.length * 1000),
+            })
+            .where(eq(deliveries.id, row.deliveryId))
+          rows.push({ id: row.deliveryId, eventId: row.eventId, status, updatedAt })
+        }
+      }
+      const openRows = rows.filter((row) => ['pending', 'in_progress'].includes(row.status))
+      const recentRows = rows.filter((row) => row.updatedAt >= cutoff)
+      const recentOpen = openRows.filter((row) => row.updatedAt >= cutoff)
+      for (const [query, expected] of [
+        ['status=open', openRows],
+        ['updated_within=24h', recentRows],
+        ['status=open&updated_within=24h', recentOpen],
+        ['status=failed&updated_within=24h', recentRows.filter((row) => row.status === 'failed')],
+        [`status=open&updated_within=24h&event_id=${recentOpen[0].eventId}`, [recentOpen[0]]],
+        [`status=open&updated_within=24h&event_id=${rows[0].eventId}`, []],
+        [`status=open&event_id=${eventId}`, []],
+      ] as const) {
+        const response = await filteredAgent.get(`/v1/deliveries?${query}`)
+        expect(response.status).toBe(200)
+        expect(response.body.data.map((row: { id: string }) => row.id)).toEqual(
+          expected.map((row) => row.id),
+        )
+      }
+      const response = await filteredAgent.get(
+        '/v1/deliveries?status=open&updated_within=24h&limit=2&offset=1',
+      )
+      expect(response.body.data.map((row: { id: string }) => row.id)).toEqual(
+        recentOpen.slice(1, 3).map((row) => row.id),
+      )
+      expect(response.body.has_more).toBe(true)
+    } finally {
+      clock.mockRestore()
+      await deleteTenant(tenant.tenantId)
+    }
   })
 
   it('rejects an invalid event_id filter', async () => {

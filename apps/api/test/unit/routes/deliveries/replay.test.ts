@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import type { NextFunction, Request, Response } from 'express'
 import { eq } from 'drizzle-orm'
-import { deliveries, deliveryAttempts, deliveryOutbox, endpoints, events } from '@webhook/shared/schema'
+import {
+  deliveries,
+  deliveryAttempts,
+  deliveryOutbox,
+  endpoints,
+  events,
+} from '@webhook/shared/schema'
 import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import '../../../../src/config.js'
@@ -427,6 +433,7 @@ describe('replayDelivery validation', () => {
         })
         .returning({ id: events.id })
 
+      const retryAt = new Date(Date.now() + 120_000)
       const [delivery] = await db
         .insert(deliveries)
         .values({
@@ -434,15 +441,107 @@ describe('replayDelivery validation', () => {
           eventId: event.id,
           endpointId: endpoint.id,
           status: 'pending',
+          attemptCount: 2,
+          replayCount: 1,
+          nextRetryAt: retryAt,
+          lastError: 'http_503',
         })
         .returning({ id: deliveries.id })
 
+      enqueueMock.mockClear()
       const result = await runReplayDelivery(delivery.id, tenantId)
 
       expect(result.error).toBeUndefined()
       expect(result.statusCode).toBe(202)
       expect(result.body).toEqual({ id: delivery.id, status: 'pending' })
       expect(enqueueMock).toHaveBeenCalledWith(expect.anything(), delivery.id, tenantId)
+
+      const [updated] = await db
+        .select({
+          status: deliveries.status,
+          attemptCount: deliveries.attemptCount,
+          replayCount: deliveries.replayCount,
+          nextRetryAt: deliveries.nextRetryAt,
+          lastError: deliveries.lastError,
+        })
+        .from(deliveries)
+        .where(eq(deliveries.id, delivery.id))
+
+      expect(updated).toMatchObject({
+        status: 'pending',
+        attemptCount: 2,
+        replayCount: 1,
+        lastError: 'http_503',
+      })
+      expect(updated?.nextRetryAt?.getTime()).toBe(retryAt.getTime())
+    } finally {
+      await deleteTenant(tenantId)
+    }
+  })
+
+  it('rejects an in-progress delivery without enqueueing', async () => {
+    enqueueMock.mockClear()
+    const { tenantId } = await createTenantWithKey()
+
+    try {
+      const db = getDb()
+      const [endpoint] = await db
+        .insert(endpoints)
+        .values({
+          tenantId,
+          url: 'https://example.com/hook',
+          secret: 'whsec_test',
+          status: 'active',
+        })
+        .returning({ id: endpoints.id })
+
+      const [event] = await db
+        .insert(events)
+        .values({
+          tenantId,
+          idempotencyKey: `replay-in-progress-${randomUUID()}`,
+          type: 'test',
+          payload: {},
+        })
+        .returning({ id: events.id })
+
+      const retryAt = new Date(Date.now() + 120_000)
+      const [delivery] = await db
+        .insert(deliveries)
+        .values({
+          tenantId,
+          eventId: event.id,
+          endpointId: endpoint.id,
+          status: 'in_progress',
+          attemptCount: 2,
+          replayCount: 1,
+          nextRetryAt: retryAt,
+        })
+        .returning({ id: deliveries.id })
+
+      const result = await runReplayDelivery(delivery.id, tenantId)
+
+      expect(result.error).toBeInstanceOf(AppError)
+      expect(result.error).toMatchObject({
+        statusCode: 400,
+        code: 'invalid_state',
+      })
+      expect(enqueueMock).not.toHaveBeenCalled()
+
+      const [updated] = await db
+        .select({
+          status: deliveries.status,
+          attemptCount: deliveries.attemptCount,
+          replayCount: deliveries.replayCount,
+        })
+        .from(deliveries)
+        .where(eq(deliveries.id, delivery.id))
+
+      expect(updated).toMatchObject({
+        status: 'in_progress',
+        attemptCount: 2,
+        replayCount: 1,
+      })
     } finally {
       await deleteTenant(tenantId)
     }

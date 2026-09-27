@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { LogOut, Menu, Settings, Shield, User, X } from 'lucide-react'
-import { logout } from '@/api/client'
+import { ApiError, logout } from '@/api/client'
 import type { MeResponse } from '@/api/types'
 import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { AppNav } from '@/components/app/AppNav'
@@ -89,8 +89,11 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
   async function handleLogout() {
     try {
       await logout()
-    } catch {
-      toast.error('Failed to log out cleanly. Please sign in again.')
+    } catch (err) {
+      if (!(err instanceof ApiError && err.status === 401 && err.code === 'unauthorized')) {
+        toast.error('Could not sign out. Please try again.')
+        return
+      }
     }
     await refresh()
     navigate('/login', { replace: true })

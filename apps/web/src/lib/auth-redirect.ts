@@ -4,6 +4,8 @@ type LoginLocationState = {
   message?: string
   from?: {
     pathname: string
+    search?: string
+    hash?: string
   }
 }
 
@@ -18,6 +20,24 @@ const PUBLIC_PATHS = new Set([
   '/accept-invite',
   '/reset-password',
 ])
+
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PATHS.has(pathname) || pathname === '/docs' || pathname.startsWith('/docs/')
+}
+
+function parseLocalPath(value: string | undefined): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) {
+    return null
+  }
+
+  try {
+    const url = new URL(value, 'http://hikyaku.local')
+    if (url.origin !== 'http://hikyaku.local' || isPublicPath(url.pathname)) return null
+    return `${url.pathname}${url.search}${url.hash}`
+  } catch {
+    return null
+  }
+}
 
 /** Paths both roles may use (not bounced for super-admin). */
 function isSharedPath(pathname: string): boolean {
@@ -39,17 +59,31 @@ export function getHomeLabel(user: Pick<User, 'is_super_admin' | 'tenant_id'>): 
   return user.is_super_admin && !user.tenant_id ? 'Admin' : 'Dashboard'
 }
 
-export function getPostLoginPath(state: unknown, user: Pick<User, 'is_super_admin' | 'tenant_id'>): string {
-  const locationState = state as LoginLocationState | null
-  const pathname = locationState?.from?.pathname
+export function getLoginPath(location: Pick<Location, 'pathname' | 'search' | 'hash'>): string {
+  const returnTo = parseLocalPath(`${location.pathname}${location.search}${location.hash}`)
+  return returnTo ? `/login?${new URLSearchParams({ returnTo })}` : '/login'
+}
 
-  if (!pathname || PUBLIC_PATHS.has(pathname)) {
+export function getPostLoginPath(
+  state: unknown,
+  user: Pick<User, 'is_super_admin' | 'tenant_id'>,
+  returnTo?: string,
+): string {
+  const locationState = state as LoginLocationState | null
+  const from = locationState?.from
+  const path = parseLocalPath(
+    from ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}` : returnTo,
+  )
+
+  if (!path) {
     return getDefaultHomePath(user)
   }
+
+  const pathname = new URL(path, 'http://hikyaku.local').pathname
 
   if (user.is_super_admin && !user.tenant_id && isTenantOnlyPath(pathname)) {
     return ADMIN_HOME
   }
 
-  return pathname
+  return path
 }

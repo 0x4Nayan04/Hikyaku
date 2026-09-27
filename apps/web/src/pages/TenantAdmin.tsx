@@ -30,6 +30,7 @@ export default function TenantAdmin() {
   } | null>(null)
   const {
     data: users,
+    isEmpty,
     hasMore: usersHasMore,
     offset: userOffset,
     setOffset: setUserOffset,
@@ -86,6 +87,7 @@ export default function TenantAdmin() {
         <TenantAdminDetails
           tenant={tenant}
           users={users}
+          isEmpty={isEmpty}
           hasMore={usersHasMore}
           offset={userOffset}
           pageSize={PAGE_SIZE}

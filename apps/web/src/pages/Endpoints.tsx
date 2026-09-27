@@ -58,6 +58,7 @@ export default function Endpoints() {
     offset,
     setOffset,
     isInitial,
+    isEmpty: showEmpty,
     isRefreshing,
     error,
     reload,
@@ -80,7 +81,6 @@ export default function Endpoints() {
   const [editTarget, setEditTarget] = useState<Endpoint | null>(null)
   const [rotateTarget, setRotateTarget] = useState<Endpoint | null>(null)
 
-  const showEmpty = !isInitial && endpoints.length === 0
   const showLoading = isInitial && endpoints.length === 0
   const isDatasetEmpty = showEmpty && statusFilter === 'all' && offset === 0
 

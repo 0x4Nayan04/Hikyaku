@@ -38,6 +38,36 @@ describe('ingestEventSchema', () => {
   it.each([{ value: Infinity }, { value: -0 }])('rejects non-canonical JSON numbers', (payload) => {
     expect(ingestEventSchema.safeParse({ ...event, payload }).success).toBe(false)
   })
+
+  it('accepts safe integer boundaries', () => {
+    for (const value of [Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER]) {
+      expect(ingestEventSchema.safeParse({ ...event, payload: { value } }).success).toBe(true)
+    }
+  })
+
+  it('rejects unsafe integers, including nested values', () => {
+    const unsafe = Number.MAX_SAFE_INTEGER + 1
+    expect(ingestEventSchema.safeParse({ ...event, payload: { value: unsafe } }).success).toBe(
+      false,
+    )
+    expect(ingestEventSchema.safeParse({ ...event, payload: { value: -unsafe } }).success).toBe(
+      false,
+    )
+    expect(
+      ingestEventSchema.safeParse({ ...event, payload: { nested: { values: [unsafe] } } }).success,
+    ).toBe(false)
+  })
+
+  it('accepts finite fractional numbers', () => {
+    expect(ingestEventSchema.safeParse({ ...event, payload: { value: 1.5 } }).success).toBe(true)
+    expect(ingestEventSchema.safeParse({ ...event, payload: { value: -0.25 } }).success).toBe(true)
+  })
+
+  it('accepts large identifiers stored as strings', () => {
+    expect(
+      ingestEventSchema.safeParse({ ...event, payload: { order_id: '9007199254740993' } }).success,
+    ).toBe(true)
+  })
 })
 
 describe('bootstrapSchema', () => {

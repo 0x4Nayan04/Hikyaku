@@ -1,4 +1,4 @@
-import { createServer } from 'node:http'
+import { createServer, type ServerResponse } from 'node:http'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const resolveWebhookUrl = vi.hoisted(() => vi.fn())
@@ -132,9 +132,90 @@ describe('postWithTimeout response body cap', () => {
   })
 })
 
+describe('postWithTimeout incomplete responses', () => {
+  async function listen(handler: (res: ServerResponse) => void) {
+    const server = createServer((_req, res) => handler(res))
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('missing test server address')
+    resolveWebhookUrl.mockResolvedValue({
+      ok: true,
+      url: new URL(`http://127.0.0.1:${address.port}/hook`),
+      addresses: [{ address: '127.0.0.1', family: 4 }],
+    })
+    return {
+      close: () =>
+        new Promise<void>((resolve, reject) =>
+          server.close((err) => (err ? reject(err) : resolve())),
+        ),
+    }
+  }
+
+  it('rejects a partial 200 when the connection closes', async () => {
+    const server = await listen((res) => {
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.write('partial')
+      res.destroy()
+    })
+    try {
+      await expect(
+        postWithTimeout('http://127.0.0.1/hook', '{}', {}, 2_000, true),
+      ).rejects.toThrow()
+    } finally {
+      await server.close()
+    }
+  })
+
+  it('rejects a disconnect after the capture limit is reached', async () => {
+    const server = await listen((res) => {
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.write(Buffer.alloc(2_048, 0x61))
+      res.destroy()
+    })
+    try {
+      await expect(
+        postWithTimeout('http://127.0.0.1/hook', '{}', {}, 2_000, true),
+      ).rejects.toThrow()
+    } finally {
+      await server.close()
+    }
+  })
+
+  it('accepts an empty response', async () => {
+    const server = await listen((res) => {
+      res.writeHead(204)
+      res.end()
+    })
+    try {
+      const result = await postWithTimeout('http://127.0.0.1/hook', '{}', {}, 2_000, true)
+      expect(result.status).toBe(204)
+      expect(result.body).toBe('')
+    } finally {
+      await server.close()
+    }
+  })
+
+  it('classifies a timeout after the first body bytes as AbortError', async () => {
+    const server = await listen((res) => {
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.write('partial')
+    })
+    try {
+      const error = await postWithTimeout('http://127.0.0.1/hook', '{}', {}, 40, true).catch(
+        (caught: unknown) => caught,
+      )
+      expect(error).toMatchObject({ name: 'AbortError' })
+    } finally {
+      await server.close()
+    }
+  })
+})
+
 describe('DNS failure classification', () => {
   it('does not turn lookup failure into a policy block', async () => {
     resolveWebhookUrl.mockResolvedValue({ ok: false, kind: 'dns_error', reason: 'lookup failed' })
-    await expect(postWithTimeout('https://example.com', '{}', {}, 100)).rejects.toThrow('dns_error:')
+    await expect(postWithTimeout('https://example.com', '{}', {}, 100)).rejects.toThrow(
+      'dns_error:',
+    )
   })
 })

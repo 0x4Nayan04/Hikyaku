@@ -24,6 +24,7 @@ type SettingsApiKeysTabProps = {
   hasMore: boolean
   offset: number
   pageSize: number
+  isEmpty: boolean
   loadingKeys: boolean
   keysError: string | null
   creatingKey: boolean
@@ -41,6 +42,7 @@ export function SettingsApiKeysTab({
   offset,
   pageSize,
   loadingKeys,
+  isEmpty,
   keysError,
   creatingKey,
   rotatingId,
@@ -88,7 +90,7 @@ export function SettingsApiKeysTab({
             ) : undefined
           }
           empty={
-            !loadingKeys && apiKeys.length === 0 ? (
+            isEmpty ? (
               <DataPanelEmpty
                 icon={KeyRound}
                 title="No API keys yet"

@@ -56,6 +56,7 @@ export default function Deliveries() {
     offset,
     setOffset,
     isInitial,
+    isEmpty: showEmpty,
     isRefreshing,
     error,
     reload,
@@ -76,10 +77,12 @@ export default function Deliveries() {
     queryKey: JSON.stringify([statusFilter, eventIdFilter, updatedWithin24h]),
   })
 
-  usePolling({ intervalMs: 10_000, onPoll: reload })
+  const hasActiveDeliveries = deliveries.some(
+    (delivery) => delivery.status === 'pending' || delivery.status === 'in_progress',
+  )
+  usePolling({ enabled: hasActiveDeliveries, intervalMs: 10_000, onPoll: reload })
 
-  const isLive = !isInitial && error === null
-  const showEmpty = !isInitial && deliveries.length === 0
+  const isLive = hasActiveDeliveries && !isInitial && error === null
   const isDatasetEmpty =
     showEmpty && statusFilter === 'all' && !eventIdFilter && !updatedWithin24h && offset === 0
 

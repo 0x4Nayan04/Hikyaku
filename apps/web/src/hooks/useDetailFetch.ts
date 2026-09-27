@@ -25,14 +25,14 @@ export function useDetailFetch<T>({
     request !== requestRef.current || requestId !== id
 
   const load = useCallback(
-    async (requestId: string | undefined, initial: boolean): Promise<void> => {
+    async (requestId: string | undefined, initial: boolean): Promise<boolean | undefined> => {
       const request = ++requestRef.current
       if (!requestId) {
         setData(null)
         setLoading(false)
         setIsRefreshing(false)
         setError(missingError)
-        return
+        return false
       }
       abortRef.current?.abort()
       const controller = new AbortController()
@@ -51,10 +51,12 @@ export function useDetailFetch<T>({
         if (isStale(request, requestId)) return
         setData(result)
         setError(null)
+        return true
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return
         if (isStale(request, requestId)) return
         setError(err instanceof ApiError ? err.message : fallbackError)
+        return false
       } finally {
         if (abortRef.current === controller) abortRef.current = null
         const stale = isStale(request, requestId)

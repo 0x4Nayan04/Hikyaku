@@ -1,6 +1,6 @@
 import request from 'supertest'
 import { count, eq } from 'drizzle-orm'
-import { deliveries, events } from '@webhook/shared/schema'
+import { deliveries, deliveryOutbox, events } from '@webhook/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
@@ -18,7 +18,13 @@ describe('POST /v1/events idempotency', () => {
   let agent: ReturnType<typeof request.agent>
 
   beforeAll(async () => {
-    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+    for (const job of await queue.getJobs([
+      'waiting',
+      'delayed',
+      'completed',
+      'failed',
+      'paused',
+    ])) {
       await job.remove()
     }
 
@@ -33,7 +39,13 @@ describe('POST /v1/events idempotency', () => {
   })
 
   afterAll(async () => {
-    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+    for (const job of await queue.getJobs([
+      'waiting',
+      'delayed',
+      'completed',
+      'failed',
+      'paused',
+    ])) {
       await job.remove()
     }
     await queue.close()
@@ -81,6 +93,47 @@ describe('POST /v1/events idempotency', () => {
     const job = jobs.find((candidate) => candidate.data.deliveryId === delivery.id)
     expect(job).toBeDefined()
     expect(job?.data).toEqual({ deliveryId: delivery.id, tenantId })
+  })
+
+  it('rejects an unsafe integer in raw JSON without creating rows', async () => {
+    const db = getDb()
+    const tenantEvents = eq(events.tenantId, tenantId)
+    const tenantDeliveries = eq(deliveries.tenantId, tenantId)
+    const tenantOutbox = eq(deliveryOutbox.tenantId, tenantId)
+    const [beforeEvents] = await db.select({ value: count() }).from(events).where(tenantEvents)
+    const [beforeDeliveries] = await db
+      .select({ value: count() })
+      .from(deliveries)
+      .where(tenantDeliveries)
+    const [beforeOutbox] = await db
+      .select({ value: count() })
+      .from(deliveryOutbox)
+      .where(tenantOutbox)
+
+    const res = await request(app)
+      .post('/v1/events')
+      .set('Authorization', `Bearer ${apiKey}`)
+      .set('Content-Type', 'application/json')
+      .send(
+        '{"idempotency_key":"unsafe-int","type":"test","payload":{"order_id":9007199254740993}}',
+      )
+
+    expect(res.status).toBe(400)
+    expect(res.body.error.code).toBe('validation_error')
+
+    const [afterEvents] = await db.select({ value: count() }).from(events).where(tenantEvents)
+    const [afterDeliveries] = await db
+      .select({ value: count() })
+      .from(deliveries)
+      .where(tenantDeliveries)
+    const [afterOutbox] = await db
+      .select({ value: count() })
+      .from(deliveryOutbox)
+      .where(tenantOutbox)
+
+    expect(afterEvents?.value).toBe(beforeEvents?.value)
+    expect(afterDeliveries?.value).toBe(beforeDeliveries?.value)
+    expect(afterOutbox?.value).toBe(beforeOutbox?.value)
   })
 
   it('rejects an idempotency key reused with a different event body', async () => {

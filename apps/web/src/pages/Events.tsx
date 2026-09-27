@@ -62,6 +62,7 @@ export default function Events() {
     offset,
     setOffset,
     isInitial,
+    isEmpty: showEmpty,
     isRefreshing,
     error,
     reload,
@@ -81,7 +82,6 @@ export default function Events() {
   })
   usePolling({ intervalMs: 10_000, onPoll: reload })
 
-  const showEmpty = !isInitial && events.length === 0
   const isDatasetEmpty = showEmpty && statusFilter === 'all' && offset === 0
 
   function setStatusFilter(value: 'all' | EventStatus) {

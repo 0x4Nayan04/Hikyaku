@@ -90,7 +90,7 @@ export const listEndpoints = asyncHandler(async (req: Request, res: Response) =>
     .select(endpointColumns)
     .from(endpoints)
     .where(where)
-    .orderBy(desc(endpoints.createdAt))
+    .orderBy(desc(endpoints.createdAt), desc(endpoints.id))
     .limit(limit + 1)
     .offset(offset)
   const page = takePage(rows, limit)
@@ -102,9 +102,7 @@ export const listEndpoints = asyncHandler(async (req: Request, res: Response) =>
 
   res.json(
     paginatedJson(
-      page.data.map((row) =>
-        toEndpointJson(row, undefined, lastByEndpoint.get(row.id) ?? null),
-      ),
+      page.data.map((row) => toEndpointJson(row, undefined, lastByEndpoint.get(row.id) ?? null)),
       page.hasMore,
       limit,
       offset,

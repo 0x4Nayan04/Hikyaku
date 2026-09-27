@@ -2,7 +2,7 @@ import type { ReplayDeliveryJson } from '@webhook/shared/apiJson'
 import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
 import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
 import { deliveries, deliveryAttempts, deliveryOutbox, endpoints } from '@webhook/shared/schema'
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm'
 import type { Request, RequestHandler, Response } from 'express'
 import { getDb } from '../../db/client.js'
 import { AppError, enqueueOr503 } from '../../lib/errors.js'
@@ -40,13 +40,19 @@ const attemptColumns = {
 
 export const listDeliveries: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
   const { limit, offset } = parsePagination(req.query)
-  const { status, eventId } = parseListQuery(req.query)
+  const { status, open, eventId, updatedWithin24h } = parseListQuery(req.query)
   const tenantId = getTenantId(req)
   const db = getDb()
 
   const conditions = [eq(deliveries.tenantId, tenantId)]
   if (status !== undefined) {
     conditions.push(eq(deliveries.status, status))
+  }
+  if (open) {
+    conditions.push(inArray(deliveries.status, ['pending', 'in_progress']))
+  }
+  if (updatedWithin24h) {
+    conditions.push(gte(deliveries.updatedAt, new Date(Date.now() - 24 * 60 * 60 * 1000)))
   }
   if (eventId !== undefined) {
     conditions.push(eq(deliveries.eventId, eventId))
@@ -58,7 +64,7 @@ export const listDeliveries: RequestHandler = asyncHandler(async (req: Request, 
     .from(deliveries)
     .innerJoin(endpoints, eq(deliveries.endpointId, endpoints.id))
     .where(where)
-    .orderBy(desc(deliveries.createdAt))
+    .orderBy(desc(deliveries.createdAt), desc(deliveries.id))
     .limit(limit + 1)
     .offset(offset)
   const page = takePage(rows, limit)
@@ -122,17 +128,24 @@ export const replayDelivery: RequestHandler = asyncHandler(async (req: Request, 
     throw new AppError(404, 'not_found', 'Delivery not found')
   }
 
-  const canReplay =
-    existing.status === 'failed' ||
-    existing.status === 'pending' ||
-    existing.status === 'in_progress'
-
-  if (!canReplay) {
+  if (
+    existing.status !== 'failed' &&
+    existing.status !== 'pending' &&
+    existing.status !== 'in_progress'
+  ) {
     throw new AppError(400, 'invalid_state', 'Only failed deliveries can be replayed')
   }
 
   if (existing.endpointStatus === 'disabled') {
     throw new AppError(400, 'invalid_state', 'Endpoint is disabled')
+  }
+
+  if (existing.status === 'in_progress') {
+    throw new AppError(
+      400,
+      'invalid_state',
+      'Delivery is in progress. Recovery is handled by the sweeper; resetting an active delivery could trigger a competing send.',
+    )
   }
 
   if (existing.status === 'failed') {
@@ -177,7 +190,7 @@ export const replayDelivery: RequestHandler = asyncHandler(async (req: Request, 
 
   const body: ReplayDeliveryJson = {
     id,
-    status: existing.status === 'in_progress' ? existing.status : 'pending',
+    status: 'pending',
   }
   res.status(202).json(body)
 })

@@ -29,19 +29,30 @@ describe('apiFetch auth redirects', () => {
 
   it('redirects when the session is unauthorized', async () => {
     const assign = vi.fn()
-    vi.stubGlobal('window', { location: { assign } })
+    vi.stubGlobal('window', {
+      location: {
+        assign,
+        pathname: '/deliveries',
+        search: '?status=failed',
+        hash: '#attempts',
+      },
+    })
     mock401('unauthorized')
 
     await expect(apiFetch('/test')).rejects.toMatchObject({ code: 'unauthorized' })
-    expect(assign).toHaveBeenCalledWith('/login')
+    expect(assign).toHaveBeenCalledWith(
+      '/login?returnTo=%2Fdeliveries%3Fstatus%3Dfailed%23attempts',
+    )
   })
 })
 
 describe('list requests', () => {
   it('forwards an abort signal to the network request', async () => {
-    const fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: [], has_more: false, limit: 25, offset: 0 })),
-    )
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ data: [], has_more: false, limit: 25, offset: 0 })),
+      )
     vi.stubGlobal('fetch', fetch)
     const controller = new AbortController()
 
@@ -54,9 +65,11 @@ describe('list requests', () => {
   })
 
   it('forwards an abort signal to the API-key list request', async () => {
-    const fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: [], has_more: false, limit: 25, offset: 0 })),
-    )
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ data: [], has_more: false, limit: 25, offset: 0 })),
+      )
     vi.stubGlobal('fetch', fetch)
     const controller = new AbortController()
 
