@@ -19,7 +19,7 @@ const FEATURES: Feature[] = [
     icon: ShieldCheck,
     title: 'HMAC-signed requests',
     description:
-      'Every outbound request carries X-Webhook-Timestamp and X-Webhook-Signature, an HMAC-SHA256 of the raw body. Subscribers verify before trusting a payload.',
+      'Every outbound request carries X-Webhook-Timestamp and X-Webhook-Signature, an HMAC-SHA256 of timestamp.raw_body. Subscribers verify that string against the raw body before trusting a payload.',
   },
   {
     icon: RotateCcw,
@@ -31,7 +31,7 @@ const FEATURES: Feature[] = [
     icon: History,
     title: 'Full attempt history',
     description:
-      'Status, timing, and response body are recorded for every attempt. Inspect any delivery in the console and replay it with one click.',
+      'An HTTP attempt records status when the subscriber responds, timing, and up to 1 KB of the response body. Replay a failed delivery from its detail page.',
   },
   {
     icon: Users,
@@ -49,7 +49,11 @@ const FEATURES: Feature[] = [
 
 export function LandingFeatures() {
   return (
-    <section id="features" className="lp-features scroll-mt-(--nav-height)" aria-labelledby="features-heading">
+    <section
+      id="features"
+      className="lp-features scroll-mt-(--nav-height)"
+      aria-labelledby="features-heading"
+    >
       <LandingFrameInner className="lp-section">
         <header className="lp-split-heading">
           <h2 id="features-heading">

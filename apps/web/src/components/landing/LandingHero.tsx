@@ -20,7 +20,9 @@ const INGEST_URL = `${API_BASE}/v1/events`
 export function LandingHero() {
   const navigate = useNavigate()
   const { session } = useSession()
-  const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(readBootstrapStatusCache)
+  const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(
+    readBootstrapStatusCache,
+  )
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -60,11 +62,11 @@ export function LandingHero() {
             {APP_NAME}
           </p>
           <h1 id="hero-heading">
-            Your webhooks, delivered. <em>Every time.</em>
+            Your webhooks, delivered. <em>Signed and retried.</em>
           </h1>
           <p className="lp-hero__lead">
-            Post an event once. {APP_NAME} fans it out to every endpoint: signed, retried, and recorded
-            on infrastructure you run.
+            Post an event once. {APP_NAME} fans it out to every endpoint: signed, retried, and
+            recorded on infrastructure you run.
           </p>
 
           <div className="lp-hero__actions" role="group" aria-label="Get started">

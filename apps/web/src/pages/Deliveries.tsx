@@ -21,16 +21,20 @@ import { LiveChip } from '@/components/console/LiveChip'
 import { usePolling } from '@/hooks/usePolling'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 
-const STATUS_OPTIONS: Array<{ value: 'all' | DeliveryStatus; label: string }> = [
+type DeliveryListStatus = 'all' | DeliveryStatus | 'open'
+
+const STATUS_OPTIONS: Array<{ value: DeliveryListStatus; label: string }> = [
   { value: 'all', label: 'All statuses' },
+  { value: 'open', label: 'Open' },
   { value: 'pending', label: 'Pending' },
   { value: 'in_progress', label: 'In progress' },
   { value: 'succeeded', label: 'Succeeded' },
   { value: 'failed', label: 'Failed' },
 ]
 
-function parseStatusParam(value: string | null): 'all' | DeliveryStatus {
+function parseStatusParam(value: string | null): DeliveryListStatus {
   if (
+    value === 'open' ||
     value === 'pending' ||
     value === 'in_progress' ||
     value === 'succeeded' ||
@@ -45,6 +49,7 @@ export default function Deliveries() {
   const [searchParams, setSearchParams] = useSearchParams()
   const eventIdFilter = searchParams.get('event_id') || undefined
   const statusFilter = parseStatusParam(searchParams.get('status'))
+  const updatedWithin24h = searchParams.get('updated_within') === '24h'
   const {
     data: deliveries,
     hasMore,
@@ -63,18 +68,20 @@ export default function Deliveries() {
           offset,
           status: statusFilter === 'all' ? undefined : statusFilter,
           event_id: eventIdFilter,
+          updated_within: updatedWithin24h ? '24h' : undefined,
         },
         { signal },
       ),
     fallbackError: 'Failed to load deliveries',
-    queryKey: JSON.stringify([statusFilter, eventIdFilter]),
+    queryKey: JSON.stringify([statusFilter, eventIdFilter, updatedWithin24h]),
   })
 
   usePolling({ intervalMs: 10_000, onPoll: reload })
 
   const isLive = !isInitial && error === null
   const showEmpty = !isInitial && deliveries.length === 0
-  const isDatasetEmpty = showEmpty && statusFilter === 'all' && !eventIdFilter && offset === 0
+  const isDatasetEmpty =
+    showEmpty && statusFilter === 'all' && !eventIdFilter && !updatedWithin24h && offset === 0
 
   let emptyState
   if (eventIdFilter) {
@@ -100,8 +107,23 @@ export default function Deliveries() {
       <DataPanelEmpty
         variant="inline"
         icon={Search}
-        title="No deliveries match this status"
-        description="Choose a different status or view all deliveries."
+        title={
+          updatedWithin24h ? 'No deliveries match these filters' : 'No deliveries match this status'
+        }
+        description={
+          updatedWithin24h
+            ? 'This status has no deliveries updated in the last 24 hours.'
+            : 'Choose a different status or view all deliveries.'
+        }
+      />
+    )
+  } else if (updatedWithin24h) {
+    emptyState = (
+      <DataPanelEmpty
+        variant="inline"
+        icon={Search}
+        title="No deliveries in the last 24 hours"
+        description="Nothing was updated in that window."
       />
     )
   } else {
@@ -111,7 +133,7 @@ export default function Deliveries() {
         title="No deliveries yet"
         description={
           <>
-            Outbound webhook attempts appear here after you send an event.{' '}
+            Deliveries appear here after you send an event.{' '}
             <Link to="/events/send" className="font-medium text-primary hover:underline">
               Send a test event
             </Link>
@@ -137,6 +159,12 @@ export default function Deliveries() {
   function clearEventFilter() {
     patchParams((next) => {
       next.delete('event_id')
+    })
+  }
+
+  function clearUpdatedWithin() {
+    patchParams((next) => {
+      next.delete('updated_within')
     })
   }
 
@@ -168,11 +196,31 @@ export default function Deliveries() {
   return (
     <ConsolePage
       title="Deliveries"
-      description="Outbound webhook attempts. Open a row for request and response details."
+      description="One row per event and endpoint. Open a row for each attempt."
       actions={<LiveChip active={isLive} />}
     >
       {error ? (
         <PageBanner variant="error" title="Could not load deliveries" description={error} />
+      ) : null}
+
+      {updatedWithin24h ? (
+        <PageBanner
+          variant="info"
+          title="Last 24 hours"
+          description={
+            <>
+              Showing deliveries updated in the last 24 hours.{' '}
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                onClick={clearUpdatedWithin}
+              >
+                <X className="size-3" aria-hidden="true" />
+                Clear time window
+              </button>
+            </>
+          }
+        />
       ) : null}
 
       {eventIdFilter ? (

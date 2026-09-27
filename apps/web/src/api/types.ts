@@ -14,10 +14,7 @@ import type {
 } from '@webhook/shared/apiJson'
 
 export type { DeliveryStatus, EndpointStatus, EventStatus }
-export type {
-  DeliveriesSummary,
-  ReplayDeliveryJson as ReplayDeliveryResponse,
-}
+export type { DeliveriesSummary, ReplayDeliveryJson as ReplayDeliveryResponse }
 
 export type EventSummary = EventListJson
 export type EventDetail = EventDetailJson
@@ -104,8 +101,9 @@ export type AdminTenant = {
 }
 
 export type ListDeliveriesParams = PaginationParams & {
-  status?: DeliveryStatus
+  status?: DeliveryStatus | 'open'
   event_id?: string
+  updated_within?: '24h'
 }
 
 export type Stats = {

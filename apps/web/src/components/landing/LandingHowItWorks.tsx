@@ -12,13 +12,13 @@ const STEPS = [
     number: '02',
     title: 'Deliver',
     description:
-      'Each active endpoint gets its own HMAC-signed HTTP request with the original payload.',
+      'Each active endpoint gets its own HMAC-signed POST. Your payload is nested under data, with the event id, type, and time.',
   },
   {
     number: '03',
     title: 'Recover',
     description:
-      'Failures back off automatically. Status, timing, and body stay in the ledger for replay.',
+      'Failures back off automatically. Status, timing, and up to 1 KB of body stay in the ledger for replay.',
   },
 ] as const
 
