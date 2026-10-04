@@ -51,7 +51,10 @@ export function usePolling({
     }
     const handleVisibilityChange = () => {
       if (document.hidden) stop()
-      else start()
+      else {
+        void poll()
+        start()
+      }
     }
 
     start()

@@ -116,10 +116,11 @@ describe('usePolling', () => {
       setHidden(false)
       document.dispatchEvent(new Event('visibilitychange'))
     })
+    expect(calls).toBe(afterHide + 1)
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100)
     })
-    expect(calls).toBe(afterHide + 1)
+    expect(calls).toBe(afterHide + 2)
   })
 
   it('does not poll while disabled', async () => {
@@ -129,5 +130,34 @@ describe('usePolling', () => {
       await vi.advanceTimersByTimeAsync(500)
     })
     expect(calls).toBe(0)
+    await act(async () => {
+      setHidden(true)
+      document.dispatchEvent(new Event('visibilitychange'))
+      setHidden(false)
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    expect(calls).toBe(0)
+  })
+
+  it('does not overlap an in-flight poll when the tab becomes visible', async () => {
+    let resolve!: () => void
+    const gate = new Promise<void>((res) => {
+      resolve = res
+    })
+    const onPoll = vi.fn(() => gate)
+    await renderHarness({ intervalMs: 100, onPoll })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100)
+      setHidden(true)
+      document.dispatchEvent(new Event('visibilitychange'))
+      setHidden(false)
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    expect(onPoll).toHaveBeenCalledTimes(1)
+    await act(async () => resolve())
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100)
+    })
+    expect(onPoll).toHaveBeenCalledTimes(2)
   })
 })

@@ -80,7 +80,7 @@ export default function Deliveries() {
   const hasActiveDeliveries = deliveries.some(
     (delivery) => delivery.status === 'pending' || delivery.status === 'in_progress',
   )
-  usePolling({ enabled: hasActiveDeliveries, intervalMs: 10_000, onPoll: reload })
+  usePolling({ intervalMs: hasActiveDeliveries ? 10_000 : 30_000, onPoll: reload })
 
   const isLive = hasActiveDeliveries && !isInitial && error === null
   const isDatasetEmpty =
