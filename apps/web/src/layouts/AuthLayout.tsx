@@ -54,7 +54,7 @@ export function AuthLayout({
 
           <main
             id="main-content"
-            className="flex flex-1 items-start justify-center overflow-y-auto bg-surface px-8 pb-6 pt-5 lg:px-10 lg:pb-10 lg:pt-6"
+            className="order-first flex flex-1 items-start justify-center overflow-y-auto bg-surface px-8 pb-6 pt-5 lg:order-none lg:px-10 lg:pb-10 lg:pt-6"
           >
             <div className="w-full max-w-lg">
               <header className="mb-4">

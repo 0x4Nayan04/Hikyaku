@@ -1,13 +1,14 @@
 import { DocumentTitle } from '@/components/DocumentTitle'
-import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { RequireSession } from '@/components/layout/RequireSession'
 import { RequireSuperAdmin } from '@/components/layout/RequireSuperAdmin'
 import { RequireTenantUser } from '@/components/layout/RequireTenantUser'
 import { SkipLink } from '@/components/SkipLink'
-import { Landing } from '@/pages/Landing'
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
+const Landing = lazy(() =>
+  import('@/pages/Landing').then((m) => ({ default: m.Landing })),
+)
 const ConsoleLayout = lazy(() => import('@/layouts/ConsoleLayout'))
 const AcceptInvite = lazy(() => import('@/pages/AcceptInvite'))
 const ResetPassword = lazy(() => import('@/pages/ResetPassword'))
@@ -30,14 +31,13 @@ const TenantAdmin = lazy(() => import('@/pages/TenantAdmin'))
 function PublicRouteFallback() {
   return (
     <div
-      className="flex min-h-svh flex-col items-center justify-center gap-3 bg-background"
+      className="flex min-h-svh items-center justify-center bg-background"
       role="status"
       aria-label="Loading"
     >
-      <HikyakuMark decorative className="size-10 opacity-80" />
-      <p className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-muted-strong">
+      <span className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-muted-strong">
         Loading
-      </p>
+      </span>
     </div>
   )
 }
