@@ -10,7 +10,7 @@ import { buildIngestCurl } from '@/lib/tenant-onboarding'
 import { useSession } from '@/providers/session-context'
 import { ArrowRight, Check, Copy, LayoutDashboard } from 'lucide-react'
 import { SiGithub } from 'react-icons/si'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 const INGEST_EXAMPLE_KEY = 'whk_your_api_key'
@@ -20,10 +20,25 @@ const INGEST_URL = `${PUBLIC_API_BASE}/v1/events`
 export function LandingHero() {
   const navigate = useNavigate()
   const { session } = useSession()
+  const cliHostRef = useRef<HTMLDivElement>(null)
   const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(
     readBootstrapStatusCache,
   )
   const [copied, setCopied] = useState(false)
+  const [cliShellMissing, setCliShellMissing] = useState(false)
+
+  useLayoutEffect(() => {
+    const host = cliHostRef.current
+    const shellPre = document.getElementById('lcp-shell-pre')
+    const shellWrap = document.getElementById('lcp-shell')
+    if (!host) return
+    if (shellPre) {
+      host.appendChild(shellPre)
+      shellWrap?.remove()
+      return
+    }
+    setCliShellMissing(true)
+  }, [])
 
   useEffect(() => {
     if (session) return
@@ -131,27 +146,30 @@ export function LandingHero() {
                 <span aria-live="polite">{copied ? 'Copied' : 'Copy'}</span>
               </button>
             </div>
-            <pre className="lp-cli-block" translate="no">
-              <code>
-                <span className="lp-cli-k">curl</span> <span className="lp-cli-f">-X</span> POST{' '}
-                <span className="lp-cli-p">&quot;{INGEST_URL}&quot;</span>
-                {' \\\n  '}
-                <span className="lp-cli-f">-H</span>{' '}
-                <span className="lp-cli-s">
-                  &quot;Authorization: Bearer {INGEST_EXAMPLE_KEY}&quot;
-                </span>
-                {' \\\n  '}
-                <span className="lp-cli-f">-H</span>{' '}
-                <span className="lp-cli-s">&quot;Content-Type: application/json&quot;</span>
-                {' \\\n  '}
-                <span className="lp-cli-f">-d</span>{' '}
-                <span className="lp-cli-s">{`'{
+            <div ref={cliHostRef} />
+            {cliShellMissing ? (
+              <pre className="lp-cli-block" translate="no">
+                <code>
+                  <span className="lp-cli-k">curl</span> <span className="lp-cli-f">-X</span> POST{' '}
+                  <span className="lp-cli-p">&quot;{INGEST_URL}&quot;</span>
+                  {' \\\n  '}
+                  <span className="lp-cli-f">-H</span>{' '}
+                  <span className="lp-cli-s">
+                    &quot;Authorization: Bearer {INGEST_EXAMPLE_KEY}&quot;
+                  </span>
+                  {' \\\n  '}
+                  <span className="lp-cli-f">-H</span>{' '}
+                  <span className="lp-cli-s">&quot;Content-Type: application/json&quot;</span>
+                  {' \\\n  '}
+                  <span className="lp-cli-f">-d</span>{' '}
+                  <span className="lp-cli-s">{`'{
     "idempotency_key": "order-123-paid",
     "type": "order.paid",
     "payload": { "order_id": "123", "amount": 4999 }
   }'`}</span>
-              </code>
-            </pre>
+                </code>
+              </pre>
+            ) : null}
           </figure>
         </div>
       </LandingFrameInner>

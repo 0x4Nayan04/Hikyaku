@@ -223,8 +223,7 @@
   .lp-hero__center > .lp-eyebrow,
   .lp-hero__center > h1,
   .lp-hero__center > .lp-hero__lead,
-  .lp-hero__center > .lp-hero__actions,
-  .lp-hero__center > .lp-hero__command {
+  .lp-hero__center > .lp-hero__actions {
     animation: lp-hero-rise 0.55s var(--ease-default) both;
   }
   .lp-hero__center > h1 {
@@ -237,7 +236,7 @@
     animation-delay: 0.18s;
   }
   .lp-hero__center > .lp-hero__command {
-    animation-delay: 0.24s;
+    animation: none;
   }
   @keyframes lp-hero-rise {
     from {
@@ -253,8 +252,7 @@
     .lp-hero__center > .lp-eyebrow,
     .lp-hero__center > h1,
     .lp-hero__center > .lp-hero__lead,
-    .lp-hero__center > .lp-hero__actions,
-    .lp-hero__center > .lp-hero__command {
+    .lp-hero__center > .lp-hero__actions {
       animation: none;
     }
   }
