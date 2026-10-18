@@ -156,6 +156,10 @@ Then `pnpm db:seed` and sign in as that email for **Admin**.
 | Admin           | `/admin`             | Super-admin only               |
 | Tenant admin    | `/admin/tenants/:id` | Super-admin only               |
 
+Console data refreshes automatically while the tab is visible. The dashboard and events list
+refresh every 10 seconds; the deliveries list refreshes every 10 seconds while work is pending or
+in progress and every 30 seconds when idle. Returning to a hidden tab triggers an immediate refresh.
+
 **Roles:** Super-admins invite tenant owners; search, rename, or delete tenants; invite or remove tenant users; and issue one-time password-reset links. Tenant users manage endpoints, events, deliveries, and API keys. API keys and endpoint signing secrets can be rotated from the console. Super-admins with an assigned workspace can use that workspace’s console pages; Admin remains a separate area.
 
 API usage, signing, retries, filters, replay behavior, and the full route table live in the [product docs](https://hikyaku.nayanswarnkar.com/docs).
