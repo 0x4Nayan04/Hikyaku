@@ -2,9 +2,15 @@
 
 Ingest events, HMAC-signed deliveries, retries, and the delivery console.
 
+### Start here
+
+- **[Console](#console-path)** — Register an endpoint in the UI, send a test event, inspect deliveries.
+- **[API](#api-only-path)** — Create a key, `POST /v1/events`, let the worker deliver.
+- **[Signing](#signing)** — Verify `X-Webhook-Signature` (HMAC-SHA256) on the receiver.
+
 ## Introduction
 
-{{APP_NAME}} is a multi-tenant webhook delivery system. You POST an event to the ingest API; the API fans it out to one delivery per active endpoint, and the worker signs and delivers each POST with HMAC-SHA256, retries transient failures with exponential backoff, and stores attempt history for the console.
+{{APP_NAME}} is a multi-tenant webhook delivery system: POST to the ingest API, fan out one delivery per active endpoint, and the worker signs each outbound POST with HMAC-SHA256, retries transient failures with exponential backoff, and stores attempt history for the console.
 
 Each tenant is an isolated workspace. API keys, endpoints, events, and deliveries do not cross tenant boundaries.
 
@@ -13,7 +19,7 @@ Each tenant is an isolated workspace. API keys, endpoints, events, and deliverie
 - **Delivery** — one event sent to one endpoint, including retries and attempt history.
 - **API key** — Bearer auth for event ingest only, scoped to one tenant.
 
-Access is invite-only — a platform admin sends a one-time link. There is no self-serve signup. Jump to [Console guide](#console-guide) for the UI tour, or keep reading for the API.
+Access is invite-only — a platform admin sends a one-time link. There is no self-serve signup.
 
 ## Quick start
 
@@ -58,7 +64,7 @@ Fresh deploys create a super-admin and their workspace at [/bootstrap](/bootstra
 - **Deliveries** — filter by status, inspect attempt timelines, and replay failures.
 - **Settings** — API keys, tenant identity, and account password. Super-admins with a workspace also have API key and tenant tabs.
 
-Super-admins use **Admin** to invite tenant owners, list, rename, or delete tenants, invite or remove tenant users, and issue a one-time password reset link. A super-admin can use their own assigned workspace, including deliveries and API keys. Admin remains a separate area. Workspaces linked to a super-admin cannot be deleted.
+Super-admins use **Admin** to invite tenant owners, list/rename/delete tenants, invite or remove tenant users, and issue one-time password reset links. They may use an assigned workspace (deliveries, API keys) as well; **Admin** stays separate, and those workspaces cannot be deleted.
 
 ## Authentication
 
@@ -309,11 +315,11 @@ Transient failures retry automatically. Permanent client errors fail fast. After
 
 > When a tenant hits the rate limit, the worker defers the delivery until the next UTC minute plus a small jitter (logged as `rate_limited`). That pause is not a failure, does not update the delivery row’s `last_error`, and does not count toward the five-attempt cap. The admission is taken before the attempt is reserved, so a lost claim spends a rate-limit slot without sending or consuming an attempt.
 
-The worker reserves the attempt number in the database before the HTTP call. A reserved attempt counts toward the cap, including one interrupted by a crash. If the process dies after reservation and before the request is sent, that slot is still consumed and no HTTP call was made. Attempt history stores only committed outcomes, so an interrupted attempt can leave a gap in the timeline. A pending row whose `next_retry_at` is still in the future is not claimed. An early queue job finishes without sending, and the sweeper enqueues the delivery once the retry time has passed and the row is stale.
+The worker reserves the attempt number in the database before the HTTP call. A reserved attempt counts toward the cap, including one interrupted by a crash. If the process dies after reservation and before the request is sent, that slot is still consumed and no HTTP call was made. Attempt history stores only committed outcomes, so an interrupted attempt can leave a gap in the timeline. A pending row whose `next_retry_at` is still in the future is not claimed; an early queue job finishes without sending until the retry time is due.
 
 A response counts as success only when it finishes. A stream error or a connection that closes before the body ends is a transport failure and follows the retry rules, even if some body bytes and a 2xx status already arrived. The receiver may already have processed the webhook, so the retry can deliver a duplicate. Response bodies stored on the attempt are still truncated to about 1 KB. Timeouts stay timeouts.
 
-Delivery is at-least-once — dedupe on your side with `X-Webhook-Id` (stable across retries). A transactional outbox covers ingest→queue handoff (see [Outbox](#outbox)). A background sweeper reclaims deliveries left `in_progress` after the worker lease expires (the delivery timeout plus 30 seconds) and re-enqueues them without resetting the attempt count. The sweeper runs every 5 minutes by default (`SWEEP_INTERVAL_MS`). It also re-enqueues a pending delivery once `next_retry_at` is due.
+Delivery is at-least-once — dedupe with `X-Webhook-Id` (stable across retries; see [Outbound](#outbound)). Ingest→queue durability is in [Outbox](#outbox). The sweeper (default every 5 minutes, `SWEEP_INTERVAL_MS`) reclaims stale `in_progress` rows after the worker lease (delivery timeout + 30s) and re-enqueues due `pending` rows, without resetting attempt counts.
 
 `POST /v1/deliveries/:id/replay` starts a new run only for a `failed` delivery. That call returns `202`, increments `replay_count`, resets the current run’s attempt counter and `next_retry_at`, and keeps previous attempts. You can do the same with **Replay** on the delivery detail page. Attempts expose `run_number`, starting at 0; the delivery ID and X-Webhook-Id remain unchanged. Replaying a `pending` delivery also returns `202` and re-enqueues that same run without changing the attempt count, run number, or `next_retry_at`. Replaying `in_progress` returns `400 invalid_state`: the sweeper recovers that delivery after the lease expires, and resetting it could start a competing send. A succeeded delivery, or any delivery whose endpoint is disabled, returns `400 invalid_state`.
 
@@ -321,6 +327,6 @@ Delivery is at-least-once — dedupe on your side with `X-Webhook-Id` (stable ac
 
 API keys are stored as SHA-256 hashes; the full secret is shown only on create or rotate. Endpoint signing secrets are kept server-side so the worker can sign outbound POSTs, and are shown once at creation or when rotated in place. Session cookies power the console. Delivery attempt logs may include a truncated response body (~1KB) for debugging. There is no application-level encryption at rest beyond what your database and filesystem provide.
 
-> **Protect secrets:** Do not commit API keys or signing secrets to source control or paste them into tickets. Revoke a compromised API key from Settings immediately. Rotate a compromised endpoint signing secret with `POST /v1/endpoints/:id/rotate` (or **Rotate signing secret** in the console), then update receivers before they reject the new signatures.
+> **Protect secrets:** Do not commit API keys or signing secrets to source control or paste them into tickets. Revoke or rotate compromised credentials promptly (Settings, **Rotate signing secret**, or the API routes above) and update receivers after endpoint secret rotation.
 
 Temporary DNS lookup failures use the normal bounded delivery retries. Private and loopback addresses are blocked when `NODE_ENV=production` and allowed outside production for local testing. Supported protocols, URL safety checks, and hostname resolution still apply in every environment, and endpoint registration rejects unresolved hostnames.

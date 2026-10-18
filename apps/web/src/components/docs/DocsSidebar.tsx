@@ -1,46 +1,34 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 
 import { buildDocsSearchIndex, filterDocsSearch } from '@/docs/search'
-import { DOCS_TOC } from '@/docs/toc'
 
 const SEARCH_INDEX = buildDocsSearchIndex()
 
-function activeSectionId(root: HTMLElement): string {
-  const last = DOCS_TOC[DOCS_TOC.length - 1]
-  if (last && root.scrollTop + root.clientHeight >= root.scrollHeight - 32) {
-    return last.id
-  }
-
-  const marker = root.getBoundingClientRect().top + 112
-  let current = DOCS_TOC[0]?.id ?? ''
-  for (const item of DOCS_TOC) {
-    const el = document.getElementById(item.id)
-    if (!el) continue
-    if (el.getBoundingClientRect().top <= marker) current = item.id
-  }
-  return current
+export type DocsSidebarProps = {
+  activeId: string
+  onSectionNavigate: (id: string) => void
 }
 
-export function DocsSidebar() {
-  const [activeId, setActiveId] = useState(DOCS_TOC[0]?.id ?? '')
+function DocsSearchEmpty({ query, onClear }: { query: string; onClear: () => void }) {
+  const trimmed = query.trim()
+  if (!trimmed) {
+    return <li className="docs-sidebar-empty">No matching sections</li>
+  }
+
+  return (
+    <li className="docs-sidebar-empty docs-sidebar-empty--no-results">
+      <span>No matches for &lsquo;{trimmed}&rsquo;</span>
+      <button type="button" className="docs-sidebar-empty__clear focus-ring" onClick={onClear}>
+        Clear
+      </button>
+    </li>
+  )
+}
+
+export function DocsSidebar({ activeId, onSectionNavigate }: DocsSidebarProps) {
   const [query, setQuery] = useState('')
   const results = useMemo(() => filterDocsSearch(SEARCH_INDEX, query), [query])
-
-  useEffect(() => {
-    const root = document.querySelector('.docs-body')
-    if (!(root instanceof HTMLElement)) return
-
-    const sync = () => setActiveId(activeSectionId(root))
-    sync()
-    root.addEventListener('scroll', sync, { passive: true })
-    return () => root.removeEventListener('scroll', sync)
-  }, [])
-
-  useEffect(() => {
-    const hash = window.location.hash.slice(1)
-    if (hash && DOCS_TOC.some((item) => item.id === hash)) setActiveId(hash)
-  }, [])
 
   return (
     <aside className="docs-sidebar">
@@ -59,7 +47,7 @@ export function DocsSidebar() {
         </div>
         <ul className="docs-sidebar-list">
           {results.length === 0 ? (
-            <li className="docs-sidebar-empty">No matching sections</li>
+            <DocsSearchEmpty query={query} onClear={() => setQuery('')} />
           ) : (
             results.map((item) => (
               <li key={item.id}>
@@ -72,7 +60,7 @@ export function DocsSidebar() {
                   }
                   aria-current={activeId === item.id ? 'location' : undefined}
                   onClick={() => {
-                    setActiveId(item.id)
+                    onSectionNavigate(item.id)
                     setQuery('')
                   }}
                 >

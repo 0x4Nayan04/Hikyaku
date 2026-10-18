@@ -1,24 +1,34 @@
-# Self-host Hikyaku
+# Deploy & ops — Hikyaku
 
-Requires Docker Engine with Compose v2 and **Node.js 22+** for `node deploy/setup.mjs` (the one-time configuration command). Local app development stays on **Node.js 20** (see repo `.nvmrc` / root README).
-The existing `docker-compose.yml` and `pnpm dev` remain the development workflow.
+Local app development stays on **Node.js 20** (`pnpm dev` + root `docker-compose.yml`).  
+This folder is for **production-style** hosting and longer reference notes moved out of the root README.
 
-**Production hosting:** one VPS running this Compose stack (API + worker + Postgres + Redis + Caddy-served web). That keeps cookies on one host.
+---
 
-**Split hosting:** the web app can run on Vercel and the API plus worker on Railway. `vercel.json` proxies browser `/v1` calls to Railway so the session cookie stays on the Vercel origin. On Vercel set `API_UPSTREAM_URL` to the public Railway API origin, `PROXY_IP_SECRET` (at least 16 characters), and `ENABLE_EXPERIMENTAL_COREPACK=1` so the build uses the `packageManager` pnpm version. Leave `VITE_API_URL` unset on Vercel. Vercel preview URLs are separate origins; add them to `CORS_ORIGIN` if previews need signed-in writes. On the Railway API set that same `PROXY_IP_SECRET`, `CORS_ORIGIN` and `WEB_APP_URL` to the Vercel origin, and `TRUST_PROXY=1`. Set `VITE_PUBLIC_API_URL` to the Railway origin for the Vercel build so docs and curl samples show a public URL. Pre-deploy command: `node apps/api/dist/scripts/migrate.js`. Build and start from the repo root (`pnpm --filter @hikyaku/api... build`, `pnpm --filter @hikyaku/api start`, and the same for `@hikyaku/worker`). Do not set a root directory of `apps/api` or `apps/worker`. The worker gets no public domain and no healthcheck. Point the API healthcheck at `/v1/ready`.
+## Main path: Docker Compose (recommended)
 
-## Start
+One VPS running API + worker + Postgres + Redis + Caddy-served web. Cookies stay on one host.
+
+Requires Docker Engine with Compose v2 and **Node.js 22+** for the one-time config command `node deploy/setup.mjs`.
+
+### Start
 
 ```sh
 node deploy/setup.mjs
 docker compose --env-file .env.production -f compose.production.yml up -d --build
 ```
 
-Open https://localhost/bootstrap. Find `ADMIN_BOOTSTRAP_SECRET` in your local `.env.production` (do not commit or share it). Create your account and workspace, sign in, add a receiver, send a sample event, and inspect delivery results. The sample sends real traffic. Production receivers must be publicly resolvable HTTPS endpoints; private addresses are intentionally blocked.
+Open https://localhost/bootstrap. Find `ADMIN_BOOTSTRAP_SECRET` in your local `.env.production` (do not commit or share it). Create your account and workspace, sign in, add a receiver, send a sample event, and inspect deliveries.
 
-## Tuning
+Production receivers must be publicly resolvable HTTPS endpoints; private addresses are intentionally blocked.
 
-Add any of these optional variables to `.env.production`, then apply them with `docker compose --env-file .env.production -f compose.production.yml up -d`. Compose supplies the shown defaults when omitted. Changes to the web address or secrets also require recreating the affected containers.
+### Tuning
+
+Add optional variables to `.env.production`, then apply with:
+
+```sh
+docker compose --env-file .env.production -f compose.production.yml up -d
+```
 
 | Service | Variables (default) |
 | --- | --- |
@@ -26,7 +36,7 @@ Add any of these optional variables to `.env.production`, then apply them with `
 | API | `SESSION_COOKIE_MAX_AGE=604800000`, `INVITE_TTL_MS=604800000`, `INGEST_RATE_LIMIT_PER_MINUTE=120`, `AUTH_RATE_LIMIT_PER_MINUTE=20`, `TRUST_PROXY=1` |
 | Worker | `DELIVERY_TIMEOUT_MS=30000`, `MAX_DELIVERY_ATTEMPTS=5`, `RATE_LIMIT_PER_MINUTE=100`, `WORKER_CONCURRENCY=5`, `SWEEP_INTERVAL_MS=30000` |
 
-`TRUST_PROXY=1` is for the bundled Caddy proxy. Keep it at 1 unless you change the proxy topology. `SWEEP_INTERVAL_MS` uses the stack's existing 30-second default; the worker code defaults to 5 minutes outside this stack. Invalid numeric values stop the affected service at startup with a named environment error. Check the rendered values without exposing secrets by inspecting only the relevant service environment in `docker compose config`.
+`TRUST_PROXY=1` matches the bundled Caddy proxy. Keep it at 1 unless you change the proxy topology. Invalid numeric values stop the affected service at startup.
 
 Caddy issues a local certificate for localhost. Export its root certificate:
 
@@ -34,11 +44,9 @@ Caddy issues a local certificate for localhost. Export its root certificate:
 docker compose --env-file .env.production -f compose.production.yml cp web:/data/caddy/pki/authorities/local/root.crt ./hikyaku-local-root.crt
 ```
 
-Trust this certificate in your operating system/browser's certificate store, then reload. On macOS import it into Keychain Access and explicitly trust it for SSL. Do not disable browser or server certificate validation. For public deployment, set `SITE_ADDRESS` to a domain (no scheme or path), point DNS at this machine, allow inbound ports 80 and 443, and rerun startup. Caddy obtains public certificates automatically. Only Caddy publishes ports; API, PostgreSQL, and Redis remain private to the Compose network.
+Trust this certificate in your OS/browser store, then reload. For a public domain, set `SITE_ADDRESS` (no scheme or path), point DNS at the machine, allow 80/443, and rerun startup. Only Caddy publishes ports; API, PostgreSQL, and Redis stay on the Compose network.
 
-## Operate
-
-Use the same `--env-file .env.production -f compose.production.yml` flags for every command.
+### Operate
 
 ```sh
 docker compose --env-file .env.production -f compose.production.yml ps -a
@@ -46,9 +54,9 @@ docker compose --env-file .env.production -f compose.production.yml logs --tail=
 docker compose --env-file .env.production -f compose.production.yml down
 ```
 
-`down` preserves volumes. Do not add `-v` unless intentionally deleting this installation. Redis uses AOF; PostgreSQL and Caddy certificates also persist. Worker logs report startup and queue activity. `/v1/ready` checks PostgreSQL/Redis, not delivery execution: confirm a real delivery after installation or upgrade.
+`down` preserves volumes. Do not add `-v` unless intentionally deleting this installation. `/v1/ready` checks PostgreSQL/Redis, not delivery execution — confirm a real delivery after install or upgrade.
 
-## Backup and upgrade
+### Backup and upgrade
 
 ```sh
 docker compose --env-file .env.production -f compose.production.yml stop api worker
@@ -58,6 +66,92 @@ docker compose --env-file .env.production -f compose.production.yml run --rm mig
 docker compose --env-file .env.production -f compose.production.yml up -d
 ```
 
-Keep the backup, previous application revision, and `.env.production` securely. Do not restart application services if migration fails: inspect `migrate` output, correct the cause, then rerun migration. Restore a backup to a fresh database and use the matching previous application revision if rollback is needed. Never roll old code back onto an incompatible new schema. This is a maintenance-window upgrade, not a zero-downtime deployment.
+Keep the backup, previous application revision, and `.env.production` securely. Do not restart application services if migration fails. Never roll old code onto an incompatible new schema.
 
-The outbox recovers committed deliveries after enqueue failures. Migration 0022 recalculates historical event statuses; 0023 preserves attempts in run 0 and adds replay runs. Previously erased attempts cannot be recovered.
+---
+
+## Optional: Vercel + Railway
+
+Split hosting is **optional**. Prefer Compose above unless you specifically want a separate frontend host.
+
+- Web on **Vercel**, API + worker on **Railway**
+- `vercel.json` proxies browser `/v1` to Railway so the session cookie stays on the Vercel origin
+- On Vercel: `API_UPSTREAM_URL` = public Railway API origin, `PROXY_IP_SECRET` (≥16 chars), `ENABLE_EXPERIMENTAL_COREPACK=1`; leave `VITE_API_URL` unset
+- On Railway API: same `PROXY_IP_SECRET`, `CORS_ORIGIN` + `WEB_APP_URL` = Vercel origin, `TRUST_PROXY=1`
+- Set `VITE_PUBLIC_API_URL` to the Railway origin on the Vercel build for docs/curl samples
+- Pre-deploy: `node apps/api/dist/scripts/migrate.js`
+- Build/start from **repo root** with `pnpm --filter @hikyaku/api...` / `@hikyaku/worker` — do not set root directory to `apps/api` or `apps/worker`
+- Worker: no public domain / healthcheck; API healthcheck → `/v1/ready`
+- Vercel preview URLs are separate origins; add them to `CORS_ORIGIN` if needed
+
+---
+
+## Reference (from root README)
+
+### Health checks
+
+```bash
+curl http://localhost:3000/v1/health
+curl http://localhost:3000/v1/ready
+```
+
+`/v1/health` — process up. `/v1/ready` — Postgres and Redis reachable.
+
+### Environment variables
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Postgres |
+| `DB_POOL_MAX` | Max PostgreSQL connections per process |
+| `REDIS_URL` | Redis / BullMQ |
+| `ADMIN_BOOTSTRAP_SECRET` | One-time super-admin bootstrap |
+| `SESSION_SECRET` | Session cookie signing (min 32 chars) |
+| `SESSION_COOKIE_MAX_AGE` | Session cookie lifetime (ms) |
+| `WEB_APP_URL` | Invite link base URL |
+| `INVITE_TTL_MS` | Invite link expiry (default 7 days) |
+| `CORS_ORIGIN` | Allowed browser origins |
+| `TRUST_PROXY` | Proxy hops for `X-Forwarded-*`. Local default `0`; production requires an explicit value |
+| `INGEST_RATE_LIMIT_PER_MINUTE` | Max `POST /v1/events` per tenant/minute |
+| `AUTH_RATE_LIMIT_PER_MINUTE` | Auth attempts per IP/minute |
+| `LOG_LEVEL` | Log verbosity |
+| `VITE_API_URL` | API base for the web app (build-time). Empty on Vercel so the browser uses same-origin `/v1` |
+| `VITE_PUBLIC_API_URL` | Public API origin for docs/curl samples |
+| `PROXY_IP_SECRET` | Shared secret for the Vercel `/v1` proxy. Omit on single-host Compose |
+
+See root `.env.example` for local worker tuning. `TRUST_PROXY=1` means one trusted reverse-proxy hop.
+
+### Delivery guarantees (summary)
+
+- **At-least-once** delivery with retries; subscribers should dedupe on `X-Webhook-Id`
+- **Transactional outbox** so committed deliveries are not lost if Redis is down at ingest
+- **Lease + sweeper** recovers crashed `in_progress` work without granting an extra attempt incorrectly
+- **Idempotent enqueue** per live queue job; HTTP delivery remains at-least-once
+- **Per-tenant rate limits** on outbound admissions
+- **Signed + timestamped** bodies (`X-Webhook-Signature`, `X-Webhook-Timestamp`; reject skew over 5 minutes)
+- **Replay** for failed deliveries from console or API
+
+Full product docs after `pnpm dev`: http://localhost:5173/docs
+
+### Useful scripts (repo root)
+
+| Command | Description |
+| --- | --- |
+| `pnpm dev` | API + worker + web |
+| `pnpm build` / `pnpm typecheck` / `pnpm lint` | Build and checks |
+| `pnpm test` | Unit + integration |
+| `pnpm test:smoke` | Playwright smoke |
+| `pnpm docker:up` / `pnpm docker:down` | Local Postgres + Redis |
+| `pnpm db:migrate` / `pnpm db:seed` | Migrate / local seed |
+
+### Safe tests
+
+Use `.env.test.example` for `TEST_DATABASE_URL`, `TEST_REDIS_URL`, and a fresh `TEST_RUN_ID`. Tests never load the development `.env`. Use a separate Postgres DB ending in `_test` and a separate Redis DB number.
+
+```sh
+pnpm --filter @hikyaku/shared build
+DATABASE_URL="$TEST_DATABASE_URL" pnpm db:migrate
+pnpm test
+pnpm test:smoke
+```
+
+Browser tests start their own API (3101) and web (5181). They never truncate unrelated databases; cleanup removes only run-owned fixtures.
