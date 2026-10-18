@@ -8,10 +8,12 @@ describe('LandingPreview', () => {
 
     expect(html).toContain('type="image/webp"')
     expect(html).toContain('/landing/console-dashboard-800w.webp 800w')
+    expect(html).toContain('/landing/console-dashboard-1200w.webp 1200w')
     expect(html).toContain('/landing/console-dashboard.webp 1512w')
     expect(html).toContain('src="/landing/console-dashboard.png"')
     expect(html).toContain('/landing/console-deliveries-800w.webp 800w')
     expect(html).toContain('src="/landing/console-delivery-detail.png"')
-    expect(html).toContain('(max-width: 900px) 100vw, 1512px')
+    expect(html).toContain('min(1052px, 90vw)')
+    expect(html).toContain('min(515px, 44vw)')
   })
 })

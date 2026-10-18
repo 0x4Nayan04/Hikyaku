@@ -1,7 +1,6 @@
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 
 const PREVIEW_SIZE = { width: 1512, height: 949 } as const
-const PREVIEW_SIZES = '(max-width: 900px) 100vw, 1512px'
 
 const SECONDARY_SHOTS = [
   {
@@ -20,13 +19,23 @@ const SECONDARY_SHOTS = [
 
 function previewWebpSrcSet(pngSrc: string): string {
   const base = pngSrc.replace(/\.png$/, '')
-  return `${base}-800w.webp 800w, ${base}.webp 1512w`
+  return `${base}-800w.webp 800w, ${base}-1200w.webp 1200w, ${base}.webp 1512w`
 }
 
-function PreviewImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
+function PreviewImage({
+  src,
+  alt,
+  className,
+  sizes,
+}: {
+  src: string
+  alt: string
+  className?: string
+  sizes: string
+}) {
   return (
     <picture>
-      <source type="image/webp" srcSet={previewWebpSrcSet(src)} sizes={PREVIEW_SIZES} />
+      <source type="image/webp" srcSet={previewWebpSrcSet(src)} sizes={sizes} />
       <img
         src={src}
         alt={alt}
@@ -60,13 +69,18 @@ export function LandingPreview() {
             src="/landing/console-dashboard.png"
             alt="Hikyaku dashboard showing ingest metrics, 24-hour delivery outcomes, and recent activity"
             className="lp-preview__main-image"
+            sizes="(max-width: 900px) 92vw, min(1052px, 90vw)"
           />
         </div>
 
         <div className="lp-preview__grid">
           {SECONDARY_SHOTS.map((shot) => (
             <figure key={shot.label} className="lp-preview__card">
-              <PreviewImage src={shot.src} alt={shot.alt} />
+              <PreviewImage
+                src={shot.src}
+                alt={shot.alt}
+                sizes="(max-width: 900px) 92vw, min(515px, 44vw)"
+              />
               <figcaption>
                 <span className="lp-preview__card-label">{shot.label}</span>
                 <span>{shot.caption}</span>

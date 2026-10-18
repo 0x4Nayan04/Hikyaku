@@ -1,4 +1,3 @@
-import '@fontsource/instrument-serif/latin-400-italic.css'
 import { lazy, Suspense, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { LandingFrame } from '@/components/landing/LandingFrame'
@@ -28,6 +27,10 @@ const LandingFooter = lazy(() =>
 
 export function Landing() {
   const { hash, pathname } = useLocation()
+
+  useEffect(() => {
+    void import('@fontsource/instrument-serif/latin-400-italic.css')
+  }, [])
 
   useEffect(() => {
     const id = hash.replace(/^#/, '')
