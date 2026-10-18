@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { LandingFrame } from '@/components/landing/LandingFrame'
 import { LandingNavbar } from '@/components/landing/LandingNavbar'
 import { LandingHero } from '@/components/landing/LandingHero'
+import '@fontsource/instrument-serif/latin-400-italic.css'
 import '@/styles/domains/chrome.css'
 import '@/styles/domains/landing.css'
 
@@ -27,10 +28,6 @@ const LandingFooter = lazy(() =>
 
 export function Landing() {
   const { hash, pathname } = useLocation()
-
-  useEffect(() => {
-    void import('@fontsource/instrument-serif/latin-400-italic.css')
-  }, [])
 
   useEffect(() => {
     const id = hash.replace(/^#/, '')
