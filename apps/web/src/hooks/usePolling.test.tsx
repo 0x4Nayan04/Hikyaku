@@ -7,6 +7,7 @@ import { usePolling } from '@/hooks/usePolling'
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 type Props = {
+  refreshOnVisible?: boolean
   enabled?: boolean
   intervalMs?: number
   onPoll: () => void | Promise<void>
@@ -129,5 +130,74 @@ describe('usePolling', () => {
       await vi.advanceTimersByTimeAsync(500)
     })
     expect(calls).toBe(0)
+  })
+})
+
+it('refreshes once on visible return when opted in, without catch-up or overlap', async () => {
+  let finish!: () => void
+  const onPoll = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve
+      }),
+  )
+  await renderHarness({ intervalMs: 100, refreshOnVisible: true, onPoll })
+  await act(async () => {
+    setHidden(true)
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(500)
+  })
+  expect(onPoll).not.toHaveBeenCalled()
+  await act(async () => {
+    setHidden(false)
+    document.dispatchEvent(new Event('visibilitychange'))
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(300)
+  })
+  expect(onPoll).toHaveBeenCalledTimes(1)
+  await act(async () => {
+    finish()
+  })
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(100)
+  })
+  expect(onPoll).toHaveBeenCalledTimes(2)
+  await act(async () => {
+    finish()
+  })
+  await act(async () => {
+    root.unmount()
+  })
+  await vi.advanceTimersByTimeAsync(500)
+  expect(onPoll).toHaveBeenCalledTimes(2)
+})
+
+it('keeps async ownership across interval and enabled changes', async () => {
+  let finish!: () => void
+  const onPoll = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve
+      }),
+  )
+  await renderHarness({ intervalMs: 100, onPoll })
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(100)
+  })
+  await renderHarness({ enabled: false, intervalMs: 50, onPoll })
+  await renderHarness({ enabled: true, intervalMs: 50, onPoll })
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(200)
+  })
+  expect(onPoll).toHaveBeenCalledTimes(1)
+  await act(async () => {
+    finish()
+  })
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(50)
+  })
+  expect(onPoll).toHaveBeenCalledTimes(2)
+  await act(async () => {
+    finish()
   })
 })

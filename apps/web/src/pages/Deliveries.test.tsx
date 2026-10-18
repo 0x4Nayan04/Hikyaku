@@ -40,9 +40,9 @@ async function renderPage() {
     )
   })
 }
-async function advance() {
+async function advance(ms = 5_000) {
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(10_000)
+    await vi.advanceTimersByTimeAsync(ms)
   })
 }
 function setHidden(hidden: boolean) {
@@ -65,7 +65,7 @@ afterEach(async () => {
 
 describe('Deliveries polling', () => {
   it.each(['pending', 'in_progress'] as const)(
-    'polls %s rows until terminal and hides Live',
+    'polls %s at 5s then keeps discovering at 15s',
     async (status) => {
       vi.mocked(listDeliveries)
         .mockResolvedValueOnce(page([{ ...delivery, status }]))
@@ -74,9 +74,11 @@ describe('Deliveries polling', () => {
       expect(container.textContent).toContain('Live')
       await advance()
       expect(listDeliveries).toHaveBeenCalledTimes(2)
-      expect(container.textContent).not.toContain('Live')
-      await advance()
+      expect(container.textContent).toContain('Live')
+      await advance(14_999)
       expect(listDeliveries).toHaveBeenCalledTimes(2)
+      await advance(1)
+      expect(listDeliveries).toHaveBeenCalledTimes(3)
     },
   )
 
@@ -84,13 +86,22 @@ describe('Deliveries polling', () => {
     [],
     [{ ...delivery, status: 'failed' }],
     [{ ...delivery, status: 'succeeded' }],
-  ] satisfies Delivery[][])('does not poll idle rows: %j', async (...rows) => {
-    vi.mocked(listDeliveries).mockResolvedValue(page(rows))
-    await renderPage()
-    await advance()
-    expect(listDeliveries).toHaveBeenCalledTimes(1)
-    expect(container.textContent).not.toContain('Live')
-  })
+  ] satisfies Delivery[][])(
+    'discovers new deliveries from idle rows at 15s: %j',
+    async (...rows) => {
+      vi.mocked(listDeliveries)
+        .mockResolvedValueOnce(page(rows))
+        .mockResolvedValue(page([delivery]))
+      await renderPage()
+      await advance()
+      expect(listDeliveries).toHaveBeenCalledTimes(1)
+      await advance(10_000)
+      expect(listDeliveries).toHaveBeenCalledTimes(2)
+      expect(container.textContent).toContain('example.com')
+      await advance()
+      expect(listDeliveries).toHaveBeenCalledTimes(3)
+    },
+  )
 
   it('pauses in hidden tabs and retries a failed refresh of active rows', async () => {
     vi.mocked(listDeliveries)
@@ -101,8 +112,9 @@ describe('Deliveries polling', () => {
     setHidden(true)
     await advance()
     expect(listDeliveries).toHaveBeenCalledTimes(1)
-    setHidden(false)
-    await advance()
+    await act(async () => {
+      setHidden(false)
+    })
     expect(container.textContent).toContain('Could not load deliveries')
     expect(container.textContent).toContain('example.com')
     expect(container.textContent).not.toContain('Live')
@@ -111,4 +123,30 @@ describe('Deliveries polling', () => {
     expect(container.textContent).not.toContain('Could not load deliveries')
     expect(container.textContent).toContain('Live')
   })
+})
+
+it('does not interrupt a slow initial load on poll or tab return', async () => {
+  let finish!: (value: Paginated<Delivery>) => void
+  let signal!: AbortSignal
+  vi.mocked(listDeliveries)
+    .mockImplementationOnce((_, options) => {
+      signal = options!.signal!
+      return new Promise((resolve) => {
+        finish = resolve
+      })
+    })
+    .mockResolvedValue(page([delivery]))
+  await renderPage()
+  await advance(30_000)
+  await act(async () => {
+    setHidden(true)
+    setHidden(false)
+  })
+  expect(listDeliveries).toHaveBeenCalledTimes(1)
+  expect(signal.aborted).toBe(false)
+  await act(async () => {
+    finish(page([delivery]))
+  })
+  await advance()
+  expect(listDeliveries).toHaveBeenCalledTimes(2)
 })

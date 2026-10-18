@@ -128,7 +128,9 @@ export function Dashboard() {
       setError(null)
       setIsLive(true)
     } catch (err) {
-      if (isAbortError(err)) return
+      if (isAbortError(err) || signal.aborted) return
+      controller.abort()
+      setIsInitial(false)
       setError(err instanceof ApiError ? err.message : 'Failed to load stats')
       setIsLive(false)
     } finally {
@@ -144,9 +146,15 @@ export function Dashboard() {
     }
   }, [load])
 
+  const refresh = useCallback(async () => {
+    if (abortRef.current) return
+    await load()
+  }, [load])
+
   usePolling({
     intervalMs: 10_000,
-    onPoll: load,
+    refreshOnVisible: true,
+    onPoll: refresh,
   })
 
   const hasData = stats !== null && hasDashboardData(stats)

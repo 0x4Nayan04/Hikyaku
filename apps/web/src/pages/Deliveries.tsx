@@ -59,7 +59,7 @@ export default function Deliveries() {
     isEmpty: showEmpty,
     isRefreshing,
     error,
-    reload,
+    refresh,
   } = usePaginatedList<Delivery>({
     pageSize: PAGE_SIZE,
     fetchPage: ({ limit, offset, signal }) =>
@@ -80,9 +80,13 @@ export default function Deliveries() {
   const hasActiveDeliveries = deliveries.some(
     (delivery) => delivery.status === 'pending' || delivery.status === 'in_progress',
   )
-  usePolling({ enabled: hasActiveDeliveries, intervalMs: 10_000, onPoll: reload })
+  usePolling({
+    intervalMs: hasActiveDeliveries ? 5_000 : 15_000,
+    refreshOnVisible: true,
+    onPoll: refresh,
+  })
 
-  const isLive = hasActiveDeliveries && !isInitial && error === null
+  const isLive = !isInitial && error === null
   const isDatasetEmpty =
     showEmpty && statusFilter === 'all' && !eventIdFilter && !updatedWithin24h && offset === 0
 

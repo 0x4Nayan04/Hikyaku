@@ -107,6 +107,11 @@ export function usePaginatedList<T>({
     }
   }, [offset, pageSize, queryKey, load, enabled])
 
+  const refresh = useCallback(() => {
+    if (abortRef.current) return Promise.resolve(undefined)
+    return load()
+  }, [load])
+
   const isCurrent = loadedKey === currentKey
   const currentError = settledKey === currentKey ? error : null
   const isInitial = settledKey !== currentKey
@@ -121,5 +126,6 @@ export function usePaginatedList<T>({
     isRefreshing,
     error: currentError,
     reload: load,
+    refresh,
   }
 }

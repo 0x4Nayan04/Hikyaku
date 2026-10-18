@@ -182,7 +182,7 @@ User-Agent: Hikyaku/1.0
 - `succeeded` — subscriber returned 2xx
 - `failed` — retries exhausted or fail-fast 4xx
 
-List deliveries with `GET /v1/deliveries` (`?status=` a delivery status, or `open` for pending and in progress; `?updated_within=24h` for rows updated in the last 24 hours; `?event_id=`, `?limit`, `?offset`), or open one with `GET /v1/deliveries/:id` for the attempt timeline. Attempts may include a truncated response body (~1KB). The delivery list polls every 10 seconds while a visible row is pending or in progress; the detail view polls while that delivery is in flight. Polling pauses in hidden tabs. Reload an idle list to discover new deliveries.
+List deliveries with `GET /v1/deliveries` (`?status=` a delivery status, or `open` for pending and in progress; `?updated_within=24h` for rows updated in the last 24 hours; `?event_id=`, `?limit`, `?offset`), or open one with `GET /v1/deliveries/:id` for the attempt timeline. Attempts may include a truncated response body (~1KB). The delivery list polls every 5 seconds while a loaded row is pending or in progress, and every 15 seconds otherwise; the detail view polls while that delivery is in flight. Polling pauses in hidden tabs.
 
 ## Signing
 
