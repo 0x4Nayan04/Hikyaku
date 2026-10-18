@@ -399,7 +399,7 @@ function OnboardingStepRow({ step }: { step: OnboardingStep }) {
         <p
           className={cn(
             'dashboard-activity-row__name',
-            step.done && 'text-muted-strong line-through decoration-muted-strong/45',
+            step.done && 'text-muted-strong',
           )}
         >
           {step.label}

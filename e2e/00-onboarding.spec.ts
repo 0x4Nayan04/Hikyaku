@@ -1,5 +1,32 @@
 import { createServer } from 'node:http'
 import { expect, test } from '@playwright/test'
+import { createDbClient } from '../packages/shared/src/db'
+import { configureTestEnvironment } from '../packages/shared/src/testEnv'
+
+test.beforeEach(async () => {
+  configureTestEnvironment()
+  const client = createDbClient(process.env.TEST_DATABASE_URL!)
+  const connection = await client.getPool().connect()
+  try {
+    await connection.query('BEGIN')
+    const workspaceName = `e2e-${process.env.TEST_RUN_ID}-installer`
+    await connection.query(
+      `DELETE FROM sessions WHERE sess->>'userId' IN (
+        SELECT users.id::text FROM users JOIN tenants ON users.tenant_id = tenants.id
+        WHERE tenants.name = $1
+      )`,
+      [workspaceName],
+    )
+    await connection.query('DELETE FROM tenants WHERE name = $1', [workspaceName])
+    await connection.query('COMMIT')
+  } catch (error) {
+    await connection.query('ROLLBACK')
+    throw error
+  } finally {
+    connection.release()
+    await client.closePool()
+  }
+})
 
 test('installer sends and inspects the first webhook without Admin or an API key', async ({ page }) => {
   test.setTimeout(60_000)
@@ -23,6 +50,8 @@ test('installer sends and inspects the first webhook without Admin or an API key
     await page.getByLabel('Password', { exact: true }).fill(password)
     await page.getByRole('button', { name: 'Create account and workspace' }).click()
     await expect(page).toHaveURL('/login')
+    // The URL changes before the lazy Login route replaces Bootstrap's matching fields.
+    await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toBeVisible()
     await page.getByLabel('Email', { exact: true }).fill(email)
     await page.getByLabel('Password', { exact: true }).fill(password)
     await page.getByRole('button', { name: 'Sign in', exact: true }).click()
