@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" suppressHydrationWarning>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
@@ -29,14 +29,6 @@
     <meta name="twitter:image" content="/og.png" />
     <meta name="twitter:image:alt" content="Hikyaku — signed webhook delivery" />
     <title>Hikyaku</title>
-    <script>
-      ;(function () {
-        var path = location.pathname
-        if (path !== '/' && path !== '') {
-          document.documentElement.classList.add('not-home')
-        }
-      })()
-    </script>
     <link rel="stylesheet" href="/src/styles/fonts.css" />
     <style>
       @layer theme, base, components, utilities;
@@ -52,55 +44,10 @@
       #root {
         min-height: 100svh;
       }
-      #lcp-shell {
-        box-sizing: border-box;
-        max-width: 42rem;
-        margin: 0 auto;
-        padding: 18rem 1.25rem 2rem;
-      }
-      html.not-home #lcp-shell {
-        display: none !important;
-      }
-      #lcp-shell .lp-cli-block {
-        margin: 0;
-        padding: 1rem 1.125rem 1.2rem;
-        overflow: hidden;
-        border: 1px solid #2a3340;
-        background: #121820;
-        color-scheme: dark;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        font-size: 0.8125rem;
-        line-height: 1.7;
-        color: #e8eaed;
-        white-space: pre-wrap;
-        word-break: break-word;
-      }
-      #lcp-shell .lp-cli-k {
-        color: #82aaff;
-      }
-      #lcp-shell .lp-cli-f {
-        color: #ffcb6b;
-      }
-      #lcp-shell .lp-cli-p,
-      #lcp-shell .lp-cli-s {
-        color: #c3e88d;
-      }
     </style>
   </head>
   <body>
-    <div id="lcp-shell" data-lcp-shell>
-      <pre class="lp-cli-block" id="lcp-shell-pre" translate="no">
-<code><span class="lp-cli-k">curl</span> <span class="lp-cli-f">-X</span> POST <span class="lp-cli-p">&quot;__LCP_INGEST_URL__&quot;</span> \
-  <span class="lp-cli-f">-H</span> <span class="lp-cli-s">&quot;Authorization: Bearer whk_your_api_key&quot;</span> \
-  <span class="lp-cli-f">-H</span> <span class="lp-cli-s">&quot;Content-Type: application/json&quot;</span> \
-  <span class="lp-cli-f">-d</span> <span class="lp-cli-s">'{
-    "idempotency_key": "order-123-paid",
-    "type": "order.paid",
-    "payload": { "order_id": "123", "amount": 4999 }
-  }'</span></code></pre>
-    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

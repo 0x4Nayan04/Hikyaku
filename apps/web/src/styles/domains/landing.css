@@ -220,42 +220,6 @@
   .lp-hero .lp-eyebrow {
     color: var(--color-primary);
   }
-  .lp-hero__center > .lp-eyebrow,
-  .lp-hero__center > h1,
-  .lp-hero__center > .lp-hero__lead,
-  .lp-hero__center > .lp-hero__actions {
-    animation: lp-hero-rise 0.55s var(--ease-default) both;
-  }
-  .lp-hero__center > h1 {
-    animation-delay: 0.06s;
-  }
-  .lp-hero__center > .lp-hero__lead {
-    animation-delay: 0.12s;
-  }
-  .lp-hero__center > .lp-hero__actions {
-    animation-delay: 0.18s;
-  }
-  .lp-hero__center > .lp-hero__command {
-    animation: none;
-  }
-  @keyframes lp-hero-rise {
-    from {
-      opacity: 0;
-      transform: translateY(0.55rem);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .lp-hero__center > .lp-eyebrow,
-    .lp-hero__center > h1,
-    .lp-hero__center > .lp-hero__lead,
-    .lp-hero__center > .lp-hero__actions {
-      animation: none;
-    }
-  }
   .lp-hero__stage--glyphs {
     background: color-mix(in srgb, var(--color-primary) 3.5%, var(--color-surface));
   }

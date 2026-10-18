@@ -1,3 +1,4 @@
+import { Landing } from '@/pages/Landing'
 import { DocumentTitle } from '@/components/DocumentTitle'
 import { RequireSession } from '@/components/layout/RequireSession'
 import { RequireSuperAdmin } from '@/components/layout/RequireSuperAdmin'
@@ -6,9 +7,6 @@ import { SkipLink } from '@/components/SkipLink'
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
-const Landing = lazy(() =>
-  import('@/pages/Landing').then((m) => ({ default: m.Landing })),
-)
 const ConsoleLayout = lazy(() => import('@/layouts/ConsoleLayout'))
 const AcceptInvite = lazy(() => import('@/pages/AcceptInvite'))
 const ResetPassword = lazy(() => import('@/pages/ResetPassword'))
