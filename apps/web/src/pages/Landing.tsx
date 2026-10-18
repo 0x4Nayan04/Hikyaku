@@ -1,17 +1,30 @@
 import '@fontsource/instrument-serif/latin-400-italic.css'
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { LandingFrame } from '@/components/landing/LandingFrame'
 import { LandingNavbar } from '@/components/landing/LandingNavbar'
 import { LandingHero } from '@/components/landing/LandingHero'
-import { LandingFeatures } from '@/components/landing/LandingFeatures'
-import { LandingHowItWorks } from '@/components/landing/LandingHowItWorks'
-import { LandingPreview } from '@/components/landing/LandingPreview'
-import { LandingFaq } from '@/components/landing/LandingFaq'
-import { LandingFinalCta } from '@/components/landing/LandingFinalCta'
-import { LandingFooter } from '@/components/landing/LandingFooter'
 import '@/styles/domains/chrome.css'
 import '@/styles/domains/landing.css'
+
+const LandingFeatures = lazy(() =>
+  import('@/components/landing/LandingFeatures').then((m) => ({ default: m.LandingFeatures })),
+)
+const LandingHowItWorks = lazy(() =>
+  import('@/components/landing/LandingHowItWorks').then((m) => ({ default: m.LandingHowItWorks })),
+)
+const LandingPreview = lazy(() =>
+  import('@/components/landing/LandingPreview').then((m) => ({ default: m.LandingPreview })),
+)
+const LandingFaq = lazy(() =>
+  import('@/components/landing/LandingFaq').then((m) => ({ default: m.LandingFaq })),
+)
+const LandingFinalCta = lazy(() =>
+  import('@/components/landing/LandingFinalCta').then((m) => ({ default: m.LandingFinalCta })),
+)
+const LandingFooter = lazy(() =>
+  import('@/components/landing/LandingFooter').then((m) => ({ default: m.LandingFooter })),
+)
 
 export function Landing() {
   const { hash, pathname } = useLocation()
@@ -19,8 +32,14 @@ export function Landing() {
   useEffect(() => {
     const id = hash.replace(/^#/, '')
     if (!id) return
+    let tries = 0
     const scrollToHash = () => {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const el = document.getElementById(id)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        return
+      }
+      if (tries++ < 60) requestAnimationFrame(scrollToHash)
     }
     requestAnimationFrame(scrollToHash)
   }, [hash, pathname])
@@ -31,14 +50,18 @@ export function Landing() {
         <LandingNavbar />
         <main id="main-content" className="flex-1">
           <LandingHero />
-          <LandingFeatures />
-          <LandingHowItWorks />
-          <LandingPreview />
-          <LandingFaq />
-          <LandingFinalCta />
+          <Suspense fallback={null}>
+            <LandingFeatures />
+            <LandingHowItWorks />
+            <LandingPreview />
+            <LandingFaq />
+            <LandingFinalCta />
+          </Suspense>
         </main>
         <div className="site-footer-block">
-          <LandingFooter />
+          <Suspense fallback={null}>
+            <LandingFooter />
+          </Suspense>
         </div>
       </LandingFrame>
     </div>

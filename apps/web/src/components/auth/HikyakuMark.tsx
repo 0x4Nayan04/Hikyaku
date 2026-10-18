@@ -16,8 +16,8 @@ export function HikyakuMark({ className, decorative = false }: HikyakuMarkProps)
         alt={decorative ? '' : APP_NAME}
         aria-hidden={decorative || undefined}
         draggable={false}
-        width={256}
-        height={256}
+        width={128}
+        height={128}
         className="block size-full object-contain"
       />
     </picture>
