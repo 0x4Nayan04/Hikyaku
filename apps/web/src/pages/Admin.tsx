@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '@/providers/session-context'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link2, Search } from 'lucide-react'
 import { ApiError, createMyWorkspace, listAdminTenants } from '@/api/client'
 import type { AdminTenant } from '@/api/types'
@@ -21,11 +21,20 @@ export default function Admin() {
   const [creatingWorkspace, setCreatingWorkspace] = useState(false)
   const [workspaceError, setWorkspaceError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteResult, setInviteResult] = useState<{
     inviteUrl: string
     expiresAt: string
   } | null>(null)
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim())
+    }, 300)
+    return () => window.clearTimeout(handle)
+  }, [searchQuery])
+
   const {
     data: tenants,
     isEmpty,
@@ -39,9 +48,9 @@ export default function Admin() {
   } = usePaginatedList<AdminTenant>({
     pageSize: PAGE_SIZE,
     fetchPage: ({ limit, offset, signal }) =>
-      listAdminTenants({ limit, offset, search: searchQuery.trim() || undefined }, { signal }),
+      listAdminTenants({ limit, offset, search: debouncedSearch || undefined }, { signal }),
     fallbackError: 'Failed to load tenants',
-    queryKey: searchQuery.trim(),
+    queryKey: debouncedSearch,
   })
 
   return (
@@ -64,10 +73,7 @@ export default function Admin() {
           <Input
             placeholder="Search tenants by name or ID…"
             value={searchQuery}
-            onChange={(event) => {
-              setSearchQuery(event.target.value)
-              setOffset(0)
-            }}
+            onChange={(event) => setSearchQuery(event.target.value)}
             className="min-h-0 w-full pl-9"
           />
         </div>

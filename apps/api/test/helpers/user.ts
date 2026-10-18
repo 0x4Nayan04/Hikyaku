@@ -4,6 +4,7 @@ import type { Application } from 'express'
 import request from 'supertest'
 import { hashPassword } from '@webhook/shared/password'
 import { users } from '@webhook/shared/schema'
+import { createCredentialFingerprint } from '../../src/auth/session.js'
 import { getDb } from '../../src/db/client.js'
 
 const DEFAULT_TEST_PASSWORD = 'test-password-min-12-chars'
@@ -14,7 +15,13 @@ export async function createUser(options: {
   email?: string
   password?: string
   name?: string
-}): Promise<{ userId: string; email: string; password: string }> {
+}): Promise<{
+  userId: string
+  email: string
+  password: string
+  passwordHash: string
+  credentialFingerprint: string
+}> {
   const email = options.email ?? `user-${randomUUID()}@test.com`
   const password = options.password ?? DEFAULT_TEST_PASSWORD
   const passwordHash = await hashPassword(password)
@@ -30,7 +37,13 @@ export async function createUser(options: {
     })
     .returning({ id: users.id })
 
-  return { userId: user.id, email, password }
+  return {
+    userId: user.id,
+    email,
+    password,
+    passwordHash,
+    credentialFingerprint: createCredentialFingerprint(passwordHash),
+  }
 }
 
 export async function deleteUser(userId: string): Promise<void> {

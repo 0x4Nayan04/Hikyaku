@@ -5,6 +5,7 @@ import { getDb } from '../db/client.js'
 import { AppError } from '../lib/errors.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import {
+  createCredentialFingerprint,
   readSessionUserBlob,
   writeSessionUser,
   type SessionUserBlob,
@@ -17,15 +18,9 @@ function applySessionUser(req: Request, user: SessionUserBlob): void {
 }
 
 export async function attachSessionUser(req: Request): Promise<void> {
-  const userId = req.session?.userId
-  if (!userId) {
-    throw new AppError(401, 'unauthorized', 'Missing or invalid session')
-  }
-
   const blob = readSessionUserBlob(req.session)
-  if (blob) {
-    applySessionUser(req, blob)
-    return
+  if (!blob) {
+    throw new AppError(401, 'unauthorized', 'Missing or invalid session')
   }
 
   const rows = await getDb()
@@ -35,15 +30,20 @@ export async function attachSessionUser(req: Request): Promise<void> {
       name: users.name,
       tenantId: users.tenantId,
       isSuperAdmin: users.isSuperAdmin,
+      passwordHash: users.passwordHash,
       tenantName: tenants.name,
     })
     .from(users)
     .leftJoin(tenants, eq(users.tenantId, tenants.id))
-    .where(eq(users.id, userId))
+    .where(eq(users.id, blob.userId))
     .limit(1)
 
   const user = rows[0]
   if (!user) {
+    throw new AppError(401, 'unauthorized', 'Missing or invalid session')
+  }
+
+  if (createCredentialFingerprint(user.passwordHash) !== blob.credentialFingerprint) {
     throw new AppError(401, 'unauthorized', 'Missing or invalid session')
   }
 
@@ -54,6 +54,7 @@ export async function attachSessionUser(req: Request): Promise<void> {
     tenantId: user.tenantId,
     isSuperAdmin: user.isSuperAdmin,
     tenantName: user.tenantName,
+    credentialFingerprint: blob.credentialFingerprint,
   }
   writeSessionUser(req.session, hydrated)
   applySessionUser(req, hydrated)

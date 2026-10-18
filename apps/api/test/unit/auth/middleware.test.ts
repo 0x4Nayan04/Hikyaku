@@ -9,7 +9,15 @@ import { createUser, deleteUser } from '../../helpers/user.js'
 
 function createRequest(options?: {
   authorization?: string
-  session?: { userId?: string }
+  session?: {
+    userId?: string
+    email?: string
+    name?: string
+    tenantId?: string | null
+    isSuperAdmin?: boolean
+    tenantName?: string | null
+    credentialFingerprint?: string
+  }
 }): Request {
   return {
     get(name: string) {
@@ -114,41 +122,74 @@ describe('requireTenantAuth', () => {
   it('prefers Bearer auth when both Bearer and session are present', async () => {
     const { tenantId: bearerTenantId, apiKey } = await createTenantWithKey()
     const { tenantId: sessionTenantId } = await createTenantWithKey()
-    const { userId } = await createUser({ tenantId: sessionTenantId })
+    const user = await createUser({ tenantId: sessionTenantId })
 
     const result = await runRequireTenantAuth(
       createRequest({
         authorization: `Bearer ${apiKey}`,
-        session: { userId },
+        session: {
+          userId: user.userId,
+          email: user.email,
+          name: 'Session',
+          tenantId: sessionTenantId,
+          isSuperAdmin: false,
+          tenantName: 'Session Tenant',
+          credentialFingerprint: user.credentialFingerprint,
+        },
       }),
     )
 
     expect(result.error).toBeUndefined()
     expect(result.tenantId).toBe(bearerTenantId)
+    expect(result.userId).toBeUndefined()
 
-    await deleteUser(userId)
+    await deleteUser(user.userId)
     await deleteTenant(bearerTenantId)
     await deleteTenant(sessionTenantId)
   })
 
   it('sets req.tenantId for a valid tenant user session', async () => {
     const { tenantId } = await createTenantWithKey()
-    const { userId } = await createUser({ tenantId })
+    const user = await createUser({ tenantId })
 
-    const result = await runRequireTenantAuth(createRequest({ session: { userId } }))
+    const result = await runRequireTenantAuth(
+      createRequest({
+        session: {
+          userId: user.userId,
+          email: user.email,
+          name: 'Session',
+          tenantId,
+          isSuperAdmin: false,
+          tenantName: 'Acme',
+          credentialFingerprint: user.credentialFingerprint,
+        },
+      }),
+    )
 
     expect(result.error).toBeUndefined()
     expect(result.tenantId).toBe(tenantId)
-    expect(result.userId).toBe(userId)
+    expect(result.userId).toBe(user.userId)
 
-    await deleteUser(userId)
+    await deleteUser(user.userId)
     await deleteTenant(tenantId)
   })
 
   it('returns 401 for a super-admin session', async () => {
-    const { userId } = await createUser({ tenantId: null, isSuperAdmin: true })
+    const user = await createUser({ tenantId: null, isSuperAdmin: true })
 
-    const result = await runRequireTenantAuth(createRequest({ session: { userId } }))
+    const result = await runRequireTenantAuth(
+      createRequest({
+        session: {
+          userId: user.userId,
+          email: user.email,
+          name: 'Admin',
+          tenantId: null,
+          isSuperAdmin: true,
+          tenantName: null,
+          credentialFingerprint: user.credentialFingerprint,
+        },
+      }),
+    )
 
     expect(result.error).toBeInstanceOf(AppError)
     expect(result.error).toMatchObject({
@@ -157,6 +198,6 @@ describe('requireTenantAuth', () => {
       message: 'Missing or invalid Bearer token or session',
     })
 
-    await deleteUser(userId)
+    await deleteUser(user.userId)
   })
 })

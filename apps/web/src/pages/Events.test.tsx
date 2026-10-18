@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { listEvents } from '@/api/client'
-import type { Paginated } from '@/api/types'
+import type { EventSummary, Paginated } from '@/api/types'
 import Events from '@/pages/Events'
 
 vi.mock('@/api/client', async (importOriginal) => {
@@ -19,10 +19,22 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const emptyPage: Paginated<never> = { data: [], has_more: false, limit: 25, offset: 0 }
 
+const event: EventSummary = {
+  id: 'event-1',
+  type: 'order.created',
+  status: 'completed',
+  idempotency_key: 'key-1',
+  created_at: '2026-09-27T00:00:00Z',
+}
+
+function page(data: EventSummary[]): Paginated<EventSummary> {
+  return { data, has_more: false, limit: 25, offset: 0 }
+}
+
 let container: HTMLDivElement
 let root: Root
 
-async function renderEvents(path: string) {
+async function renderEvents(path = '/events') {
   await act(async () => {
     root.render(
       <MemoryRouter initialEntries={[path]}>
@@ -31,6 +43,12 @@ async function renderEvents(path: string) {
         </Routes>
       </MemoryRouter>,
     )
+  })
+}
+
+async function advance(ms = 10_000) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms)
   })
 }
 
@@ -47,6 +65,7 @@ afterEach(async () => {
     root.unmount()
   })
   document.body.removeChild(container)
+  vi.useRealTimers()
 })
 
 describe('Events status filter', () => {
@@ -58,5 +77,33 @@ describe('Events status filter', () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     )
     expect(container.textContent).toContain('No events match this status')
+  })
+})
+
+describe('Events polling', () => {
+  it('does not abort an in-flight load when the quiet poll fires', async () => {
+    vi.useFakeTimers()
+    let finish!: (value: Paginated<EventSummary>) => void
+    let signal!: AbortSignal
+    vi.mocked(listEvents)
+      .mockImplementationOnce((_, options) => {
+        signal = options!.signal!
+        return new Promise((resolve) => {
+          finish = resolve
+        })
+      })
+      .mockResolvedValue(page([event]))
+
+    await renderEvents()
+    await advance(10_000)
+    expect(listEvents).toHaveBeenCalledTimes(1)
+    expect(signal.aborted).toBe(false)
+
+    await act(async () => {
+      finish(page([event]))
+    })
+    await advance(10_000)
+    expect(listEvents).toHaveBeenCalledTimes(2)
+    expect(container.textContent).toContain('order.created')
   })
 })

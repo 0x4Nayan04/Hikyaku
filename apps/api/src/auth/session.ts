@@ -1,9 +1,15 @@
 import connectPgSimple from 'connect-pg-simple'
+import { createHash } from 'node:crypto'
 import type { Request, RequestHandler } from 'express'
 import session from 'express-session'
 import { env } from '../config.js'
 import { getPool } from '../db/client.js'
 import { BEARER_PREFIX } from './bearer.js'
+
+/** Server-only SHA-256 of the password hash verified at login. Never expose in API responses or logs. */
+export function createCredentialFingerprint(passwordHash: string): string {
+  return createHash('sha256').update(passwordHash, 'utf8').digest('base64url')
+}
 
 const PgSession = connectPgSimple(session)
 
@@ -38,10 +44,14 @@ declare module 'express-session' {
     tenantId?: string | null
     isSuperAdmin?: boolean
     tenantName?: string | null
+    credentialFingerprint?: string
   }
 }
 
-/** Denormalized user fields stored in the session row. Deleted users stay valid until the cookie dies. */
+/**
+ * Denormalized user fields stored in the session row.
+ * credentialFingerprint must match SHA-256 of the current password hash or the session is rejected.
+ */
 export type SessionUserBlob = {
   userId: string
   email: string
@@ -49,6 +59,7 @@ export type SessionUserBlob = {
   tenantId: string | null
   isSuperAdmin: boolean
   tenantName: string | null
+  credentialFingerprint: string
 }
 
 export function readSessionUserBlob(
@@ -58,7 +69,8 @@ export function readSessionUserBlob(
     typeof session?.userId !== 'string' ||
     typeof session.email !== 'string' ||
     typeof session.name !== 'string' ||
-    typeof session.isSuperAdmin !== 'boolean'
+    typeof session.isSuperAdmin !== 'boolean' ||
+    typeof session.credentialFingerprint !== 'string'
   ) {
     return null
   }
@@ -69,6 +81,7 @@ export function readSessionUserBlob(
     tenantId: session.tenantId ?? null,
     isSuperAdmin: session.isSuperAdmin,
     tenantName: session.tenantName ?? null,
+    credentialFingerprint: session.credentialFingerprint,
   }
 }
 
@@ -82,6 +95,7 @@ export function writeSessionUser(
   session.tenantId = user.tenantId
   session.isSuperAdmin = user.isSuperAdmin
   session.tenantName = user.tenantName
+  session.credentialFingerprint = user.credentialFingerprint
 }
 
 export function createSessionMiddleware(): RequestHandler {
