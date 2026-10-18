@@ -1,7 +1,7 @@
 import { count, eq } from 'drizzle-orm'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { users } from '@webhook/shared/schema'
+import { users } from '@hikyaku/shared/schema'
 import { env } from '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
 import { closeRedis } from '../../src/lib/redis.js'

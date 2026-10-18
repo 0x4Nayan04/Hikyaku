@@ -74,7 +74,7 @@ cd Hikyaku
 cp .env.example .env
 pnpm install
 pnpm docker:up
-pnpm --filter @webhook/shared build
+pnpm --filter @hikyaku/shared build
 pnpm db:migrate
 pnpm dev
 ```
@@ -88,9 +88,9 @@ pnpm dev
 
 ```bash
 # Run each in its own terminal after the setup commands above.
-pnpm --filter @webhook/api dev
-pnpm --filter @webhook/worker dev
-pnpm --filter @webhook/web dev
+pnpm --filter @hikyaku/api dev
+pnpm --filter @hikyaku/worker dev
+pnpm --filter @hikyaku/web dev
 ```
 
 Both `pnpm dev` and the individual `dev` commands build the shared package before starting. The explicit build above also makes `pnpm db:migrate` work on a fresh checkout.
@@ -254,7 +254,7 @@ Use `.env.test.example` as a reference for explicit `TEST_DATABASE_URL`, `TEST_R
 Export these test variables plus the test secrets shown in the example, with development `DATABASE_URL`/`REDIS_URL` unset. Build shared code first, then migrate only the test database:
 
 ```sh
-pnpm --filter @webhook/shared build
+pnpm --filter @hikyaku/shared build
 DATABASE_URL="$TEST_DATABASE_URL" pnpm db:migrate
 pnpm test
 pnpm test:smoke

@@ -24,19 +24,19 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'pnpm --filter @webhook/worker dev',
+      command: 'pnpm --filter @hikyaku/worker dev',
       wait: { stdout: /worker_started/ },
       env: { LOG_LEVEL: 'info' },
       timeout: 120_000,
     },
     {
-      command: 'pnpm --filter @webhook/api dev',
+      command: 'pnpm --filter @hikyaku/api dev',
       url: 'http://localhost:3101/v1/health',
       reuseExistingServer,
       timeout: 120_000,
     },
     {
-      command: 'pnpm --filter @webhook/web dev --port 5181 --strictPort',
+      command: 'pnpm --filter @hikyaku/web dev --port 5181 --strictPort',
       url: 'http://localhost:5181',
       reuseExistingServer,
       timeout: 120_000,

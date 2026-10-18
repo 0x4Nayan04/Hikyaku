@@ -1,5 +1,5 @@
 import request from 'supertest'
-import { events } from '@webhook/shared/schema'
+import { events } from '@hikyaku/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'

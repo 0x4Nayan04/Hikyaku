@@ -1,5 +1,5 @@
-import type { EndpointJson, EndpointWithSecretJson } from '@webhook/shared/apiJson'
-import type { DeliveryStatus, EndpointStatus } from '@webhook/shared/constants'
+import type { EndpointJson, EndpointWithSecretJson } from '@hikyaku/shared/apiJson'
+import type { DeliveryStatus, EndpointStatus } from '@hikyaku/shared/constants'
 
 type EndpointRow = {
   id: string

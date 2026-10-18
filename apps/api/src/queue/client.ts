@@ -1,6 +1,6 @@
 import { Queue } from 'bullmq'
-import { QUEUE_NAME } from '@webhook/shared/constants'
-import { redisConnectionOptions } from '@webhook/shared/redis'
+import { QUEUE_NAME } from '@hikyaku/shared/constants'
+import { redisConnectionOptions } from '@hikyaku/shared/redis'
 import { env } from '../config.js'
 import { logger } from '../lib/logger.js'
 

@@ -1,5 +1,5 @@
 import { env } from '../config.js'
-import { TAKE_FIXED_WINDOW_TOKENS_LUA, fixedWindowRedisKeys } from '@webhook/shared/rateLimitWindow'
+import { TAKE_FIXED_WINDOW_TOKENS_LUA, fixedWindowRedisKeys } from '@hikyaku/shared/rateLimitWindow'
 import { getRedis } from './redis.js'
 
 /** Fixed-window counters for all keys in one Redis RTT. Fail closed if Redis returns nothing. */

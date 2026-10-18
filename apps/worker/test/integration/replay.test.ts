@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { deliveries, deliveryAttempts, events } from '@webhook/shared/schema'
-import type { DeliveryJobData } from '@webhook/shared/constants'
+import { deliveries, deliveryAttempts, events } from '@hikyaku/shared/schema'
+import type { DeliveryJobData } from '@hikyaku/shared/constants'
 import type { Job } from 'bullmq'
 import { asc, eq } from 'drizzle-orm'
 import request from 'supertest'
@@ -16,7 +16,7 @@ import { getDb } from '../../src/db/client.js'
 import { processor } from '../../src/processor.js'
 
 // Replay still calls enqueue; keep jobs off Redis so a local worker cannot race processor().
-vi.mock('@webhook/shared/enqueueDelivery', () => ({
+vi.mock('@hikyaku/shared/enqueueDelivery', () => ({
   enqueueDeliveryJob: vi.fn().mockResolvedValue(undefined),
 }))
 

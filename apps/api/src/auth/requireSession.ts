@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
-import { tenants, users } from '@webhook/shared/schema'
+import { tenants, users } from '@hikyaku/shared/schema'
 import { getDb } from '../db/client.js'
 import { AppError } from '../lib/errors.js'
 import { asyncHandler } from '../lib/asyncHandler.js'

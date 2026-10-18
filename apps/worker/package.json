@@ -1,10 +1,10 @@
 {
-  "name": "@webhook/worker",
+  "name": "@hikyaku/worker",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @webhook/shared build && pnpm dev:serve",
+    "dev": "pnpm --filter @hikyaku/shared build && pnpm dev:serve",
     "dev:serve": "tsx watch src/index.ts",
     "build": "tsc --build",
     "start": "node dist/index.js",
@@ -13,7 +13,7 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
-    "@webhook/shared": "workspace:*",
+    "@hikyaku/shared": "workspace:*",
     "bullmq": "^5.34.5",
     "dotenv": "^16.4.7",
     "ioredis": "^5.4.2",

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
-import { generateApiKey, hashApiKey, prefixOf } from '@webhook/shared/crypto'
-import { apiKeys, tenants } from '@webhook/shared/schema'
+import { generateApiKey, hashApiKey, prefixOf } from '@hikyaku/shared/crypto'
+import { apiKeys, tenants } from '@hikyaku/shared/schema'
 import { getDb } from '../../src/db/client.js'
 
 export async function createTenantWithKey(options?: { revoked?: boolean }): Promise<{

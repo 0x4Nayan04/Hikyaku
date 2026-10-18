@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const resolveWebhookUrl = vi.hoisted(() => vi.fn())
 
-vi.mock('@webhook/shared/webhookUrl', () => ({ resolveWebhookUrl }))
+vi.mock('@hikyaku/shared/webhookUrl', () => ({ resolveWebhookUrl }))
 
 import { postWithTimeout } from '../../src/httpClient.js'
 

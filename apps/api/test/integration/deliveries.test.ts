@@ -1,6 +1,6 @@
 import request from 'supertest'
 import { eq } from 'drizzle-orm'
-import { deliveries, deliveryAttempts } from '@webhook/shared/schema'
+import { deliveries, deliveryAttempts } from '@hikyaku/shared/schema'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'

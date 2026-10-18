@@ -2,8 +2,8 @@ import * as activeEndpoints from '../../../../src/lib/activeEndpoints.js'
 import { randomUUID } from 'node:crypto'
 import type { NextFunction, Request, Response } from 'express'
 import { and, eq, inArray } from 'drizzle-orm'
-import { deliveries, deliveryOutbox, endpoints, events } from '@webhook/shared/schema'
-import { enqueueDeliveryJobs } from '@webhook/shared/enqueueDelivery'
+import { deliveries, deliveryOutbox, endpoints, events } from '@hikyaku/shared/schema'
+import { enqueueDeliveryJobs } from '@hikyaku/shared/enqueueDelivery'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import '../../../../src/config.js'
 import { closePool, getDb } from '../../../../src/db/client.js'
@@ -11,7 +11,7 @@ import { AppError } from '../../../../src/lib/errors.js'
 import { ingestEvent } from '../../../../src/routes/events/handlers.js'
 import { createTenantWithKey, deleteTenant } from '../../../helpers/tenant.js'
 
-vi.mock('@webhook/shared/enqueueDelivery', () => ({
+vi.mock('@hikyaku/shared/enqueueDelivery', () => ({
   enqueueDeliveryJobs: vi.fn(),
 }))
 

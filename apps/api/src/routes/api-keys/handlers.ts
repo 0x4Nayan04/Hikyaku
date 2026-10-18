@@ -1,5 +1,5 @@
-import { generateApiKey, hashApiKey, prefixOf } from '@webhook/shared/crypto'
-import { apiKeys } from '@webhook/shared/schema'
+import { generateApiKey, hashApiKey, prefixOf } from '@hikyaku/shared/crypto'
+import { apiKeys } from '@hikyaku/shared/schema'
 import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm'
 import type { Request, Response } from 'express'
 import { getDb } from '../../db/client.js'

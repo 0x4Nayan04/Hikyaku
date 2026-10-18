@@ -2,7 +2,7 @@ import type { LookupAddress } from 'node:dns'
 import { Agent as HttpAgent, request as httpRequest, type IncomingMessage } from 'node:http'
 import { Agent as HttpsAgent, request as httpsRequest } from 'node:https'
 import type { LookupFunction } from 'node:net'
-import { resolveWebhookUrl } from '@webhook/shared/webhookUrl'
+import { resolveWebhookUrl } from '@hikyaku/shared/webhookUrl'
 
 const MAX_REDIRECTS = 5
 const MAX_RESPONSE_BODY_BYTES = 1024

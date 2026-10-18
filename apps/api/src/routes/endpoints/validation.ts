@@ -1,5 +1,5 @@
-import { ENDPOINT_STATUSES, type EndpointStatus } from '@webhook/shared/constants'
-import { createEndpointSchema, patchEndpointSchema } from '@webhook/shared/zod'
+import { ENDPOINT_STATUSES, type EndpointStatus } from '@hikyaku/shared/constants'
+import { createEndpointSchema, patchEndpointSchema } from '@hikyaku/shared/zod'
 import { AppError } from '../../lib/errors.js'
 import { parseSchema, requireUuid } from '../../lib/validation.js'
 

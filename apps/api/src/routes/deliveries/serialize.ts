@@ -2,8 +2,8 @@ import type {
   DeliveryAttemptJson,
   DeliveryDetailJson,
   DeliveryListJson,
-} from '@webhook/shared/apiJson'
-import type { DeliveryStatus, EndpointStatus } from '@webhook/shared/constants'
+} from '@hikyaku/shared/apiJson'
+import type { DeliveryStatus, EndpointStatus } from '@hikyaku/shared/constants'
 
 type DeliveryRow = {
   id: string

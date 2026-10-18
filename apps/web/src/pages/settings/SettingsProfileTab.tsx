@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ExternalLink, Lock, RotateCcw } from 'lucide-react'
-import { MIN_PASSWORD_LENGTH } from '@webhook/shared/constants'
+import { MIN_PASSWORD_LENGTH } from '@hikyaku/shared/constants'
 import { ApiError, changePassword } from '@/api/client'
 import { AuthFormField } from '@/components/auth/AuthFormField'
 import { PageBanner } from '@/components/console/PageBanner'

@@ -2,10 +2,10 @@ import {
   ENDPOINT_STATUSES,
   type DeliveryJobData,
   type EndpointStatus,
-} from '@webhook/shared/constants'
-import { signPayload } from '@webhook/shared/crypto'
-import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
-import { deliveryAttempts, deliveries } from '@webhook/shared/schema'
+} from '@hikyaku/shared/constants'
+import { signPayload } from '@hikyaku/shared/crypto'
+import { reevaluateEventStatus } from '@hikyaku/shared/eventStatus'
+import { deliveryAttempts, deliveries } from '@hikyaku/shared/schema'
 import { DelayedError, type Job } from 'bullmq'
 import { and, eq, sql } from 'drizzle-orm'
 import { calculateBackoffDelayMs } from './backoff.js'

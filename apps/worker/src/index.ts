@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq'
-import { QUEUE_NAME } from '@webhook/shared/constants'
+import { QUEUE_NAME } from '@hikyaku/shared/constants'
 import { closePool, getPool } from './db/client.js'
 import { env, WORKER_LOCK_DURATION_MS } from './config.js'
 import { logger } from './lib/logger.js'

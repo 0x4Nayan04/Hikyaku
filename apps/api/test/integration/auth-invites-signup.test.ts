@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import request from 'supertest'
 import { eq } from 'drizzle-orm'
-import { invites, users } from '@webhook/shared/schema'
+import { invites, users } from '@hikyaku/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'

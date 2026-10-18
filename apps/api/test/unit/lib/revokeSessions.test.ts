@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from 'vitest'
-import { sessions } from '@webhook/shared/schema'
+import { sessions } from '@hikyaku/shared/schema'
 import { eq } from 'drizzle-orm'
 import '../../../src/config.js'
 import { closePool, getDb } from '../../../src/db/client.js'

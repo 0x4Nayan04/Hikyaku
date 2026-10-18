@@ -1,7 +1,7 @@
 {
   "framework": null,
-  "installCommand": "pnpm install --frozen-lockfile --filter \"@webhook/web...\"",
-  "buildCommand": "pnpm --filter @webhook/shared exec tsc --build --force && pnpm --filter @webhook/web build",
+  "installCommand": "pnpm install --frozen-lockfile --filter \"@hikyaku/web...\"",
+  "buildCommand": "pnpm --filter @hikyaku/shared exec tsc --build --force && pnpm --filter @hikyaku/web build",
   "outputDirectory": "apps/web/dist",
   "rewrites": [
     { "source": "/v1/:path*", "destination": "/api/proxy?__hikyaku_path=:path*" },

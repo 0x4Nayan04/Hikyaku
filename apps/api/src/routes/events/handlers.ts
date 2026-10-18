@@ -1,5 +1,5 @@
-import { deliveries, deliveryOutbox, events } from '@webhook/shared/schema'
-import { enqueueDeliveryJobs } from '@webhook/shared/enqueueDelivery'
+import { deliveries, deliveryOutbox, events } from '@hikyaku/shared/schema'
+import { enqueueDeliveryJobs } from '@hikyaku/shared/enqueueDelivery'
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import type { Request, Response } from 'express'
 import { getDb } from '../../db/client.js'

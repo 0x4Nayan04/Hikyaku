@@ -1,4 +1,4 @@
-import { redisConnectionOptions } from '@webhook/shared/redis'
+import { redisConnectionOptions } from '@hikyaku/shared/redis'
 import { Redis } from 'ioredis'
 import { env } from '../config.js'
 

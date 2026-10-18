@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { eq, sql } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { users } from '@webhook/shared/schema'
-import { hashPassword } from '@webhook/shared/password'
+import { users } from '@hikyaku/shared/schema'
+import { hashPassword } from '@hikyaku/shared/password'
 import '../../../../src/config.js'
 import {
   createCredentialFingerprint,
@@ -23,8 +23,8 @@ const passwordGates = vi.hoisted(() => ({
   onHashEnter: null as (() => void) | null,
 }))
 
-vi.mock('@webhook/shared/password', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@webhook/shared/password')>()
+vi.mock('@hikyaku/shared/password', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@hikyaku/shared/password')>()
   return {
     ...actual,
     async verifyPassword(plain: string, hash: string) {

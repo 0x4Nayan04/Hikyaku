@@ -1,4 +1,4 @@
-import { DELIVERY_STATUSES, type DeliveryStatus } from '@webhook/shared/constants'
+import { DELIVERY_STATUSES, type DeliveryStatus } from '@hikyaku/shared/constants'
 import { AppError } from '../../lib/errors.js'
 import { isUuid, requireUuid } from '../../lib/validation.js'
 

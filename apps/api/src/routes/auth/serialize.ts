@@ -1,4 +1,4 @@
-import { users } from '@webhook/shared/schema'
+import { users } from '@hikyaku/shared/schema'
 
 export const userColumns = {
   id: users.id,

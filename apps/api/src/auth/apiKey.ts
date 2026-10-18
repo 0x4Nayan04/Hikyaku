@@ -1,6 +1,6 @@
 import { and, eq, isNull, lt, or } from 'drizzle-orm'
-import { hashApiKey } from '@webhook/shared/crypto'
-import { apiKeys } from '@webhook/shared/schema'
+import { hashApiKey } from '@hikyaku/shared/crypto'
+import { apiKeys } from '@hikyaku/shared/schema'
 import { getDb } from '../db/client.js'
 import { logger } from '../lib/logger.js'
 

@@ -3,7 +3,7 @@ import type {
   EventDetailJson,
   EventListJson,
   IngestEventJson,
-} from '@webhook/shared/apiJson'
+} from '@hikyaku/shared/apiJson'
 import type { EventListRow, EventRow } from '../../ingest/fanout.js'
 
 export type { DeliveriesSummary }
