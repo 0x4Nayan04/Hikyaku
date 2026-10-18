@@ -5,11 +5,11 @@ import {
   loginSchema,
 } from '@webhook/shared/zod'
 import { parseSchema } from '../../lib/validation.js'
-import { count, eq, sql } from 'drizzle-orm'
+import { and, count, eq, sql } from 'drizzle-orm'
 import type { Request, Response } from 'express'
 import { tenants, users } from '@webhook/shared/schema'
 import { hashPassword, INVALID_PASSWORD_HASH, verifyPassword } from '@webhook/shared/password'
-import { writeSessionUser } from '../../auth/session.js'
+import { createCredentialFingerprint, writeSessionUser } from '../../auth/session.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
@@ -122,11 +122,10 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     .limit(1)
 
   const user = rows[0]
+  // Capture the hash that verifyPassword checks so a concurrent reset cannot bless a newer hash.
+  const verifiedPasswordHash = user?.passwordHash ?? INVALID_PASSWORD_HASH
   // Always perform bcrypt work so unknown users are not distinguishable by timing.
-  const passwordMatches = await verifyPassword(
-    body.password,
-    user?.passwordHash ?? INVALID_PASSWORD_HASH,
-  )
+  const passwordMatches = await verifyPassword(body.password, verifiedPasswordHash)
   if (!user || !passwordMatches) {
     throw new AppError(401, 'unauthorized', 'Invalid email or password')
   }
@@ -139,6 +138,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     tenantId: user.tenantId,
     isSuperAdmin: user.isSuperAdmin,
     tenantName: user.tenantName,
+    credentialFingerprint: createCredentialFingerprint(verifiedPasswordHash),
   })
   await saveSession(req)
 
@@ -198,13 +198,28 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
     .limit(1)
 
   const user = rows[0]
-  if (!user || !(await verifyPassword(body.current_password, user.passwordHash))) {
+  const verifiedPasswordHash = user?.passwordHash
+  if (
+    !user ||
+    !verifiedPasswordHash ||
+    !(await verifyPassword(body.current_password, verifiedPasswordHash))
+  ) {
     throw new AppError(401, 'invalid_credentials', 'Current password is incorrect')
   }
 
   const passwordHash = await hashPassword(body.new_password)
   await db.transaction(async (tx) => {
-    await tx.update(users).set({ passwordHash }).where(eq(users.id, userId))
+    const updated = await tx
+      .update(users)
+      .set({ passwordHash })
+      .where(and(eq(users.id, userId), eq(users.passwordHash, verifiedPasswordHash)))
+      .returning({ id: users.id })
+
+    if (updated.length === 0) {
+      // Concurrent reset/change already moved the hash; do not revoke newer sessions.
+      throw new AppError(401, 'unauthorized', 'Missing or invalid session')
+    }
+
     await revokeUserSessions(userId, tx)
   })
   await destroySession(req)
@@ -228,11 +243,20 @@ export const createMyWorkspace = asyncHandler(async (req: Request, res: Response
     return created
   })
   // Recreate this session after invalidating older cached admin-only sessions.
-  const { email, name, userId } = req.session
+  // Preserve the fingerprint already authenticated for this request — do not re-bless the DB hash.
+  const { email, name, userId, credentialFingerprint } = req.session
+  if (!credentialFingerprint) {
+    throw new AppError(401, 'unauthorized', 'Missing or invalid session')
+  }
   await regenerateSession(req)
   writeSessionUser(req.session, {
-    userId: userId!, email: email!, name: name!, isSuperAdmin: true,
-    tenantId: workspace.id, tenantName: workspace.name,
+    userId: userId!,
+    email: email!,
+    name: name!,
+    isSuperAdmin: true,
+    tenantId: workspace.id,
+    tenantName: workspace.name,
+    credentialFingerprint,
   })
   await saveSession(req)
   res.status(200).json({ id: workspace.id, name: workspace.name })

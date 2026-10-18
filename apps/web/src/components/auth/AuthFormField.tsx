@@ -59,13 +59,13 @@ export function AuthFormField({
           onChange={(event) => onChange(event.target.value)}
           required={required}
           readOnly={readOnly}
-          className={cn('sm-input w-full text-ink', Icon && 'pl-9', isPassword && 'pr-9')}
+          className={cn('sm-input w-full text-ink', Icon && 'pl-9', isPassword && 'pr-12')}
         />
           {isPassword ? (
           <button
             type="button"
             onClick={() => setVisible((v) => !v)}
-            className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center text-muted-strong hover:text-foreground transition-colors catalog-focus"
+            className="absolute top-1/2 right-0.5 flex size-11 -translate-y-1/2 items-center justify-center text-muted-strong hover:text-foreground transition-colors catalog-focus"
             aria-label={visible ? 'Hide password' : 'Show password'}
             aria-pressed={visible}
           >

@@ -7,7 +7,15 @@ import { AppError } from '../../../src/lib/errors.js'
 import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
 import { createUser, deleteUser } from '../../helpers/user.js'
 
-function createRequest(session?: { userId?: string }): Request {
+function createRequest(session?: {
+  userId?: string
+  email?: string
+  name?: string
+  tenantId?: string | null
+  isSuperAdmin?: boolean
+  tenantName?: string | null
+  credentialFingerprint?: string
+}): Request {
   return {
     session: session ?? {},
   } as Request
@@ -41,9 +49,19 @@ describe('requireSuperAdmin', () => {
 
   it('returns 403 for a tenant user session', async () => {
     const { tenantId } = await createTenantWithKey()
-    const { userId } = await createUser({ tenantId })
+    const user = await createUser({ tenantId })
 
-    const result = await runRequireSuperAdmin(createRequest({ userId }))
+    const result = await runRequireSuperAdmin(
+      createRequest({
+        userId: user.userId,
+        email: user.email,
+        name: 'Member',
+        tenantId,
+        isSuperAdmin: false,
+        tenantName: 'Acme',
+        credentialFingerprint: user.credentialFingerprint,
+      }),
+    )
 
     expect(result.error).toBeInstanceOf(AppError)
     expect(result.error).toMatchObject({
@@ -52,17 +70,27 @@ describe('requireSuperAdmin', () => {
       message: 'Super-admin access required',
     })
 
-    await deleteUser(userId)
+    await deleteUser(user.userId)
     await deleteTenant(tenantId)
   })
 
   it('allows a super-admin session', async () => {
-    const { userId } = await createUser({ tenantId: null, isSuperAdmin: true })
+    const user = await createUser({ tenantId: null, isSuperAdmin: true })
 
-    const result = await runRequireSuperAdmin(createRequest({ userId }))
+    const result = await runRequireSuperAdmin(
+      createRequest({
+        userId: user.userId,
+        email: user.email,
+        name: 'Admin',
+        tenantId: null,
+        isSuperAdmin: true,
+        tenantName: null,
+        credentialFingerprint: user.credentialFingerprint,
+      }),
+    )
 
     expect(result.error).toBeUndefined()
 
-    await deleteUser(userId)
+    await deleteUser(user.userId)
   })
 })

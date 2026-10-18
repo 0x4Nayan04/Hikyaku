@@ -36,59 +36,58 @@ export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
         </DataTableRow>
       </DataTableHeader>
       <DataTableBody>
-        {deliveries.map((delivery) => (
-          <DataTableRow
-            key={delivery.id}
-            className="cursor-pointer"
-            tabIndex={0}
-            role="link"
-            aria-label={`Open delivery to ${formatEndpointUrlDistinctive(delivery.endpoint_url, 40)}`}
-            onClick={() => navigate(`/deliveries/${delivery.id}`)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                navigate(`/deliveries/${delivery.id}`)
-              }
-            }}
-          >
-            <DataTableCell className="max-w-[18rem] md:max-w-88">
-              <span
-                className="block min-w-0 truncate font-medium group-hover:text-primary"
-                title={delivery.endpoint_url}
-              >
-                {formatEndpointUrlDistinctive(delivery.endpoint_url, 64)}
-              </span>
-              {delivery.last_error ? (
-                <p className="delivery-table__error" title={delivery.last_error}>
-                  {formatDeliveryError(delivery.last_error)}
-                </p>
-              ) : null}
-            </DataTableCell>
-            <DataTableCell className="hidden md:table-cell">
-              <Link
-                to={`/events/${delivery.event_id}`}
-                className="font-mono text-xs text-muted-strong hover:text-primary hover:underline"
-                title={delivery.event_id}
-                onClick={(event) => event.stopPropagation()}
-                onKeyDown={(event) => event.stopPropagation()}
-              >
-                {shortId(delivery.event_id, 10)}
-              </Link>
-            </DataTableCell>
-            <DataTableCell>
-              <StatusBadge kind="delivery" status={delivery.status} />
-            </DataTableCell>
-            <DataTableCell className="hidden text-sm text-muted-strong sm:table-cell">
-              {formatDeliveryAttempts({
-                attemptCount: delivery.attempt_count,
-                replayCount: delivery.replay_count,
-              })}
-            </DataTableCell>
-            <DataTableCell className="whitespace-nowrap text-sm text-muted-strong">
-              <time dateTime={delivery.updated_at}>{formatDateTime(delivery.updated_at)}</time>
-            </DataTableCell>
-          </DataTableRow>
-        ))}
+        {deliveries.map((delivery) => {
+          const deliveryPath = `/deliveries/${delivery.id}`
+          const endpointLabel = formatEndpointUrlDistinctive(delivery.endpoint_url, 64)
+
+          return (
+            <DataTableRow
+              key={delivery.id}
+              className="cursor-pointer"
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest('a')) return
+                navigate(deliveryPath)
+              }}
+            >
+              <DataTableCell className="max-w-[18rem] md:max-w-88">
+                <Link
+                  to={deliveryPath}
+                  className="block min-w-0 truncate font-medium text-ink group-hover:text-primary hover:underline"
+                  title={delivery.endpoint_url}
+                  aria-label={`Open delivery to ${endpointLabel}`}
+                >
+                  {endpointLabel}
+                </Link>
+                {delivery.last_error ? (
+                  <p className="delivery-table__error" title={delivery.last_error}>
+                    {formatDeliveryError(delivery.last_error)}
+                  </p>
+                ) : null}
+              </DataTableCell>
+              <DataTableCell className="hidden md:table-cell">
+                <Link
+                  to={`/events/${delivery.event_id}`}
+                  className="font-mono text-xs text-muted-strong hover:text-primary hover:underline"
+                  title={delivery.event_id}
+                >
+                  {shortId(delivery.event_id, 10)}
+                </Link>
+              </DataTableCell>
+              <DataTableCell>
+                <StatusBadge kind="delivery" status={delivery.status} />
+              </DataTableCell>
+              <DataTableCell className="hidden text-sm text-muted-strong sm:table-cell">
+                {formatDeliveryAttempts({
+                  attemptCount: delivery.attempt_count,
+                  replayCount: delivery.replay_count,
+                })}
+              </DataTableCell>
+              <DataTableCell className="whitespace-nowrap text-sm text-muted-strong">
+                <time dateTime={delivery.updated_at}>{formatDateTime(delivery.updated_at)}</time>
+              </DataTableCell>
+            </DataTableRow>
+          )
+        })}
       </DataTableBody>
     </DataTable>
   )

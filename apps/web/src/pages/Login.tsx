@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Check, Lock, Mail } from 'lucide-react'
 import { ApiError, login } from '@/api/client'
@@ -20,6 +20,11 @@ import { useSession } from '@/providers/session-context'
 type LoginLocationState = {
   message?: string
   banner?: LoginBannerKind
+  from?: {
+    pathname: string
+    search?: string
+    hash?: string
+  }
 }
 
 export default function Login() {
@@ -40,13 +45,26 @@ export default function Login() {
   const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(readBootstrapStatusCache)
 
   useEffect(() => {
-    if (!loading && session) {
-      navigate(
-        getPostLoginPath(location.state, session.user, searchParams.get('returnTo') ?? undefined),
-        { replace: true },
-      )
-    }
-  }, [loading, session, navigate, location.state, searchParams])
+    if (loading || !session) return
+    // Password change lands here while the client session may still be warm;
+    // keep the success banner and force an explicit re-login.
+    if (locationState?.banner === 'password_updated') return
+    navigate(
+      getPostLoginPath(location.state, session.user, searchParams.get('returnTo') ?? undefined),
+      { replace: true },
+    )
+  }, [loading, session, navigate, location.state, locationState?.banner, searchParams])
+
+  // Invalidate the warm client session only after this route (and its location
+  // state) has committed. Doing refresh under RequireSession races and replaces
+  // password_updated with a bare `{ from }` redirect.
+  const passwordHandoffCleared = useRef(false)
+  useEffect(() => {
+    if (locationState?.banner !== 'password_updated') return
+    if (passwordHandoffCleared.current) return
+    passwordHandoffCleared.current = true
+    void refresh()
+  }, [locationState?.banner, refresh])
 
   useEffect(() => {
     let cancelled = false

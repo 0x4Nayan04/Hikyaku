@@ -39,11 +39,24 @@ describe('createSessionMiddleware cookie options', () => {
 })
 
 describe('session user blob', () => {
-  it('reads a complete blob and ignores incomplete sessions', async () => {
-    const { readSessionUserBlob, writeSessionUser } = await import('../../../src/auth/session.js')
+  it('reads a complete blob and ignores incomplete or legacy sessions', async () => {
+    const { createCredentialFingerprint, readSessionUserBlob, writeSessionUser } = await import(
+      '../../../src/auth/session.js'
+    )
 
     expect(readSessionUserBlob({ userId: 'u1' })).toBeNull()
+    expect(
+      readSessionUserBlob({
+        userId: 'u1',
+        email: 'a@b.com',
+        name: 'Ada',
+        tenantId: 't1',
+        isSuperAdmin: false,
+        tenantName: 'Acme',
+      }),
+    ).toBeNull()
 
+    const fingerprint = createCredentialFingerprint('sha256:$2b$12$example')
     const session: {
       userId?: string
       email?: string
@@ -51,6 +64,7 @@ describe('session user blob', () => {
       tenantId?: string | null
       isSuperAdmin?: boolean
       tenantName?: string | null
+      credentialFingerprint?: string
     } = {}
     writeSessionUser(session, {
       userId: 'u1',
@@ -59,6 +73,7 @@ describe('session user blob', () => {
       tenantId: 't1',
       isSuperAdmin: false,
       tenantName: 'Acme',
+      credentialFingerprint: fingerprint,
     })
     expect(readSessionUserBlob(session)).toEqual({
       userId: 'u1',
@@ -67,7 +82,16 @@ describe('session user blob', () => {
       tenantId: 't1',
       isSuperAdmin: false,
       tenantName: 'Acme',
+      credentialFingerprint: fingerprint,
     })
+  })
+
+  it('creates a stable server-side fingerprint from the password hash', async () => {
+    const { createCredentialFingerprint } = await import('../../../src/auth/session.js')
+    const hash = 'sha256:$2b$12$example-hash-value'
+    expect(createCredentialFingerprint(hash)).toBe(createCredentialFingerprint(hash))
+    expect(createCredentialFingerprint(hash)).not.toBe(hash)
+    expect(createCredentialFingerprint(hash)).not.toBe(createCredentialFingerprint(`${hash}-x`))
   })
 })
 

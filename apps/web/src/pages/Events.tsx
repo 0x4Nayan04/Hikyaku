@@ -65,7 +65,7 @@ export default function Events() {
     isEmpty: showEmpty,
     isRefreshing,
     error,
-    reload,
+    refresh,
   } = usePaginatedList<EventSummary>({
     pageSize: PAGE_SIZE,
     fetchPage: ({ limit, offset, signal }) =>
@@ -80,7 +80,8 @@ export default function Events() {
     fallbackError: 'Failed to load events',
     queryKey: statusFilter,
   })
-  usePolling({ intervalMs: 10_000, onPoll: reload })
+  // Poll with refresh so quiet polls never abort an in-flight load (reload still available for explicit retries).
+  usePolling({ intervalMs: 10_000, onPoll: refresh })
 
   const isDatasetEmpty = showEmpty && statusFilter === 'all' && offset === 0
 

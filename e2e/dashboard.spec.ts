@@ -84,6 +84,12 @@ test.describe('dashboard smoke', () => {
     await page.getByLabel('Confirm new password').fill(updatedPassword)
     await page.getByRole('button', { name: 'Update password' }).click()
     await expect(page).toHaveURL('/login')
+    await expect(page.getByText('Password updated', { exact: true })).toBeVisible()
+    await expect(
+      page.getByText('Password updated. Sign in again with your new password.', {
+        exact: true,
+      }),
+    ).toBeVisible()
 
     await page.getByLabel('Email').fill(owner.email)
     await page.getByRole('textbox', { name: 'Password' }).fill(updatedPassword)

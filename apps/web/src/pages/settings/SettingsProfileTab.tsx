@@ -38,7 +38,7 @@ function strengthBarTone(score: number): string {
 
 export function SettingsProfileTab() {
   const navigate = useNavigate()
-  const { session, loading, refresh } = useSession()
+  const { session, loading } = useSession()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -76,12 +76,15 @@ export function SettingsProfileTab() {
         current_password: currentPassword,
         new_password: newPassword,
       })
-      await refresh()
+      // Leave the protected tree with banner state committed. Do not refresh here:
+      // clearing session while still under RequireSession races and replaces this
+      // handoff with `{ from }` only. Login invalidates the warm session after mount.
       navigate('/login', {
         replace: true,
         state: {
           banner: 'password_updated',
           message: 'Password updated. Sign in again with your new password.',
+          from: { pathname: '/settings', search: '?tab=profile' },
         },
       })
     } catch (err) {

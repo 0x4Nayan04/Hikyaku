@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Delivery } from '@/api/types'
 import { DeliveryCatalogList } from '@/components/console/DeliveryCatalogList'
@@ -31,12 +31,24 @@ const currentRunOnly: Delivery = {
 
 let container: HTMLDivElement
 let root: Root
+let locationPath: string | null
+
+function LocationProbe({ children }: { children: React.ReactNode }) {
+  locationPath = useLocation().pathname
+  return children
+}
 
 async function renderList(deliveries: Delivery[]) {
   await act(async () => {
     root.render(
-      <MemoryRouter>
-        <DeliveryCatalogList deliveries={deliveries} />
+      <MemoryRouter initialEntries={['/deliveries']}>
+        <LocationProbe>
+          <Routes>
+            <Route path="/deliveries" element={<DeliveryCatalogList deliveries={deliveries} />} />
+            <Route path="/deliveries/:id" element={<div>Delivery detail</div>} />
+            <Route path="/events/:id" element={<div>Event detail</div>} />
+          </Routes>
+        </LocationProbe>
       </MemoryRouter>,
     )
   })
@@ -46,6 +58,7 @@ beforeEach(() => {
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
+  locationPath = null
 })
 
 afterEach(async () => {
@@ -62,5 +75,45 @@ describe('DeliveryCatalogList attempts', () => {
     expect(container.textContent).toContain('1 attempt · replayed 1x')
     expect(container.textContent).toContain('2 attempts')
     expect(container.textContent).not.toContain('this run')
+  })
+})
+
+describe('DeliveryCatalogList accessibility', () => {
+  it('exposes real delivery and event links without a nested interactive row role', async () => {
+    await renderList([replayed])
+
+    const row = container.querySelector('tbody tr')
+    expect(row).not.toBeNull()
+    expect(row?.getAttribute('role')).toBeNull()
+    expect(row?.getAttribute('tabindex')).toBeNull()
+
+    const deliveryLink = container.querySelector(
+      `a[href="/deliveries/${replayed.id}"]`,
+    ) as HTMLAnchorElement | null
+    const eventLink = container.querySelector(
+      `a[href="/events/${replayed.event_id}"]`,
+    ) as HTMLAnchorElement | null
+    expect(deliveryLink).not.toBeNull()
+    expect(eventLink).not.toBeNull()
+    expect(deliveryLink?.getAttribute('aria-label')).toBe('Open delivery to https://example.com/hook')
+
+    await act(async () => {
+      eventLink?.click()
+    })
+    expect(locationPath).toBe(`/events/${replayed.event_id}`)
+  })
+
+  it('opens the delivery from the endpoint link', async () => {
+    await renderList([replayed])
+
+    const deliveryLink = container.querySelector(
+      `a[href="/deliveries/${replayed.id}"]`,
+    ) as HTMLAnchorElement
+
+    expect(deliveryLink.getAttribute('aria-label')).toMatch(/^Open delivery to /)
+    await act(async () => {
+      deliveryLink.click()
+    })
+    expect(locationPath).toBe(`/deliveries/${replayed.id}`)
   })
 })

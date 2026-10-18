@@ -20,7 +20,7 @@ export function LiveChip({ active = true, lastUpdated }: LiveChipProps) {
       aria-label={hint}
       className="console-live-chip gap-1.5 border-status-success-border bg-status-success-subtle font-mono text-[0.6rem] uppercase tracking-wider text-status-success"
     >
-      <span className="size-1.5 animate-pulse bg-status-success" aria-hidden />
+      <span className="size-1.5 animate-pulse motion-reduce:animate-none bg-status-success" aria-hidden />
       Live
     </Badge>
   )
