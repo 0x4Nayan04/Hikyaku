@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { act } from 'react'
-import { createRoot, type Root } from 'react-dom/client'
-import { MemoryRouter } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { getStats, listApiKeys, listDeliveries, listEndpoints, listEvents } from '@/api/client'
-import type { Paginated, Stats } from '@/api/types'
-import { Dashboard } from '@/pages/Dashboard'
+import { getStats, listApiKeys, listDeliveries, listEndpoints, listEvents } from '@/api/client';
+import type { Paginated, Stats } from '@/api/types';
+import { Dashboard } from '@/pages/Dashboard';
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/client')>()
@@ -234,4 +234,74 @@ describe('Dashboard empty-state probes', () => {
     expect(container.textContent).toContain('active deliveries')
     expect(container.textContent).not.toContain('queue depth')
   })
+})
+
+it('refreshes on tab return and skips slow initial loads without changing the 10s cadence', async () => {
+  let finish!: (value: Stats) => void
+  let signal!: AbortSignal
+  vi.mocked(getStats)
+    .mockImplementationOnce((options) => {
+      signal = options!.signal!
+      return new Promise((resolve) => {
+        finish = resolve
+      })
+    })
+    .mockResolvedValue(activeStats)
+  await renderDashboard()
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(30_000)
+  })
+  expect(getStats).toHaveBeenCalledTimes(1)
+  expect(signal.aborted).toBe(false)
+  const visibility = (hidden: boolean) => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: hidden })
+    document.dispatchEvent(new Event('visibilitychange'))
+  }
+  await act(async () => {
+    visibility(true)
+    visibility(false)
+  })
+  expect(getStats).toHaveBeenCalledTimes(1)
+  await act(async () => {
+    finish(activeStats)
+  })
+  await act(async () => {
+    visibility(true)
+    await vi.advanceTimersByTimeAsync(30_000)
+  })
+  expect(getStats).toHaveBeenCalledTimes(1)
+  await act(async () => {
+    visibility(false)
+  })
+  expect(getStats).toHaveBeenCalledTimes(2)
+  expect(listEvents).toHaveBeenCalledTimes(2)
+  expect(listDeliveries).toHaveBeenCalledTimes(2)
+  expect(listEndpoints).toHaveBeenCalledTimes(2)
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(9_999)
+  })
+  expect(getStats).toHaveBeenCalledTimes(2)
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1)
+  })
+  expect(getStats).toHaveBeenCalledTimes(3)
+})
+
+it('cancels the remaining failed batch and recovers on the next refresh', async () => {
+  let signal: AbortSignal | undefined
+  vi.mocked(getStats).mockRejectedValueOnce(new Error('unavailable')).mockResolvedValue(activeStats)
+  vi.mocked(listEvents)
+    .mockImplementationOnce((_, options) => {
+      signal = options?.signal
+      return hang(options?.signal)
+    })
+    .mockResolvedValue(page())
+  await renderDashboard()
+  expect(signal?.aborted).toBe(true)
+  expect(container.textContent).toContain('Could not load stats')
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(10_000)
+  })
+  expect(getStats).toHaveBeenCalledTimes(2)
+  expect(container.textContent).not.toContain('Could not load stats')
 })

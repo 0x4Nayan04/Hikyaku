@@ -266,3 +266,44 @@ describe('usePaginatedList', () => {
     expect(state!.data).toEqual([])
   })
 })
+
+it('background refresh skips busy loads and preserves current page/filter ownership', async () => {
+  const first = deferred<Paginated<Item>>()
+  const next = deferred<Paginated<Item>>()
+  const fetchPage = vi
+    .fn<FetchPage>()
+    .mockReturnValueOnce(first.promise)
+    .mockResolvedValueOnce(page([2], true, 25))
+    .mockReturnValueOnce(next.promise)
+    .mockResolvedValue(page([4], false, 0))
+  await renderHarness({ fetchPage, queryKey: 'all' })
+  const firstSignal = fetchPage.mock.calls[0][0].signal
+  await act(async () => {
+    await state!.refresh()
+  })
+  expect(fetchPage).toHaveBeenCalledTimes(1)
+  expect(firstSignal.aborted).toBe(false)
+  await act(async () => {
+    first.resolve(page([1], true, 0))
+  })
+  await act(async () => {
+    state!.setOffset(25)
+  })
+  let refreshing!: Promise<boolean | undefined>
+  await act(async () => {
+    refreshing = state!.refresh()
+  })
+  expect(fetchPage.mock.calls[2][0].offset).toBe(25)
+  await act(async () => {
+    await state!.refresh()
+  })
+  expect(fetchPage).toHaveBeenCalledTimes(3)
+  await renderHarness({ fetchPage, queryKey: 'failed' })
+  expect(fetchPage.mock.calls[2][0].signal.aborted).toBe(true)
+  await act(async () => {
+    next.resolve(page([3], false, 25))
+    await refreshing
+  })
+  expect(state!.offset).toBe(0)
+  expect(state!.data).toEqual([{ id: 4 }])
+})

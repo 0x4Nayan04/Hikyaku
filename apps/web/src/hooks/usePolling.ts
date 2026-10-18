@@ -5,15 +5,18 @@ const POLL_INTERVAL_MS = 5_000
 type UsePollingOptions = {
   enabled?: boolean
   intervalMs?: number
-  onPoll: () => void
+  refreshOnVisible?: boolean
+  onPoll: () => void | Promise<unknown>
 }
 
 export function usePolling({
   enabled = true,
   intervalMs = POLL_INTERVAL_MS,
   onPoll,
+  refreshOnVisible = false,
 }: UsePollingOptions) {
   const onPollRef = useRef(onPoll)
+  const pollingRef = useRef(false)
 
   useEffect(() => {
     onPollRef.current = onPoll
@@ -24,16 +27,15 @@ export function usePolling({
       return
     }
 
-    let polling = false
     const poll = async () => {
-      if (document.hidden || polling) return
-      polling = true
+      if (document.hidden || pollingRef.current) return
+      pollingRef.current = true
       try {
         await onPollRef.current()
       } catch {
         // Poll callbacks surface their own errors in the UI.
       } finally {
-        polling = false
+        pollingRef.current = false
       }
     }
 
@@ -49,9 +51,14 @@ export function usePolling({
         timer = setInterval(() => void poll(), intervalMs)
       }
     }
+    let wasHidden = document.hidden
     const handleVisibilityChange = () => {
       if (document.hidden) stop()
-      else start()
+      else {
+        if (wasHidden && refreshOnVisible) void poll()
+        start()
+      }
+      wasHidden = document.hidden
     }
 
     start()
@@ -61,5 +68,5 @@ export function usePolling({
       stop()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [enabled, intervalMs])
+  }, [enabled, intervalMs, refreshOnVisible])
 }
