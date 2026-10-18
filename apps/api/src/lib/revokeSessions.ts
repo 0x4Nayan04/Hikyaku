@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
-import type * as schema from '@webhook/shared/schema'
+import type * as schema from '@hikyaku/shared/schema'
 import { getDb } from '../db/client.js'
 
 type DbExecutor = NodePgDatabase<typeof schema>

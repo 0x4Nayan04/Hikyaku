@@ -7,8 +7,8 @@ import {
   deliveryOutbox,
   endpoints,
   events,
-} from '@webhook/shared/schema'
-import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
+} from '@hikyaku/shared/schema'
+import { enqueueDeliveryJob } from '@hikyaku/shared/enqueueDelivery'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import '../../../../src/config.js'
 import { closePool, getDb } from '../../../../src/db/client.js'
@@ -16,7 +16,7 @@ import { AppError } from '../../../../src/lib/errors.js'
 import { replayDelivery } from '../../../../src/routes/deliveries/handlers.js'
 import { createTenantWithKey, deleteTenant } from '../../../helpers/tenant.js'
 
-vi.mock('@webhook/shared/enqueueDelivery', () => ({
+vi.mock('@hikyaku/shared/enqueueDelivery', () => ({
   enqueueDeliveryJob: vi.fn().mockResolvedValue(undefined),
 }))
 

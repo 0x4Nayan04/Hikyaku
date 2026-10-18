@@ -1,7 +1,7 @@
 const seededTenantIds: string[] = []
-import { QUEUE_NAME } from '@webhook/shared/constants'
-import { enqueueDeliveryJob } from '@webhook/shared/enqueueDelivery'
-import { deliveries, deliveryOutbox, endpoints, events, tenants } from '@webhook/shared/schema'
+import { QUEUE_NAME } from '@hikyaku/shared/constants'
+import { enqueueDeliveryJob } from '@hikyaku/shared/enqueueDelivery'
+import { deliveries, deliveryOutbox, endpoints, events, tenants } from '@hikyaku/shared/schema'
 import { Queue, Worker } from 'bullmq'
 import { eq, inArray } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'

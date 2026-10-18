@@ -1,9 +1,9 @@
 const seededTenantIds: string[] = []
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import type { DeliveryJobData } from '@webhook/shared/constants'
-import { generateEndpointSecret, verifyPayload } from '@webhook/shared/crypto'
-import { deliveries, deliveryAttempts, endpoints, events, tenants } from '@webhook/shared/schema'
+import type { DeliveryJobData } from '@hikyaku/shared/constants'
+import { generateEndpointSecret, verifyPayload } from '@hikyaku/shared/crypto'
+import { deliveries, deliveryAttempts, endpoints, events, tenants } from '@hikyaku/shared/schema'
 import { DelayedError, type Job } from 'bullmq'
 import { eq, inArray } from 'drizzle-orm'
 import { closePool, getDb } from '../../src/db/client.js'

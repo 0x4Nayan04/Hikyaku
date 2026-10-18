@@ -1,6 +1,6 @@
 import express, { type Application, type NextFunction, type Request, type Response } from 'express'
 import { pinoHttp } from 'pino-http'
-import { MAX_INGEST_BODY_BYTES } from '@webhook/shared/constants'
+import { MAX_INGEST_BODY_BYTES } from '@hikyaku/shared/constants'
 import { env } from './config.js'
 import { createSessionMiddleware, skipSessionStack } from './auth/session.js'
 import { createCorsMiddleware } from './lib/cors.js'

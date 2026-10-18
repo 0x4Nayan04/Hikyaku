@@ -1,5 +1,5 @@
-import { EVENT_STATUSES, type EventStatus } from '@webhook/shared/constants'
-import { ingestEventSchema } from '@webhook/shared/zod'
+import { EVENT_STATUSES, type EventStatus } from '@hikyaku/shared/constants'
+import { ingestEventSchema } from '@hikyaku/shared/zod'
 import { AppError } from '../../lib/errors.js'
 import { parseSchema, requireUuid } from '../../lib/validation.js'
 

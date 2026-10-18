@@ -1,5 +1,5 @@
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
-import { RATE_LIMIT_DEFER_MS, RATE_LIMIT_JITTER_MS } from '@webhook/shared/constants'
+import { RATE_LIMIT_DEFER_MS, RATE_LIMIT_JITTER_MS } from '@hikyaku/shared/constants'
 import { env } from '../../src/config.js'
 import { closeRedis, getRedis } from '../../src/lib/redis.js'
 import { takeRateLimitToken } from '../../src/rateLimit.js'

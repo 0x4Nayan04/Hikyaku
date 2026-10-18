@@ -1,4 +1,4 @@
-import type { DeliveryStatus, EndpointStatus, EventStatus } from '@webhook/shared/constants'
+import type { DeliveryStatus, EndpointStatus, EventStatus } from '@hikyaku/shared/constants'
 import type {
   DeliveriesSummary,
   DeliveryAttemptJson,
@@ -11,7 +11,7 @@ import type {
   EventListJson,
   IngestEventJson,
   ReplayDeliveryJson,
-} from '@webhook/shared/apiJson'
+} from '@hikyaku/shared/apiJson'
 
 export type { DeliveryStatus, EndpointStatus, EventStatus }
 export type { DeliveriesSummary, ReplayDeliveryJson as ReplayDeliveryResponse }

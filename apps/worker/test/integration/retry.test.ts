@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import type { DeliveryJobData } from '@webhook/shared/constants'
-import { deliveries, deliveryAttempts, events } from '@webhook/shared/schema'
+import type { DeliveryJobData } from '@hikyaku/shared/constants'
+import { deliveries, deliveryAttempts, events } from '@hikyaku/shared/schema'
 import type { Job } from 'bullmq'
 import { asc, eq } from 'drizzle-orm'
 import request from 'supertest'

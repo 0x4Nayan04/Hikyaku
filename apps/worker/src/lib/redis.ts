@@ -1,6 +1,6 @@
 import { Redis } from 'ioredis'
 import type { ConnectionOptions } from 'bullmq'
-import { redisConnectionOptions } from '@webhook/shared/redis'
+import { redisConnectionOptions } from '@hikyaku/shared/redis'
 import { env } from '../config.js'
 import { logger } from './logger.js'
 

@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import { users } from '@webhook/shared/schema'
+import { users } from '@hikyaku/shared/schema'
 import '../../../src/config.js'
 import { maybeSeedSuperAdmin } from '../../../src/scripts/seedSuperAdmin.js'
 import { closePool, getDb } from '../../../src/db/client.js'

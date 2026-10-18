@@ -1,7 +1,7 @@
-import { endpoints } from '@webhook/shared/schema'
+import { endpoints } from '@hikyaku/shared/schema'
 import { and, eq } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
-import type * as schema from '@webhook/shared/schema'
+import type * as schema from '@hikyaku/shared/schema'
 
 type DbExecutor = NodePgDatabase<typeof schema>
 

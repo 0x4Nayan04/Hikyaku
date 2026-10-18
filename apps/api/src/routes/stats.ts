@@ -1,4 +1,4 @@
-import { deliveries, events } from '@webhook/shared/schema'
+import { deliveries, events } from '@hikyaku/shared/schema'
 import { and, count, eq, gte, inArray, sql } from 'drizzle-orm'
 import { Router, type IRouter } from 'express'
 import type { Request, Response } from 'express'

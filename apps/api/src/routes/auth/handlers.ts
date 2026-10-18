@@ -3,12 +3,12 @@ import {
   changePasswordSchema,
   createWorkspaceSchema,
   loginSchema,
-} from '@webhook/shared/zod'
+} from '@hikyaku/shared/zod'
 import { parseSchema } from '../../lib/validation.js'
 import { and, count, eq, sql } from 'drizzle-orm'
 import type { Request, Response } from 'express'
-import { tenants, users } from '@webhook/shared/schema'
-import { hashPassword, INVALID_PASSWORD_HASH, verifyPassword } from '@webhook/shared/password'
+import { tenants, users } from '@hikyaku/shared/schema'
+import { hashPassword, INVALID_PASSWORD_HASH, verifyPassword } from '@hikyaku/shared/password'
 import { createCredentialFingerprint, writeSessionUser } from '../../auth/session.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'

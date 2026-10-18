@@ -8,7 +8,7 @@ import type {
   LoginInput,
   PasswordResetInput,
   PatchEndpointInput,
-} from '@webhook/shared/zod'
+} from '@hikyaku/shared/zod'
 import type {
   CreateInviteResponse,
   AdminTenant,

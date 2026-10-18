@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { afterAll, describe, expect, it } from 'vitest'
-import { endpoints } from '@webhook/shared/schema'
+import { endpoints } from '@hikyaku/shared/schema'
 import '../../../src/config.js'
 import { closePool, getDb } from '../../../src/db/client.js'
 import { getActiveEndpointIds } from '../../../src/lib/activeEndpoints.js'

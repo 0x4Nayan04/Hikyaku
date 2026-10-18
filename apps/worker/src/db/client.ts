@@ -1,4 +1,4 @@
-import { createDbClient } from '@webhook/shared/db'
+import { createDbClient } from '@hikyaku/shared/db'
 import { env } from '../config.js'
 
 export const { getPool, getDb, closePool } = createDbClient(

@@ -1,6 +1,6 @@
 const seededTenantIds: string[] = []
-import { deliveries, endpoints, events, tenants } from '@webhook/shared/schema'
-import { reevaluateEventStatus } from '@webhook/shared/eventStatus'
+import { deliveries, endpoints, events, tenants } from '@hikyaku/shared/schema'
+import { reevaluateEventStatus } from '@hikyaku/shared/eventStatus'
 import { eq, inArray } from 'drizzle-orm'
 import { afterAll, describe, expect, it } from 'vitest'
 import { closePool, getDb } from '../../src/db/client.js'

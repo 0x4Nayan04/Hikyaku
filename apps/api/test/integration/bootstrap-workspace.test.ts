@@ -1,7 +1,7 @@
 import request from 'supertest'
 import { afterAll, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
-import { tenants, users } from '@webhook/shared/schema'
+import { tenants, users } from '@hikyaku/shared/schema'
 import { createApp } from '../../src/server.js'
 import { getDb, closePool } from '../../src/db/client.js'
 import { closeRedis } from '../../src/lib/redis.js'

@@ -1,4 +1,4 @@
-import { MAX_INGEST_BODY_BYTES } from '@webhook/shared/constants'
+import { MAX_INGEST_BODY_BYTES } from '@hikyaku/shared/constants'
 import { describe, expect, it } from 'vitest'
 import { AppError } from '../../../../src/lib/errors.js'
 import { parseEventId, parseIngestBody, parseListQuery } from '../../../../src/routes/events/validation.js'

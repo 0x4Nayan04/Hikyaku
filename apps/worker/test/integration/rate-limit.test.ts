@@ -1,6 +1,6 @@
-import { QUEUE_NAME } from '@webhook/shared/constants'
+import { QUEUE_NAME } from '@hikyaku/shared/constants'
 import { WORKER_LOCK_DURATION_MS } from '../../src/config.js'
-import { deliveries, deliveryAttempts } from '@webhook/shared/schema'
+import { deliveries, deliveryAttempts } from '@hikyaku/shared/schema'
 import { Worker } from 'bullmq'
 import { and, eq } from 'drizzle-orm'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'

@@ -1,5 +1,5 @@
-import type { DeliveryStatus, EventStatus } from '@webhook/shared/constants'
-import { deliveries, endpoints, events } from '@webhook/shared/schema'
+import type { DeliveryStatus, EventStatus } from '@hikyaku/shared/constants'
+import { deliveries, endpoints, events } from '@hikyaku/shared/schema'
 import { getDb } from '../../src/db/client.js'
 import { queue } from '../../src/queue/client.js'
 

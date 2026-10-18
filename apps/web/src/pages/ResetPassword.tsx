@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Lock, Mail } from 'lucide-react'
-import { MIN_PASSWORD_LENGTH } from '@webhook/shared/constants'
+import { MIN_PASSWORD_LENGTH } from '@hikyaku/shared/constants'
 import { ApiError, submitPasswordReset, validatePasswordReset } from '@/api/client'
 import type { ValidatePasswordResetResponse } from '@/api/types'
 import { AuthFooterLink } from '@/components/auth/AuthFooterLink'
