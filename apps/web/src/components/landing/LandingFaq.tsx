@@ -1,4 +1,3 @@
-import { useRef, useState, type KeyboardEvent } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
@@ -92,54 +91,6 @@ function FaqAnswerBody({ item }: { item: FaqItem }) {
 }
 
 export function LandingFaq() {
-  const [selectedId, setSelectedId] = useState<string>(FAQ_ITEMS[0].id)
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const panelRef = useRef<HTMLDivElement>(null)
-  const selected = FAQ_ITEMS.find((item) => item.id === selectedId) ?? FAQ_ITEMS[0]
-  const selectedIndex = FAQ_ITEMS.findIndex((item) => item.id === selected.id)
-
-  function onSelect(id: string) {
-    setSelectedId(id)
-    if (!window.matchMedia('(max-width: 767px)').matches) return
-    const motion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    requestAnimationFrame(() => {
-      panelRef.current?.scrollIntoView({ block: 'nearest', behavior: motion ? 'auto' : 'smooth' })
-    })
-  }
-
-  function moveTo(index: number) {
-    const item = FAQ_ITEMS[index]
-    if (!item) return
-    tabRefs.current[index]?.focus()
-    onSelect(item.id)
-  }
-
-  function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    const last = FAQ_ITEMS.length - 1
-    switch (event.key) {
-      case 'ArrowDown':
-      case 'ArrowRight':
-        event.preventDefault()
-        moveTo(index === last ? 0 : index + 1)
-        return
-      case 'ArrowUp':
-      case 'ArrowLeft':
-        event.preventDefault()
-        moveTo(index === 0 ? last : index - 1)
-        return
-      case 'Home':
-        event.preventDefault()
-        moveTo(0)
-        return
-      case 'End':
-        event.preventDefault()
-        moveTo(last)
-        return
-      default:
-        return
-    }
-  }
-
   return (
     <section id="faq" className="scroll-mt-(--nav-height) lp-faq" aria-labelledby="faq-heading">
       <LandingFrameInner className="lp-section lp-faq__inner">
@@ -151,50 +102,25 @@ export function LandingFaq() {
         </header>
 
         <div className="lp-faq__frame">
-          <div className="lp-faq__board">
-            <div className="lp-faq__nav" role="tablist" aria-label="Frequently asked questions">
-              {FAQ_ITEMS.map((item, index) => {
-                const selectedTab = item.id === selected.id
-                return (
-                  <button
-                    key={item.id}
-                    ref={(node) => {
-                      tabRefs.current[index] = node
-                    }}
-                    type="button"
-                    role="tab"
-                    id={`faq-tab-${item.id}`}
-                    className="lp-faq__tab"
-                    aria-selected={selectedTab}
-                    aria-controls="faq-panel"
-                    tabIndex={selectedTab ? 0 : -1}
-                    onClick={() => onSelect(item.id)}
-                    onKeyDown={(event) => onTabKeyDown(event, index)}
-                  >
-                    <span className="lp-faq__index" aria-hidden="true">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <span className="lp-faq__question-text">{item.q}</span>
-                  </button>
-                )
-              })}
-            </div>
-
-            <div
-              ref={panelRef}
-              id="faq-panel"
-              className="lp-faq__panel"
-              role="tabpanel"
-              aria-labelledby={`faq-tab-${selected.id}`}
-            >
-              <p className="lp-faq__panel-index" aria-hidden="true">
-                {String(selectedIndex + 1).padStart(2, '0')}
-              </p>
-              <h3 className="lp-faq__panel-title">{selected.q}</h3>
-              <div className="lp-faq__answer">
-                <FaqAnswerBody item={selected} />
-              </div>
-            </div>
+          <div className="lp-faq__list">
+            {FAQ_ITEMS.map((item, index) => (
+              <details
+                key={item.id}
+                className="lp-faq__item"
+                name="lp-faq"
+                open={index === 0}
+              >
+                <summary className="lp-faq__summary focus-ring">
+                  <span className="lp-faq__index" aria-hidden="true">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span className="lp-faq__question-text">{item.q}</span>
+                </summary>
+                <div className="lp-faq__answer">
+                  <FaqAnswerBody item={item} />
+                </div>
+              </details>
+            ))}
           </div>
 
           <div className="lp-faq__footer">
