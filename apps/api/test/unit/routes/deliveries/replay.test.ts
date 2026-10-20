@@ -300,6 +300,7 @@ describe('replayDelivery validation', () => {
       expect(result.error).toBeUndefined()
       expect(result.statusCode).toBe(202)
       expect(result.body).toEqual({ id: delivery.id, status: 'pending' })
+      expect(enqueueMock).toHaveBeenCalledWith(expect.anything(), delivery.id, tenantId, 1)
 
       const [updated] = await db
         .select({
@@ -454,7 +455,7 @@ describe('replayDelivery validation', () => {
       expect(result.error).toBeUndefined()
       expect(result.statusCode).toBe(202)
       expect(result.body).toEqual({ id: delivery.id, status: 'pending' })
-      expect(enqueueMock).toHaveBeenCalledWith(expect.anything(), delivery.id, tenantId)
+      expect(enqueueMock).toHaveBeenCalledWith(expect.anything(), delivery.id, tenantId, 1)
 
       const [updated] = await db
         .select({

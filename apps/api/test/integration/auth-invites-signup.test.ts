@@ -130,14 +130,60 @@ describe('invitation-only onboarding', () => {
       ),
     )
 
-    expect(results.map((result) => result.status).sort()).toEqual([201, 409])
-    expect(results.find((result) => result.status === 409)?.body.error.code).toBe('conflict')
+    expect(results.map((result) => result.status).sort()).toEqual([201, 201])
 
     const rows = await getDb()
-      .select({ id: invites.id })
+      .select({ id: invites.id, acceptedAt: invites.acceptedAt })
       .from(invites)
       .where(eq(invites.email, email))
-    expect(rows).toHaveLength(1)
+    expect(rows).toHaveLength(2)
+    expect(rows.filter((row) => row.acceptedAt === null)).toHaveLength(1)
+  })
+
+  it('replaces an unused invite and invalidates the old link', async () => {
+    const email = `replace-invite-${randomUUID()}@test.com`
+    cleanupEmails.push(email)
+    const agent = await loginSuperAdmin()
+    const tenantName = `Replace Co ${randomUUID().slice(0, 8)}`
+
+    const first = await agent.post('/v1/admin/invites').send({
+      kind: 'tenant_owner',
+      tenant_name: tenantName,
+      owner_email: email,
+    })
+    expect(first.status).toBe(201)
+    const oldToken = new URL(first.body.invite_url).searchParams.get('token')
+
+    const second = await agent.post('/v1/admin/invites').send({
+      kind: 'tenant_owner',
+      tenant_name: tenantName,
+      owner_email: email,
+    })
+    expect(second.status).toBe(201)
+    const newToken = new URL(second.body.invite_url).searchParams.get('token')
+    expect(newToken).not.toBe(oldToken)
+
+    const oldAccept = await request(app).post('/v1/auth/accept-invite').send({
+      token: oldToken,
+      name: 'Owner',
+      password: PASSWORD,
+    })
+    expect(oldAccept.status).toBe(410)
+    expect(oldAccept.body.error.code).toBe('invite_used')
+
+    const newAccept = await request(app).post('/v1/auth/accept-invite').send({
+      token: newToken,
+      name: 'Owner',
+      password: PASSWORD,
+    })
+    expect(newAccept.status).toBe(201)
+
+    const [user] = await getDb()
+      .select({ tenantId: users.tenantId })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1)
+    if (user?.tenantId) await deleteTenant(user.tenantId)
   })
 
   it('allows only one concurrent acceptance of an invite', async () => {

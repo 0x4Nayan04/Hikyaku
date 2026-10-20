@@ -118,6 +118,7 @@ export const replayDelivery: RequestHandler = asyncHandler(async (req: Request, 
     .select({
       status: deliveries.status,
       endpointStatus: endpoints.status,
+      replayCount: deliveries.replayCount,
     })
     .from(deliveries)
     .innerJoin(endpoints, eq(deliveries.endpointId, endpoints.id))
@@ -148,6 +149,8 @@ export const replayDelivery: RequestHandler = asyncHandler(async (req: Request, 
     )
   }
 
+  let replayCount = existing.replayCount
+
   if (existing.status === 'failed') {
     await db.transaction(async (tx) => {
       const [updated] = await tx
@@ -167,19 +170,24 @@ export const replayDelivery: RequestHandler = asyncHandler(async (req: Request, 
             eq(deliveries.status, 'failed'),
           ),
         )
-        .returning({ eventId: deliveries.eventId })
+        .returning({ eventId: deliveries.eventId, replayCount: deliveries.replayCount })
 
       if (!updated) {
-        throw new AppError(400, 'invalid_state', 'Only failed or pending deliveries can be replayed')
+        throw new AppError(
+          400,
+          'invalid_state',
+          'Only failed or pending deliveries can be replayed',
+        )
       }
 
+      replayCount = updated.replayCount
       await reevaluateEventStatus(updated.eventId, tx)
       await tx.insert(deliveryOutbox).values({ deliveryId: id, tenantId }).onConflictDoNothing()
     })
   }
 
   await enqueueOr503(
-    enqueueDeliveryJob(queue, id, tenantId),
+    enqueueDeliveryJob(queue, id, tenantId, replayCount),
     { delivery_id: id },
     'replay_enqueue_failed',
   )

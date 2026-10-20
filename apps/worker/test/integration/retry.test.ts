@@ -93,7 +93,7 @@ function startFlakyMockServer(
 
 function makeJob(deliveryId: string, tenantId: string): Job<DeliveryJobData> {
   return {
-    data: { deliveryId, tenantId },
+    data: { deliveryId, tenantId, replayCount: 0 },
     moveToDelayed: vi.fn().mockResolvedValue(undefined),
   } as unknown as Job<DeliveryJobData>
 }

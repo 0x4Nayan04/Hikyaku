@@ -38,7 +38,7 @@ function startMockServer(
 
 function makeJob(delivery: { id: string; tenantId: string }): Job<DeliveryJobData> {
   return {
-    data: { deliveryId: delivery.id, tenantId: delivery.tenantId },
+    data: { deliveryId: delivery.id, tenantId: delivery.tenantId, replayCount: 0 },
     moveToDelayed: vi.fn().mockResolvedValue(undefined),
   } as unknown as Job<DeliveryJobData>
 }

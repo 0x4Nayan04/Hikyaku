@@ -122,7 +122,11 @@ describe('sweepOrphanDeliveries', () => {
 
     const job = await findDeliveryJob(seeded.id)
     expect(job).toBeDefined()
-    expect(job?.data).toEqual({ deliveryId: seeded.id, tenantId: seeded.tenantId })
+    expect(job?.data).toEqual({
+      deliveryId: seeded.id,
+      tenantId: seeded.tenantId,
+      replayCount: 0,
+    })
   })
 
   it('enqueues a fresh delivery that still has an outbox row', async () => {
@@ -135,7 +139,11 @@ describe('sweepOrphanDeliveries', () => {
 
     const job = await findDeliveryJob(seeded.id)
     expect(job).toBeDefined()
-    expect(job?.data).toEqual({ deliveryId: seeded.id, tenantId: seeded.tenantId })
+    expect(job?.data).toEqual({
+      deliveryId: seeded.id,
+      tenantId: seeded.tenantId,
+      replayCount: 0,
+    })
 
     const leftover = await db
       .select({ deliveryId: deliveryOutbox.deliveryId })
@@ -219,7 +227,7 @@ describe('sweepOrphanDeliveries', () => {
 
   it('skips deliveries that already have an in-flight queue job', async () => {
     const seeded = await seedPendingDelivery()
-    await enqueueDeliveryJob(queue, seeded.id, seeded.tenantId)
+    await enqueueDeliveryJob(queue, seeded.id, seeded.tenantId, 0)
 
     await sweepOrphanDeliveries(queue)
 
@@ -241,7 +249,7 @@ describe('sweepOrphanDeliveries', () => {
 
   it('re-enqueues after a previous BullMQ job failed', async () => {
     const seeded = await seedPendingDelivery()
-    await enqueueDeliveryJob(queue, seeded.id, seeded.tenantId)
+    await enqueueDeliveryJob(queue, seeded.id, seeded.tenantId, 0)
 
     const worker = new Worker(queue.name, null, {
       connection: getRedisConnectionOptions(),

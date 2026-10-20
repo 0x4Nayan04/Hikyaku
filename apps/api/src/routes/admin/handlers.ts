@@ -9,7 +9,7 @@ import { AppError } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
 import {
   assertEmailAvailable,
-  assertNoPendingInvite,
+  invalidatePendingSignupInvites,
   inviteEmailMatches,
   PASSWORD_RESET_KIND,
 } from '../../lib/invites.js'
@@ -250,7 +250,7 @@ export const createInvite = asyncHandler(async (req: Request, res: Response) => 
     // Serializes check-and-create for this email; released automatically on commit or rollback.
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${email}))`)
     await assertEmailAvailable(email, tx)
-    await assertNoPendingInvite(email, tx)
+    await invalidatePendingSignupInvites(email, tx)
 
     if (body.kind === 'tenant_owner') {
       await tx.insert(invites).values({

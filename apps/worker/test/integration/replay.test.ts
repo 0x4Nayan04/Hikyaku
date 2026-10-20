@@ -60,7 +60,7 @@ function startSwitchableMockServer(initialStatus: number): Promise<{
 }
 
 function makeJob(deliveryId: string, tenantId: string): Job<DeliveryJobData> {
-  return { data: { deliveryId, tenantId } } as Job<DeliveryJobData>
+  return { data: { deliveryId, tenantId, replayCount: 0 } } as Job<DeliveryJobData>
 }
 
 describe('delivery replay', () => {
@@ -68,7 +68,13 @@ describe('delivery replay', () => {
   let agent: ReturnType<typeof request.agent>
 
   beforeEach(async () => {
-    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+    for (const job of await queue.getJobs([
+      'waiting',
+      'delayed',
+      'completed',
+      'failed',
+      'paused',
+    ])) {
       await job.remove()
     }
     const tenant = await createTenantWithKey()
@@ -77,7 +83,13 @@ describe('delivery replay', () => {
   })
 
   afterEach(async () => {
-    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+    for (const job of await queue.getJobs([
+      'waiting',
+      'delayed',
+      'completed',
+      'failed',
+      'paused',
+    ])) {
       await job.remove()
     }
     await deleteTenant(tenantId)
@@ -97,25 +109,18 @@ describe('delivery replay', () => {
 
     await processor(makeJob(deliveryId, tenantId))
 
-    const [failedDelivery] = await db
-      .select()
-      .from(deliveries)
-      .where(eq(deliveries.id, deliveryId))
+    const [failedDelivery] = await db.select().from(deliveries).where(eq(deliveries.id, deliveryId))
 
     expect(failedDelivery.status).toBe('failed')
     expect(failedDelivery.attemptCount).toBe(1)
     expect(mock.getRequestCount()).toBe(1)
-
 
     const replayRes = await agent.post(`/v1/deliveries/${deliveryId}/replay`)
 
     expect(replayRes.status).toBe(202)
     expect(replayRes.body).toEqual({ id: deliveryId, status: 'pending' })
 
-    const [resetDelivery] = await db
-      .select()
-      .from(deliveries)
-      .where(eq(deliveries.id, deliveryId))
+    const [resetDelivery] = await db.select().from(deliveries).where(eq(deliveries.id, deliveryId))
 
     expect(resetDelivery).toMatchObject({
       status: 'pending',
