@@ -39,15 +39,15 @@ Producer ──POST /v1/events──► API ──fan-out + enqueue──► Red
 
 ## Local development
 
-Needs Node.js 20 (`nvm use` / `.nvmrc`), [pnpm](https://pnpm.io/), and Docker (Postgres 16 + Redis 7).
+Needs Node.js 22 (`nvm use` / `.nvmrc`; use **22.22.2+** so locked test deps match CI), [pnpm](https://pnpm.io/) **11.17.0**, and Docker (Postgres 16 + Redis 7).
 
 ```bash
 git clone https://github.com/0x4Nayan04/Hikyaku.git
 cd Hikyaku
 cp .env.example .env
+corepack enable
 pnpm install
 pnpm docker:up
-pnpm --filter @hikyaku/shared build
 pnpm db:migrate
 pnpm dev
 ```

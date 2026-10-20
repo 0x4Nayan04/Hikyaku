@@ -82,8 +82,11 @@ export function Dashboard() {
       if (!hasDashboardData(data)) {
         try {
           const activeEndpoints = await listEndpoints({ status: 'active', limit: 1 }, { signal })
+          const hasActiveEndpoint = activeEndpoints.data.length > 0
+          const hasAnyEndpoint = hasActiveEndpoint || disabled.data.length > 0
           nextOnboarding = buildOnboardingSteps({
-            hasEndpoint: activeEndpoints.data.length > 0,
+            hasActiveEndpoint,
+            hasAnyEndpoint,
             hasTestEvent: eventsResult.data.length > 0,
             hasDeliveries: deliveriesResult.data.length > 0,
           })

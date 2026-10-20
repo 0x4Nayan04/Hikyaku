@@ -1,6 +1,6 @@
 # Deploy & ops — Hikyaku
 
-Local app development stays on **Node.js 20** (`pnpm dev` + root `docker-compose.yml`).  
+Local app development uses **Node.js 22** (`nvm use` / root `.nvmrc`, then `pnpm dev` + root `docker-compose.yml`).  
 This folder is for **production-style** hosting and longer reference notes moved out of the root README.
 
 ---
@@ -55,6 +55,8 @@ docker compose --env-file .env.production -f compose.production.yml down
 ```
 
 `down` preserves volumes. Do not add `-v` unless intentionally deleting this installation. `/v1/ready` checks PostgreSQL/Redis, not delivery execution — confirm a real delivery after install or upgrade.
+
+Optional: set `BUILD_REVISION` or `GIT_SHA` on the API and worker services to expose the running release in `/v1/health` and `/v1/ready` (for example your image tag or deploy commit).
 
 ### Backup and upgrade
 

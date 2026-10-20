@@ -9,16 +9,20 @@ export type OnboardingStep = {
 
 /** Ordered first-run checklist for an empty tenant dashboard. */
 export function buildOnboardingSteps(opts: {
-  hasEndpoint: boolean
+  hasActiveEndpoint: boolean
+  hasAnyEndpoint: boolean
   hasTestEvent: boolean
   hasDeliveries: boolean
 }): OnboardingStep[] {
+  const endpointLabel =
+    opts.hasActiveEndpoint || !opts.hasAnyEndpoint ? 'Create an endpoint' : 'Enable an endpoint'
+
   return [
     {
       id: 'endpoint',
-      label: 'Create an endpoint',
+      label: endpointLabel,
       to: '/endpoints',
-      done: opts.hasEndpoint,
+      done: opts.hasActiveEndpoint,
     },
     {
       id: 'test_event',
