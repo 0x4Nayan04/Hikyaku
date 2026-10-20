@@ -68,4 +68,17 @@ describe('takeFixedWindowTokens', () => {
 
     await expect(takeFixedWindowTokens(['auth:ip', 'auth:email'], 20)).resolves.toBe(false)
   })
+
+  it('returns 503 when Redis is unavailable', async () => {
+    evalMock.mockRejectedValue(new Error('redis down'))
+
+    const { takeFixedWindowTokens } = await import('../../../src/lib/rateLimit.js')
+    const { AppError } = await import('../../../src/lib/errors.js')
+
+    await expect(takeFixedWindowTokens(['auth:ip'], 20)).rejects.toBeInstanceOf(AppError)
+    await expect(takeFixedWindowTokens(['auth:ip'], 20)).rejects.toMatchObject({
+      statusCode: 503,
+      code: 'service_unavailable',
+    })
+  })
 })

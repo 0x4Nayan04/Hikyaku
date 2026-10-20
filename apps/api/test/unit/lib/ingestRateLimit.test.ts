@@ -74,12 +74,17 @@ describe('ingestIpRateLimit', () => {
     expect(result.error).toMatchObject({ statusCode: 429, code: 'rate_limited' })
   })
 
-  it('fails closed when Redis errors', async () => {
-    takeFixedWindowTokens.mockRejectedValue(new Error('redis down'))
+  it('returns 503 when Redis errors', async () => {
+    takeFixedWindowTokens.mockRejectedValue(
+      new (await import('../../../src/lib/errors.js')).AppError(
+        503,
+        'service_unavailable',
+        'Service temporarily unavailable',
+      ),
+    )
     const { ingestIpRateLimit } = await import('../../../src/lib/ingestRateLimit.js')
     const result = await runMiddleware(ingestIpRateLimit, createRequest('Bearer whk_test'))
 
-    expect(result.error).toBeInstanceOf(Error)
-    expect((result.error as Error).message).toBe('redis down')
+    expect(result.error).toMatchObject({ statusCode: 503, code: 'service_unavailable' })
   })
 })

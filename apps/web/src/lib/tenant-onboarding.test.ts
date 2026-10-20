@@ -4,7 +4,8 @@ import { buildIngestCurl, buildOnboardingSteps } from './tenant-onboarding'
 describe('buildOnboardingSteps', () => {
   it('marks every step from real state', () => {
     const steps = buildOnboardingSteps({
-      hasEndpoint: true,
+      hasActiveEndpoint: true,
+      hasAnyEndpoint: true,
       hasTestEvent: true,
       hasDeliveries: true,
     })
@@ -13,6 +14,20 @@ describe('buildOnboardingSteps', () => {
       ['test_event', true],
       ['deliveries', true],
     ])
+  })
+
+  it('guides operators to enable a disabled endpoint', () => {
+    const steps = buildOnboardingSteps({
+      hasActiveEndpoint: false,
+      hasAnyEndpoint: true,
+      hasTestEvent: false,
+      hasDeliveries: false,
+    })
+    expect(steps[0]).toMatchObject({
+      id: 'endpoint',
+      label: 'Enable an endpoint',
+      done: false,
+    })
   })
 })
 

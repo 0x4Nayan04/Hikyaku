@@ -156,6 +156,20 @@ describe('Dashboard empty-state probes', () => {
     expect(container.textContent).not.toContain('1 disabled endpoint')
   })
 
+  it('asks to enable an endpoint when only disabled endpoints exist', async () => {
+    vi.mocked(getStats).mockResolvedValue(emptyStats)
+    vi.mocked(listEvents).mockResolvedValue(page())
+    vi.mocked(listDeliveries).mockResolvedValue(page())
+    vi.mocked(listEndpoints).mockImplementation(async (params) => {
+      if (params?.status === 'disabled') return page([{ id: 'disabled' }] as never[])
+      return page()
+    })
+    await renderDashboard()
+
+    expect(container.textContent).toContain('Enable an endpoint')
+    expect(container.textContent).not.toContain('Create an endpoint')
+  })
+
   it('reuses activity totals and fetches onboarding lists only when empty', async () => {
     vi.mocked(getStats).mockResolvedValue(emptyStats)
     vi.mocked(listEvents).mockResolvedValue(page())

@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
   migrate:
     <<: *app
-    command: ['pnpm', 'db:migrate']
+    command: ['node', 'apps/api/dist/scripts/migrate.js']
     restart: 'no'
     depends_on:
       postgres:
