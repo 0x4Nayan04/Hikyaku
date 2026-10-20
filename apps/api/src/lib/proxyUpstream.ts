@@ -3,7 +3,6 @@ export const PROXY_SECRET_HEADER = 'x-hikyaku-proxy-secret'
 /** Query param the Vercel rewrite uses to carry the original `/v1/*` path into `api/proxy`. */
 export const PROXY_PATH_PARAM = '__hikyaku_path'
 
-/** Map the Vercel proxy path back to the API path producers and the browser share. */
 export function upstreamTarget(upstream: string, requestUrl: string): string {
   const base = upstream.replace(/\/$/, '')
   const url = new URL(requestUrl, 'http://internal')

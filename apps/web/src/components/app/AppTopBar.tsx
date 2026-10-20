@@ -52,7 +52,6 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const dropdownButtonRef = useRef<HTMLButtonElement>(null)
   const mobileMenuRef = useFocusTrap(menuOpen, { onEscape: () => setMenuOpen(false) })
   const dropdownTrapRef = useFocusTrap(dropdownOpen, {
     onEscape: () => setDropdownOpen(false),
@@ -138,7 +137,6 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
               <div ref={dropdownRef} className="relative">
                 <button
                   type="button"
-                  ref={dropdownButtonRef}
                   className="nav-user-trigger outline-none"
                   aria-label="Open account menu"
                   aria-expanded={dropdownOpen}
