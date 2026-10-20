@@ -56,7 +56,11 @@ docker compose --env-file .env.production -f compose.production.yml down
 
 `down` preserves volumes. Do not add `-v` unless intentionally deleting this installation. `/v1/ready` checks PostgreSQL/Redis, not delivery execution — confirm a real delivery after install or upgrade.
 
+Production Compose uses `postgres:16-alpine` and `redis:7-alpine` images. The API/worker runtime image is built from a production-pruned `node_modules` tree (see root `Dockerfile` `runtime` target), not the full dev build stage.
+
 Optional: set `BUILD_REVISION` or `GIT_SHA` on the API and worker services to expose the running release in `/v1/health` and `/v1/ready` (for example your image tag or deploy commit).
+
+**Dependency errors:** Post-commit enqueue failures and auth rate-limit checks return **503** `service_unavailable` when Redis is unreachable. Treat that as “try again later,” not a successful ingest.
 
 ### Backup and upgrade
 
@@ -69,6 +73,19 @@ docker compose --env-file .env.production -f compose.production.yml up -d
 ```
 
 Keep the backup, previous application revision, and `.env.production` securely. Do not restart application services if migration fails. Never roll old code onto an incompatible new schema.
+
+**Restore Postgres** (maintenance window; stops writers first):
+
+```sh
+docker compose --env-file .env.production -f compose.production.yml stop api worker
+docker compose --env-file .env.production -f compose.production.yml exec -T postgres \
+  pg_restore -U webhook -d webhooks --clean --if-exists < hikyaku-backup.dump
+docker compose --env-file .env.production -f compose.production.yml up -d
+```
+
+Redis holds the BullMQ queue and ephemeral rate-limit counters. After restoring only Postgres, committed `delivery_outbox` rows and the sweeper can rebuild queue work; do not assume Redis snapshots are required for correctness. Prefer a coordinated restore or accept re-enqueue via outbox/sweeper rather than mixing an old Redis volume with a newer database without a plan.
+
+**Signing-secret rotation** replaces the endpoint secret immediately (no dual-secret overlap). Pause traffic or update receivers before rotating if you cannot tolerate verification failures on in-flight sends.
 
 ---
 

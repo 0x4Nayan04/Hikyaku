@@ -57,7 +57,7 @@ A successful ingest returns `202 Accepted` with the event id and enqueues one de
 
 Fresh deploys create a super-admin and their workspace at [/bootstrap](/bootstrap). Additional users arrive through invitation links. Console data is scoped to the signed-in tenant.
 
-- **Dashboard** — ingest volume, active deliveries, 24h final outcomes, and recent activity.
+- **Dashboard** — ingest volume, active deliveries, 24h final outcomes, and recent activity. Onboarding points you to **enable** an existing endpoint when every endpoint is disabled, or to **create** one when none exist.
 - **Endpoints** — register a receiver URL, copy the signing secret shown once at create, and rotate it in place when needed.
 - **Events** — browse ingested events and open one to see its deliveries.
 - **Test event** — POST a smoke-test payload from the UI (real traffic should use `POST /v1/events`).
@@ -82,12 +82,12 @@ Authorization: Bearer whk_your_api_key
 
 Keys belong to one tenant. The tenant is resolved from the key, never from the request body. The full secret is shown once on create or rotate; only a SHA-256 hash is stored.
 
-Passwords must be at least 12 characters and at most 128 UTF-8 bytes. Browser login and API keys are separate credentials that resolve to the same tenant for tenant users. Changing your password signs you out of all sessions.
+Passwords must be at least 12 characters and at most 128 UTF-8 bytes. Browser login and API keys are separate credentials that resolve to the same tenant for tenant users. Changing your password signs you out of all sessions. Login and other auth routes are rate limited per IP (and per email when present); if Redis is unavailable for that check, the API returns `503 service_unavailable`.
 
 A super-admin issues a password reset with `POST /v1/admin/tenants/:id/users/:userId/reset-password`. The response is a one-time link to copy, the same way invites work. The user sets a new password at [/reset-password](/reset-password), and every session for that user is signed out. There is no emailed self-serve reset.
 
 - **Bootstrap** — create the first super-admin once via `POST /v1/auth/bootstrap` (requires `ADMIN_BOOTSTRAP_SECRET`).
-- **Invite** — the super-admin creates a tenant-owner or tenant-user link via `POST /v1/admin/invites`; the recipient accepts at [/accept-invite](/accept-invite).
+- **Invite** — the super-admin creates a tenant-owner or tenant-user link via `POST /v1/admin/invites`; the recipient accepts at [/accept-invite](/accept-invite). Creating a new invite for the same email invalidates any unused, unexpired signup invite for that address so a lost link can be replaced without waiting for expiry.
 
 ## Ingest
 
@@ -154,7 +154,7 @@ curl -b cookies.txt -X POST "{{API_BASE}}/v1/endpoints" \
   }'
 ```
 
-URL cannot change after create. Update status or description with `PATCH /v1/endpoints/:id`. Rotate the signing secret in place with `POST /v1/endpoints/:id/rotate` — the new secret is returned once; the endpoint id and URL stay the same. To change a URL, create a new endpoint and disable the old one.
+URL cannot change after create. Update status or description with `PATCH /v1/endpoints/:id`. Rotate the signing secret in place with `POST /v1/endpoints/:id/rotate` — the new secret is returned once; the endpoint id and URL stay the same. Rotation replaces the secret immediately (no overlap window); update every receiver before or right after rotating, and expect in-flight deliveries to keep using the secret that was active when they were reserved. To change a URL, create a new endpoint and disable the old one.
 
 > **Save the secret now:** The server cannot show the signing secret again after create or rotate. Copy it into your secret manager immediately.
 
@@ -259,8 +259,8 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 
 | Method | Route                                                | Purpose                                                              |
 | ------ | ---------------------------------------------------- | -------------------------------------------------------------------- |
-| GET    | `/v1/health`                                         | Liveness probe                                                       |
-| GET    | `/v1/ready`                                          | Postgres + Redis connectivity                                        |
+| GET    | `/v1/health`                                         | Liveness probe; optional `revision` when `BUILD_REVISION` or `GIT_SHA` is set |
+| GET    | `/v1/ready`                                          | Postgres + Redis connectivity; same optional `revision`                |
 | GET    | `/v1/auth/bootstrap-status`                          | Whether first-run bootstrap is still available                       |
 | POST   | `/v1/auth/bootstrap`                                 | Installer and first workspace (`workspace_name` optional)            |
 | POST   | `/v1/auth/workspace`                                 | Create an existing admin-only account’s workspace (session required) |
@@ -321,7 +321,7 @@ A response counts as success only when it finishes. A stream error or a connecti
 
 Delivery is at-least-once — dedupe with `X-Webhook-Id` (stable across retries; see [Outbound](#outbound)). Ingest→queue durability is in [Outbox](#outbox). The sweeper (default every 5 minutes, `SWEEP_INTERVAL_MS`) reclaims stale `in_progress` rows after the worker lease (delivery timeout + 30s) and re-enqueues due `pending` rows, without resetting attempt counts.
 
-`POST /v1/deliveries/:id/replay` starts a new run only for a `failed` delivery. That call returns `202`, increments `replay_count`, resets the current run’s attempt counter and `next_retry_at`, and keeps previous attempts. You can do the same with **Replay** on the delivery detail page. Attempts expose `run_number`, starting at 0; the delivery ID and X-Webhook-Id remain unchanged. Replaying a `pending` delivery also returns `202` and re-enqueues that same run without changing the attempt count, run number, or `next_retry_at`. Replaying `in_progress` returns `400 invalid_state`: the sweeper recovers that delivery after the lease expires, and resetting it could start a competing send. A succeeded delivery, or any delivery whose endpoint is disabled, returns `400 invalid_state`.
+`POST /v1/deliveries/:id/replay` starts a new run only for a `failed` delivery. That call returns `202`, increments `replay_count`, resets the current run’s attempt counter and `next_retry_at`, and keeps previous attempts. You can do the same with **Replay** on the delivery detail page. Attempts expose `run_number`, starting at 0; the delivery ID and X-Webhook-Id remain unchanged. Each replay run is enqueued with a queue deduplication id of `delivery_id:replay_count`, so a new run is not confused with an older job for the same delivery. Replaying a `pending` delivery also returns `202` and re-enqueues that same run without changing the attempt count, run number, or `next_retry_at`. Replaying `in_progress` returns `400 invalid_state`: the sweeper recovers that delivery after the lease expires, and resetting it could start a competing send. A succeeded delivery, or any delivery whose endpoint is disabled, returns `400 invalid_state`.
 
 ## Privacy
 
