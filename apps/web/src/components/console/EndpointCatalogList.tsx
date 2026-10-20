@@ -1,4 +1,3 @@
-import type { ComponentProps } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Ban,
@@ -12,7 +11,6 @@ import {
   Power,
   PowerOff,
   XCircle,
-  type LucideIcon,
 } from 'lucide-react'
 import type { Endpoint, EndpointLastDelivery } from '@/api/types'
 import { StatusBadge } from '@/components/console/StatusBadge'
@@ -32,33 +30,6 @@ import {
   shortId,
 } from '@/lib/format'
 import { cn } from '@/lib/utils'
-
-type EndpointIconVariant = 'active' | 'disabled'
-
-function getEndpointIconVariant(endpoint: Endpoint): EndpointIconVariant {
-  return endpoint.status === 'disabled' ? 'disabled' : 'active'
-}
-
-const endpointIconConfig: Record<EndpointIconVariant, { icon: LucideIcon; label: string }> = {
-  active: { icon: Globe, label: 'Active endpoint' },
-  disabled: { icon: PowerOff, label: 'Disabled endpoint' },
-}
-
-function TableActionButton({ className, children, ...props }: ComponentProps<'button'>) {
-  return (
-    <button type="button" className={cn('endpoint-catalog-row__action-btn', className)} {...props}>
-      {children}
-    </button>
-  )
-}
-
-function LabelBadge({ label }: { label: string }) {
-  return (
-    <span className="endpoint-catalog-row__env-badge" title={label}>
-      {label}
-    </span>
-  )
-}
 
 function LastDeliveryColumn({
   endpoint,
@@ -187,8 +158,9 @@ function EndpointCatalogRow({
   onRotate,
   onToggle,
 }: EndpointCatalogRowProps) {
-  const iconVariant = getEndpointIconVariant(endpoint)
-  const { icon: Icon, label: iconLabel } = endpointIconConfig[iconVariant]
+  const iconVariant = endpoint.status === 'disabled' ? 'disabled' : 'active'
+  const Icon = iconVariant === 'disabled' ? PowerOff : Globe
+  const iconLabel = iconVariant === 'disabled' ? 'Disabled endpoint' : 'Active endpoint'
 
   return (
     <article
@@ -213,7 +185,9 @@ function EndpointCatalogRow({
             {shortId(endpoint.id, 16)}
           </code>
           {endpoint.description ? (
-            <LabelBadge label={endpoint.description} />
+            <span className="endpoint-catalog-row__env-badge" title={endpoint.description}>
+              {endpoint.description}
+            </span>
           ) : (
             <button
               type="button"
@@ -235,13 +209,15 @@ function EndpointCatalogRow({
       <div className="endpoint-catalog-row__actions">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <TableActionButton
+            <button
+              type="button"
+              className="endpoint-catalog-row__action-btn"
               disabled={toggling}
               aria-label={`More actions for ${shortId(endpoint.id)}`}
               title="More actions"
             >
               <MoreVertical className="size-4 shrink-0" aria-hidden="true" />
-            </TableActionButton>
+            </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-44">
             <DropdownMenuItem onSelect={() => onEdit(endpoint)}>
