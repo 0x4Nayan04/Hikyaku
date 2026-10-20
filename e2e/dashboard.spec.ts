@@ -100,15 +100,17 @@ test.describe('dashboard smoke', () => {
 
   test('supports keyboard navigation for landing tabs and the account menu', async ({ page }) => {
     await page.goto('/')
-    const faqQuestion = page.getByRole('tab', { name: 'How do I get started?' })
-    await faqQuestion.focus()
+    const firstSummary = page.getByRole('button', { name: 'How do I get started?' })
+    const secondSummary = page.getByRole('button', { name: 'What if my endpoint is down?' })
+    await expect(firstSummary).toBeVisible()
+    await expect(page.locator('details.lp-faq__item').first()).toHaveAttribute('open', '')
+    await firstSummary.focus()
     await page.keyboard.press('Enter')
-    await expect(faqQuestion).toHaveAttribute('aria-selected', 'true')
-    await page.keyboard.press('ArrowDown')
-    await expect(page.getByRole('tab', { name: 'What if my endpoint is down?' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    )
+    await expect(page.locator('details.lp-faq__item').first()).not.toHaveAttribute('open')
+    await secondSummary.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('details.lp-faq__item').nth(1)).toHaveAttribute('open', '')
+    await expect(page.locator('details.lp-faq__item').first()).not.toHaveAttribute('open')
 
     await page.goto('/login')
     await page.getByLabel('Email').fill(owner.email)
