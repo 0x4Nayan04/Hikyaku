@@ -157,7 +157,6 @@ function buildOutboundBody(row: DeliveryContext): string {
   })
 }
 
-/** 408, 429, and 5xx are retried; all other non-2xx statuses fail fast. */
 export function isRetryableHttpStatus(status: number): boolean {
   return status === 408 || status === 429 || status >= 500
 }

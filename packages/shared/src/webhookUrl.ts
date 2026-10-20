@@ -120,7 +120,6 @@ export async function resolveWebhookUrl(
   }
 }
 
-/** Rejects non-http(s) URLs and targets that resolve to private/loopback addresses. */
 export async function checkWebhookUrl(
   raw: string,
   allowPrivate = false,
