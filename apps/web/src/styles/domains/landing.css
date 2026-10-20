@@ -698,14 +698,6 @@
     font-size: 9px;
     letter-spacing: 0.06em;
   }
-  .lp-fanout__stamp {
-    opacity: 0;
-    transform-box: fill-box;
-    transform-origin: 4px 6px;
-  }
-  .lp-fanout.is-signed .lp-fanout__stamp {
-    animation: lp-stamp-in 0.4s var(--ease-press) both;
-  }
   .lp-fanout__stamp rect {
     fill: var(--color-seal);
     stroke: none;
@@ -747,32 +739,9 @@
     stroke-width: 1.5;
     stroke-linecap: round;
     stroke-linejoin: round;
-    stroke-dasharray: 1;
-    stroke-dashoffset: 1;
   }
   .lp-fanout__wire--out3 {
     stroke: var(--color-seal);
-  }
-  .lp-fanout.is-inview .lp-fanout__wire--in {
-    animation: lp-wire-draw 0.45s var(--ease-default) forwards;
-  }
-  .lp-fanout.is-signed .lp-fanout__wire--trunk {
-    animation: lp-wire-draw 0.28s var(--ease-default) forwards;
-  }
-  .lp-fanout.is-signed .lp-fanout__wire--out1 {
-    animation: lp-wire-draw 0.5s var(--ease-default) 0.12s forwards;
-  }
-  .lp-fanout.is-signed .lp-fanout__wire--out2 {
-    animation: lp-wire-draw 0.45s var(--ease-default) 0.16s forwards;
-  }
-  .lp-fanout.is-signed .lp-fanout__wire--out3 {
-    animation: lp-wire-draw 0.55s var(--ease-default) 0.2s forwards;
-  }
-  .lp-fanout__packet--navy {
-    fill: var(--color-primary);
-  }
-  .lp-fanout__packet--seal {
-    fill: var(--color-seal);
   }
   .lp-fanout__host,
   .lp-fanout__code,
@@ -788,16 +757,12 @@
     min-height: 2.5rem;
     padding: 0.7rem 1rem;
     border-top: 1px dashed color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
-    box-shadow: inset 3px 0 0 var(--color-primary);
+    box-shadow: inset 3px 0 0 var(--color-seal);
     background: color-mix(in srgb, var(--color-primary) 3.5%, var(--color-surface));
     font-family: var(--font-mono);
     font-size: 0.75rem;
     font-variant-numeric: tabular-nums;
     line-height: 1;
-    transition: box-shadow 0.35s var(--ease-default);
-  }
-  .lp-fanout.is-logged .lp-fanout__ledger {
-    box-shadow: inset 3px 0 0 var(--color-seal);
   }
   .lp-fanout__ledger-kicker {
     flex: none;
@@ -808,32 +773,16 @@
     color: var(--color-primary);
   }
   .lp-fanout__ledger-body {
-    display: grid;
+    display: flex;
     flex: 1;
     min-width: 0;
     align-items: center;
-  }
-  .lp-fanout__ledger-idle,
-  .lp-fanout__ledger-row {
-    grid-area: 1 / 1;
-  }
-  .lp-fanout__ledger-idle {
-    color: var(--color-muted-strong);
-    transition: opacity 0.35s var(--ease-default);
   }
   .lp-fanout__ledger-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.65rem 1rem;
-    opacity: 0;
-    transition: opacity 0.4s var(--ease-press);
-  }
-  .lp-fanout.is-logged .lp-fanout__ledger-idle {
-    opacity: 0;
-  }
-  .lp-fanout.is-logged .lp-fanout__ledger-row {
-    opacity: 1;
   }
   .lp-fanout__ledger-host {
     color: var(--color-ink);
@@ -846,26 +795,6 @@
   .lp-fanout__ledger-next {
     margin-left: auto;
     color: var(--color-muted-strong);
-  }
-
-  @keyframes lp-wire-draw {
-    to {
-      stroke-dashoffset: 0;
-    }
-  }
-  @keyframes lp-stamp-in {
-    0% {
-      opacity: 0;
-      transform: scale(0.72);
-    }
-    68% {
-      opacity: 1;
-      transform: scale(1.08);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
   }
 
   /* FAQ */
@@ -1270,24 +1199,4 @@
     }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .lp-fanout__wire {
-      stroke-dashoffset: 0;
-      animation: none;
-    }
-    .lp-fanout__packet {
-      display: none;
-    }
-    .lp-fanout__stamp {
-      opacity: 1;
-      animation: none;
-      transform: none;
-    }
-    .lp-fanout__ledger-idle {
-      opacity: 0;
-    }
-    .lp-fanout__ledger-row {
-      opacity: 1;
-    }
-  }
 }
