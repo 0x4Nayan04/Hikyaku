@@ -12,6 +12,8 @@ Self-hosted, multi-tenant webhook delivery. Ingest an event once; the API fans i
 
 **Repo:** [github.com/0x4Nayan04/Hikyaku](https://github.com/0x4Nayan04/Hikyaku) · **License:** [MIT](./LICENSE)
 
+**Live demo (read-only browsing):** [hikyaku.nayanswarnkar.com](https://hikyaku.nayanswarnkar.com) — operator console is invite-only; use local bootstrap for a full walkthrough.
+
 ## Architecture
 
 ```
