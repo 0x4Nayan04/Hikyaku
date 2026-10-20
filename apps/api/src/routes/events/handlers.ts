@@ -1,3 +1,4 @@
+import type { DeliveryJobData } from '@hikyaku/shared/constants'
 import { deliveries, deliveryOutbox, events } from '@hikyaku/shared/schema'
 import { enqueueDeliveryJobs } from '@hikyaku/shared/enqueueDelivery'
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
@@ -19,9 +20,13 @@ import {
 import { parseEventId, parseIngestBody, parseListQuery } from './validation.js'
 
 /** Open deliveries for an event — used so idempotent ingest retries re-enqueue orphans. */
-async function listOpenDeliveryIds(eventId: string, tenantId: string): Promise<string[]> {
-  const rows = await getDb()
-    .select({ id: deliveries.id })
+async function listOpenDeliveryJobs(eventId: string, tenantId: string): Promise<DeliveryJobData[]> {
+  return getDb()
+    .select({
+      deliveryId: deliveries.id,
+      tenantId: deliveries.tenantId,
+      replayCount: deliveries.replayCount,
+    })
     .from(deliveries)
     .where(
       and(
@@ -30,7 +35,6 @@ async function listOpenDeliveryIds(eventId: string, tenantId: string): Promise<s
         inArray(deliveries.status, ['pending', 'in_progress']),
       ),
     )
-  return rows.map((row) => row.id)
 }
 
 async function loadDeliveriesSummary(
@@ -74,26 +78,34 @@ export const ingestEvent = asyncHandler(async (req: Request, res: Response) => {
   const result = await ingestFanout(tenantId, body)
 
   // Duplicate retries must re-enqueue open deliveries left behind by a prior enqueue 503.
-  let deliveryIds: string[]
+  let jobs: DeliveryJobData[]
   if (result.newDeliveryIds.length > 0) {
-    deliveryIds = result.newDeliveryIds
+    jobs = result.newDeliveryIds.map((deliveryId) => ({
+      deliveryId,
+      tenantId,
+      replayCount: 0,
+    }))
   } else if (result.isDuplicate) {
-    deliveryIds = await listOpenDeliveryIds(result.event.id, tenantId)
+    jobs = await listOpenDeliveryJobs(result.event.id, tenantId)
   } else {
-    deliveryIds = []
+    jobs = []
   }
 
   await enqueueOr503(
-    enqueueDeliveryJobs(
-      queue,
-      deliveryIds.map((deliveryId) => ({ deliveryId, tenantId })),
-    ),
-    { delivery_ids: deliveryIds },
+    enqueueDeliveryJobs(queue, jobs),
+    { delivery_ids: jobs.map((job) => job.deliveryId) },
     'enqueue_failed',
   )
 
-  if (deliveryIds.length > 0) {
-    await getDb().delete(deliveryOutbox).where(inArray(deliveryOutbox.deliveryId, deliveryIds))
+  if (jobs.length > 0) {
+    await getDb()
+      .delete(deliveryOutbox)
+      .where(
+        inArray(
+          deliveryOutbox.deliveryId,
+          jobs.map((job) => job.deliveryId),
+        ),
+      )
   }
 
   if (!result.isDuplicate) {

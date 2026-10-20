@@ -1,19 +1,22 @@
 import type { Queue } from 'bullmq'
 import { DELIVERY_JOB_OPTIONS, JOB_NAME, type DeliveryJobData } from './constants.js'
 
-/** Enqueue once per delivery while its current job is still live. */
+export function deliveryJobDedupId(deliveryId: string, replayCount: number): string {
+  return `${deliveryId}:${replayCount}`
+}
+
 export async function enqueueDeliveryJob(
   queue: Queue<DeliveryJobData>,
   deliveryId: string,
   tenantId: string,
+  replayCount: number,
 ): Promise<void> {
-  await queue.add(JOB_NAME, { deliveryId, tenantId } satisfies DeliveryJobData, {
+  await queue.add(JOB_NAME, { deliveryId, tenantId, replayCount } satisfies DeliveryJobData, {
     ...DELIVERY_JOB_OPTIONS,
-    deduplication: { id: deliveryId },
+    deduplication: { id: deliveryJobDedupId(deliveryId, replayCount) },
   })
 }
 
-/** Enqueue deliveries in one Redis request while keeping per-delivery deduplication. */
 export async function enqueueDeliveryJobs(
   queue: Queue<DeliveryJobData>,
   jobs: DeliveryJobData[],
@@ -21,10 +24,13 @@ export async function enqueueDeliveryJobs(
   if (jobs.length === 0) return
 
   await queue.addBulk(
-    jobs.map(({ deliveryId, tenantId }) => ({
+    jobs.map((job) => ({
       name: JOB_NAME,
-      data: { deliveryId, tenantId } satisfies DeliveryJobData,
-      opts: { ...DELIVERY_JOB_OPTIONS, deduplication: { id: deliveryId } },
+      data: job,
+      opts: {
+        ...DELIVERY_JOB_OPTIONS,
+        deduplication: { id: deliveryJobDedupId(job.deliveryId, job.replayCount) },
+      },
     })),
   )
 }

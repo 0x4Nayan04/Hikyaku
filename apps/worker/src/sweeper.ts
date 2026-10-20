@@ -25,8 +25,10 @@ async function drainDeliveryOutbox(sweepQueue: Queue, lockDeadlineMs: number): P
       .select({
         deliveryId: deliveryOutbox.deliveryId,
         tenantId: deliveryOutbox.tenantId,
+        replayCount: deliveries.replayCount,
       })
       .from(deliveryOutbox)
+      .innerJoin(deliveries, eq(deliveryOutbox.deliveryId, deliveries.id))
       .orderBy(asc(deliveryOutbox.createdAt))
       .limit(SWEEP_BATCH_SIZE)
 
@@ -99,7 +101,11 @@ export async function sweepOrphanDeliveries(
           ),
         ),
       )
-      .returning({ deliveryId: deliveries.id, tenantId: deliveries.tenantId })
+      .returning({
+        deliveryId: deliveries.id,
+        tenantId: deliveries.tenantId,
+        replayCount: deliveries.replayCount,
+      })
 
     await enqueueDeliveryJobs(sweepQueue, jobs)
     totalEnqueued += jobs.length

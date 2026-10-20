@@ -4,12 +4,16 @@ import type { PgTransaction } from 'drizzle-orm/pg-core'
 import * as schema from '@hikyaku/shared/schema'
 import { invites, users } from '@hikyaku/shared/schema'
 import { hashInviteToken } from '@hikyaku/shared/crypto'
-import { and, eq, gt, isNull, sql } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import { getDb } from '../db/client.js'
 import { AppError } from './errors.js'
 
 type Db = NodePgDatabase<typeof schema>
-type Tx = PgTransaction<NodePgQueryResultHKT, typeof schema, ExtractTablesWithRelations<typeof schema>>
+type Tx = PgTransaction<
+  NodePgQueryResultHKT,
+  typeof schema,
+  ExtractTablesWithRelations<typeof schema>
+>
 type DbExecutor = Db | Tx
 
 export type InviteRow = {
@@ -58,19 +62,20 @@ export async function assertEmailAvailable(email: string, tx?: DbExecutor): Prom
   }
 }
 
-export async function assertNoPendingInvite(email: string, tx?: DbExecutor): Promise<void> {
-  const db = tx ?? getDb()
-  const [pending] = await db
-    .select({ id: invites.id })
-    .from(invites)
-    .where(
-      and(inviteEmailMatches(email), isNull(invites.acceptedAt), gt(invites.expiresAt, new Date())),
-    )
-    .limit(1)
+const SIGNUP_INVITE_KINDS = ['tenant_owner', 'tenant_user'] as const
 
-  if (pending) {
-    throw new AppError(409, 'conflict', 'Pending invite already exists for this email')
-  }
+export async function invalidatePendingSignupInvites(email: string, tx: DbExecutor): Promise<void> {
+  await tx
+    .update(invites)
+    .set({ acceptedAt: new Date() })
+    .where(
+      and(
+        inviteEmailMatches(email),
+        isNull(invites.acceptedAt),
+        gt(invites.expiresAt, new Date()),
+        inArray(invites.kind, [...SIGNUP_INVITE_KINDS]),
+      ),
+    )
 }
 
 export async function findInviteByToken(token: string): Promise<InviteRow | null> {

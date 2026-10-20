@@ -1,6 +1,13 @@
 import request from 'supertest'
 import { eq } from 'drizzle-orm'
-import { deliveries, deliveryAttempts, endpoints, events } from '@hikyaku/shared/schema'
+import { enqueueDeliveryJob } from '@hikyaku/shared/enqueueDelivery'
+import {
+  deliveries,
+  deliveryAttempts,
+  deliveryOutbox,
+  endpoints,
+  events,
+} from '@hikyaku/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
@@ -69,7 +76,7 @@ describe('POST /v1/deliveries/:id/replay', () => {
     const jobs = await queue.getJobs(['waiting', 'active', 'delayed'])
     const job = jobs.find((candidate) => candidate.data.deliveryId === deliveryId)
     expect(job).toBeDefined()
-    expect(job?.data).toEqual({ deliveryId, tenantId })
+    expect(job?.data).toEqual({ deliveryId, tenantId, replayCount: 1 })
     expect(['waiting', 'active', 'delayed']).toContain(await job?.getState())
 
     const [delivery] = await db
@@ -229,6 +236,31 @@ describe('POST /v1/deliveries/:id/replay', () => {
       .from(deliveries)
       .where(eq(deliveries.id, seeded.deliveryId))
     expect(delivery).toMatchObject({ status: 'pending', attemptCount: 1 })
+  })
+
+  it('enqueues a new replay run while the previous job is still live', async () => {
+    const seeded = await seedDeliveryRow({
+      tenantId,
+      idempotencyKey: 'replay-active-dedup',
+      eventStatus: 'failed',
+      deliveryStatus: 'failed',
+      lastError: 'http_500',
+    })
+
+    await enqueueDeliveryJob(queue, seeded.deliveryId, tenantId, 0)
+
+    const res = await agent.post(`/v1/deliveries/${seeded.deliveryId}/replay`)
+    expect(res.status).toBe(202)
+
+    const jobs = await queue.getJobs(['waiting', 'active', 'delayed', 'paused'])
+    const matching = jobs.filter((job) => job.data.deliveryId === seeded.deliveryId)
+    expect(matching.map((job) => job.data.replayCount).sort()).toEqual([0, 1])
+
+    const leftover = await getDb()
+      .select({ deliveryId: deliveryOutbox.deliveryId })
+      .from(deliveryOutbox)
+      .where(eq(deliveryOutbox.deliveryId, seeded.deliveryId))
+    expect(leftover).toEqual([])
   })
 
   it('returns 404 for cross-tenant replay', async () => {

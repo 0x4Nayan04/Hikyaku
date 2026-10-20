@@ -92,7 +92,7 @@ describe('POST /v1/events idempotency', () => {
     const jobs = await queue.getJobs(['waiting', 'active', 'delayed'])
     const job = jobs.find((candidate) => candidate.data.deliveryId === delivery.id)
     expect(job).toBeDefined()
-    expect(job?.data).toEqual({ deliveryId: delivery.id, tenantId })
+    expect(job?.data).toEqual({ deliveryId: delivery.id, tenantId, replayCount: 0 })
   })
 
   it('rejects an unsafe integer in raw JSON without creating rows', async () => {

@@ -81,15 +81,27 @@ describe('ingestEvent enqueue failure', () => {
 
   it('rolls back both event and outbox when fanout fails', async () => {
     const key = `rollback-${randomUUID()}`
-    const spy = vi.spyOn(activeEndpoints, 'getActiveEndpointIds').mockResolvedValueOnce([randomUUID()])
+    const spy = vi
+      .spyOn(activeEndpoints, 'getActiveEndpointIds')
+      .mockResolvedValueOnce([randomUUID()])
     try {
-      const result = await runIngestEvent({ tenantId, body: {
-        idempotency_key: key, type: 'test.event', payload: {},
-      } } as Request)
+      const result = await runIngestEvent({
+        tenantId,
+        body: {
+          idempotency_key: key,
+          type: 'test.event',
+          payload: {},
+        },
+      } as Request)
       expect(result.error).toBeDefined()
-      const rows = await getDb().select().from(events).where(and(eq(events.tenantId, tenantId), eq(events.idempotencyKey, key)))
+      const rows = await getDb()
+        .select()
+        .from(events)
+        .where(and(eq(events.tenantId, tenantId), eq(events.idempotencyKey, key)))
       expect(rows).toEqual([])
-    } finally { spy.mockRestore() }
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('returns 503 when BullMQ enqueue fails after commit', async () => {
@@ -175,7 +187,7 @@ describe('ingestEvent enqueue failure', () => {
     expect(retry.statusCode).toBe(202)
     expect(enqueueMock).toHaveBeenCalledWith(
       expect.anything(),
-      expect.arrayContaining(open.map((row) => ({ deliveryId: row.id, tenantId }))),
+      expect.arrayContaining(open.map((row) => ({ deliveryId: row.id, tenantId, replayCount: 0 }))),
     )
 
     const leftover = await getDb()
