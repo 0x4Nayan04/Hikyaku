@@ -13,6 +13,7 @@ import {
 } from '../../lib/invites.js'
 import { revokeUserSessions } from '../../lib/revokeSessions.js'
 import { parseSchema } from '../../lib/validation.js'
+import { assertWritableTenant } from '../../auth/readOnly.js'
 
 export const validatePasswordReset = asyncHandler(async (req: Request, res: Response) => {
   const token = req.query.token
@@ -81,7 +82,7 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
     }
 
     const [user] = await tx
-      .select({ id: users.id })
+      .select({ id: users.id, tenantId: users.tenantId })
       .from(users)
       .where(userEmailMatches(invite.email))
       .limit(1)
@@ -89,6 +90,8 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
     if (!user) {
       throw new AppError(404, 'not_found', 'User not found')
     }
+
+    await assertWritableTenant(user.tenantId, tx)
 
     await tx.update(users).set({ passwordHash }).where(eq(users.id, user.id))
     await revokeUserSessions(user.id, tx)

@@ -178,7 +178,11 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
       tenantId: session.tenantId,
     }),
     tenant: session.tenantId
-      ? { id: session.tenantId, name: session.tenantName ?? '' }
+      ? {
+          id: session.tenantId,
+          name: session.tenantName ?? '',
+          read_only: req.tenantReadOnly ?? false,
+        }
       : null,
   })
 })

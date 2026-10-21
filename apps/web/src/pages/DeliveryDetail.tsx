@@ -1,3 +1,4 @@
+import { useReadOnlyWorkspace } from '@/providers/session-context'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, RotateCcw } from 'lucide-react'
@@ -88,6 +89,7 @@ function AttemptTimelineItem({ attempt }: { attempt: DeliveryAttempt }) {
 }
 
 export default function DeliveryDetail() {
+  const readOnly = useReadOnlyWorkspace()
   const { id } = useParams<{ id: string }>()
   const [replayOpen, setReplayOpen] = useState(false)
   const [replaying, setReplaying] = useState(false)
@@ -173,7 +175,8 @@ export default function DeliveryDetail() {
               Back to deliveries
             </Link>
           </Button>
-          {!awaitingReplay &&
+          {!readOnly &&
+          !awaitingReplay &&
           delivery?.status === 'failed' &&
           delivery.endpoint_status === 'active' ? (
             <Button size="sm" className="sm-btn-split" onClick={() => setReplayOpen(true)}>

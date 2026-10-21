@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { filterNavSections, isNavItemActive } from '@/layouts/app-nav'
 import { markNavDescriptionsSeen, shouldShowNavDescriptions } from '@/lib/nav-descriptions'
 import { cn } from '@/lib/utils'
+import { useReadOnlyWorkspace } from '@/providers/session-context'
 
 type AppNavProps = {
   hasWorkspace?: boolean
@@ -11,9 +12,14 @@ type AppNavProps = {
   variant?: 'sidebar' | 'mobile'
 }
 
-export function AppNav({ isSuperAdmin, hasWorkspace, onNavigate, variant = 'sidebar' }: AppNavProps) {
+export function AppNav({
+  isSuperAdmin,
+  hasWorkspace,
+  onNavigate,
+  variant = 'sidebar',
+}: AppNavProps) {
   const location = useLocation()
-  const sections = filterNavSections(isSuperAdmin, hasWorkspace)
+  const sections = filterNavSections(isSuperAdmin, hasWorkspace, useReadOnlyWorkspace())
   const allItems = sections.flatMap((section) => section.items)
   const isMobile = variant === 'mobile'
   const [showDescriptions] = useState(shouldShowNavDescriptions)

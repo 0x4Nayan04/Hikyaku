@@ -64,6 +64,7 @@ export type User = {
 export type Tenant = {
   id: string
   name: string
+  read_only?: boolean
 }
 
 export type MeResponse = {

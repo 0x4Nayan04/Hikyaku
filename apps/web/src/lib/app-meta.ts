@@ -17,6 +17,5 @@ const DEFAULT_SOCIAL_URL = 'https://x.com/NayanSwarnkar04'
 export const PUBLIC_LINKS = {
   github: import.meta.env.VITE_GITHUB_URL || DEFAULT_GITHUB_URL,
   social: import.meta.env.VITE_SOCIAL_URL || DEFAULT_SOCIAL_URL,
-  /** Optional hosted console walkthrough. Empty until VITE_WALKTHROUGH_URL is set. */
   walkthrough: import.meta.env.VITE_WALKTHROUGH_URL || '',
 } as const

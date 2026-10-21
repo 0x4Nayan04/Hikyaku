@@ -110,6 +110,14 @@ export function LandingHero() {
           </div>
 
           <p className="lp-hero__choice">
+            {import.meta.env.VITE_DEMO_LOGIN === 'true' ? (
+              <>
+                <Link to={PRODUCT_LINKS.console} className="lp-hero__choice-link focus-ring">
+                  Explore read-only demo
+                </Link>
+                {' · '}
+              </>
+            ) : null}
             Use the website or your terminal. Same jobs, your choice.{' '}
             <Link
               to={`${PRODUCT_LINKS.docs}#api-only-path`}

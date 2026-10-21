@@ -135,15 +135,18 @@ describe('OpenAPI contract', () => {
   it('preserves the registered auth boundary and documents mutation origins and path parameters', () => {
     for (const { method, pathname, middleware } of registeredOperations()) {
       const operation = spec.paths[pathname][method]
-      const expectedSecurity = middleware.includes('requireTenantAuth')
-        ? [{ ingestBearer: [] }, { sessionCookie: [] }]
-        : middleware.some((name) =>
-              ['requireTenantSessionAuth', 'requireSession', 'requireSuperAdmin'].includes(name),
-            )
-          ? [{ sessionCookie: [] }]
-          : pathname === '/v1/auth/bootstrap'
-            ? [{ bootstrapSecret: [] }]
-            : []
+      let expectedSecurity: Operation['security'] = []
+      if (middleware.includes('requireTenantAuth')) {
+        expectedSecurity = [{ ingestBearer: [] }, { sessionCookie: [] }]
+      } else if (
+        middleware.some((name) =>
+          ['requireTenantSessionAuth', 'requireSession', 'requireSuperAdmin'].includes(name),
+        )
+      ) {
+        expectedSecurity = [{ sessionCookie: [] }]
+      } else if (pathname === '/v1/auth/bootstrap') {
+        expectedSecurity = [{ bootstrapSecret: [] }]
+      }
       expect(operation.security, `${method} ${pathname}`).toEqual(expectedSecurity)
       if (method !== 'get') {
         expect(operation.parameters).toContainEqual({ $ref: '#/components/parameters/Origin' })

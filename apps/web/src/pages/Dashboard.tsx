@@ -1,13 +1,7 @@
+import { useReadOnlyWorkspace } from '@/providers/session-context'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  AlertTriangle,
-  Check,
-  ChevronRight,
-  PowerOff,
-  Send,
-  type LucideIcon,
-} from 'lucide-react'
+import { AlertTriangle, Check, ChevronRight, PowerOff, Send, type LucideIcon } from 'lucide-react'
 import { ApiError, getStats, listDeliveries, listEndpoints, listEvents } from '@/api/client'
 import type { Stats } from '@/api/types'
 import { PageBanner } from '@/components/console/PageBanner'
@@ -52,6 +46,7 @@ type AttentionItem = {
 }
 
 export function Dashboard() {
+  const readOnly = useReadOnlyWorkspace()
   const [stats, setStats] = useState<Stats | null>(null)
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [attention, setAttention] = useState<AttentionItem[]>([])
@@ -185,7 +180,7 @@ export function Dashboard() {
         <DashboardSkeleton />
       ) : stats ? (
         <div className="dashboard-page">
-          {!hasData && onboarding ? <EmptyDashboardCTA steps={onboarding} /> : null}
+          {!readOnly && !hasData && onboarding ? <EmptyDashboardCTA steps={onboarding} /> : null}
 
           {hasData && attention.length > 0 ? <AttentionStrip items={attention} /> : null}
 
@@ -262,10 +257,7 @@ function AttentionStrip({ items }: { items: AttentionItem[] }) {
   } as const
 
   return (
-    <DataPanel
-      title="Needs attention"
-      description="Failed, in-flight, or disabled receivers."
-    >
+    <DataPanel title="Needs attention" description="Failed, in-flight, or disabled receivers.">
       <div className="dashboard-activity-list">
         {items.map((item) => {
           const Icon = item.icon
@@ -378,15 +370,14 @@ function OnboardingStepRow({ step, index }: { step: OnboardingStep; index: numbe
         )}
         aria-hidden="true"
       >
-        {step.done ? <Check className="size-3.5" strokeWidth={2.25} /> : String(index + 1).padStart(2, '0')}
+        {step.done ? (
+          <Check className="size-3.5" strokeWidth={2.25} />
+        ) : (
+          String(index + 1).padStart(2, '0')
+        )}
       </span>
       <div className="dashboard-activity-row__main">
-        <p
-          className={cn(
-            'dashboard-activity-row__name',
-            step.done && 'text-muted-strong',
-          )}
-        >
+        <p className={cn('dashboard-activity-row__name', step.done && 'text-muted-strong')}>
           {step.label}
         </p>
         <p className="dashboard-panel-row__hint">{meta.hint}</p>

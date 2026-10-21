@@ -22,7 +22,7 @@ Each tenant is an isolated workspace. API keys, endpoints, events, and deliverie
 - **Delivery** — one event sent to one endpoint, including retries and attempt history.
 - **API key** — Bearer auth that **sends events only**, for one workspace. It cannot create endpoints, list deliveries, or replay.
 
-Access is invite-only — a platform admin sends a one-time link. There is no self-serve signup.
+Workspace access is invite-only — a platform admin sends a one-time link. There is no self-serve signup. If enabled by the operator, [/login](/login) also offers a read-only demo with synthetic sample data; it cannot send webhooks or change settings.
 
 ## Quick start
 
@@ -106,7 +106,7 @@ curl -b cookies.txt -X POST "{{API_BASE}}/v1/deliveries/DELIVERY_UUID/replay" \
 
 ### Console path
 
-1. On a **fresh install you run**, create the installer account and first workspace at [/bootstrap](/bootstrap) (once). The public demo at hikyaku.nayanswarnkar.com is landing and docs only — its console is invite-only and bootstrap is already closed.
+1. On a **fresh install you run**, create the installer account and first workspace at [/bootstrap](/bootstrap) (once). Bootstrap is already closed on the public demo. Full workspace access requires an invite; an optional read-only demo login lets visitors inspect samples without performing the writes below.
 2. Sign in and open your workspace dashboard. Existing admin-only accounts can use **Create my workspace** in Admin.
 3. Open **Endpoints** and register a receiver URL.
 4. Send a test event using the existing **Test event** form, then inspect its deliveries. API keys are only needed afterward for backend ingest — or create them from the [API-only path](#api-only-path).

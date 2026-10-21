@@ -7,6 +7,8 @@ import { getEvent, listEndpoints, sendEvent } from '@/api/client'
 import type { Endpoint, EventDetail, Paginated } from '@/api/types'
 import SendEvent from '@/pages/SendEvent'
 
+vi.mock('@/lib/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+
 vi.mock('@/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/client')>()
   return {

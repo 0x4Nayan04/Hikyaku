@@ -3,6 +3,7 @@ import { pinoHttp } from 'pino-http'
 import { MAX_INGEST_BODY_BYTES } from '@hikyaku/shared/constants'
 import { env } from './config.js'
 import { createSessionMiddleware, skipSessionStack } from './auth/session.js'
+import { protectReadOnlySession } from './auth/readOnly.js'
 import { createCorsMiddleware } from './lib/cors.js'
 import { createSessionCsrfMiddleware } from './lib/csrf.js'
 import { AppError } from './lib/errors.js'
@@ -50,6 +51,7 @@ export function createApp(): Application {
   app.use(skipSessionStack(createSessionMiddleware()))
   app.use(skipSessionStack(createSessionCsrfMiddleware()))
   app.use(express.json({ limit: MAX_INGEST_BODY_BYTES }))
+  app.use(protectReadOnlySession)
 
   app.use('/v1', healthRouter)
   app.use('/v1', authRouter)

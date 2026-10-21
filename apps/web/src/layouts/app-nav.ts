@@ -19,11 +19,13 @@ type AppNavSection = {
 export function filterNavSections(
   isSuperAdmin: boolean,
   hasWorkspace = !isSuperAdmin,
+  readOnly = false,
 ): AppNavSection[] {
   return appNavSections
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
+        if (readOnly && item.to === '/events/send') return false
         if (item.superAdminOnly && !isSuperAdmin) return false
         if (item.tenantOnly && !hasWorkspace) return false
         return true

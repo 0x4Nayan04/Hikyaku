@@ -5,6 +5,7 @@ declare global {
       tenantId?: string
       userId?: string
       isSuperAdmin?: boolean
+      tenantReadOnly?: boolean
     }
   }
 }

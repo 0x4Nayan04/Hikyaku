@@ -1,3 +1,4 @@
+import { useReadOnlyWorkspace } from '@/providers/session-context'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Globe, Plus } from 'lucide-react'
@@ -50,6 +51,7 @@ function emptyEndpointsTitle(statusFilter: 'all' | EndpointStatus): string {
 }
 
 export default function Endpoints() {
+  const readOnly = useReadOnlyWorkspace()
   const [searchParams, setSearchParams] = useSearchParams()
   const statusFilter = parseStatusParam(searchParams.get('status'))
   const {
@@ -113,6 +115,7 @@ export default function Endpoints() {
   const showFooter = !isInitial && shouldPaginate(hasMore, offset)
 
   function emptyEndpointsDescription() {
+    if (readOnly) return 'No sample endpoints match this filter.'
     switch (statusFilter) {
       case 'disabled':
         return 'Try another status filter, or create a new receiver.'
@@ -198,20 +201,23 @@ export default function Endpoints() {
                   ))}
                 </SelectContent>
               </Select>
-              <div className="endpoint-panel-toolbar__actions">
-                <Button
-                  size="sm"
-                  className="endpoint-panel-toolbar__create gap-1.5"
-                  onClick={() => setCreateOpen(true)}
-                >
-                  <Plus className="size-3.5" aria-hidden="true" />
-                  Create endpoint
-                </Button>
-              </div>
+              {!readOnly && (
+                <div className="endpoint-panel-toolbar__actions">
+                  <Button
+                    size="sm"
+                    className="endpoint-panel-toolbar__create gap-1.5"
+                    onClick={() => setCreateOpen(true)}
+                  >
+                    <Plus className="size-3.5" aria-hidden="true" />
+                    Create endpoint
+                  </Button>
+                </div>
+              )}
             </div>
           )}
           {endpoints.length > 0 ? (
             <EndpointCatalogList
+              readOnly={readOnly}
               endpoints={endpoints}
               togglingId={togglingId}
               onEdit={(endpoint) => setEditTarget(endpoint)}
@@ -228,15 +234,17 @@ export default function Endpoints() {
         </DataPanel>
       )}
 
-      <EndpointDialogs
-        createOpen={createOpen}
-        onCreateOpenChange={setCreateOpen}
-        editTarget={editTarget}
-        onEditTargetChange={setEditTarget}
-        rotateTarget={rotateTarget}
-        onRotateTargetChange={setRotateTarget}
-        onChanged={reload}
-      />
+      {!readOnly && (
+        <EndpointDialogs
+          createOpen={createOpen}
+          onCreateOpenChange={setCreateOpen}
+          editTarget={editTarget}
+          onEditTargetChange={setEditTarget}
+          rotateTarget={rotateTarget}
+          onRotateTargetChange={setRotateTarget}
+          onChanged={reload}
+        />
+      )}
     </ConsolePage>
   )
 }

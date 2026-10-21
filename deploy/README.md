@@ -128,6 +128,38 @@ The website and terminal walkthroughs link to the public docs. A hosted console 
 
 ---
 
+## Read-only console demo
+
+This is optional for the résumé demo. It adds one non-admin workspace with synthetic orders, example.com endpoints, and terminal delivery/attempt records. It creates **no API keys, pending deliveries, outbox rows, or queue jobs**. Sample timestamps are fixed when seeded; 24-hour metrics naturally age out. The banner labels the data as synthetic.
+
+### Rollout order
+
+1. Run normal migrations, including `0024_read_only_tenants.sql` (existing workspaces default to writable).
+2. Deploy the API containing read-only enforcement and wait until **all older API replicas are gone**. Leave `VITE_DEMO_LOGIN` unset. Keep bootstrap closed on the existing public install.
+3. After an installer administrator exists, run the separate, explicit seed against the intended database, using the built API:
+
+   ```sh
+   ALLOW_DEMO_SEED=1 NODE_ENV=production node apps/api/dist/scripts/seedDemoTenant.js
+   ```
+
+   Supply the normal API environment securely. The script refuses missing opt-in, conflicting IDs/emails, and an install without an administrator. Repeating it leaves an existing protected demo unchanged. It never prints operator credentials or signing secrets. The regular dev seed remains forbidden in production.
+4. Sign in at `/login` using `demo@hikyaku.example` / `hikyaku-demo-read-only`. Check `/v1/auth/me` returns `tenant.read_only: true`, bootstrap stays unavailable, reads work, and attempted writes return 403. In production, cookie mutations still require the normal allowlisted `Origin`.
+5. Only then set `VITE_DEMO_LOGIN=true` on the web build and redeploy. `/login` will show the public credentials and a button to fill them. Invite-only accounts keep their normal permissions.
+
+The API reads the current tenant flag for mutations; it does not trust a cached session permission. Demo session mutations are denied except login/logout. Bearer ingest is denied too, even if a key is inserted later. Admin changes, new tenant-user invites, password-reset creation, and consumption of existing invite/reset tokens targeting the demo are also blocked. Read-only is enforced by the backend; hiding controls is only presentation.
+
+### Local verification and rollback
+
+Use explicit isolated test connections as described below. The API integration suite includes `test/integration/read-only-demo.test.ts`. For the real browser flow, run:
+
+```sh
+VITE_DEMO_LOGIN=true pnpm test:smoke e2e/00-onboarding.spec.ts e2e/dashboard.spec.ts e2e/read-only-demo.spec.ts
+```
+
+That flow is also in CI. It checks normal onboarding/management plus demo navigation, hidden mutation controls, direct send-page rejection, and API write denial.
+
+To hide demo discovery, unset `VITE_DEMO_LOGIN` and rebuild; the account still exists. Before rolling back to an API without enforcement, revoke the demo user's sessions and remove the synthetic demo workspace via trusted database administration (tenant ID `d0000000-0000-4000-8000-000000000001`). Do **not** make the public account writable as a rollback. Keep the additive column during an application rollback; do not publish demo credentials while old API replicas can accept writes.
+
 ## Reference (from root README)
 
 ### Health checks

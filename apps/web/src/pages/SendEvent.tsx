@@ -1,3 +1,5 @@
+import { useReadOnlyWorkspace } from '@/providers/session-context'
+import { Navigate } from 'react-router-dom'
 import { ApiError, getEvent, listEndpoints, sendEvent } from '@/api/client'
 import type { EventStatus, IngestEventResponse } from '@/api/types'
 import { ConsolePage } from '@/components/console/ConsolePage'
@@ -100,6 +102,10 @@ function eventFormReducer(state: EventFormState, action: EventFormAction): Event
 }
 
 export default function SendEvent() {
+  return useReadOnlyWorkspace() ? <Navigate to="/events" replace /> : <SendEventPage />
+}
+
+function SendEventPage() {
   const [gate, setGate] = useState<EndpointGate>({ status: 'loading' })
   const [form, dispatch] = useReducer(eventFormReducer, undefined, createInitialFormState)
 

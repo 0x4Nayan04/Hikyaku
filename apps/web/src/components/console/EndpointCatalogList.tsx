@@ -34,8 +34,10 @@ import { cn } from '@/lib/utils'
 function LastDeliveryColumn({
   endpoint,
   lastDelivery,
+  readOnly,
 }: {
   endpoint: Endpoint
+  readOnly: boolean
   lastDelivery: EndpointLastDelivery | null | undefined
 }) {
   if (!lastDelivery) {
@@ -64,6 +66,8 @@ function LastDeliveryColumn({
           >
             {isDisabled ? (
               'Not receiving'
+            ) : readOnly ? (
+              'No sample deliveries'
             ) : (
               <Link
                 to="/events/send"
@@ -142,6 +146,7 @@ function CreatedColumn({ createdAt }: { createdAt: string }) {
 }
 
 type EndpointCatalogRowProps = {
+  readOnly: boolean
   endpoint: Endpoint
   lastDelivery?: EndpointLastDelivery | null
   toggling: boolean
@@ -153,6 +158,7 @@ type EndpointCatalogRowProps = {
 function EndpointCatalogRow({
   endpoint,
   lastDelivery,
+  readOnly,
   toggling,
   onEdit,
   onRotate,
@@ -188,7 +194,7 @@ function EndpointCatalogRow({
             <span className="endpoint-catalog-row__env-badge" title={endpoint.description}>
               {endpoint.description}
             </span>
-          ) : (
+          ) : readOnly ? null : (
             <button
               type="button"
               className="endpoint-catalog-row__add-label"
@@ -203,7 +209,7 @@ function EndpointCatalogRow({
         </div>
       </div>
 
-      <LastDeliveryColumn endpoint={endpoint} lastDelivery={lastDelivery} />
+      <LastDeliveryColumn endpoint={endpoint} lastDelivery={lastDelivery} readOnly={readOnly} />
       <CreatedColumn createdAt={endpoint.created_at} />
 
       <div className="endpoint-catalog-row__actions">
@@ -220,14 +226,18 @@ function EndpointCatalogRow({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-44">
-            <DropdownMenuItem onSelect={() => onEdit(endpoint)}>
-              <Pencil className="size-3.5" aria-hidden="true" />
-              Edit label
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onRotate(endpoint)}>
-              <KeyRound className="size-3.5" aria-hidden="true" />
-              Rotate signing secret
-            </DropdownMenuItem>
+            {!readOnly && (
+              <>
+                <DropdownMenuItem onSelect={() => onEdit(endpoint)}>
+                  <Pencil className="size-3.5" aria-hidden="true" />
+                  Edit label
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onRotate(endpoint)}>
+                  <KeyRound className="size-3.5" aria-hidden="true" />
+                  Rotate signing secret
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuItem onSelect={() => void copyToClipboard(endpoint.url, 'URL')}>
               <Copy className="size-3.5" aria-hidden="true" />
               Copy URL
@@ -236,19 +246,23 @@ function EndpointCatalogRow({
               <Copy className="size-3.5" aria-hidden="true" />
               Copy endpoint ID
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={() => onToggle(endpoint)}
-              disabled={toggling}
-              variant={endpoint.status === 'active' ? 'destructive' : 'default'}
-            >
-              {endpoint.status === 'active' ? (
-                <Ban className="size-3.5" aria-hidden="true" />
-              ) : (
-                <Power className="size-3.5" aria-hidden="true" />
-              )}
-              {endpoint.status === 'active' ? 'Disable endpoint' : 'Enable endpoint'}
-            </DropdownMenuItem>
+            {!readOnly && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={() => onToggle(endpoint)}
+                  disabled={toggling}
+                  variant={endpoint.status === 'active' ? 'destructive' : 'default'}
+                >
+                  {endpoint.status === 'active' ? (
+                    <Ban className="size-3.5" aria-hidden="true" />
+                  ) : (
+                    <Power className="size-3.5" aria-hidden="true" />
+                  )}
+                  {endpoint.status === 'active' ? 'Disable endpoint' : 'Enable endpoint'}
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -257,6 +271,7 @@ function EndpointCatalogRow({
 }
 
 type EndpointCatalogListProps = {
+  readOnly?: boolean
   endpoints: Endpoint[]
   togglingId: string | null
   onEdit: (endpoint: Endpoint) => void
@@ -265,6 +280,7 @@ type EndpointCatalogListProps = {
 }
 
 export function EndpointCatalogList({
+  readOnly = false,
   endpoints,
   togglingId,
   onEdit,
@@ -275,6 +291,7 @@ export function EndpointCatalogList({
     <div className="endpoint-catalog-list">
       {endpoints.map((endpoint) => (
         <EndpointCatalogRow
+          readOnly={readOnly}
           key={endpoint.id}
           endpoint={endpoint}
           lastDelivery={endpoint.last_delivery}
