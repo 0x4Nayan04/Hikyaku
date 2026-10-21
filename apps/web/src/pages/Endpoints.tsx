@@ -30,8 +30,8 @@ const STATUS_OPTIONS: Array<{ value: 'all' | EndpointStatus; label: string }> = 
 ]
 
 function parseStatusParam(value: string | null): 'all' | EndpointStatus {
-  if (value === 'active' || value === 'disabled') return value
-  return 'all'
+  if (value === 'all' || value === 'disabled') return value
+  return 'active'
 }
 
 function emptyEndpointsTitle(statusFilter: 'all' | EndpointStatus): string {
@@ -86,7 +86,7 @@ export default function Endpoints() {
 
   function setStatusFilter(value: 'all' | EndpointStatus) {
     const next = new URLSearchParams(searchParams)
-    if (value === 'all') next.delete('status')
+    if (value === 'active') next.delete('status')
     else next.set('status', value)
     setSearchParams(next, { replace: true })
     setOffset(0)
@@ -111,6 +111,45 @@ export default function Endpoints() {
   const canGoBack = offset > 0
   const canGoForward = hasMore
   const showFooter = !isInitial && shouldPaginate(hasMore, offset)
+
+  function emptyEndpointsDescription() {
+    switch (statusFilter) {
+      case 'disabled':
+        return 'Try another status filter, or create a new receiver.'
+      case 'active':
+        return (
+          <>
+            Enable a disabled receiver from the Disabled filter, or{' '}
+            <button
+              type="button"
+              className="font-medium text-primary hover:underline"
+              onClick={() => setCreateOpen(true)}
+            >
+              create an endpoint
+            </button>
+            .
+          </>
+        )
+      case 'all':
+        return (
+          <>
+            Register a URL where signed webhook payloads should be delivered.{' '}
+            <button
+              type="button"
+              className="font-medium text-primary hover:underline"
+              onClick={() => setCreateOpen(true)}
+            >
+              Create your first endpoint
+            </button>
+            .
+          </>
+        )
+      default: {
+        const exhaustive: never = statusFilter
+        return exhaustive
+      }
+    }
+  }
 
   return (
     <ConsolePage
@@ -183,23 +222,7 @@ export default function Endpoints() {
             <DataPanelEmpty
               icon={Globe}
               title={emptyEndpointsTitle(statusFilter)}
-              description={
-                statusFilter !== 'all' ? (
-                  'Try another status filter.'
-                ) : (
-                  <>
-                    Register a URL where signed webhook payloads should be delivered.{' '}
-                    <button
-                      type="button"
-                      className="font-medium text-primary hover:underline"
-                      onClick={() => setCreateOpen(true)}
-                    >
-                      Create your first endpoint
-                    </button>
-                    .
-                  </>
-                )
-              }
+              description={emptyEndpointsDescription()}
             />
           ) : null}
         </DataPanel>

@@ -126,12 +126,18 @@ export function AdminTenantTable({
           <DataTableBody>
             {tenants.map((tenant) => (
               <DataTableRow key={tenant.id}>
-                <DataTableCell className="admin-tenant-table__col-name font-medium text-foreground">
+                <DataTableCell
+                  className="admin-tenant-table__col-name font-medium text-foreground"
+                  label="Tenant"
+                >
                   <span className="block truncate" title={tenant.name}>
                     {tenant.name}
                   </span>
                 </DataTableCell>
-                <DataTableCell className="admin-tenant-table__col-id hidden md:table-cell">
+                <DataTableCell
+                  className="admin-tenant-table__col-id hidden md:table-cell"
+                  label="Tenant ID"
+                >
                   <div className="flex min-w-0 items-center gap-1">
                     <code
                       className="truncate font-mono text-xs text-muted-strong"
@@ -142,10 +148,16 @@ export function AdminTenantTable({
                     <SettingsCopyAction value={tenant.id} copyLabel="Tenant ID" />
                   </div>
                 </DataTableCell>
-                <DataTableCell className="admin-tenant-table__col-created hidden text-sm text-muted-foreground sm:table-cell">
+                <DataTableCell
+                  className="admin-tenant-table__col-created hidden text-sm text-muted-foreground sm:table-cell"
+                  label="Created"
+                >
                   {formatDateTime(tenant.created_at)}
                 </DataTableCell>
-                <DataTableCell className="admin-tenant-table__col-actions text-left">
+                <DataTableCell
+                  className="admin-tenant-table__col-actions text-left"
+                  label="Actions"
+                >
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button

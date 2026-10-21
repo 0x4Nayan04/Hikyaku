@@ -58,9 +58,9 @@ A successful ingest returns `202 Accepted` with the event id and enqueues one de
 Fresh deploys create a super-admin and their workspace at [/bootstrap](/bootstrap). Additional users arrive through invitation links. Console data is scoped to the signed-in tenant.
 
 - **Dashboard** — ingest volume, active deliveries, 24h final outcomes, and recent activity. Onboarding points you to **enable** an existing endpoint when every endpoint is disabled, or to **create** one when none exist.
-- **Endpoints** — register a receiver URL, copy the signing secret shown once at create, and rotate it in place when needed.
+- **Endpoints** — register a receiver URL, copy the signing secret shown once at create, and rotate it in place when needed. The list defaults to **active** receivers; use the status filter for disabled URLs.
 - **Events** — browse ingested events and open one to see its deliveries.
-- **Test event** — POST a smoke-test payload from the UI (real traffic should use `POST /v1/events`).
+- **Test event** — POST a smoke-test payload from the UI (real traffic should use `POST /v1/events`). After accept, the status badge updates until the event is no longer in progress.
 - **Deliveries** — filter by status, inspect attempt timelines, and replay failures.
 - **Settings** — API keys, tenant identity, and account password. Super-admins with a workspace also have API key and tenant tabs.
 
@@ -259,7 +259,7 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 
 | Method | Route                                                | Purpose                                                              |
 | ------ | ---------------------------------------------------- | -------------------------------------------------------------------- |
-| GET    | `/v1/health`                                         | Liveness probe; optional `revision` when `BUILD_REVISION` or `GIT_SHA` is set |
+| GET    | `/v1/health`                                         | Liveness probe; optional `revision` when `BUILD_REVISION`, `GIT_SHA`, or `RAILWAY_GIT_COMMIT_SHA` is set |
 | GET    | `/v1/ready`                                          | Postgres + Redis connectivity; same optional `revision`                |
 | GET    | `/v1/auth/bootstrap-status`                          | Whether first-run bootstrap is still available                       |
 | POST   | `/v1/auth/bootstrap`                                 | Installer and first workspace (`workspace_name` optional)            |

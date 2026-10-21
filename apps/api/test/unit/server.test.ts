@@ -44,6 +44,18 @@ describe('security headers', () => {
     expect(res.headers['x-powered-by']).toBeUndefined()
   })
 
+  it('sets nosniff, frame deny, referrer, and a lock-down CSP', async () => {
+    const app = createApp()
+    const res = await request(app).get('/v1/health')
+
+    expect(res.headers['x-content-type-options']).toBe('nosniff')
+    expect(res.headers['x-frame-options']).toBe('DENY')
+    expect(res.headers['referrer-policy']).toBe('no-referrer')
+    expect(res.headers['content-security-policy']).toBe(
+      "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+    )
+  })
+
   it('ignores client-supplied X-Request-Id', async () => {
     const app = createApp()
     const res = await request(app).get('/v1/health').set('X-Request-Id', 'client-supplied-not-a-uuid')

@@ -168,6 +168,7 @@ describe('Dashboard empty-state probes', () => {
 
     expect(container.textContent).toContain('Enable an endpoint')
     expect(container.textContent).not.toContain('Create an endpoint')
+    expect(container.querySelector('a[href="/endpoints?status=disabled"]')).not.toBeNull()
   })
 
   it('reuses activity totals and fetches onboarding lists only when empty', async () => {

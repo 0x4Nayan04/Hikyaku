@@ -15,7 +15,7 @@ type DataTableProps = {
 }
 
 export function DataTable({ children, className }: DataTableProps) {
-  return <Table className={className}>{children}</Table>
+  return <Table className={cn('console-data-table', className)}>{children}</Table>
 }
 
 export function DataTableHeader({ children, className }: DataTableProps) {
@@ -68,15 +68,21 @@ export function DataTableHead({
 type DataTableCellProps = {
   children: ReactNode
   className?: string
+  label?: string
 }
 
 export function DataTableCell({
   children,
   className,
+  label,
   ...props
 }: DataTableCellProps & React.ComponentProps<'td'>) {
   return (
-    <TableCell className={cn('border-t border-border/60 px-5 py-3 text-sm', className)} {...props}>
+    <TableCell
+      className={cn('border-t border-border/60 px-5 py-3 text-sm', className)}
+      {...props}
+      data-label={label}
+    >
       {children}
     </TableCell>
   )

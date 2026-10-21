@@ -210,27 +210,32 @@ export default function Events() {
                       }
                     }}
                   >
-                    <DataTableCell>
+                    <DataTableCell label="Type">
                       <span className="font-medium text-ink group-hover:text-primary">
                         {event.type}
                       </span>
                     </DataTableCell>
-                    <DataTableCell>
+                    <DataTableCell label="Status">
                       <StatusBadge kind="event" status={event.status} />
                     </DataTableCell>
                     <DataTableCell
                       className="hidden max-w-[14rem] truncate font-mono text-xs text-muted-strong md:table-cell"
                       title={event.idempotency_key}
+                      label="Idempotency key"
                     >
                       {event.idempotency_key}
                     </DataTableCell>
                     <DataTableCell
                       className="hidden max-w-[14rem] truncate font-mono text-xs text-muted-strong lg:table-cell"
                       title={event.id}
+                      label="Event ID"
                     >
                       {event.id}
                     </DataTableCell>
-                    <DataTableCell className="whitespace-nowrap text-sm text-muted-strong">
+                    <DataTableCell
+                      className="whitespace-nowrap text-sm text-muted-strong"
+                      label="Created"
+                    >
                       {formatDateTime(event.created_at)}
                     </DataTableCell>
                   </DataTableRow>
