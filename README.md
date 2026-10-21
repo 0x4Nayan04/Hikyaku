@@ -74,6 +74,27 @@ pnpm db:seed
 
 ![Deliveries console](apps/web/public/landing/console-deliveries.png)
 
+## Send an event
+
+Use the console or HTTP commands. Register receivers, send events, inspect deliveries, and retry failures without opening the console.
+
+The API key only **sends** events. Adding endpoints, creating keys, and replay use the console **or** a signed-in terminal session — see the walkthrough at [http://localhost:5173/docs#api-only-path](http://localhost:5173/docs#api-only-path) after `pnpm dev`.
+
+With an active endpoint and a key:
+
+```bash
+curl -X POST "http://localhost:3000/v1/events" \
+  -H "Authorization: Bearer whk_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idempotency_key": "order-123-paid",
+    "type": "order.paid",
+    "payload": { "order_id": "123", "amount": 4999 }
+  }'
+```
+
+`202 Accepted` means the event is queued, not that every delivery succeeded. The response includes the event `id`.
+
 ## Deploy
 
 **Main path:** one-host Docker Compose (API + worker + Postgres + Redis + Caddy).  
