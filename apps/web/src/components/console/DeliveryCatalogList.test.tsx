@@ -78,6 +78,19 @@ describe('DeliveryCatalogList attempts', () => {
   })
 })
 
+describe('DeliveryCatalogList stacked cards', () => {
+  it('labels every cell including columns hidden on small tables', async () => {
+    await renderList([replayed])
+
+    expect(container.querySelector('table.console-data-table')).not.toBeNull()
+    expect(container.querySelector('td[data-label="Endpoint"]')).not.toBeNull()
+    expect(container.querySelector('td[data-label="Event"]')).not.toBeNull()
+    expect(container.querySelector('td[data-label="Status"]')).not.toBeNull()
+    expect(container.querySelector('td[data-label="Attempts"]')).not.toBeNull()
+    expect(container.querySelector('td[data-label="Updated"]')).not.toBeNull()
+  })
+})
+
 describe('DeliveryCatalogList accessibility', () => {
   it('exposes real delivery and event links without a nested interactive row role', async () => {
     await renderList([replayed])
@@ -95,7 +108,9 @@ describe('DeliveryCatalogList accessibility', () => {
     ) as HTMLAnchorElement | null
     expect(deliveryLink).not.toBeNull()
     expect(eventLink).not.toBeNull()
-    expect(deliveryLink?.getAttribute('aria-label')).toBe('Open delivery to https://example.com/hook')
+    expect(deliveryLink?.getAttribute('aria-label')).toBe(
+      'Open delivery to https://example.com/hook',
+    )
 
     await act(async () => {
       eventLink?.click()

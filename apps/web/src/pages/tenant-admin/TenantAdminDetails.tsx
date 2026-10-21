@@ -98,15 +98,20 @@ export function TenantAdminDetails({
             <DataTableBody>
               {users.map((user) => (
                 <DataTableRow key={user.id}>
-                  <DataTableCell className="font-medium text-ink">{user.name}</DataTableCell>
-                  <DataTableCell className="text-sm text-muted-strong">{user.email}</DataTableCell>
+                  <DataTableCell className="font-medium text-ink" label="Name">
+                    {user.name}
+                  </DataTableCell>
+                  <DataTableCell className="text-sm text-muted-strong" label="Email">
+                    {user.email}
+                  </DataTableCell>
                   <DataTableCell
                     className="hidden max-w-48 truncate font-mono text-xs text-muted-strong md:table-cell"
                     title={user.id}
+                    label="User ID"
                   >
                     {user.id}
                   </DataTableCell>
-                  <DataTableCell>
+                  <DataTableCell label="Actions">
                     <TenantAdminUserActions
                       tenantId={tenant.id}
                       user={user}

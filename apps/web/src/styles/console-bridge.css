@@ -544,6 +544,87 @@
     text-align: left;
   }
 
+  /* Console list tables — stacked cards below 768px. Desktop stays a table. */
+  @media (max-width: 767px) {
+    [data-slot='table-container']:has(.console-data-table) {
+      overflow: visible;
+    }
+
+    .console-data-table {
+      display: block;
+    }
+
+    .console-data-table thead {
+      display: none;
+    }
+
+    .console-data-table tbody {
+      display: block;
+      padding: 0.75rem;
+    }
+
+    .console-data-table tbody [data-slot='table-row'] {
+      display: block;
+      border: 1px solid var(--color-border);
+      background-color: var(--color-surface);
+    }
+
+    .console-data-table tbody [data-slot='table-row'] + [data-slot='table-row'] {
+      margin-top: 0.75rem;
+    }
+
+    .console-data-table tbody [data-slot='table-row']:hover {
+      background-color: transparent;
+    }
+
+    .console-data-table tbody [data-slot='table-cell'],
+    .console-data-table tbody [data-slot='table-cell'].hidden {
+      display: grid;
+      grid-template-columns: minmax(5.75rem, 7.25rem) minmax(0, 1fr);
+      align-items: start;
+      gap: 0.5rem 0.75rem;
+      width: 100%;
+      max-width: none;
+      min-width: 0;
+      padding: 0.75rem 1rem;
+      overflow: visible;
+      text-align: left;
+      white-space: normal;
+      border-top: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+    }
+
+    .console-data-table tbody [data-slot='table-cell']:first-child {
+      border-top: none;
+    }
+
+    .console-data-table tbody [data-slot='table-cell'][data-label]::before {
+      content: attr(data-label);
+      grid-column: 1;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--color-muted-strong);
+    }
+
+    .console-data-table tbody [data-slot='table-cell'][data-label] > * {
+      grid-column: 2;
+      min-width: 0;
+    }
+
+    .console-data-table tbody .settings-row-actions {
+      justify-content: flex-start;
+    }
+
+    .admin-tenant-table tbody [data-slot='table-cell'] {
+      padding: 0.75rem 1rem !important;
+    }
+
+    .admin-tenant-table tbody [data-slot='table-cell'].admin-tenant-table__col-actions {
+      padding-inline: 1rem !important;
+      text-align: left;
+    }
+  }
+
   .card-ring {
     border: 1px solid var(--color-border);
     background-color: var(--color-surface);
@@ -1894,6 +1975,13 @@
   .endpoint-catalog-row__action-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;
+  }
+
+  @media (max-width: 479px) {
+    .delivery-table [data-slot='table-cell'],
+    .admin-tenant-table [data-slot='table-cell'] {
+      white-space: normal;
+    }
   }
 
   .delivery-table__error {

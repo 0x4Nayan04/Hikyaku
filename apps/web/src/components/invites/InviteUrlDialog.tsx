@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Copy } from 'lucide-react'
 import { PageBanner } from '@/components/console/PageBanner'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { SecretOnceConfirm } from '@/components/ui/secret-once-confirm'
 import { formatDateTime } from '@/lib/format'
 import { copyToClipboard } from '@/lib/clipboard'
 
@@ -31,6 +33,18 @@ export function InviteUrlDialog({
   description = 'Copy this link now and send it to the invitee. The server cannot show it again after you close this dialog.',
   copyLabel = 'Invite link',
 }: InviteUrlDialogProps) {
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setSaved(false)
+  }, [inviteUrl, open])
+
+  function dismiss() {
+    if (!saved) return
+    onOpenChange(false)
+    setSaved(false)
+  }
+
   async function copyInviteUrl() {
     if (!inviteUrl) {
       return
@@ -40,8 +54,22 @@ export function InviteUrlDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-0 p-0 sm:max-w-lg">
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && saved) dismiss()
+      }}
+    >
+      <DialogContent
+        className="gap-0 p-0 sm:max-w-lg"
+        showCloseButton={false}
+        onEscapeKeyDown={(event) => {
+          if (!saved) event.preventDefault()
+        }}
+        onPointerDownOutside={(event) => {
+          if (!saved) event.preventDefault()
+        }}
+      >
         <div className="catalog-dialog-secret px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))] pb-4">
           <DialogHeader className="gap-1.5 text-left">
             <DialogTitle className="catalog-dialog-secret__title">{title}</DialogTitle>
@@ -81,9 +109,20 @@ export function InviteUrlDialog({
         </div>
 
         <DialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/6 px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
-          <Button type="button" onClick={() => onOpenChange(false)}>
-            Done
-          </Button>
+          {inviteUrl ? (
+            <SecretOnceConfirm
+              confirmed={saved}
+              onConfirmedChange={setSaved}
+              secret={inviteUrl}
+              downloadFilename="hikyaku-invite-link.txt"
+              confirmLabel="I’ve copied this link somewhere I can send it"
+              onDone={dismiss}
+            />
+          ) : (
+            <Button type="button" onClick={() => onOpenChange(false)}>
+              Done
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

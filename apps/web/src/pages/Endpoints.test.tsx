@@ -50,6 +50,17 @@ afterEach(async () => {
 })
 
 describe('Endpoints empty state', () => {
+  it('defaults to the active filter', async () => {
+    await renderEndpoints('/endpoints')
+
+    expect(listEndpoints).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'active' }),
+      expect.anything(),
+    )
+    expect(container.textContent).toContain('No active endpoints')
+    expect(container.textContent).not.toContain('No endpoints yet')
+  })
+
   it('says there are no active endpoints when the active filter is empty', async () => {
     await renderEndpoints('/endpoints?status=active')
 

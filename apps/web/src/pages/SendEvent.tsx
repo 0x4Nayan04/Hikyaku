@@ -1,5 +1,5 @@
-import { ApiError, listEndpoints, sendEvent } from '@/api/client'
-import type { IngestEventResponse } from '@/api/types'
+import { ApiError, getEvent, listEndpoints, sendEvent } from '@/api/client'
+import type { EventStatus, IngestEventResponse } from '@/api/types'
 import { ConsolePage } from '@/components/console/ConsolePage'
 import { DataPanel } from '@/components/console/DataPanel'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
@@ -16,11 +16,12 @@ import { StatusBadge } from '@/components/console/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { usePolling } from '@/hooks/usePolling'
 import { formatDateTime } from '@/lib/format'
 import { toast } from '@/lib/toast'
 import type { IngestEventInput } from '@hikyaku/shared/zod'
 import { ArrowRight, PowerOff, RefreshCw, RotateCcw, Send, Webhook } from 'lucide-react'
-import { useEffect, useReducer, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 const DEFAULT_PAYLOAD = `{
@@ -43,6 +44,22 @@ function parsePayloadJson(raw: string): IngestEventInput['payload'] | null {
     return parsed as IngestEventInput['payload']
   } catch {
     return null
+  }
+}
+
+function isOpenEventStatus(status: EventStatus): boolean {
+  switch (status) {
+    case 'pending':
+      return true
+    case 'completed':
+    case 'partial_failure':
+    case 'failed':
+    case 'no_recipients':
+      return false
+    default: {
+      const exhaustive: never = status
+      return exhaustive
+    }
   }
 }
 
@@ -149,6 +166,35 @@ export default function SendEvent() {
     }
   }
 
+  const accepted = form.result
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  const refreshAcceptedEvent = useCallback(async () => {
+    if (!accepted || !isOpenEventStatus(accepted.status)) return
+    const event = await getEvent(accepted.id)
+    if (!mountedRef.current || event.status === accepted.status) return
+    dispatch({
+      type: 'update',
+      changes: { result: { ...accepted, status: event.status } },
+    })
+  }, [accepted])
+
+  useEffect(() => {
+    void refreshAcceptedEvent()
+  }, [refreshAcceptedEvent])
+
+  usePolling({
+    enabled: accepted !== null && isOpenEventStatus(accepted.status),
+    refreshOnVisible: true,
+    onPoll: refreshAcceptedEvent,
+  })
+
   return (
     <ConsolePage
       marker="Dev tools"
@@ -189,7 +235,7 @@ export default function SendEvent() {
           {form.result ? (
             <DataPanel
               title="Accepted event"
-              description="Open the event to see delivery fan-out and outcomes."
+              description="Status updates while deliveries are still open. Open the event for fan-out and attempts."
               footer={
                 <div className="flex w-full flex-wrap items-center justify-end gap-3 px-4 py-3 md:px-5">
                   <Button size="sm" variant="secondary" onClick={() => dispatch({ type: 'reset' })}>

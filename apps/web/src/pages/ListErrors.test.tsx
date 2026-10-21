@@ -45,7 +45,7 @@ const loaders = [
 const cases: Array<[string, ReactElement, string, string]> = [
   ['/events', <Events />, 'Could not load events', 'No events yet'],
   ['/deliveries', <Deliveries />, 'Could not load deliveries', 'No deliveries yet'],
-  ['/endpoints', <Endpoints />, 'Could not load endpoints', 'No endpoints yet'],
+  ['/endpoints', <Endpoints />, 'Could not load endpoints', 'No active endpoints'],
   ['/admin', <Admin />, 'Could not load tenants', 'No tenants yet'],
   ['/settings?tab=api-keys', <Settings />, 'Could not load API keys', 'No API keys yet'],
   ['/admin/tenants/tenant-1', <TenantAdmin />, 'Could not load tenant users', 'No users yet'],

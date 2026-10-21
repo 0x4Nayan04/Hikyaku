@@ -119,17 +119,25 @@ export function SettingsApiKeysTab({
                       key={apiKey.id}
                       className={cn('group/row', revoked && 'settings-table-row--revoked')}
                     >
-                      <DataTableCell className="font-mono text-sm">{apiKey.prefix}…</DataTableCell>
-                      <DataTableCell>
+                      <DataTableCell className="font-mono text-sm" label="Prefix">
+                        {apiKey.prefix}…
+                      </DataTableCell>
+                      <DataTableCell label="Status">
                         <StatusBadge kind="api-key" revoked={revoked} />
                       </DataTableCell>
-                      <DataTableCell className="hidden text-sm text-muted-strong md:table-cell">
+                      <DataTableCell
+                        className="hidden text-sm text-muted-strong md:table-cell"
+                        label="Created"
+                      >
                         {formatDateTime(apiKey.created_at)}
                       </DataTableCell>
-                      <DataTableCell className="hidden text-sm text-muted-strong lg:table-cell">
+                      <DataTableCell
+                        className="hidden text-sm text-muted-strong lg:table-cell"
+                        label="Last used"
+                      >
                         {apiKey.last_used_at ? formatDateTime(apiKey.last_used_at) : 'Never'}
                       </DataTableCell>
-                      <DataTableCell className="text-right">
+                      <DataTableCell className="text-right" label="Actions">
                         {!revoked ? (
                           <div className="settings-row-actions">
                             <Button

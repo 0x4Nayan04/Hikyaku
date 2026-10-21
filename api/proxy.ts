@@ -5,6 +5,7 @@ import {
   PROXY_SECRET_HEADER,
   upstreamTarget,
 } from '../apps/api/src/lib/proxyUpstream.js'
+import { applyApiSecurityHeaders } from '../apps/api/src/lib/securityHeaders.js'
 
 const FORWARD_REQUEST_HEADERS = [
   'cookie',
@@ -48,6 +49,7 @@ async function readBody(req: IncomingMessage): Promise<Uint8Array<ArrayBuffer>> 
 
 function sendJson(res: ServerResponse, status: number, code: string, message: string): void {
   res.statusCode = status
+  applyApiSecurityHeaders(res)
   res.setHeader('content-type', 'application/json')
   res.end(JSON.stringify({ error: { code, message } }))
 }
@@ -87,6 +89,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       const value = upstreamRes.headers.get(name)
       if (value) res.setHeader(name, value)
     }
+    applyApiSecurityHeaders(res)
     const setCookies = upstreamRes.headers.getSetCookie()
     if (setCookies.length > 0) res.setHeader('set-cookie', setCookies)
     res.end(Buffer.from(await upstreamRes.arrayBuffer()))

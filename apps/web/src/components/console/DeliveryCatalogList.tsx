@@ -49,7 +49,7 @@ export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
                 navigate(deliveryPath)
               }}
             >
-              <DataTableCell className="max-w-[18rem] md:max-w-88">
+              <DataTableCell className="max-w-[18rem] md:max-w-88" label="Endpoint">
                 <Link
                   to={deliveryPath}
                   className="block min-w-0 truncate font-medium text-ink group-hover:text-primary hover:underline"
@@ -64,7 +64,7 @@ export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
                   </p>
                 ) : null}
               </DataTableCell>
-              <DataTableCell className="hidden md:table-cell">
+              <DataTableCell className="hidden md:table-cell" label="Event">
                 <Link
                   to={`/events/${delivery.event_id}`}
                   className="font-mono text-xs text-muted-strong hover:text-primary hover:underline"
@@ -73,16 +73,22 @@ export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
                   {shortId(delivery.event_id, 10)}
                 </Link>
               </DataTableCell>
-              <DataTableCell>
+              <DataTableCell label="Status">
                 <StatusBadge kind="delivery" status={delivery.status} />
               </DataTableCell>
-              <DataTableCell className="hidden text-sm text-muted-strong sm:table-cell">
+              <DataTableCell
+                className="hidden text-sm text-muted-strong sm:table-cell"
+                label="Attempts"
+              >
                 {formatDeliveryAttempts({
                   attemptCount: delivery.attempt_count,
                   replayCount: delivery.replay_count,
                 })}
               </DataTableCell>
-              <DataTableCell className="whitespace-nowrap text-sm text-muted-strong">
+              <DataTableCell
+                className="whitespace-nowrap text-sm text-muted-strong"
+                label="Updated"
+              >
                 <time dateTime={delivery.updated_at}>{formatDateTime(delivery.updated_at)}</time>
               </DataTableCell>
             </DataTableRow>

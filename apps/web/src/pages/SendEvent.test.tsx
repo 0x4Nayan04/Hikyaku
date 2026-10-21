@@ -3,14 +3,15 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { listEndpoints } from '@/api/client'
-import type { Endpoint, Paginated } from '@/api/types'
+import { getEvent, listEndpoints, sendEvent } from '@/api/client'
+import type { Endpoint, EventDetail, Paginated } from '@/api/types'
 import SendEvent from '@/pages/SendEvent'
 
 vi.mock('@/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/client')>()
   return {
     ...actual,
+    getEvent: vi.fn(),
     listEndpoints: vi.fn(),
     sendEvent: vi.fn(),
   }
@@ -45,6 +46,8 @@ beforeEach(() => {
   document.body.appendChild(container)
   root = createRoot(container)
   vi.mocked(listEndpoints).mockReset()
+  vi.mocked(sendEvent).mockReset()
+  vi.mocked(getEvent).mockReset()
 })
 
 afterEach(async () => {
@@ -82,5 +85,39 @@ describe('SendEvent endpoint gate', () => {
 
     expect(container.textContent).toContain('Send test event')
     expect(container.textContent).not.toContain('Create an endpoint first')
+  })
+})
+
+describe('SendEvent accepted status', () => {
+  it('replaces the ingest pending badge once the event is terminal', async () => {
+    const createdAt = '2026-10-21T00:00:00.000Z'
+    vi.mocked(listEndpoints).mockImplementation(async (params) =>
+      page(params.status === 'active' ? [disabledEndpoint] : [disabledEndpoint]),
+    )
+    vi.mocked(sendEvent).mockResolvedValue({
+      id: 'evt-1',
+      status: 'pending',
+      created_at: createdAt,
+    })
+    vi.mocked(getEvent).mockResolvedValue({
+      id: 'evt-1',
+      idempotency_key: 'key',
+      type: 'order.paid',
+      status: 'partial_failure',
+      created_at: createdAt,
+      payload: { order_id: '123' },
+      deliveries_summary: { total: 2, succeeded: 1, failed: 1, pending: 0 },
+    } satisfies EventDetail)
+
+    await renderSendEvent()
+    const form = container.querySelector('#send-event-form')
+    expect(form).not.toBeNull()
+
+    await act(async () => {
+      form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    })
+
+    expect(container.textContent).toContain('Partial Failure')
+    expect(container.textContent).not.toContain('In progress')
   })
 })

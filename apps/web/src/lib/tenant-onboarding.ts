@@ -14,14 +14,13 @@ export function buildOnboardingSteps(opts: {
   hasTestEvent: boolean
   hasDeliveries: boolean
 }): OnboardingStep[] {
-  const endpointLabel =
-    opts.hasActiveEndpoint || !opts.hasAnyEndpoint ? 'Create an endpoint' : 'Enable an endpoint'
+  const createEndpoint = opts.hasActiveEndpoint || !opts.hasAnyEndpoint
 
   return [
     {
       id: 'endpoint',
-      label: endpointLabel,
-      to: '/endpoints',
+      label: createEndpoint ? 'Create an endpoint' : 'Enable an endpoint',
+      to: createEndpoint ? '/endpoints' : '/endpoints?status=disabled',
       done: opts.hasActiveEndpoint,
     },
     {

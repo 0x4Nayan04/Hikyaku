@@ -26,6 +26,7 @@ describe('buildOnboardingSteps', () => {
     expect(steps[0]).toMatchObject({
       id: 'endpoint',
       label: 'Enable an endpoint',
+      to: '/endpoints?status=disabled',
       done: false,
     })
   })

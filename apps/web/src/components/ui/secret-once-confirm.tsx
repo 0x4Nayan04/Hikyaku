@@ -8,6 +8,7 @@ type SecretOnceConfirmProps = {
   secret: string
   downloadFilename: string
   onDone: () => void
+  confirmLabel?: string
 }
 
 function downloadText(filename: string, text: string) {
@@ -27,6 +28,7 @@ export function SecretOnceConfirm({
   secret,
   downloadFilename,
   onDone,
+  confirmLabel = 'I’ve saved this secret somewhere secure',
 }: SecretOnceConfirmProps) {
   const checkboxId = useId()
 
@@ -40,7 +42,7 @@ export function SecretOnceConfirm({
           checked={confirmed}
           onChange={(event) => onConfirmedChange(event.target.checked)}
         />
-        <span className="leading-snug text-ink">I’ve saved this secret somewhere secure</span>
+        <span className="leading-snug text-ink">{confirmLabel}</span>
       </label>
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Button

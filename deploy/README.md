@@ -56,9 +56,11 @@ docker compose --env-file .env.production -f compose.production.yml down
 
 `down` preserves volumes. Do not add `-v` unless intentionally deleting this installation. `/v1/ready` checks PostgreSQL/Redis, not delivery execution — confirm a real delivery after install or upgrade.
 
-Production Compose uses `postgres:16-alpine` and `redis:7-alpine` images. The API/worker runtime image is built from a production-pruned `node_modules` tree (see root `Dockerfile` `runtime` target), not the full dev build stage.
+Production Compose uses `postgres:16-alpine` and `redis:7-alpine` images. The API/worker runtime image is the Dockerfile `runtime` stage (`FROM build`), which keeps the pnpm workspace install so `drizzle-orm` / `bullmq` resolve. Keep `runtime` last — Railway builds the last stage.
 
-Optional: set `BUILD_REVISION` or `GIT_SHA` on the API and worker services to expose the running release in `/v1/health` and `/v1/ready` (for example your image tag or deploy commit).
+Set `BUILD_REVISION` (git sha or image tag) in `.env.production` so Compose bakes it into the runtime image and the API/worker env. `/v1/health` and `/v1/ready` then include `revision`. Leave it empty locally if you do not care. On Railway, set `BUILD_REVISION` on the API service or rely on `RAILWAY_GIT_COMMIT_SHA` (GitHub-triggered deploys inject it). Keep the Dockerfile `runtime` stage last — Railway builds the last stage by default.
+
+After first bootstrap, `GET /v1/auth/bootstrap-status` must return `{"available":false}`. If it is still true, the one-time installer endpoint is open.
 
 **Dependency errors:** Post-commit enqueue failures and auth rate-limit checks return **503** `service_unavailable` when Redis is unreachable. Treat that as “try again later,” not a successful ingest.
 
@@ -95,8 +97,15 @@ Split hosting is **optional**. Prefer Compose above unless you specifically want
 
 - Web on **Vercel**, API + worker on **Railway**
 - `vercel.json` proxies browser `/v1` to Railway so the session cookie stays on the Vercel origin
-- On Vercel: `API_UPSTREAM_URL` = public Railway API origin, `PROXY_IP_SECRET` (≥16 chars), `ENABLE_EXPERIMENTAL_COREPACK=1`; leave `VITE_API_URL` unset
-- On Railway API: same `PROXY_IP_SECRET`, `CORS_ORIGIN` + `WEB_APP_URL` = Vercel origin, `TRUST_PROXY=1`
+- Caddy (Compose) and `vercel.json` set nosniff / frame deny / referrer / CSP on the web origin; the API sets the same class of headers itself (lock-down CSP)
+Cookie mutations fail with `403 origin_not_allowed` unless all four match:
+
+1. Vercel `API_UPSTREAM_URL` = public Railway API origin; leave `VITE_API_URL` unset  
+2. Shared `PROXY_IP_SECRET` (≥16 chars) on Vercel **and** Railway API  
+3. Railway `CORS_ORIGIN` + `WEB_APP_URL` = the Vercel https origin (no trailing slash)  
+4. Railway `TRUST_PROXY=1`
+
+Also set `ENABLE_EXPERIMENTAL_COREPACK=1` on Vercel.
 - Set `VITE_PUBLIC_API_URL` to the Railway origin on the Vercel build for docs/curl samples
 - Pre-deploy: `node apps/api/dist/scripts/migrate.js`
 - Build/start from **repo root** with `pnpm --filter @hikyaku/api...` / `@hikyaku/worker` — do not set root directory to `apps/api` or `apps/worker`
@@ -133,6 +142,7 @@ curl http://localhost:3000/v1/ready
 | `INGEST_RATE_LIMIT_PER_MINUTE` | Max `POST /v1/events` per tenant/minute |
 | `AUTH_RATE_LIMIT_PER_MINUTE` | Auth attempts per IP/minute |
 | `LOG_LEVEL` | Log verbosity |
+| `BUILD_REVISION` | Optional release id on `/v1/health` and `/v1/ready` |
 | `VITE_API_URL` | API base for the web app (build-time). Empty on Vercel so the browser uses same-origin `/v1` |
 | `VITE_PUBLIC_API_URL` | Public API origin for docs/curl samples |
 | `PROXY_IP_SECRET` | Shared secret for the Vercel `/v1` proxy. Omit on single-host Compose |
@@ -148,6 +158,14 @@ See root `.env.example` for local worker tuning. `TRUST_PROXY=1` means one trust
 - **Per-tenant rate limits** on outbound admissions
 - **Signed + timestamped** bodies (`X-Webhook-Signature`, `X-Webhook-Timestamp`; reject skew over 5 minutes)
 - **Replay** for failed deliveries from console or API
+
+### Known limits (not bugs)
+
+- Endpoint signing secrets are stored so the worker can sign POSTs; they are not hashed like API keys. Protect the database and backups.
+- Signing-secret rotation replaces the secret immediately. There is no dual-secret window.
+- Redis down: auth rate limits and ingest enqueue return **503**. The outbox can recover committed deliveries; login cannot.
+- Invites and password resets are copy-paste links. There is no email delivery.
+- HTTP delivery is **at-least-once**. Subscribers must dedupe on `X-Webhook-Id`.
 
 Full product docs after `pnpm dev`: http://localhost:5173/docs
 

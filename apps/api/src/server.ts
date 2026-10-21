@@ -9,6 +9,7 @@ import { AppError } from './lib/errors.js'
 import { logger } from './lib/logger.js'
 import { serializeRequestForLog, serializeResponseForLog } from './lib/requestLog.js'
 import { requestIdMiddleware } from './lib/requestId.js'
+import { applyApiSecurityHeaders } from './lib/securityHeaders.js'
 import { adminRouter } from './routes/admin/index.js'
 import { apiKeysRouter } from './routes/api-keys/index.js'
 import { authRouter } from './routes/auth/index.js'
@@ -27,6 +28,10 @@ export function createApp(): Application {
     app.set('trust proxy', env.TRUST_PROXY)
   }
 
+  app.use((_req, res, next) => {
+    applyApiSecurityHeaders(res)
+    next()
+  })
   app.use(requestIdMiddleware)
   app.use(
     pinoHttp<Request, Response>({

@@ -11,8 +11,30 @@ describe('GET /v1/health', () => {
     const res = await request(app).get('/v1/health')
 
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ status: 'ok' })
+    expect(res.body.status).toBe('ok')
     expect(res.headers['x-request-id']).toBeTruthy()
+    expect(res.headers['x-content-type-options']).toBe('nosniff')
+    expect(res.headers['x-frame-options']).toBe('DENY')
+    expect(res.headers['referrer-policy']).toBe('no-referrer')
+    expect(res.headers['content-security-policy']).toBe(
+      "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+    )
+  })
+
+  it('includes revision when BUILD_REVISION is set', async () => {
+    const previous = process.env.BUILD_REVISION
+    process.env.BUILD_REVISION = 'test-revision-abc'
+    try {
+      const res = await request(app).get('/v1/health')
+      expect(res.status).toBe(200)
+      expect(res.body).toEqual({ status: 'ok', revision: 'test-revision-abc' })
+    } finally {
+      if (previous === undefined) {
+        delete process.env.BUILD_REVISION
+      } else {
+        process.env.BUILD_REVISION = previous
+      }
+    }
   })
 })
 
@@ -26,7 +48,7 @@ describe('GET /v1/ready', () => {
     const res = await request(app).get('/v1/ready')
 
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({
+    expect(res.body).toMatchObject({
       status: 'ready',
       postgres: 'up',
       redis: 'up',
