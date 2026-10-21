@@ -26,6 +26,7 @@ const FOOTER_GROUPS: { label: string; links: FooterLink[] }[] = [
     label: 'Developers',
     links: [
       { label: 'Quick start', href: `${PRODUCT_LINKS.docs}/quick-start` },
+      { label: 'Terminal walkthrough', href: `${PRODUCT_LINKS.docs}#api-only-path` },
       { label: 'Documentation', href: PRODUCT_LINKS.docs },
       { label: 'API reference', href: `${PRODUCT_LINKS.docs}#api-reference` },
     ],

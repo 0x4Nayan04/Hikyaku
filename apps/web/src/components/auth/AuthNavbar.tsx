@@ -13,9 +13,10 @@ export function AuthNavbar() {
             <HikyakuMark decorative className="size-7 shrink-0" />
             <span className="landing-nav-brand-text">{APP_NAME}</span>
           </Link>
-          <Link to="/" className="sm-btn sm-btn-sm sm-btn-secondary focus-ring">
-            <ArrowLeft className="mr-2 size-4" aria-hidden="true" />
-            Back to home
+          <Link to="/" className="auth-home-link focus-ring">
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            <span className="sm:hidden">Home</span>
+            <span className="hidden sm:inline">Back to home</span>
           </Link>
         </div>
       </LandingFrameInner>

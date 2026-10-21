@@ -27,7 +27,7 @@ export function FormPanel({
   return (
     <Card className={cn('border-border', className)}>
       {title ? (
-        <CardHeader className="gap-0 border-border/40 bg-muted/5 px-4 py-3 md:px-5">
+        <CardHeader className="console-slip-head gap-0 border-border/40 px-4 py-3 md:px-5">
           <CardTitle
             className={cn(
               titleVariant === 'prominent'

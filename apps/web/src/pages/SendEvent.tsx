@@ -199,9 +199,13 @@ export default function SendEvent() {
       title="Test event"
       description={
         <>
-          Sends a real webhook to the active endpoints in this workspace.{' '}
+          Sends a real webhook to the active endpoints.{' '}
           <Link to="/docs#ingest" className="font-medium text-primary hover:underline">
             Ingest docs
+          </Link>
+          {' · '}
+          <Link to="/docs#api-only-path" className="font-medium text-primary hover:underline">
+            Terminal walkthrough
           </Link>
         </>
       }
@@ -328,6 +332,7 @@ function SendEventForm({
 }) {
   return (
     <FormPanel
+      className="send-event-form-panel"
       title="Compose test event"
       titleVariant="prominent"
       description={
@@ -342,7 +347,7 @@ function SendEventForm({
       }
       footerAlign="end"
       footer={
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="send-event-form-actions flex flex-wrap items-center gap-3">
           <Button
             size="sm"
             type="submit"

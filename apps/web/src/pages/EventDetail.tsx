@@ -12,6 +12,7 @@ import {
   SettingsCatalogList,
   SettingsCatalogRow,
   SettingsCopyAction,
+  SettingsCopyValue,
 } from '@/components/console/SettingsCatalog'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/format'
@@ -72,26 +73,15 @@ export default function EventDetail() {
               <SettingsCatalogRow label="Created">
                 <span className="text-sm text-ink">{formatDateTime(event.created_at)}</span>
               </SettingsCatalogRow>
-              <SettingsCatalogRow
-                label="Idempotency key"
-                action={
-                  <SettingsCopyAction value={event.idempotency_key} copyLabel="Idempotency key" />
-                }
-              >
-                <code
-                  className="min-w-0 truncate font-mono text-xs text-ink"
-                  title={event.idempotency_key}
-                >
-                  {event.idempotency_key}
-                </code>
+              <SettingsCatalogRow label="Idempotency key" layout="stacked">
+                <SettingsCopyValue
+                  value={event.idempotency_key}
+                  copyLabel="Idempotency key"
+                  buttonLabel="Copy"
+                />
               </SettingsCatalogRow>
-              <SettingsCatalogRow
-                label="Event ID"
-                action={<SettingsCopyAction value={event.id} copyLabel="Event ID" />}
-              >
-                <code className="min-w-0 truncate font-mono text-xs text-ink" title={event.id}>
-                  {event.id}
-                </code>
+              <SettingsCatalogRow label="Event ID" layout="stacked">
+                <SettingsCopyValue value={event.id} copyLabel="Event ID" buttonLabel="Copy" />
               </SettingsCatalogRow>
             </SettingsCatalogList>
           </DataPanel>

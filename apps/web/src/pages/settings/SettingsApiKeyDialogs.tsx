@@ -55,7 +55,7 @@ export function SettingsApiKeyDialogs({
         }}
       >
         <DialogContent
-          className="gap-0 overflow-hidden p-0 sm:max-w-lg"
+          className="gap-0 overflow-y-auto p-0 sm:max-w-lg"
           showCloseButton={false}
           onEscapeKeyDown={(event) => {
             if (!secretSaved) event.preventDefault()
@@ -81,7 +81,7 @@ export function SettingsApiKeyDialogs({
             {secretKey ? (
               <SecretReveal
                 value={secretKey.api_key}
-                hint="Use as a Bearer token for API requests."
+                hint="This key only sends events. Managing endpoints, creating keys, viewing deliveries, and replaying require your signed-in session."
                 onCopy={() => void copyToClipboard(secretKey.api_key, 'API key')}
                 copyLabel="Copy key"
               />
@@ -90,7 +90,9 @@ export function SettingsApiKeyDialogs({
             {ingestCurl ? (
               <div className="settings-ingest-curl">
                 <div className="settings-ingest-curl__bar">
-                  <span className="settings-ingest-curl__label">Try ingest</span>
+                  <span className="settings-ingest-curl__label">
+                    Send an event from your terminal.
+                  </span>
                   <span className="settings-ingest-curl__hint">
                     Copy into your terminal — key is already filled in.
                   </span>
@@ -140,7 +142,7 @@ export function SettingsApiKeyDialogs({
           }
         }}
       >
-        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogContent className="gap-0 overflow-y-auto p-0 sm:max-w-md">
           <div className="flex gap-3 border-b border-border bg-surface-muted/40 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5 pr-12">
             <div className="flex size-9 shrink-0 items-center justify-center border border-destructive/30 bg-destructive/10 text-destructive">
               <TriangleAlert className="size-4" aria-hidden="true" />

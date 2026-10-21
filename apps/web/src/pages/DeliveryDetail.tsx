@@ -12,7 +12,7 @@ import { PageLoading } from '@/components/console/PageLoading'
 import {
   SettingsCatalogList,
   SettingsCatalogRow,
-  SettingsCopyAction,
+  SettingsCopyValue,
 } from '@/components/console/SettingsCatalog'
 import { StatusBadge } from '@/components/console/StatusBadge'
 import { LiveChip } from '@/components/console/LiveChip'
@@ -212,30 +212,27 @@ export default function DeliveryDetail() {
               <SettingsCatalogRow label="Attempts">
                 <span className="text-sm text-ink">{formatDeliveryAttemptLabel(delivery)}</span>
               </SettingsCatalogRow>
-              <SettingsCatalogRow
-                label="Event"
-                action={<SettingsCopyAction value={delivery.event_id} copyLabel="Event ID" />}
-              >
-                <Link
-                  to={`/events/${delivery.event_id}`}
-                  className="min-w-0 truncate font-mono text-xs text-primary hover:underline"
-                  title={delivery.event_id}
-                >
-                  {delivery.event_id}
-                </Link>
+              <SettingsCatalogRow label="Event" layout="stacked">
+                <div className="flex min-w-0 flex-col gap-2">
+                  <SettingsCopyValue
+                    value={delivery.event_id}
+                    copyLabel="Event ID"
+                    buttonLabel="Copy"
+                  />
+                  <Link
+                    to={`/events/${delivery.event_id}`}
+                    className="text-sm font-medium text-primary hover:underline"
+                  >
+                    Open event
+                  </Link>
+                </div>
               </SettingsCatalogRow>
-              <SettingsCatalogRow
-                label="Endpoint"
-                action={
-                  <SettingsCopyAction value={delivery.endpoint_url} copyLabel="Endpoint URL" />
-                }
-              >
-                <code
-                  className="min-w-0 truncate font-mono text-xs text-ink"
-                  title={`${delivery.endpoint_url} (${delivery.endpoint_id})`}
-                >
-                  {delivery.endpoint_url}
-                </code>
+              <SettingsCatalogRow label="Endpoint" layout="stacked">
+                <SettingsCopyValue
+                  value={delivery.endpoint_url}
+                  copyLabel="Endpoint URL"
+                  buttonLabel="Copy"
+                />
               </SettingsCatalogRow>
             </SettingsCatalogList>
 

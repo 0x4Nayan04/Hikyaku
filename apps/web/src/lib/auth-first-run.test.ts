@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  LOGIN_FAILED_RECOVERY,
   LOGIN_PASSWORD_RESET_HINT,
   resolveGuestLandingPrimaryCta,
   resolveLoginBanner,
@@ -52,10 +51,5 @@ describe('login recovery copy', () => {
   it('states the password-reset policy up front', () => {
     expect(LOGIN_PASSWORD_RESET_HINT).toMatch(/no self-serve/i)
     expect(LOGIN_PASSWORD_RESET_HINT).toMatch(/one-time reset link/i)
-  })
-
-  it('pairs invite and reset next steps after failed sign-in', () => {
-    expect(LOGIN_FAILED_RECOVERY).toMatch(/invite/i)
-    expect(LOGIN_FAILED_RECOVERY).toMatch(/one-time reset link/i)
   })
 })

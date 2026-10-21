@@ -65,6 +65,12 @@
     padding-inline: 0.875rem;
     font-size: 0.8125rem;
   }
+  @media (max-width: 639px) {
+    .sm-btn-sm {
+      height: 2.75rem;
+      min-height: 2.75rem;
+    }
+  }
   .sm-btn-block {
     width: 100%;
   }
@@ -115,6 +121,11 @@
   }
   .sm-input[aria-invalid='true']:focus-visible {
     box-shadow: var(--shadow-focus-error);
+  }
+  @media (max-width: 639px) {
+    .sm-input {
+      font-size: 16px;
+    }
   }
 
   .sm-label {

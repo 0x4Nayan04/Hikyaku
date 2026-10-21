@@ -46,18 +46,18 @@ export function AuthLayout({
         <AuthNavbar />
         <div className="flex flex-1 flex-col lg:flex-row min-h-0">
           <AuthDots
-            wrapClassName="flex flex-col bg-surface-muted lg:w-1/2 lg:max-w-xl"
+            wrapClassName="hidden bg-surface-muted lg:flex lg:w-1/2 lg:max-w-xl lg:flex-col"
             className="flex flex-col p-8 lg:p-12 h-full"
           >
-            {sidePanel}
+            <div className="auth-split-copy">{sidePanel}</div>
           </AuthDots>
 
           <main
             id="main-content"
-            className="order-first flex flex-1 items-start justify-center overflow-y-auto bg-surface px-8 pb-6 pt-5 lg:order-none lg:px-10 lg:pb-10 lg:pt-6"
+            className="order-first flex flex-1 items-start justify-center overflow-y-auto bg-surface px-6 pb-6 pt-5 lg:order-none lg:px-10 lg:pb-10 lg:pt-6"
           >
-            <div className="w-full max-w-lg">
-              <header className="mb-4">
+            <div className="auth-slip w-full max-w-lg">
+              <header className="auth-slip-head">
                 <p className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-primary">
                   {eyebrow}
                 </p>
@@ -71,7 +71,7 @@ export function AuthLayout({
                 ) : null}
               </header>
 
-              {children}
+              <div className="auth-slip-body">{children}</div>
             </div>
           </main>
         </div>

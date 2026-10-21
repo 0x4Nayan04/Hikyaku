@@ -20,7 +20,14 @@ export function buildDocsSearchIndex(): DocsSearchEntry[] {
 
 export function filterDocsSearch(entries: DocsSearchEntry[], query: string): DocsSearchEntry[] {
   const needle = query.trim().toLowerCase()
-  if (!needle) return entries.filter((entry) => DOCS_TOC.some((item) => item.id === entry.id))
+  if (!needle) {
+    const byId = new Map(entries.map((entry) => [entry.id, entry]))
+    return DOCS_TOC.map((item) => ({
+      id: item.id,
+      label: item.label,
+      text: byId.get(item.id)?.text ?? '',
+    }))
+  }
   return entries.filter(
     (entry) =>
       entry.label.toLowerCase().includes(needle) ||

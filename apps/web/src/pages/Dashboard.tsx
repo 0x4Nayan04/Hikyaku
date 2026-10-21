@@ -4,10 +4,8 @@ import {
   AlertTriangle,
   Check,
   ChevronRight,
-  Package,
   PowerOff,
   Send,
-  Webhook,
   type LucideIcon,
 } from 'lucide-react'
 import { ApiError, getStats, listDeliveries, listEndpoints, listEvents } from '@/api/client'
@@ -21,6 +19,7 @@ import { LiveMetrics } from '@/components/console/LiveMetrics'
 import { RecentActivity, type ActivityItem } from '@/components/console/RecentActivity'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePolling } from '@/hooks/usePolling'
+import { PRODUCT_LINKS } from '@/lib/app-meta'
 import { formatPercent, formatStatusLabel } from '@/lib/format'
 import {
   buildOnboardingSteps,
@@ -167,7 +166,7 @@ export function Dashboard() {
     <ConsolePage
       marker="Overview"
       title="Dashboard"
-      description="Ingest volume, active deliveries, and 24-hour final outcomes."
+      description="Events, in-flight deliveries, and 24-hour outcomes."
       actions={<LiveChip active={isLive} lastUpdated={lastUpdated} intervalMs={POLL_DEFAULT_MS} />}
     >
       {error ? (
@@ -265,7 +264,7 @@ function AttentionStrip({ items }: { items: AttentionItem[] }) {
   return (
     <DataPanel
       title="Needs attention"
-      description="Failures, in-flight work, and disabled receivers — jump straight to the filtered list."
+      description="Failed, in-flight, or disabled receivers."
     >
       <div className="dashboard-activity-list">
         {items.map((item) => {
@@ -299,21 +298,21 @@ function OutcomesPanel({ stats }: { stats: Stats }) {
   const rows = [
     {
       label: 'Success rate',
-      hint: 'Share of deliveries updated to a final status in the last 24 hours',
+      hint: 'Final deliveries, last 24 hours',
       value: formatPercent(stats.success_rate_24h, 'No data yet'),
       primary: true,
       to: null,
     },
     {
       label: 'Succeeded',
-      hint: 'Updated to succeeded in the last 24 hours',
+      hint: 'Succeeded in the last 24 hours',
       value: stats.deliveries_succeeded_24h.toLocaleString(),
       primary: false,
       to: '/deliveries?status=succeeded&updated_within=24h',
     },
     {
       label: 'Failed',
-      hint: 'Updated to failed in the last 24 hours',
+      hint: 'Failed in the last 24 hours',
       value: stats.deliveries_failed_24h.toLocaleString(),
       primary: false,
       to: '/deliveries?status=failed&updated_within=24h',
@@ -361,51 +360,25 @@ function OutcomesPanel({ stats }: { stats: Stats }) {
   )
 }
 
-const onboardingStepMeta: Record<
-  OnboardingStepId,
-  { icon: LucideIcon; hint: string; tone: 'info' | 'success' | 'neutral' }
-> = {
-  endpoint: {
-    icon: Webhook,
-    hint: 'Receiver URL and signing secret',
-    tone: 'neutral',
-  },
-  test_event: {
-    icon: Send,
-    hint: 'Dev tools · send a real test webhook',
-    tone: 'info',
-  },
-  deliveries: {
-    icon: Package,
-    hint: 'Outbound delivery attempts',
-    tone: 'success',
-  },
+const onboardingStepMeta: Record<OnboardingStepId, { hint: string }> = {
+  endpoint: { hint: 'Receiver URL and signing secret' },
+  test_event: { hint: 'Send a real test webhook' },
+  deliveries: { hint: 'Outbound delivery attempts' },
 }
 
-const onboardingToneIconClass = {
-  info: 'dashboard-activity-row__icon--event',
-  success: 'dashboard-activity-row__icon--delivery',
-  neutral: 'dashboard-activity-row__icon--neutral',
-} as const
-
-function OnboardingStepRow({ step }: { step: OnboardingStep }) {
+function OnboardingStepRow({ step, index }: { step: OnboardingStep; index: number }) {
   const meta = onboardingStepMeta[step.id]
-  const Icon = meta.icon
 
   const rowContent = (
     <>
       <span
         className={cn(
-          'dashboard-activity-row__icon',
-          step.done ? 'dashboard-activity-row__icon--success' : onboardingToneIconClass[meta.tone],
+          'dashboard-onboarding-index',
+          step.done && 'dashboard-onboarding-index--done',
         )}
         aria-hidden="true"
       >
-        {step.done ? (
-          <Check className="size-4" strokeWidth={2.25} />
-        ) : (
-          <Icon className="size-4" strokeWidth={1.75} />
-        )}
+        {step.done ? <Check className="size-3.5" strokeWidth={2.25} /> : String(index + 1).padStart(2, '0')}
       </span>
       <div className="dashboard-activity-row__main">
         <p
@@ -443,11 +416,24 @@ function EmptyDashboardCTA({ steps }: { steps: OnboardingStep[] }) {
   return (
     <DataPanel
       title="Get started"
-      description="Add a receiver, send a test event, then watch deliveries. Metrics show up once deliveries start."
+      description={
+        <>
+          Add a receiver, send a test event, then watch deliveries.{' '}
+          <a
+            href={`${PRODUCT_LINKS.docs}#api-only-path`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-primary hover:underline"
+          >
+            Terminal walkthrough
+            <span className="sr-only">(opens in a new tab)</span>
+          </a>
+        </>
+      }
     >
       <div className="dashboard-activity-list">
-        {steps.map((step) => (
-          <OnboardingStepRow key={step.id} step={step} />
+        {steps.map((step, index) => (
+          <OnboardingStepRow key={step.id} step={step} index={index} />
         ))}
       </div>
     </DataPanel>

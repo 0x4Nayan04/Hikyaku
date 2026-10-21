@@ -196,6 +196,15 @@ describe('Dashboard empty-state probes', () => {
       { signal: expect.any(AbortSignal) },
     )
     expect(container.textContent).toContain('Create an endpoint')
+    expect(container.textContent).toContain(
+      'Add a receiver, send a test event, then watch deliveries.',
+    )
+    const walkthrough = container.querySelector('a[href="/docs#api-only-path"]')
+    expect(walkthrough).not.toBeNull()
+    expect(walkthrough?.getAttribute('target')).toBe('_blank')
+    expect(walkthrough?.getAttribute('rel')).toBe('noopener noreferrer')
+    expect(walkthrough?.textContent).toContain('Terminal walkthrough')
+    expect(walkthrough?.textContent).toContain('(opens in a new tab)')
   })
 
   it('surfaces a failed endpoint check without inventing onboarding and recovers', async () => {
@@ -229,6 +238,9 @@ describe('Dashboard empty-state probes', () => {
       { signal: expect.any(AbortSignal) },
     )
     expect(container.textContent).not.toContain('Create an endpoint')
+    expect(container.textContent).not.toContain(
+      'Add a receiver, send a test event, then watch deliveries.',
+    )
   })
 
   it('links active and 24h counts to the same filters the numbers use', async () => {
@@ -247,7 +259,7 @@ describe('Dashboard empty-state probes', () => {
     expect(
       container.querySelector('a[href="/deliveries?status=failed&updated_within=24h"]'),
     ).not.toBeNull()
-    expect(container.textContent).toContain('active deliveries')
+    expect(container.textContent).toContain('Active deliveries')
     expect(container.textContent).not.toContain('queue depth')
   })
 })
