@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { usePolling } from '@/hooks/usePolling'
 import { formatDateTime } from '@/lib/format'
 import { toast } from '@/lib/toast'
+import { POLL_FAST_MS } from '@/lib/ui-timing'
 import type { IngestEventInput } from '@hikyaku/shared/zod'
 import { ArrowRight, PowerOff, RefreshCw, RotateCcw, Send, Webhook } from 'lucide-react'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
@@ -30,10 +31,6 @@ const DEFAULT_PAYLOAD = `{
 }`
 
 const PAYLOAD_LINE_COUNT = DEFAULT_PAYLOAD.split('\n').length
-
-function createIdempotencyKey(): string {
-  return crypto.randomUUID()
-}
 
 function parsePayloadJson(raw: string): IngestEventInput['payload'] | null {
   try {
@@ -88,7 +85,7 @@ type EventFormAction = { type: 'update'; changes: Partial<EventFormState> } | { 
 
 function createInitialFormState(): EventFormState {
   return {
-    idempotencyKey: createIdempotencyKey(),
+    idempotencyKey: crypto.randomUUID(),
     type: 'order.paid',
     payloadText: DEFAULT_PAYLOAD,
     payloadError: null,
@@ -191,6 +188,7 @@ export default function SendEvent() {
 
   usePolling({
     enabled: accepted !== null && isOpenEventStatus(accepted.status),
+    intervalMs: POLL_FAST_MS,
     refreshOnVisible: true,
     onPoll: refreshAcceptedEvent,
   })
@@ -291,7 +289,7 @@ function endpointGateEmpty(reason: 'none' | 'all_disabled') {
               <Link to="/endpoints" className="font-medium text-primary hover:underline">
                 Create an endpoint
               </Link>
-              , then send your sample event.
+              , then send your test event.
             </>
           }
         />
@@ -307,7 +305,7 @@ function endpointGateEmpty(reason: 'none' | 'all_disabled') {
               <Link to="/endpoints" className="font-medium text-primary hover:underline">
                 Enable an endpoint
               </Link>
-              , then send your sample event.
+              , then send your test event.
             </>
           }
         />
@@ -394,7 +392,7 @@ function SendEventForm({
                   onClick={() =>
                     dispatch({
                       type: 'update',
-                      changes: { idempotencyKey: createIdempotencyKey(), submitError: null },
+                      changes: { idempotencyKey: crypto.randomUUID(), submitError: null },
                     })
                   }
                 >

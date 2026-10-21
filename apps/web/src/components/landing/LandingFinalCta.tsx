@@ -15,7 +15,7 @@ export function LandingFinalCta() {
           Clone the repo, bring up Postgres and Redis, and follow the quick start. Sign in after you
           bootstrap or accept an invite.
         </p>
-        <div className="lp-final__actions" role="group" aria-label="Deploy Hikyaku">
+        <div className="lp-final__actions" role="group" aria-label="Quick start">
           <Link to={`${PRODUCT_LINKS.docs}/quick-start`} className="lp-button lp-button--primary focus-ring">
             View quick start
             <ArrowRight className="size-4" aria-hidden="true" />

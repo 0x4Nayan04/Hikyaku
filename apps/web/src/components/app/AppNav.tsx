@@ -16,7 +16,6 @@ export function AppNav({ isSuperAdmin, hasWorkspace, onNavigate, variant = 'side
   const sections = filterNavSections(isSuperAdmin, hasWorkspace)
   const allItems = sections.flatMap((section) => section.items)
   const isMobile = variant === 'mobile'
-  // Show subtitles for this first visit; hide on later sessions.
   const [showDescriptions] = useState(shouldShowNavDescriptions)
 
   useEffect(() => {

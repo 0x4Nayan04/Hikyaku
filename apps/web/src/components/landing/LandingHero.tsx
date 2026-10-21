@@ -7,6 +7,7 @@ import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
 import { loadBootstrapStatus, readBootstrapStatusCache } from '@/lib/bootstrap-status'
 import { copyToClipboard } from '@/lib/clipboard'
 import { buildIngestCurl } from '@/lib/tenant-onboarding'
+import { COPY_FEEDBACK_MS } from '@/lib/ui-timing'
 import { useSession } from '@/providers/session-context'
 import { ArrowRight, Check, Copy, LayoutDashboard } from 'lucide-react'
 import { SiGithub } from 'react-icons/si'
@@ -46,7 +47,7 @@ export function LandingHero() {
     const ok = await copyToClipboard(CURL_COPY, 'cURL')
     if (!ok) return
     setCopied(true)
-    window.setTimeout(() => setCopied(false), 1600)
+    window.setTimeout(() => setCopied(false), COPY_FEEDBACK_MS)
   }
 
   return (

@@ -1,4 +1,5 @@
 import type { User } from '@/api/types'
+import { PRODUCT_LINKS } from '@/lib/app-meta'
 
 type LoginLocationState = {
   message?: string
@@ -14,6 +15,7 @@ const ADMIN_HOME = '/admin'
 
 const PUBLIC_PATHS = new Set([
   '/',
+  PRODUCT_LINKS.whyHikyaku,
   '/why-haiku',
   '/login',
   '/bootstrap',
@@ -54,7 +56,6 @@ export function getDefaultHomePath(user: Pick<User, 'is_super_admin' | 'tenant_i
   return user.is_super_admin && !user.tenant_id ? ADMIN_HOME : TENANT_HOME
 }
 
-/** CTA label for the role home (Dashboard vs Admin). */
 export function getHomeLabel(user: Pick<User, 'is_super_admin' | 'tenant_id'>): string {
   return user.is_super_admin && !user.tenant_id ? 'Admin' : 'Dashboard'
 }

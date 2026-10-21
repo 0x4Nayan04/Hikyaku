@@ -1,7 +1,7 @@
 import { DOCS_TOC } from '@/docs/toc'
-import { APP_NAME } from '@/lib/app-meta'
+import { APP_NAME, PRODUCT_LINKS } from '@/lib/app-meta'
 
-/** Map a pathname (+ optional hash) to `document.title`. Detail IDs collapse to a generic label. */
+/** Detail IDs collapse to a generic label. */
 export function titleForPath(pathname: string, hash = ''): string {
   if (pathname.startsWith('/docs')) {
     const id = hash.replace(/^#/, '')
@@ -10,7 +10,7 @@ export function titleForPath(pathname: string, hash = ''): string {
   }
   if (pathname === '/') return APP_NAME
   // Avoid "Why Hikyaku · Hikyaku" from the generic `Label · APP_NAME` pattern.
-  if (pathname === '/why-haiku') return `Why ${APP_NAME}`
+  if (pathname === PRODUCT_LINKS.whyHikyaku || pathname === '/why-haiku') return `Why ${APP_NAME}`
 
   const routes: Array<[RegExp | string, string]> = [
     ['/login', 'Sign in'],

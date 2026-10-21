@@ -31,13 +31,13 @@ export function SettingsTenantTab() {
         </div>
       ) : session?.tenant ? (
         <SettingsCatalogList>
-          <SettingsCatalogRow label="Tenant name">
+          <SettingsCatalogRow label="Workspace name">
             <span className="font-medium">{tenantName}</span>
           </SettingsCatalogRow>
-          <SettingsCatalogRow label="Tenant ID" layout="stacked">
+          <SettingsCatalogRow label="Workspace ID" layout="stacked">
             <SettingsCopyValue
               value={session.tenant.id}
-              copyLabel="Tenant ID"
+              copyLabel="Workspace ID"
               buttonLabel="Copy ID"
             />
           </SettingsCatalogRow>
@@ -45,8 +45,8 @@ export function SettingsTenantTab() {
       ) : (
         <div className="px-5 py-4">
           <p className="text-sm text-muted-strong">
-            No workspace is linked to this account. Tenant operators see the workspace name and ID
-            here after signing in with a tenant account.
+            No workspace is linked to this account. Sign in with a workspace account to see the name
+            and ID here.
           </p>
         </div>
       )}

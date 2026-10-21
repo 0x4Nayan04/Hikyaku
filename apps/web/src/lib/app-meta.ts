@@ -1,17 +1,12 @@
 export const APP_NAME = 'Hikyaku'
 export const APP_HOME_LABEL = `${APP_NAME} — home`
 
-/** In-app product links (always valid). */
 export const PRODUCT_LINKS = {
   docs: '/docs',
   /** Real console entry (sign-in / app). */
   console: '/login',
   faq: '/#faq',
-  /**
-   * Brand story — why the name Hikyaku / 飛脚.
-   * Path stays `/why-haiku` (stable URL); document.title is `Why Hikyaku` (not the pun "Haiku").
-   */
-  whyHaiku: '/why-haiku',
+  whyHikyaku: '/why-hikyaku',
   home: '/',
 } as const
 

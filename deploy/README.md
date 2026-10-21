@@ -18,7 +18,7 @@ node deploy/setup.mjs
 docker compose --env-file .env.production -f compose.production.yml up -d --build
 ```
 
-Open https://localhost/bootstrap. Find `ADMIN_BOOTSTRAP_SECRET` in your local `.env.production` (do not commit or share it). Create your account and workspace, sign in, add a receiver, send a sample event, and inspect deliveries.
+Open https://localhost/bootstrap. Find `ADMIN_BOOTSTRAP_SECRET` in your local `.env.production` (do not commit or share it). Create your account and workspace, sign in, add a receiver, send a test event, and inspect deliveries.
 
 Production receivers must be publicly resolvable HTTPS endpoints; private addresses are intentionally blocked.
 

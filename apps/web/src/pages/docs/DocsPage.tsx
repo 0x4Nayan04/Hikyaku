@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 
 import guideHtml from '@/docs/guide.md?html'
 import { copyToClipboard } from '@/lib/clipboard'
+import { COPY_FEEDBACK_MS } from '@/lib/ui-timing'
 
 export function DocsPage() {
   const articleRef = useRef<HTMLElement>(null)
@@ -20,11 +21,11 @@ export function DocsPage() {
       void copyToClipboard(code, 'Code').then((ok) => {
         if (!ok) return
         button.textContent = 'Copied'
-        button.setAttribute('aria-label', 'Copied')
+        button.setAttribute('aria-label', 'Copied code')
         window.setTimeout(() => {
           button.textContent = 'Copy'
           button.setAttribute('aria-label', 'Copy code')
-        }, 1500)
+        }, COPY_FEEDBACK_MS)
       })
     }
 

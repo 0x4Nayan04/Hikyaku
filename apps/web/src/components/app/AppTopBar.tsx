@@ -223,7 +223,7 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
                         }}
                       >
                         <LogOut className="nav-user-menu-row-icon" aria-hidden="true" />
-                        <span className="nav-user-menu-row-label">Log out</span>
+                        <span className="nav-user-menu-row-label">Sign out</span>
                       </button>
                     </div>
                   </div>

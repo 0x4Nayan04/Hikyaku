@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
-
-const POLL_INTERVAL_MS = 5_000
+import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
 
 type UsePollingOptions = {
   enabled?: boolean
@@ -11,7 +10,7 @@ type UsePollingOptions = {
 
 export function usePolling({
   enabled = true,
-  intervalMs = POLL_INTERVAL_MS,
+  intervalMs = POLL_DEFAULT_MS,
   onPoll,
   refreshOnVisible = false,
 }: UsePollingOptions) {

@@ -154,7 +154,7 @@ export default function Endpoints() {
   return (
     <ConsolePage
       title="Endpoints"
-      description="Receiver URLs for this tenant. Signing secrets are shown once on create or rotate."
+      description="Receiver URLs for this workspace. Signing secrets are shown once on create or rotate."
     >
       {error ? (
         <PageBanner variant="error" title="Could not load endpoints" description={error} />

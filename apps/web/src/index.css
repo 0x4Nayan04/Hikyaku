@@ -3,7 +3,6 @@
 @import 'tailwindcss';
 @import './styles/animate.css';
 
-@custom-variant dark (&:is(.dark *));
 @custom-variant data-disabled {
   &:where([data-disabled='true']),
   &:where([data-disabled]:not([data-disabled='false'])) {
@@ -32,7 +31,7 @@
   }
 
   body {
-    background-color: var(--color-background, #f4f6f8);
+    background-color: var(--color-background, hsl(210 18% 96%));
     color: var(--color-ink, #121820);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -69,7 +68,6 @@
   border-radius: 0 !important;
 }
 
-/* Accessibility */
 .sr-only {
   position: absolute;
   width: 1px;

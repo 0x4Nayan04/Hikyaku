@@ -7,6 +7,7 @@ import { ApiError, getDelivery, replayDelivery } from '@/api/client'
 import type { DeliveryDetail as DeliveryDetailType } from '@/api/types'
 import DeliveryDetail from '@/pages/DeliveryDetail'
 import { toast } from '@/lib/toast'
+import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
 
 vi.mock('@/lib/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
@@ -183,17 +184,17 @@ describe('Delivery replay recovery', () => {
       ),
     ).toBe(false)
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(10_000)
+      await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS)
     })
     expect(getDelivery).toHaveBeenCalledTimes(3)
     expect(container.textContent).toContain('Retrying…')
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(10_000)
+      await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS)
     })
     expect(container.textContent).not.toContain('Replay queued;')
     expect(container.textContent).toContain('Succeeded')
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(20_000)
+      await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS * 2)
     })
     expect(getDelivery).toHaveBeenCalledTimes(4)
     expect(replayDelivery).toHaveBeenCalledTimes(1)
@@ -210,7 +211,7 @@ describe('Delivery replay recovery', () => {
     expect(toast.success).not.toHaveBeenCalled()
     expect(document.body.textContent).toContain('Confirm replay')
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(10_000)
+      await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS)
     })
     expect(getDelivery).toHaveBeenCalledTimes(1)
   })
@@ -237,7 +238,7 @@ describe('Delivery replay recovery', () => {
     expect(container.textContent).toContain('Delivery other-de')
     expect(toast.success).not.toHaveBeenCalled()
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(10_000)
+      await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS)
     })
     expect(getDelivery).toHaveBeenCalledTimes(2)
   })
@@ -253,7 +254,7 @@ describe('Delivery replay recovery', () => {
     Object.defineProperty(document, 'hidden', { configurable: true, value: true })
     document.dispatchEvent(new Event('visibilitychange'))
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(20_000)
+      await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS * 2)
     })
     expect(getDelivery).toHaveBeenCalledTimes(2)
     await act(async () => {
@@ -263,7 +264,7 @@ describe('Delivery replay recovery', () => {
     Object.defineProperty(document, 'hidden', { configurable: true, value: false })
     document.dispatchEvent(new Event('visibilitychange'))
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(20_000)
+      await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS * 2)
     })
     expect(getDelivery).toHaveBeenCalledTimes(3)
   })

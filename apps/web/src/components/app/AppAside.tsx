@@ -51,6 +51,7 @@ export function AppAside({ session, loading, isSuperAdmin, className }: AppAside
         <a href="/docs" target="_blank" rel="noopener noreferrer" className="app-aside-docs-link">
           <BookOpen className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
           <span>Documentation</span>
+          <span className="sr-only">(opens in a new tab)</span>
         </a>
       </div>
     </aside>

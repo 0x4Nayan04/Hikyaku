@@ -18,7 +18,7 @@ const FOOTER_GROUPS: { label: string; links: FooterLink[] }[] = [
     links: [
       { label: 'Features', href: '/#features' },
       { label: 'How it works', href: '/#how-it-works' },
-      { label: `Why ${APP_NAME}`, href: PRODUCT_LINKS.whyHaiku },
+      { label: `Why ${APP_NAME}`, href: PRODUCT_LINKS.whyHikyaku },
       { label: 'FAQ', href: PRODUCT_LINKS.faq },
     ],
   },

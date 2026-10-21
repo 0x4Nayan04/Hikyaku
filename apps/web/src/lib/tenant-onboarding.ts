@@ -7,7 +7,6 @@ export type OnboardingStep = {
   done: boolean
 }
 
-/** Ordered first-run checklist for an empty tenant dashboard. */
 export function buildOnboardingSteps(opts: {
   hasActiveEndpoint: boolean
   hasAnyEndpoint: boolean

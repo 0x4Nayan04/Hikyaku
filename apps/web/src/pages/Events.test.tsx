@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { listEvents } from '@/api/client'
 import type { EventSummary, Paginated } from '@/api/types'
+import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
 import Events from '@/pages/Events'
 
 vi.mock('@/api/client', async (importOriginal) => {
@@ -46,7 +47,7 @@ async function renderEvents(path = '/events') {
   })
 }
 
-async function advance(ms = 10_000) {
+async function advance(ms = POLL_DEFAULT_MS) {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(ms)
   })
@@ -95,14 +96,14 @@ describe('Events polling', () => {
       .mockResolvedValue(page([event]))
 
     await renderEvents()
-    await advance(10_000)
+    await advance()
     expect(listEvents).toHaveBeenCalledTimes(1)
     expect(signal.aborted).toBe(false)
 
     await act(async () => {
       finish(page([event]))
     })
-    await advance(10_000)
+    await advance()
     expect(listEvents).toHaveBeenCalledTimes(2)
     expect(container.textContent).toContain('order.created')
   })

@@ -20,6 +20,8 @@ import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { LiveChip } from '@/components/console/LiveChip'
 import { usePolling } from '@/hooks/usePolling'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { formatStatusLabel } from '@/lib/format'
+import { POLL_FAST_MS, POLL_SLOW_MS } from '@/lib/ui-timing'
 
 type DeliveryListStatus = 'all' | DeliveryStatus | 'open'
 
@@ -27,7 +29,7 @@ const STATUS_OPTIONS: Array<{ value: DeliveryListStatus; label: string }> = [
   { value: 'all', label: 'All statuses' },
   { value: 'open', label: 'Open' },
   { value: 'pending', label: 'Pending' },
-  { value: 'in_progress', label: 'In progress' },
+  { value: 'in_progress', label: formatStatusLabel('in_progress') },
   { value: 'succeeded', label: 'Succeeded' },
   { value: 'failed', label: 'Failed' },
 ]
@@ -80,8 +82,9 @@ export default function Deliveries() {
   const hasActiveDeliveries = deliveries.some(
     (delivery) => delivery.status === 'pending' || delivery.status === 'in_progress',
   )
+  const pollIntervalMs = hasActiveDeliveries ? POLL_FAST_MS : POLL_SLOW_MS
   usePolling({
-    intervalMs: hasActiveDeliveries ? 5_000 : 15_000,
+    intervalMs: pollIntervalMs,
     refreshOnVisible: true,
     onPoll: refresh,
   })
@@ -204,7 +207,7 @@ export default function Deliveries() {
     <ConsolePage
       title="Deliveries"
       description="One row per event and endpoint. Open a row for each attempt."
-      actions={<LiveChip active={isLive} />}
+      actions={<LiveChip active={isLive} intervalMs={pollIntervalMs} />}
     >
       {error ? (
         <PageBanner variant="error" title="Could not load deliveries" description={error} />
