@@ -891,7 +891,7 @@
     color: var(--color-ink);
   }
   .lp-faq__answer {
-    padding-block: 0 var(--faq-panel-pad-bottom);
+    padding-block: var(--faq-panel-pad-bottom);
     font-size: 0.9375rem;
     line-height: 1.65;
     color: var(--color-muted-strong);
@@ -905,7 +905,7 @@
   }
   .lp-faq__steps {
     margin: 0;
-    padding: 0;
+    padding: 0 0 0 var(--lp-faq-gutter-x);
     list-style: none;
     display: flex;
     flex-direction: column;
@@ -915,6 +915,7 @@
   .lp-faq__steps li {
     position: relative;
     padding-left: 1.65rem;
+    list-style: none;
   }
   .lp-faq__steps li::before {
     counter-increment: lp-faq-step;
@@ -926,6 +927,9 @@
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--color-primary);
+  }
+  .lp-faq__steps li::marker {
+    content: none;
   }
   .lp-faq__prose {
     display: flex;
