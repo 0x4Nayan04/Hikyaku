@@ -1,0 +1,2306 @@
+openapi: 3.1.0
+info:
+  title: Hikyaku API
+  version: 1.0.0
+  license:
+    name: MIT
+    identifier: MIT
+  description:
+    'Multi-tenant signed webhook delivery. Sending events uses an ingest Bearer key or tenant
+    session; managing a workspace requires signing in. All /v1/admin operations require a super-admin
+    session. Production requests carrying sid and changing data require an allowlisted Origin, except
+    Bearer ingest. Resource lookups are tenant-scoped. List pagination uses limit/offset and has_more.
+    Request JSON is limited to 256 KiB. Outbound delivery is at-least-once: receivers must deduplicate
+    X-Webhook-Id. This document describes the current source contract, not a verified deployed version.
+    Source: docs/openapi.yaml; the web build publishes an identical /openapi.yaml.'
+servers:
+  - url: https://hikyaku.nayanswarnkar.com
+    description: Public demo web origin; /v1 is proxied to the API. Invite-only console, bootstrap closed.
+  - url: http://localhost:3000
+    description: Local API (direct). Replace with your own deployment origin as needed.
+externalDocs:
+  url: https://hikyaku.nayanswarnkar.com/docs
+  description: Guides, curl walkthrough and webhook signature verification
+security:
+  - sessionCookie: []
+tags:
+  - name: Health
+    description: Public process and dependency checks.
+  - name: Auth
+    description: First install, sessions, invites and password resets.
+  - name: Stats
+    description: Tenant dashboard statistics.
+  - name: Endpoints
+    description: Tenant receiver registration and signing secrets.
+  - name: Events
+    description: Ingest and tenant event inspection.
+  - name: Deliveries
+    description: Tenant delivery attempts and replay.
+  - name: Api-Keys
+    description: Tenant ingest credential management; session required.
+  - name: Admin
+    description: Platform management; super-admin session required.
+paths:
+  /v1/health:
+    get:
+      operationId: getHealth
+      tags:
+        - Health
+      summary: Check API process health
+      description: Process-only probe; does not check dependencies or worker execution.
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        default:
+          $ref: '#/components/responses/InternalError'
+  /v1/ready:
+    get:
+      operationId: getReadiness
+      tags:
+        - Health
+      summary: Check Postgres and Redis readiness
+      description:
+        HTTP 200 when both dependencies respond, otherwise 503. Does not prove worker execution
+        or webhook delivery.
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        default:
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: Postgres or Redis is unavailable. This response is not the standard error envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+  /v1/auth/bootstrap-status:
+    get:
+      operationId: getBootstrapStatus
+      tags:
+        - Auth
+      summary: Check whether first-install bootstrap is available
+      description: Check whether first-install bootstrap is available
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - available
+                properties:
+                  available:
+                    type: boolean
+        default:
+          $ref: '#/components/responses/InternalError'
+  /v1/auth/bootstrap:
+    post:
+      operationId: bootstrap
+      tags:
+        - Auth
+      summary: Create first administrator and workspace
+      description:
+        'First install only: available only while there are zero users. Does not sign in or
+        set an authenticated session. Closed on the public demo.'
+      security:
+        - bootstrapSecret: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - user
+                properties:
+                  user:
+                    type: object
+                    required:
+                      - id
+                      - email
+                      - is_super_admin
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      email:
+                        type: string
+                        format: email
+                        maxLength: 320
+                        description: Trimmed and lowercased before use.
+                      is_super_admin:
+                        type: boolean
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BootstrapInput'
+  /v1/auth/workspace:
+    post:
+      operationId: createWorkspace
+      tags:
+        - Auth
+      summary: Attach a workspace to an existing super-admin account
+      description:
+        Super-admin only. Returns the existing workspace if already attached; otherwise creates
+        one and renews this session. Body may be omitted for the default name.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceInput'
+  /v1/auth/invites/validate:
+    get:
+      operationId: validateInvite
+      tags:
+        - Auth
+      summary: Inspect an unused invite
+      description: Inspect an unused invite
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invite'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Token'
+  /v1/auth/accept-invite:
+    post:
+      operationId: acceptInvite
+      tags:
+        - Auth
+      summary: Accept a signup invite
+      description:
+        Consumes a tenant_owner or tenant_user invite and creates the account. Does not sign
+        in. Password-reset links are rejected.
+      security: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        default:
+          $ref: '#/components/responses/InternalError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInviteInput'
+  /v1/auth/password-reset/validate:
+    get:
+      operationId: validatePasswordReset
+      tags:
+        - Auth
+      summary: Inspect an unused password-reset link
+      description: Inspect an unused password-reset link
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - email
+                  - expires_at
+                properties:
+                  email:
+                    type: string
+                    format: email
+                    maxLength: 320
+                    description: Trimmed and lowercased before use.
+                  expires_at:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Token'
+  /v1/auth/password-reset:
+    post:
+      operationId: resetPassword
+      tags:
+        - Auth
+      summary: Reset password using a one-time token
+      description:
+        Consumes the link and revokes existing sessions. Does not sign in. Auth rate limits
+        apply.
+      security: []
+      responses:
+        '204':
+          description: Success; no response body.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        default:
+          $ref: '#/components/responses/InternalError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetInput'
+  /v1/auth/login:
+    post:
+      operationId: login
+      tags:
+        - Auth
+      summary: Sign in and save the sid cookie
+      description:
+        'Creates a session. Save Set-Cookie and send sid on subsequent management requests.
+        Default rate limit: 20/minute per IP and normalized email when supplied; configurable.'
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+          headers:
+            Set-Cookie:
+              description:
+                'sid session cookie; HttpOnly, Secure and SameSite=None in production. Default
+                lifetime: 7 days, configurable.'
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        default:
+          $ref: '#/components/responses/InternalError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+  /v1/auth/logout:
+    post:
+      operationId: logout
+      tags:
+        - Auth
+      summary: Destroy current session
+      description: Destroy current session
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: Success; no response body.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+  /v1/auth/me:
+    get:
+      operationId: getCurrentUser
+      tags:
+        - Auth
+      summary: Read current user and workspace
+      description: Read current user and workspace
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - user
+                  - tenant
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  tenant:
+                    anyOf:
+                      - $ref: '#/components/schemas/Workspace'
+                      - type: 'null'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/InternalError'
+  /v1/auth/change-password:
+    post:
+      operationId: changePassword
+      tags:
+        - Auth
+      summary: Change password and revoke sessions
+      description:
+        Requires current password. Revokes all user sessions including the current one; sign
+        in again.
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: Success; no response body.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordInput'
+  /v1/stats:
+    get:
+      operationId: getStats
+      tags:
+        - Stats
+      summary: Read workspace dashboard statistics
+      description: Read workspace dashboard statistics
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/InternalError'
+  /v1/endpoints:
+    get:
+      operationId: listEndpoints
+      tags:
+        - Endpoints
+      summary: List workspace endpoints
+      description: List workspace endpoints
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EndpointPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: status
+          in: query
+          required: false
+          description: Optional endpoint status filter.
+          schema:
+            type: string
+            enum:
+              - active
+              - disabled
+    post:
+      operationId: createEndpoint
+      tags:
+        - Endpoints
+      summary: Register a receiver
+      description:
+        Creates an active endpoint. Save the signing secret; it is not returned by listing.
+        URL registration checks DNS and URL safety.
+      security:
+        - sessionCookie: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EndpointWithSecret'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEndpointInput'
+  /v1/endpoints/{id}:
+    patch:
+      operationId: patchEndpoint
+      tags:
+        - Endpoints
+      summary: Change endpoint status or description
+      description: Change endpoint status or description
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Endpoint'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchEndpointInput'
+  /v1/endpoints/{id}/rotate:
+    post:
+      operationId: rotateEndpointSecret
+      tags:
+        - Endpoints
+      summary: Rotate endpoint signing secret
+      description:
+        Replaces the previous secret immediately; no dual-secret overlap. Save the new secret
+        and update the receiver.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EndpointWithSecret'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Origin'
+  /v1/events:
+    post:
+      operationId: ingestEvent
+      tags:
+        - Events
+      summary: Accept an event and fan out deliveries
+      description:
+        '202 means accepted, not delivered. Idempotency key is scoped to the tenant. Retrying
+        the same key/type/payload reuses the event and can create missing deliveries for active endpoints;
+        a different type or payload returns 409 idempotency_mismatch. Enqueue failure can return 503 after
+        persistence; retry with the same key/body. Default tenant limit: 120/minute; Bearer requests also
+        have an IP limit. Bearer auth takes precedence when supplied and bypasses session/CSRF.'
+      security:
+        - ingestBearer: []
+        - sessionCookie: []
+      responses:
+        '202':
+          description: Accepted; delivery is asynchronous.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestInput'
+            example:
+              idempotency_key: order-123.created
+              type: order.created
+              payload:
+                order_id: '123'
+    get:
+      operationId: listEvents
+      tags:
+        - Events
+      summary: List workspace events
+      description: List workspace events
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: status
+          in: query
+          required: false
+          description: Optional event status filter.
+          schema:
+            type: string
+            enum:
+              - pending
+              - completed
+              - partial_failure
+              - failed
+              - no_recipients
+  /v1/events/{id}:
+    get:
+      operationId: getEvent
+      tags:
+        - Events
+      summary: Read event payload and delivery summary
+      description: Read event payload and delivery summary
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+  /v1/deliveries:
+    get:
+      operationId: listDeliveries
+      tags:
+        - Deliveries
+      summary: List workspace deliveries
+      description: List workspace deliveries
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: status
+          in: query
+          required: false
+          description: open means pending or in_progress.
+          schema:
+            type: string
+            enum:
+              - pending
+              - in_progress
+              - succeeded
+              - failed
+              - open
+        - name: event_id
+          in: query
+          required: false
+          description: Filter by event UUID; malformed query UUIDs return 400.
+          schema:
+            type: string
+            format: uuid
+        - name: updated_within
+          in: query
+          required: false
+          description: Deliveries updated within the last 24 hours.
+          schema:
+            type: string
+            enum:
+              - 24h
+  /v1/deliveries/{id}:
+    get:
+      operationId: getDelivery
+      tags:
+        - Deliveries
+      summary: Read a delivery and its attempt timeline
+      description:
+        Attempts are ordered by run_number then attempt_number; historical attempts are preserved
+        across replays.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+  /v1/deliveries/{id}/replay:
+    post:
+      operationId: replayDelivery
+      tags:
+        - Deliveries
+      summary: Accept a failed or pending delivery for replay
+      description:
+        Only failed or pending deliveries on active endpoints can be replayed. Succeeded, in_progress
+        and disabled-endpoint deliveries return 400 invalid_state. A failed delivery resets attempts and
+        increments replay_count; pending deliveries are re-enqueued. 202 means accepted, not delivered.
+        Enqueue may return 503 after the state change has committed.
+      security:
+        - sessionCookie: []
+      responses:
+        '202':
+          description: Accepted; delivery is asynchronous.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Origin'
+  /v1/api-keys:
+    get:
+      operationId: listApiKeys
+      tags:
+        - Api-Keys
+      summary: List workspace API keys without full secrets
+      description: List workspace API keys without full secrets
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: status
+          in: query
+          required: false
+          description: Optional key status filter.
+          schema:
+            type: string
+            enum:
+              - active
+              - revoked
+    post:
+      operationId: createApiKey
+      tags:
+        - Api-Keys
+      summary: Create an ingest-only API key
+      description:
+        Save api_key now; the full key is never returned by list. The key authorizes POST /v1/events
+        only.
+      security:
+        - sessionCookie: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyWithSecret'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+  /v1/api-keys/{id}/revoke:
+    post:
+      operationId: revokeApiKey
+      tags:
+        - Api-Keys
+      summary: Revoke an API key
+      description: Revoke an API key
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Origin'
+  /v1/api-keys/{id}/rotate:
+    post:
+      operationId: rotateApiKey
+      tags:
+        - Api-Keys
+      summary: Revoke a key and return its replacement
+      description:
+        Atomically revokes the old key and creates a replacement. Save the new full key. Revoked
+        keys cannot be rotated.
+      security:
+        - sessionCookie: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyWithSecret'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Origin'
+  /v1/admin/tenants:
+    get:
+      operationId: listTenants
+      tags:
+        - Admin
+      summary: List workspaces (super-admin)
+      description: List workspaces (super-admin)
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: search
+          in: query
+          required: false
+          description:
+            Trimmed case-insensitive name substring, full UUID, or UUID hex prefix (8..32 hex
+            digits, ignoring hyphens).
+          schema:
+            type: string
+  /v1/admin/tenants/{id}:
+    get:
+      operationId: getTenant
+      tags:
+        - Admin
+      summary: Read workspace (super-admin)
+      description: Read workspace (super-admin)
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+    patch:
+      operationId: patchTenant
+      tags:
+        - Admin
+      summary: Rename workspace (super-admin)
+      description: Rename workspace (super-admin)
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalError'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tenant_name
+              properties:
+                tenant_name:
+                  type: string
+                  minLength: 1
+                  maxLength: 256
+                  description: Trimmed before validation.
+    delete:
+      operationId: deleteTenant
+      tags:
+        - Admin
+      summary: Delete workspace and its data (super-admin)
+      description:
+        Deletes the workspace and cascaded tenant data; revokes its sessions. Refuses a workspace
+        linked to a super-admin (409 workspace_has_admin).
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: Success; no response body.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Origin'
+  /v1/admin/tenants/{id}/users:
+    get:
+      operationId: listTenantUsers
+      tags:
+        - Admin
+      summary: List workspace users (super-admin)
+      description: List workspace users (super-admin)
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+  /v1/admin/tenants/{id}/users/{userId}:
+    delete:
+      operationId: deleteTenantUser
+      tags:
+        - Admin
+      summary: Delete workspace user (super-admin)
+      description:
+        Revokes the user sessions and pending password-reset links. Refuses self-deletion,
+        deleting a super-admin, or deleting the last workspace user (409).
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: Success; no response body.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Origin'
+  /v1/admin/tenants/{id}/users/{userId}/reset-password:
+    post:
+      operationId: createPasswordReset
+      tags:
+        - Admin
+      summary: Create a one-time password-reset link (super-admin)
+      description:
+        Returns a copy-paste reset URL; no email is sent. Invalidates earlier unused password-reset
+        links for that email.
+      security:
+        - sessionCookie: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetLink'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Origin'
+  /v1/admin/invites:
+    post:
+      operationId: createInvite
+      tags:
+        - Admin
+      summary: Create a signup invite (super-admin)
+      description:
+        Returns a copy-paste invite URL; no email is sent. Invalidates earlier pending signup
+        invites for the email. Existing accounts return 409 conflict.
+      security:
+        - sessionCookie: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteLink'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        default:
+          $ref: '#/components/responses/InternalError'
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInviteInput'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: sid
+      description:
+        Saved from login. Management requires a tenant session; /auth routes accept authenticated
+        sessions without a tenant where applicable. Admin routes additionally require is_super_admin.
+    ingestBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: whk_<32 hex characters>
+      description: Authorizes POST /v1/events only; never management/listing/replay.
+    bootstrapSecret:
+      type: apiKey
+      in: header
+      name: X-Admin-Secret
+      description:
+        Installer secret from server configuration, first bootstrap only. Never expose in browser
+        bundles.
+  parameters:
+    Origin:
+      name: Origin
+      in: header
+      required: false
+      description:
+        'Required in production for non-safe requests carrying the sid cookie: must exactly
+        match an allowlisted CORS_ORIGIN. Not required for Bearer ingest, which skips the session/CSRF
+        stack.'
+      schema:
+        type: string
+        format: uri
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Integer input is clamped to 1..100; non-integers return 400.
+      schema:
+        type: integer
+        default: 50
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Integer input is clamped to zero or greater; non-integers return 400.
+      schema:
+        type: integer
+        default: 0
+    Token:
+      name: token
+      in: query
+      required: true
+      description: One-time invite or reset token from the supplied link.
+      schema:
+        type: string
+        minLength: 1
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    Health:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+        revision:
+          type: string
+    Readiness:
+      type: object
+      required:
+        - status
+        - postgres
+        - redis
+      properties:
+        status:
+          type: string
+          enum:
+            - ready
+            - not_ready
+        postgres:
+          type: string
+          enum:
+            - up
+            - down
+        redis:
+          type: string
+          enum:
+            - up
+            - down
+        revision:
+          type: string
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - is_super_admin
+        - tenant_id
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          maxLength: 320
+          description: Trimmed and lowercased before use.
+        name:
+          type: string
+        is_super_admin:
+          type: boolean
+        tenant_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+    UserResponse:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+    Workspace:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    Tenant:
+      type: object
+      required:
+        - id
+        - name
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    LoginInput:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+          description: Trimmed and lowercased before use.
+        password:
+          type: string
+          minLength: 1
+          format: password
+          writeOnly: true
+    WorkspaceInput:
+      type: object
+      required: []
+      properties:
+        workspace_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          default: My workspace
+          description: Trimmed before validation.
+    BootstrapInput:
+      type: object
+      required:
+        - email
+        - password
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+          description: Trimmed and lowercased before use.
+        password:
+          type: string
+          minLength: 12
+          format: password
+          writeOnly: true
+          description: At most 128 UTF-8 bytes; the byte limit is enforced by the API.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Trimmed before validation.
+        workspace_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          default: My workspace
+    ChangePasswordInput:
+      type: object
+      required:
+        - current_password
+        - new_password
+      properties:
+        current_password:
+          type: string
+          minLength: 1
+          format: password
+          writeOnly: true
+        new_password:
+          type: string
+          minLength: 12
+          format: password
+          writeOnly: true
+          description: At most 128 UTF-8 bytes; the byte limit is enforced by the API.
+    AcceptInviteInput:
+      type: object
+      required:
+        - token
+        - name
+        - password
+      properties:
+        token:
+          type: string
+          minLength: 1
+          writeOnly: true
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Trimmed before validation.
+        password:
+          type: string
+          minLength: 12
+          format: password
+          writeOnly: true
+          description: At most 128 UTF-8 bytes; the byte limit is enforced by the API.
+    PasswordResetInput:
+      type: object
+      required:
+        - token
+        - password
+      properties:
+        token:
+          type: string
+          minLength: 1
+          writeOnly: true
+        password:
+          type: string
+          minLength: 12
+          format: password
+          writeOnly: true
+          description: At most 128 UTF-8 bytes; the byte limit is enforced by the API.
+    CreateEndpointInput:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description:
+            Resolvable HTTP(S) URL. Production rejects private/loopback targets; DNS and SSRF
+            checks also apply at delivery time.
+        description:
+          type: string
+          maxLength: 512
+    PatchEndpointInput:
+      type: object
+      required: []
+      properties:
+        status:
+          type: string
+          enum:
+            - active
+            - disabled
+        description:
+          type: string
+          maxLength: 512
+      anyOf:
+        - required:
+            - status
+        - required:
+            - description
+      description:
+        At least one of status or description. Sending url or secret is rejected with immutable_field;
+        rotate with the dedicated operation.
+    EndpointLastDelivery:
+      type: object
+      required:
+        - id
+        - status
+        - updated_at
+        - last_error
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - pending
+            - in_progress
+            - succeeded
+            - failed
+        updated_at:
+          type: string
+          format: date-time
+        last_error:
+          anyOf:
+            - type: string
+            - type: 'null'
+    Endpoint:
+      type: object
+      required:
+        - id
+        - url
+        - status
+        - description
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum:
+            - active
+            - disabled
+        description:
+          anyOf:
+            - type: string
+            - type: 'null'
+        created_at:
+          type: string
+          format: date-time
+        last_delivery:
+          anyOf:
+            - $ref: '#/components/schemas/EndpointLastDelivery'
+            - type: 'null'
+    EndpointWithSecret:
+      allOf:
+        - $ref: '#/components/schemas/Endpoint'
+        - type: object
+          required:
+            - secret
+          properties:
+            secret:
+              type: string
+              description: Signing secret, shown only at creation and rotation; save securely.
+              pattern: ^whsec_
+    IngestInput:
+      type: object
+      required:
+        - idempotency_key
+        - type
+        - payload
+      properties:
+        idempotency_key:
+          type: string
+          minLength: 1
+          maxLength: 256
+        type:
+          type: string
+          minLength: 1
+          maxLength: 128
+        payload:
+          type: object
+          additionalProperties: true
+          description:
+            JSON object. Nested values must be valid JSON; numbers must be finite, integers
+            safe, and negative zero is rejected.
+      description:
+        'JSON body limit: 256 KiB. Also validates JSON.stringify(data).length <= 262144. Unknown
+        top-level properties are stripped.'
+    IngestResult:
+      type: object
+      required:
+        - id
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - pending
+            - completed
+            - partial_failure
+            - failed
+            - no_recipients
+        created_at:
+          type: string
+          format: date-time
+    Event:
+      type: object
+      required:
+        - id
+        - idempotency_key
+        - type
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        idempotency_key:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+          enum:
+            - pending
+            - completed
+            - partial_failure
+            - failed
+            - no_recipients
+        created_at:
+          type: string
+          format: date-time
+    EventDetail:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - type: object
+          required:
+            - payload
+            - deliveries_summary
+          properties:
+            payload:
+              type: object
+              additionalProperties: true
+            deliveries_summary:
+              type: object
+              required:
+                - total
+                - succeeded
+                - failed
+                - pending
+              properties:
+                total:
+                  type: integer
+                  minimum: 0
+                succeeded:
+                  type: integer
+                  minimum: 0
+                failed:
+                  type: integer
+                  minimum: 0
+                pending:
+                  type: integer
+                  minimum: 0
+              description: pending includes both pending and in_progress deliveries.
+    Delivery:
+      type: object
+      required:
+        - id
+        - event_id
+        - endpoint_id
+        - endpoint_url
+        - status
+        - attempt_count
+        - replay_count
+        - next_retry_at
+        - last_error
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        endpoint_id:
+          type: string
+          format: uuid
+        endpoint_url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum:
+            - pending
+            - in_progress
+            - succeeded
+            - failed
+        attempt_count:
+          type: integer
+          minimum: 0
+        replay_count:
+          type: integer
+          minimum: 0
+        next_retry_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        last_error:
+          anyOf:
+            - type: string
+            - type: 'null'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    DeliveryAttempt:
+      type: object
+      required:
+        - attempt_number
+        - run_number
+        - http_status
+        - response_body
+        - error
+        - duration_ms
+        - created_at
+      properties:
+        attempt_number:
+          type: integer
+        run_number:
+          type: integer
+        http_status:
+          anyOf:
+            - type: integer
+            - type: 'null'
+        response_body:
+          anyOf:
+            - type: string
+            - type: 'null'
+        error:
+          anyOf:
+            - type: string
+            - type: 'null'
+        duration_ms:
+          anyOf:
+            - type: integer
+            - type: 'null'
+        created_at:
+          type: string
+          format: date-time
+    DeliveryDetail:
+      allOf:
+        - $ref: '#/components/schemas/Delivery'
+        - type: object
+          required:
+            - endpoint_status
+            - attempts
+          properties:
+            endpoint_status:
+              type: string
+              enum:
+                - active
+                - disabled
+            attempts:
+              type: array
+              items:
+                $ref: '#/components/schemas/DeliveryAttempt'
+    ReplayResult:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - pending
+    ApiKey:
+      type: object
+      required:
+        - id
+        - prefix
+        - created_at
+        - last_used_at
+        - revoked_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        prefix:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        revoked_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+    ApiKeyWithSecret:
+      allOf:
+        - $ref: '#/components/schemas/ApiKey'
+        - type: object
+          required:
+            - api_key
+          properties:
+            api_key:
+              type: string
+              pattern: ^whk_[0-9a-f]{32}$
+              description: Full key is returned only once, on creation or rotation.
+    Stats:
+      type: object
+      required:
+        - events_today
+        - deliveries_active
+        - deliveries_succeeded_24h
+        - deliveries_failed_24h
+        - success_rate_24h
+      properties:
+        events_today:
+          type: integer
+          minimum: 0
+        deliveries_active:
+          type: integer
+          minimum: 0
+        deliveries_succeeded_24h:
+          type: integer
+          minimum: 0
+        deliveries_failed_24h:
+          type: integer
+          minimum: 0
+        success_rate_24h:
+          anyOf:
+            - type: number
+              minimum: 0
+              maximum: 1
+            - type: 'null'
+      description:
+        events_today uses UTC midnight; active is pending/in_progress. Success rate covers
+        terminal deliveries updated in the last 24h, or null when none.
+    CreateInviteInput:
+      oneOf:
+        - type: object
+          required:
+            - kind
+            - tenant_name
+            - owner_email
+          properties:
+            kind:
+              type: string
+              enum:
+                - tenant_owner
+            tenant_name:
+              type: string
+              minLength: 1
+              maxLength: 256
+              description: Trimmed before validation.
+            owner_email:
+              type: string
+              format: email
+              maxLength: 320
+              description: Trimmed and lowercased before use.
+            owner_name:
+              type: string
+              minLength: 1
+              maxLength: 256
+              description: Trimmed before validation.
+        - type: object
+          required:
+            - kind
+            - tenant_id
+            - email
+          properties:
+            kind:
+              type: string
+              enum:
+                - tenant_user
+            tenant_id:
+              type: string
+              format: uuid
+            email:
+              type: string
+              format: email
+              maxLength: 320
+              description: Trimmed and lowercased before use.
+            name:
+              type: string
+              minLength: 1
+              maxLength: 256
+              description: Trimmed before validation.
+      discriminator:
+        propertyName: kind
+    Invite:
+      type: object
+      required:
+        - kind
+        - email
+        - tenant_name
+        - invited_name
+        - expires_at
+      properties:
+        kind:
+          type: string
+          description: Stored invite kind, including password_reset.
+        email:
+          type: string
+          format: email
+          maxLength: 320
+          description: Trimmed and lowercased before use.
+        tenant_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+        invited_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+        expires_at:
+          type: string
+          format: date-time
+    InviteLink:
+      type: object
+      required:
+        - invite_url
+        - expires_at
+      properties:
+        invite_url:
+          type: string
+          format: uri
+        expires_at:
+          type: string
+          format: date-time
+    PasswordResetLink:
+      type: object
+      required:
+        - reset_url
+        - expires_at
+      properties:
+        reset_url:
+          type: string
+          format: uri
+        expires_at:
+          type: string
+          format: date-time
+    EndpointPage:
+      type: object
+      required:
+        - data
+        - has_more
+        - limit
+        - offset
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Endpoint'
+        has_more:
+          type: boolean
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        offset:
+          type: integer
+          minimum: 0
+      description:
+        Newest first by created_at then id. has_more indicates another page; total count is
+        not returned.
+    EventPage:
+      type: object
+      required:
+        - data
+        - has_more
+        - limit
+        - offset
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+        has_more:
+          type: boolean
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        offset:
+          type: integer
+          minimum: 0
+      description:
+        Newest first by created_at then id. has_more indicates another page; total count is
+        not returned.
+    DeliveryPage:
+      type: object
+      required:
+        - data
+        - has_more
+        - limit
+        - offset
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Delivery'
+        has_more:
+          type: boolean
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        offset:
+          type: integer
+          minimum: 0
+      description:
+        Newest first by created_at then id. has_more indicates another page; total count is
+        not returned.
+    ApiKeyPage:
+      type: object
+      required:
+        - data
+        - has_more
+        - limit
+        - offset
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiKey'
+        has_more:
+          type: boolean
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        offset:
+          type: integer
+          minimum: 0
+      description:
+        Newest first by created_at then id. has_more indicates another page; total count is
+        not returned.
+    TenantPage:
+      type: object
+      required:
+        - data
+        - has_more
+        - limit
+        - offset
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tenant'
+        has_more:
+          type: boolean
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        offset:
+          type: integer
+          minimum: 0
+      description:
+        Newest first by created_at then id. has_more indicates another page; total count is
+        not returned.
+    UserPage:
+      type: object
+      required:
+        - data
+        - has_more
+        - limit
+        - offset
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        has_more:
+          type: boolean
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        offset:
+          type: integer
+          minimum: 0
+      description:
+        Newest first by created_at then id. has_more indicates another page; total count is
+        not returned.
+  responses:
+    BadRequest:
+      description:
+        Invalid request, filter, JSON, or operation state. Codes include validation_error,
+        invalid_json, immutable_field and invalid_state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description:
+        Missing/invalid credentials, session or bootstrap secret. Codes include unauthorized,
+        invalid_credentials and invalid_admin_secret.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description:
+        'Origin is not allowed, insufficient privileges, or bootstrap is disabled. Codes: origin_not_allowed,
+        forbidden.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description:
+        Resource not found in the authenticated workspace; malformed resource UUIDs also return
+        404.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description:
+        Conflicting state. Codes include idempotency_mismatch, already_revoked, conflict, workspace_has_admin,
+        cannot_delete_self, cannot_delete_admin and last_tenant_user.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Gone:
+      description:
+        'One-time link expired or already consumed. Codes: invite_used, invite_expired, reset_used,
+        reset_expired.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooLarge:
+      description: JSON body exceeds 256 KiB; code payload_too_large.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description:
+        Fixed-window limit exceeded; code rate_limited. Limits are configurable; no Retry-After
+        header is promised.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unavailable:
+      description:
+        Redis rate-limit or enqueue failure; code service_unavailable. A delivery transaction
+        may already be committed. Retry ingest using the same idempotency key and body.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Unexpected server error; code internal_error. No internal details are exposed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
