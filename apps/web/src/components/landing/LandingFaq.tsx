@@ -33,6 +33,11 @@ const FAQ_ITEMS = [
     q: 'Is there billing?',
     a: 'No. This is a self-hosted project with no paid plans. Admin invites each tenant owner. Per-tenant rate limits still apply.',
   },
+  {
+    id: 'known-limits',
+    q: 'What should I know before production?',
+    a: 'Endpoint signing secrets are stored so the worker can sign POSTs; they are not hashed like API keys. Rotation replaces the secret immediately — there is no dual-secret window. Invites and password resets are copy-paste links, with no email. Delivery is at-least-once; subscribers must dedupe on X-Webhook-Id.',
+  },
 ] as const
 
 type FaqItem = (typeof FAQ_ITEMS)[number]
@@ -44,19 +49,19 @@ function FaqAnswerBody({ item }: { item: FaqItem }) {
         <div className="lp-faq__prose">
           <ol className="lp-faq__steps">
             <li>
-              On a fresh deploy, create the first super-admin at{' '}
-              <Link to="/bootstrap" className="lp-faq__link">
-                /bootstrap
-              </Link>{' '}
-              (once)
+              This public site is landing and docs. The operator console is invite-only — there is
+              no self-serve signup, and first-run setup is not available here.
             </li>
-            <li>From Admin, invite a tenant owner and send the link securely</li>
             <li>
-              Sign in to the{' '}
+              To run a full console, clone the repo, start it locally, and create the installer
+              account at <span translate="no">/bootstrap</span> on that install (once).
+            </li>
+            <li>
+              From Admin, invite a tenant owner. Then use the{' '}
               <Link to={PRODUCT_LINKS.console} className="lp-faq__link">
                 console
-              </Link>
-              , or skip it and use the terminal
+              </Link>{' '}
+              or the terminal.
             </li>
           </ol>
           <p>
@@ -64,6 +69,10 @@ function FaqAnswerBody({ item }: { item: FaqItem }) {
             website or terminal.
           </p>
           <p>
+            <Link to={`${PRODUCT_LINKS.docs}#console-path`} className="lp-faq__link">
+              Website walkthrough
+            </Link>
+            {' · '}
             <Link to={`${PRODUCT_LINKS.docs}#api-only-path`} className="lp-faq__link">
               Terminal walkthrough
             </Link>
@@ -77,6 +86,17 @@ function FaqAnswerBody({ item }: { item: FaqItem }) {
           <p>
             <Link to={`${PRODUCT_LINKS.docs}#signing`} className="lp-faq__link">
               Signing recipe
+            </Link>
+          </p>
+        </div>
+      )
+    case 'known-limits':
+      return (
+        <div className="lp-faq__prose">
+          <p>{item.a}</p>
+          <p>
+            <Link to={`${PRODUCT_LINKS.docs}#known-limits`} className="lp-faq__link">
+              Known limits
             </Link>
           </p>
         </div>

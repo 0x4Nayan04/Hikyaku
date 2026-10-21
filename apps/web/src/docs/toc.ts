@@ -14,6 +14,7 @@ export const DOCS_TOC = [
   { id: 'api-reference', label: 'API reference' },
   { id: 'retries', label: 'Retries' },
   { id: 'privacy', label: 'Privacy' },
+  { id: 'known-limits', label: 'Known limits' },
 ] as const
 
 const LEGACY_SLUGS = new Set<string>(DOCS_TOC.map((item) => item.id))

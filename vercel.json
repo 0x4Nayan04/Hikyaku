@@ -9,6 +9,18 @@
   ],
   "headers": [
     {
+      "source": "/assets/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/((?!assets/|v1(?:/|$)|api(?:/|$)).*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
+    },
+    {
+      "source": "/(login|bootstrap|dashboard|endpoints|events|deliveries|settings|admin|accept-invite|reset-password)(.*)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    },
+    {
       "source": "/v1/(.*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },

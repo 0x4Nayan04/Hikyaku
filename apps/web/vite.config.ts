@@ -4,8 +4,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { applyPublicSiteMeta, normalizeSiteUrl } from './src/lib/public-site-meta'
 import { compileDocsGuide } from './vite-plugin-docs-guide'
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -53,7 +54,19 @@ function preloadLcpFont(): Plugin {
   }
 }
 
-export default defineConfig(({ command }) => {
+function publicSiteMeta(siteUrl: string): Plugin {
+  return {
+    name: 'public-site-meta',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        return applyPublicSiteMeta(html, siteUrl)
+      },
+    },
+  }
+}
+
+export default defineConfig(({ command, mode }) => {
   // Vite keys isProduction off NODE_ENV; ensure `vite build` never ships a DEV bundle
   // when the shell left NODE_ENV unset (jsxDEV + optional react-grab would leak).
   if (command === 'build' && process.env.NODE_ENV !== 'production') {
@@ -61,13 +74,15 @@ export default defineConfig(({ command }) => {
   }
 
   const envDir = path.resolve(__dirname, '../..')
+  const env = loadEnv(mode, envDir, '')
+  const siteUrl = normalizeSiteUrl(process.env.VITE_PUBLIC_SITE_URL || env.VITE_PUBLIC_SITE_URL)
 
   return {
     envDir,
     define: {
       __APP_VERSION__: JSON.stringify(appPackage.version),
     },
-    plugins: [react(), tailwindcss(), preloadLcpFont(), compileDocsGuide()],
+    plugins: [react(), tailwindcss(), preloadLcpFont(), publicSiteMeta(siteUrl), compileDocsGuide()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

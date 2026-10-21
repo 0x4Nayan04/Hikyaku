@@ -106,11 +106,25 @@ Cookie mutations fail with `403 origin_not_allowed` unless all four match:
 4. Railway `TRUST_PROXY=1`
 
 Also set `ENABLE_EXPERIMENTAL_COREPACK=1` on Vercel.
+- Set `VITE_PUBLIC_SITE_URL` to the Vercel https origin (no trailing slash) so Open Graph image URLs are absolute
 - Set `VITE_PUBLIC_API_URL` to the Railway origin on the Vercel build for docs/curl samples
 - Pre-deploy: `node apps/api/dist/scripts/migrate.js`
 - Build/start from **repo root** with `pnpm --filter @hikyaku/api...` / `@hikyaku/worker` — do not set root directory to `apps/api` or `apps/worker`
 - Worker: no public domain / healthcheck; API healthcheck → `/v1/ready`
 - Vercel preview URLs are separate origins; add them to `CORS_ORIGIN` if needed
+
+### Public metadata deployment check
+
+Set `VITE_PUBLIC_SITE_URL=https://hikyaku.nayanswarnkar.com` on the Vercel build, then deploy the commit containing the metadata and `apps/web/public/og.png`. This is a build-time value; changing it requires a fresh build.
+
+After deployment, verify:
+
+- `/` HTML contains absolute `og:image` and `twitter:image` URLs ending in `/og.png`, plus `og:url` and canonical pointing to the public origin.
+- `/og.png` returns a PNG with dimensions **1200 × 630**.
+- `/robots.txt` returns plain text and `/sitemap.xml` returns XML, both with HTTP 200 rather than the SPA HTML.
+- `/login` and console/auth routes return `X-Robots-Tag: noindex, nofollow`.
+
+The website and terminal walkthroughs link to the public docs. A hosted console recording is optional: set `VITE_WALKTHROUGH_URL` and rebuild to show the additional **Console video** link. Leave it unset until a real recording is available.
 
 ---
 
@@ -124,6 +138,12 @@ curl http://localhost:3000/v1/ready
 ```
 
 `/v1/health` — process up. `/v1/ready` — Postgres and Redis reachable.
+
+### Web cache policy
+
+Vercel and Caddy cache Vite's hashed `/assets/*` files for one year with `immutable`. HTML and unversioned public files (including `/og.png`) use `max-age=0, must-revalidate`. These web cache rules do not apply to `/v1` API responses.
+
+After deploying, check an actual `/assets/…` URL from the landing HTML for `Cache-Control: public, max-age=31536000, immutable`. Check `/`, `/docs`, and `/og.png` for revalidation and confirm `/v1/ready` does not receive the one-year cache header. Vite preview does not exercise Vercel or Caddy header configuration.
 
 ### Environment variables
 
@@ -160,6 +180,8 @@ See root `.env.example` for local worker tuning. `TRUST_PROXY=1` means one trust
 - **Replay** for failed deliveries from console or API
 
 ### Known limits (not bugs)
+
+The same list is in [SECURITY.md](../SECURITY.md) and the in-app docs.
 
 - Endpoint signing secrets are stored so the worker can sign POSTs; they are not hashed like API keys. Protect the database and backups.
 - Signing-secret rotation replaces the secret immediately. There is no dual-secret window.
