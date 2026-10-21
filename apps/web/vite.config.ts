@@ -16,6 +16,25 @@ const appPackage = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json
 
 const LCP_FONT = '@fontsource/space-grotesk/files/space-grotesk-latin-600-normal.woff2'
 
+function openApiDocument(): Plugin {
+  const filename = path.resolve(__dirname, '../../docs/openapi.yaml')
+  return {
+    name: 'openapi-document',
+    buildStart() {
+      this.addWatchFile(filename)
+    },
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'openapi.yaml', source: readFileSync(filename) })
+    },
+    configureServer(server) {
+      server.middlewares.use('/openapi.yaml', (_req, res) => {
+        res.setHeader('Content-Type', 'application/yaml; charset=utf-8')
+        res.end(readFileSync(filename))
+      })
+    },
+  }
+}
+
 function preloadLcpFont(): Plugin {
   let fontPath: string | null = null
   try {
@@ -82,7 +101,14 @@ export default defineConfig(({ command, mode }) => {
     define: {
       __APP_VERSION__: JSON.stringify(appPackage.version),
     },
-    plugins: [react(), tailwindcss(), preloadLcpFont(), publicSiteMeta(siteUrl), compileDocsGuide()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      preloadLcpFont(),
+      publicSiteMeta(siteUrl),
+      compileDocsGuide(),
+      openApiDocument(),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
