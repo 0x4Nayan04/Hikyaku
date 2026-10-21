@@ -100,8 +100,8 @@ test.describe('dashboard smoke', () => {
 
   test('supports keyboard navigation for landing tabs and the account menu', async ({ page }) => {
     await page.goto('/')
-    const firstSummary = page.getByRole('button', { name: 'How do I get started?' })
-    const secondSummary = page.getByRole('button', { name: 'What if my endpoint is down?' })
+    const firstSummary = page.locator('summary', { hasText: 'How do I get started?' })
+    const secondSummary = page.locator('summary', { hasText: 'What if my endpoint is down?' })
     await expect(firstSummary).toBeVisible()
     await expect(page.locator('details.lp-faq__item').first()).toHaveAttribute('open', '')
     await firstSummary.focus()
