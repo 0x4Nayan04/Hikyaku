@@ -32,6 +32,7 @@ export async function attachSessionUser(req: Request): Promise<void> {
       isSuperAdmin: users.isSuperAdmin,
       passwordHash: users.passwordHash,
       tenantName: tenants.name,
+      readOnly: tenants.readOnly,
     })
     .from(users)
     .leftJoin(tenants, eq(users.tenantId, tenants.id))
@@ -58,6 +59,7 @@ export async function attachSessionUser(req: Request): Promise<void> {
   }
   writeSessionUser(req.session, hydrated)
   applySessionUser(req, hydrated)
+  req.tenantReadOnly = user.readOnly ?? false
 }
 
 export const requireSession = asyncHandler(

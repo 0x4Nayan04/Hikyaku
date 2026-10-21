@@ -6,6 +6,7 @@ import { AppCatalogShell } from '@/components/app/AppCatalogShell'
 import { PageLoading } from '@/components/console/PageLoading'
 import { ScrollToTop } from '@/components/console/ScrollToTop'
 import { useSession } from '@/providers/session-context'
+import { PageBanner } from '@/components/console/PageBanner'
 import '@/styles/console-bridge.css'
 
 export default function ConsoleLayout() {
@@ -20,6 +21,13 @@ export default function ConsoleLayout() {
         <AppAside session={session} loading={loading} isSuperAdmin={isSuperAdmin} />
         <main id="main-content" ref={mainRef} className="app-main">
           <div className="app-main-inner">
+            {session?.tenant?.read_only ? (
+              <PageBanner
+                variant="info"
+                title="Read-only demo"
+                description="Synthetic sample data. Explore events and delivery attempts; changes and real webhook sends are disabled."
+              />
+            ) : null}
             <Suspense fallback={<PageLoading />}>
               <Outlet />
             </Suspense>

@@ -96,4 +96,6 @@ jobs:
           console.log('smoke inputs reset')
           EOF
 
-      - run: pnpm test:smoke e2e/00-onboarding.spec.ts e2e/dashboard.spec.ts
+      - run: pnpm test:smoke e2e/00-onboarding.spec.ts e2e/dashboard.spec.ts e2e/read-only-demo.spec.ts
+        env:
+          VITE_DEMO_LOGIN: 'true'

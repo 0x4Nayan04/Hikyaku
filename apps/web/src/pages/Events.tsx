@@ -30,6 +30,7 @@ import { formatDateTime } from '@/lib/format'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { usePolling } from '@/hooks/usePolling'
 import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
+import { useReadOnlyWorkspace } from '@/providers/session-context'
 
 const STATUS_OPTIONS: Array<{ value: 'all' | EventStatus; label: string }> = [
   { value: 'all', label: 'All statuses' },
@@ -54,6 +55,7 @@ function parseStatusParam(value: string | null): 'all' | EventStatus {
 }
 
 export default function Events() {
+  const readOnly = useReadOnlyWorkspace()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const statusFilter = parseStatusParam(searchParams.get('status'))
@@ -103,9 +105,11 @@ export default function Events() {
           <>
             Ingested events appear here after you send one.
             <br />
-            <Link to="/events/send" className="font-medium text-primary hover:underline">
-              Send a test event
-            </Link>
+            {!readOnly && (
+              <Link to="/events/send" className="font-medium text-primary hover:underline">
+                Send a test event
+              </Link>
+            )}
             .
           </>
         }
@@ -148,14 +152,16 @@ export default function Events() {
       title="Events"
       description="Ingested events for this workspace. Open a row for payload and delivery outcomes."
       actions={
-        <Button size="sm" className="sm-btn-split" asChild>
-          <Link to="/events/send">
-            <span className="sm-btn-split-label">Test event</span>
-            <span className="sm-btn-split-icon">
-              <Send className="size-3.5" aria-hidden="true" />
-            </span>
-          </Link>
-        </Button>
+        !readOnly && (
+          <Button size="sm" className="sm-btn-split" asChild>
+            <Link to="/events/send">
+              <span className="sm-btn-split-label">Test event</span>
+              <span className="sm-btn-split-icon">
+                <Send className="size-3.5" aria-hidden="true" />
+              </span>
+            </Link>
+          </Button>
+        )
       }
     >
       {error ? (

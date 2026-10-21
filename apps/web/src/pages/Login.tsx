@@ -1,3 +1,4 @@
+import { DEMO_CREDENTIALS } from '@hikyaku/shared/constants'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Check, Lock, Mail } from 'lucide-react'
@@ -40,7 +41,9 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(readBootstrapStatusCache)
+  const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(
+    readBootstrapStatusCache,
+  )
 
   useEffect(() => {
     if (loading || !session) return
@@ -136,9 +139,7 @@ export default function Login() {
           </ul>
 
           <div className="flex flex-col gap-3 border-t border-border pt-6">
-            <p className="text-sm text-muted-strong">
-              Need a workspace? Ask Admin for an invite.
-            </p>
+            <p className="text-sm text-muted-strong">Need a workspace? Ask Admin for an invite.</p>
             {showBootstrapLink ? (
               <AuthFooterLink
                 prompt="First deploy?"
@@ -150,6 +151,27 @@ export default function Login() {
         </div>
       }
     >
+      {import.meta.env.VITE_DEMO_LOGIN === 'true' ? (
+        <div className="mb-5 space-y-2 border border-border p-4 text-sm">
+          <p className="font-medium">Explore the read-only demo</p>
+          <p>Synthetic sample data. No changes or real webhook sends.</p>
+          <p>
+            <code>{DEMO_CREDENTIALS.email}</code>
+            <br />
+            <code>{DEMO_CREDENTIALS.password}</code>
+          </p>
+          <button
+            type="button"
+            className="text-primary underline"
+            onClick={() => {
+              setEmail(DEMO_CREDENTIALS.email)
+              setPassword(DEMO_CREDENTIALS.password)
+            }}
+          >
+            Use demo credentials
+          </button>
+        </div>
+      ) : null}
       <form className="auth-slip-form" onSubmit={handleSubmit} aria-describedby="login-status">
         <div
           id="login-status"
@@ -189,7 +211,8 @@ export default function Login() {
         />
 
         <p className="auth-slip-note">
-          <span className="font-medium text-ink">Need a password reset?</span> {LOGIN_PASSWORD_RESET_HINT}
+          <span className="font-medium text-ink">Need a password reset?</span>{' '}
+          {LOGIN_PASSWORD_RESET_HINT}
         </p>
 
         <button type="submit" disabled={submitting} className="sm-btn sm-btn-primary sm-btn-block">

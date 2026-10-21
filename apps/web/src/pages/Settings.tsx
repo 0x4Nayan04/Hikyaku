@@ -26,11 +26,15 @@ function resolveSettingsTab(requestedTab: string, isSuperAdmin: boolean): Settin
 
 export default function Settings() {
   const { session } = useSession()
+  const readOnly = session?.tenant?.read_only ?? false
   const isSuperAdmin = (session?.user.is_super_admin ?? false) && !session?.tenant
 
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedTab = searchParams.get('tab') ?? 'profile'
-  const tab = resolveSettingsTab(requestedTab, isSuperAdmin)
+  const tab =
+    readOnly && requestedTab === 'api-keys'
+      ? 'profile'
+      : resolveSettingsTab(requestedTab, isSuperAdmin)
   const setTab = (newTab: string) => setSearchParams({ tab: newTab }, { replace: true })
 
   useEffect(() => {
@@ -58,7 +62,7 @@ export default function Settings() {
     handleCreateKey,
     handleRevoke,
     handleRotate,
-  } = useSettingsPage(isSuperAdmin)
+  } = useSettingsPage(isSuperAdmin || readOnly)
 
   return (
     <ConsolePage
@@ -76,7 +80,7 @@ export default function Settings() {
           {!isSuperAdmin && (
             <>
               <TabsTrigger value="tenant">Workspace</TabsTrigger>
-              <TabsTrigger value="api-keys">API keys</TabsTrigger>
+              {!readOnly && <TabsTrigger value="api-keys">API keys</TabsTrigger>}
             </>
           )}
         </TabsList>
@@ -93,31 +97,33 @@ export default function Settings() {
               </SettingsLayout>
             </TabsContent>
 
-            <TabsContent value="api-keys">
-              <SettingsLayout>
-                <SettingsApiKeysTab
-                  apiKeys={apiKeys}
-                  hasMore={apiKeyHasMore}
-                  offset={apiKeyOffset}
-                  pageSize={apiKeyPageSize}
-                  loadingKeys={loadingKeys}
-                  keysError={keysError}
-                  isEmpty={keysEmpty}
-                  creatingKey={creatingKey}
-                  rotatingId={rotatingId}
-                  revokingId={revokingId}
-                  onCreateKey={handleCreateKey}
-                  onRotate={handleRotate}
-                  onRevokeClick={setRevokeTarget}
-                  onOffsetChange={setApiKeyOffset}
-                />
-              </SettingsLayout>
-            </TabsContent>
+            {!readOnly && (
+              <TabsContent value="api-keys">
+                <SettingsLayout>
+                  <SettingsApiKeysTab
+                    apiKeys={apiKeys}
+                    hasMore={apiKeyHasMore}
+                    offset={apiKeyOffset}
+                    pageSize={apiKeyPageSize}
+                    loadingKeys={loadingKeys}
+                    keysError={keysError}
+                    isEmpty={keysEmpty}
+                    creatingKey={creatingKey}
+                    rotatingId={rotatingId}
+                    revokingId={revokingId}
+                    onCreateKey={handleCreateKey}
+                    onRotate={handleRotate}
+                    onRevokeClick={setRevokeTarget}
+                    onOffsetChange={setApiKeyOffset}
+                  />
+                </SettingsLayout>
+              </TabsContent>
+            )}
           </>
         )}
       </Tabs>
 
-      {!isSuperAdmin && (
+      {!isSuperAdmin && !readOnly && (
         <SettingsApiKeyDialogs
           secretKey={secretKey}
           revokeTarget={revokeTarget}

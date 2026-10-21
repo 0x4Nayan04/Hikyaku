@@ -18,6 +18,7 @@ import type { DeliveryStatus, EndpointStatus, EventStatus } from './constants.js
 export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
+  readOnly: boolean('read_only').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

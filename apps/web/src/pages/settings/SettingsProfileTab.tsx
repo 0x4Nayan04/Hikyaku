@@ -122,118 +122,121 @@ export function SettingsProfileTab() {
         />
       </DataPanel>
 
-      <FormPanel
-        title="Security"
-        description="Password for signing in to the console."
-        footer={
-          <div className="flex flex-wrap items-center gap-3">
-            <Button size="sm" type="submit" form="security-form" disabled={!canSubmit}>
-              <Lock className="size-3.5" aria-hidden="true" />
-              {submitting ? 'Updating…' : 'Update password'}
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleReset}
-              disabled={submitting || (!currentPassword && !newPassword && !confirmPassword)}
-            >
-              <RotateCcw className="size-3.5" aria-hidden="true" />
-              Clear form
-            </Button>
-          </div>
-        }
-      >
-        <div className="settings-form-stack">
-          <form id="security-form" className="space-y-4" onSubmit={handleSubmit}>
-            <fieldset className="m-0 space-y-4 border-0 p-0" disabled={submitting}>
-              <legend className="sr-only">Change password</legend>
+      {!session.tenant?.read_only && (
+        <FormPanel
+          title="Security"
+          description="Password for signing in to the console."
+          footer={
+            <div className="flex flex-wrap items-center gap-3">
+              <Button size="sm" type="submit" form="security-form" disabled={!canSubmit}>
+                <Lock className="size-3.5" aria-hidden="true" />
+                {submitting ? 'Updating…' : 'Update password'}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleReset}
+                disabled={submitting || (!currentPassword && !newPassword && !confirmPassword)}
+              >
+                <RotateCcw className="size-3.5" aria-hidden="true" />
+                Clear form
+              </Button>
+            </div>
+          }
+        >
+          <div className="settings-form-stack">
+            <form id="security-form" className="space-y-4" onSubmit={handleSubmit}>
+              <fieldset className="m-0 space-y-4 border-0 p-0" disabled={submitting}>
+                <legend className="sr-only">Change password</legend>
 
-              {formError ? (
-                <PageBanner
-                  variant="error"
-                  title="Password update failed"
-                  description={formError}
-                />
-              ) : null}
-
-              <AuthFormField
-                id="current-password"
-                label="Current password"
-                type="password"
-                icon={Lock}
-                autoComplete="current-password"
-                value={currentPassword}
-                onChange={setCurrentPassword}
-                required
-              />
-
-              <div className="settings-password-block">
-                <p className="settings-password-block__label">New password</p>
-
-                {!strength ? (
-                  <p className="settings-password-block__hint">
-                    At least {MIN_PASSWORD_LENGTH} characters, at most 128 UTF-8 bytes. No complexity rules — pick something long.
-                  </p>
+                {formError ? (
+                  <PageBanner
+                    variant="error"
+                    title="Password update failed"
+                    description={formError}
+                  />
                 ) : null}
 
-                <div className="space-y-4">
-                  <AuthFormField
-                    id="new-password"
-                    label="New password"
-                    type="password"
-                    icon={Lock}
-                    autoComplete="new-password"
-                    maxLength={128}
-                    value={newPassword}
-                    onChange={setNewPassword}
-                    required
-                  />
-                  {strength ? (
-                    <div className="space-y-1.5">
-                      <div className="flex gap-1" aria-hidden="true">
-                        {[1, 2, 3, 4, 5].map((bar) => (
-                          <div
-                            key={bar}
-                            className={cn(
-                              'settings-strength-bar',
-                              bar <= strength.score ? strengthBarTone(strength.score) : undefined,
-                            )}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-xs text-muted-strong" aria-live="polite">
-                        Strength: <span className="font-medium text-ink">{strength.label}</span>
-                        {newPassword.length < MIN_PASSWORD_LENGTH ? (
-                          <span className="ml-1 text-muted-strong/60">
-                            ({newPassword.length}/{MIN_PASSWORD_LENGTH} min)
-                          </span>
-                        ) : null}
-                      </p>
-                    </div>
-                  ) : null}
+                <AuthFormField
+                  id="current-password"
+                  label="Current password"
+                  type="password"
+                  icon={Lock}
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={setCurrentPassword}
+                  required
+                />
 
-                  <AuthFormField
-                    id="confirm-password"
-                    label="Confirm new password"
-                    type="password"
-                    icon={Lock}
-                    autoComplete="new-password"
-                    maxLength={128}
-                    value={confirmPassword}
-                    onChange={setConfirmPassword}
-                    required
-                  />
-                  {confirmPassword.length > 0 && !passwordsMatch ? (
-                    <p className="text-xs text-status-danger" role="alert">
-                      Passwords do not match.
+                <div className="settings-password-block">
+                  <p className="settings-password-block__label">New password</p>
+
+                  {!strength ? (
+                    <p className="settings-password-block__hint">
+                      At least {MIN_PASSWORD_LENGTH} characters, at most 128 UTF-8 bytes. No
+                      complexity rules — pick something long.
                     </p>
                   ) : null}
+
+                  <div className="space-y-4">
+                    <AuthFormField
+                      id="new-password"
+                      label="New password"
+                      type="password"
+                      icon={Lock}
+                      autoComplete="new-password"
+                      maxLength={128}
+                      value={newPassword}
+                      onChange={setNewPassword}
+                      required
+                    />
+                    {strength ? (
+                      <div className="space-y-1.5">
+                        <div className="flex gap-1" aria-hidden="true">
+                          {[1, 2, 3, 4, 5].map((bar) => (
+                            <div
+                              key={bar}
+                              className={cn(
+                                'settings-strength-bar',
+                                bar <= strength.score ? strengthBarTone(strength.score) : undefined,
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-strong" aria-live="polite">
+                          Strength: <span className="font-medium text-ink">{strength.label}</span>
+                          {newPassword.length < MIN_PASSWORD_LENGTH ? (
+                            <span className="ml-1 text-muted-strong/60">
+                              ({newPassword.length}/{MIN_PASSWORD_LENGTH} min)
+                            </span>
+                          ) : null}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    <AuthFormField
+                      id="confirm-password"
+                      label="Confirm new password"
+                      type="password"
+                      icon={Lock}
+                      autoComplete="new-password"
+                      maxLength={128}
+                      value={confirmPassword}
+                      onChange={setConfirmPassword}
+                      required
+                    />
+                    {confirmPassword.length > 0 && !passwordsMatch ? (
+                      <p className="text-xs text-status-danger" role="alert">
+                        Passwords do not match.
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            </fieldset>
-          </form>
-        </div>
-      </FormPanel>
+              </fieldset>
+            </form>
+          </div>
+        </FormPanel>
+      )}
 
       {isSuperAdmin ? (
         <FormPanel title="Administration">

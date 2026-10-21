@@ -14,6 +14,12 @@ export type DeliveryJobData = {
 export const MAX_INGEST_BODY_BYTES = 256 * 1024
 export const MIN_PASSWORD_LENGTH = 12
 
+/** Intentionally public credentials for the isolated, read-only sample workspace. */
+export const DEMO_CREDENTIALS = {
+  email: 'demo@hikyaku.example',
+  password: 'hikyaku-demo-read-only',
+} as const
+
 export const CONFIG_DEFAULTS = {
   NODE_ENV: 'development',
   LOG_LEVEL: 'info',

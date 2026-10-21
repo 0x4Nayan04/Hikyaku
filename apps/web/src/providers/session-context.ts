@@ -9,6 +9,11 @@ type SessionContextValue = {
 
 export const SessionContext = createContext<SessionContextValue | null>(null)
 
+/** Presentation only; the API enforces the current tenant permission. */
+export function useReadOnlyWorkspace(): boolean {
+  return use(SessionContext)?.session?.tenant?.read_only ?? false
+}
+
 export function useSession(): SessionContextValue {
   const context = use(SessionContext)
   if (!context) {

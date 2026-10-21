@@ -23,6 +23,7 @@ import { isUuid, parseSchema } from '../../lib/validation.js'
 import { toAdminTenantJson } from './serialize.js'
 import { parseTenantId, parseUserId } from './validation.js'
 import { toUserJson, userColumns } from '../auth/serialize.js'
+import { assertWritableTenant } from '../../auth/readOnly.js'
 
 const tenantColumns = {
   id: tenants.id,
@@ -87,6 +88,7 @@ export const getTenant = asyncHandler(async (req: Request, res: Response) => {
 export const deleteTenant = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params
   parseTenantId(id)
+  await assertWritableTenant(id)
 
   const db = getDb()
 
@@ -124,6 +126,7 @@ export const deleteTenant = asyncHandler(async (req: Request, res: Response) => 
 export const patchTenant = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params
   parseTenantId(id)
+  await assertWritableTenant(id)
 
   const body = parseSchema(adminPatchTenantSchema, req.body)
   const db = getDb()
@@ -146,6 +149,7 @@ export const deleteTenantUser = asyncHandler(async (req: Request, res: Response)
   const { id, userId } = req.params
   parseTenantId(id)
   parseUserId(userId)
+  await assertWritableTenant(id)
 
   if (req.userId === userId) {
     throw new AppError(409, 'cannot_delete_self', 'You cannot delete your own account')
@@ -235,6 +239,7 @@ export const listTenantUsers = asyncHandler(async (req: Request, res: Response) 
 
 export const createInvite = asyncHandler(async (req: Request, res: Response) => {
   const body = parseSchema(adminCreateInviteSchema, req.body)
+  if (body.kind === 'tenant_user') await assertWritableTenant(body.tenant_id)
   const createdByUserId = req.userId
   if (!createdByUserId) {
     throw new AppError(401, 'unauthorized', 'Missing or invalid session')
@@ -300,6 +305,7 @@ export const createPasswordReset = asyncHandler(async (req: Request, res: Respon
   const { id, userId } = req.params
   parseTenantId(id)
   parseUserId(userId)
+  await assertWritableTenant(id)
   const createdByUserId = req.userId
   if (!createdByUserId) {
     throw new AppError(401, 'unauthorized', 'Missing or invalid session')

@@ -14,6 +14,7 @@ import {
 } from '../../lib/invites.js'
 import { parseSchema } from '../../lib/validation.js'
 import { toUserJson, userColumns } from './serialize.js'
+import { assertWritableTenant } from '../../auth/readOnly.js'
 
 export const validateInvite = asyncHandler(async (req: Request, res: Response) => {
   const token = req.query.token
@@ -55,6 +56,7 @@ export const acceptInvite = asyncHandler(async (req: Request, res: Response) => 
   const db = getDb()
 
   const user = await db.transaction(async (tx) => {
+    await assertWritableTenant(invite.tenantId, tx)
     // Expiry is enforced here too so an invite cannot be consumed after assertInviteUsable.
     const [consumed] = await tx
       .update(invites)

@@ -49,8 +49,8 @@ function FaqAnswerBody({ item }: { item: FaqItem }) {
         <div className="lp-faq__prose">
           <ol className="lp-faq__steps">
             <li>
-              This public site is landing and docs. The operator console is invite-only — there is
-              no self-serve signup, and first-run setup is not available here.
+              Full workspace access is invite-only. There is no self-serve signup, and first-run
+              setup is not available on this public site.
             </li>
             <li>
               To run a full console, clone the repo, start it locally, and create the installer
@@ -64,6 +64,15 @@ function FaqAnswerBody({ item }: { item: FaqItem }) {
               or the terminal.
             </li>
           </ol>
+          {import.meta.env.VITE_DEMO_LOGIN === 'true' ? (
+            <p>
+              To explore synthetic data without making changes, use the public credentials on{' '}
+              <Link to={PRODUCT_LINKS.console} className="lp-faq__link">
+                the read-only demo login
+              </Link>
+              .
+            </p>
+          ) : null}
           <p>
             Once you have an account, add endpoints, send events, and inspect or replay from the
             website or terminal.

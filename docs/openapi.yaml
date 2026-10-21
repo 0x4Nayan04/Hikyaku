@@ -12,7 +12,9 @@ info:
     Bearer ingest. Resource lookups are tenant-scoped. List pagination uses limit/offset and has_more.
     Request JSON is limited to 256 KiB. Outbound delivery is at-least-once: receivers must deduplicate
     X-Webhook-Id. This document describes the current source contract, not a verified deployed version.
-    Source: docs/openapi.yaml; the web build publishes an identical /openapi.yaml.'
+    Source: docs/openapi.yaml; the web build publishes an identical /openapi.yaml. Read-only sample workspaces
+    reject mutations with 403 read_only, except login/logout. Management changes or invite/reset links
+    targeting such a workspace are also blocked.'
 servers:
   - url: https://hikyaku.nayanswarnkar.com
     description: Public demo web origin; /v1 is proxied to the API. Invite-only console, bootstrap closed.
@@ -425,7 +427,7 @@ paths:
                     $ref: '#/components/schemas/User'
                   tenant:
                     anyOf:
-                      - $ref: '#/components/schemas/Workspace'
+                      - $ref: '#/components/schemas/SessionTenant'
                       - type: 'null'
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -2227,6 +2229,16 @@ components:
       description:
         Newest first by created_at then id. has_more indicates another page; total count is
         not returned.
+    SessionTenant:
+      allOf:
+        - $ref: '#/components/schemas/Workspace'
+        - type: object
+          required:
+            - read_only
+          properties:
+            read_only:
+              type: boolean
+              description: True for a read-only sample workspace; mutations are blocked by the API.
   responses:
     BadRequest:
       description:
@@ -2247,7 +2259,7 @@ components:
     Forbidden:
       description:
         'Origin is not allowed, insufficient privileges, or bootstrap is disabled. Codes: origin_not_allowed,
-        forbidden.'
+        forbidden. Code read_only denotes a protected sample workspace.'
       content:
         application/json:
           schema:

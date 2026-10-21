@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight, Package, Send, Webhook, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useReadOnlyWorkspace } from '@/providers/session-context'
 
 type QuickAction = {
   to: string
@@ -41,30 +42,33 @@ const toneIconClass = {
 } as const
 
 export function DashboardQuickActions() {
+  const readOnly = useReadOnlyWorkspace()
   return (
     <div className="dashboard-activity-list">
-      {actions.map((action) => {
-        const Icon = action.icon
-        return (
-          <Link key={action.to} to={action.to} className="dashboard-activity-row group">
-            <span
-              className={cn('dashboard-activity-row__icon', toneIconClass[action.tone])}
-              aria-hidden="true"
-            >
-              <Icon className="size-4" strokeWidth={1.75} />
-            </span>
-            <div className="dashboard-activity-row__main">
-              <p className="dashboard-activity-row__name">{action.title}</p>
-              <p className="dashboard-panel-row__hint">{action.hint}</p>
-            </div>
-            <ChevronRight
-              className="size-4 shrink-0 text-muted-strong/40 transition-colors duration-150 group-hover:text-primary"
-              strokeWidth={2}
-              aria-hidden="true"
-            />
-          </Link>
-        )
-      })}
+      {actions
+        .filter((action) => !readOnly || action.to !== '/events/send')
+        .map((action) => {
+          const Icon = action.icon
+          return (
+            <Link key={action.to} to={action.to} className="dashboard-activity-row group">
+              <span
+                className={cn('dashboard-activity-row__icon', toneIconClass[action.tone])}
+                aria-hidden="true"
+              >
+                <Icon className="size-4" strokeWidth={1.75} />
+              </span>
+              <div className="dashboard-activity-row__main">
+                <p className="dashboard-activity-row__name">{action.title}</p>
+                <p className="dashboard-panel-row__hint">{action.hint}</p>
+              </div>
+              <ChevronRight
+                className="size-4 shrink-0 text-muted-strong/40 transition-colors duration-150 group-hover:text-primary"
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+            </Link>
+          )
+        })}
     </div>
   )
 }

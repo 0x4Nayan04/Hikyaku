@@ -162,6 +162,13 @@
       "when": 1787900000002,
       "tag": "0023_replay_history",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792598400000,
+      "tag": "0024_read_only_tenants",
+      "breakpoints": true
     }
   ]
 }
