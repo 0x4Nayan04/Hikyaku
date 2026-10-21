@@ -99,7 +99,7 @@ const appNavSections: AppNavSection[] = [
         title: 'Test event',
         to: '/events/send',
         icon: Send,
-        description: 'Send a real sample webhook',
+        description: 'Send a real test webhook',
         tenantOnly: true,
       },
     ],

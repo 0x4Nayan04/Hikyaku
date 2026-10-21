@@ -1,17 +1,28 @@
 import { Badge } from '@/components/ui/badge'
 import { formatDateTime } from '@/lib/format'
+import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
 
 type LiveChipProps = {
   active?: boolean
   lastUpdated?: string
+  intervalMs?: number
 }
 
-export function LiveChip({ active = true, lastUpdated }: LiveChipProps) {
+function pollHint(intervalMs: number, lastUpdated?: string): string {
+  const seconds = Math.round(intervalMs / 1000)
+  return lastUpdated
+    ? `Auto-refreshes about every ${seconds}s. Last updated ${formatDateTime(lastUpdated)}.`
+    : `Auto-refreshes about every ${seconds}s while this page is open.`
+}
+
+export function LiveChip({
+  active = true,
+  lastUpdated,
+  intervalMs = POLL_DEFAULT_MS,
+}: LiveChipProps) {
   if (!active) return null
 
-  const hint = lastUpdated
-    ? `Auto-refreshes about every 10s. Last updated ${formatDateTime(lastUpdated)}.`
-    : 'Auto-refreshes about every 10s while this page is open.'
+  const hint = pollHint(intervalMs, lastUpdated)
 
   return (
     <Badge

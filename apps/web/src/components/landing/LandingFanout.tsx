@@ -41,7 +41,7 @@ export function LandingFanout() {
     <div
       className="lp-fanout"
       role="img"
-      aria-label={`${APP_NAME} accepts order.paid, signs deliveries, delivers two endpoints, and schedules a retry for a 429 in the ledger.`}
+      aria-label={`${APP_NAME} accepts order.paid, signs deliveries, delivers to three endpoints, and schedules a retry for a 429 in the ledger.`}
     >
       <div className="lp-fanout__stage">
         <svg className="lp-fanout__svg" viewBox="0 0 700 216" xmlns="http://www.w3.org/2000/svg">

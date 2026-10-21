@@ -36,10 +36,6 @@
     background-color: var(--color-surface);
   }
 
-  /* =========================================================
-   * Sidebar — revamped design
-   * ========================================================= */
-
   .app-aside {
     display: none;
     width: 15rem;
@@ -111,7 +107,6 @@
     white-space: nowrap;
   }
 
-  /* Nav scroll area */
   .app-aside-inner {
     flex: 1;
     min-height: 0;
@@ -125,7 +120,6 @@
     display: none;
   }
 
-  /* Docs link anchored at bottom of sidebar */
   .app-aside-nav-footer {
     flex-shrink: 0;
     padding: 0.5rem;
@@ -711,10 +705,6 @@
     color: var(--color-muted-strong);
   }
 
-  /* =========================================================
-   * Recent Activity — Observability Timeline
-   * ========================================================= */
-
   .ra-cta-btn {
     display: inline-flex;
     align-items: center;
@@ -777,10 +767,6 @@
   .ra-refresh-btn:focus-visible {
     box-shadow: var(--shadow-focus);
   }
-
-  /* =========================================================
-   * Dashboard — overview panels
-   * ========================================================= */
 
   .dashboard-page {
     display: flex;
@@ -1108,10 +1094,6 @@
   .dashboard-panel-footer__sep {
     color: color-mix(in srgb, var(--color-muted-strong) 55%, transparent);
   }
-
-  /* =========================================================
-   * Settings — catalog rows, identity, panel empty
-   * ========================================================= */
 
   .settings-catalog-list {
     display: flex;
@@ -1635,10 +1617,6 @@
     cursor: default;
   }
 
-  /* =========================================================
-   * Events / Deliveries — panel toolbar, catalog rows
-   * ========================================================= */
-
   .log-panel-toolbar__filter {
     width: auto !important;
     min-width: 8.5rem !important;
@@ -1994,10 +1972,6 @@
     color: var(--color-status-danger);
   }
 
-  /* =========================================================
-   * Send event — unified field shell, footer, errors
-   * ========================================================= */
-
   .send-event-api-endpoint {
     display: inline-block;
     border: 1px solid var(--color-border);
@@ -2192,7 +2166,6 @@
     box-shadow: var(--shadow-focus);
   }
 
-  /* Catalog section tabs — Settings, console filters */
   .catalog-tabs {
     gap: 0;
   }
@@ -2277,7 +2250,6 @@
     outline: none;
   }
 
-  /* Logged-in app nav — catalog account chip (trigger + panel menu) */
   .nav-user-trigger {
     display: inline-flex;
     align-items: center;

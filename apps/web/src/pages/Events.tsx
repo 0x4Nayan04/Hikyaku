@@ -29,6 +29,7 @@ import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
 import { formatDateTime } from '@/lib/format'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { usePolling } from '@/hooks/usePolling'
+import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
 
 const STATUS_OPTIONS: Array<{ value: 'all' | EventStatus; label: string }> = [
   { value: 'all', label: 'All statuses' },
@@ -81,7 +82,7 @@ export default function Events() {
     queryKey: statusFilter,
   })
   // Poll with refresh so quiet polls never abort an in-flight load (reload still available for explicit retries).
-  usePolling({ intervalMs: 10_000, onPoll: refresh })
+  usePolling({ intervalMs: POLL_DEFAULT_MS, onPoll: refresh })
 
   const isDatasetEmpty = showEmpty && statusFilter === 'all' && offset === 0
 
@@ -145,7 +146,7 @@ export default function Events() {
   return (
     <ConsolePage
       title="Events"
-      description="Ingested events for this tenant. Open a row for payload and delivery outcomes."
+      description="Ingested events for this workspace. Open a row for payload and delivery outcomes."
       actions={
         <Button size="sm" className="sm-btn-split" asChild>
           <Link to="/events/send">

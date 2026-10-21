@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { listDeliveries } from '@/api/client'
 import type { Delivery, Paginated } from '@/api/types'
+import { POLL_FAST_MS, POLL_SLOW_MS } from '@/lib/ui-timing'
 import Deliveries from '@/pages/Deliveries'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -40,7 +41,7 @@ async function renderPage() {
     )
   })
 }
-async function advance(ms = 5_000) {
+async function advance(ms = POLL_FAST_MS) {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(ms)
   })
@@ -75,7 +76,7 @@ describe('Deliveries polling', () => {
       await advance()
       expect(listDeliveries).toHaveBeenCalledTimes(2)
       expect(container.textContent).toContain('Live')
-      await advance(14_999)
+      await advance(POLL_SLOW_MS - 1)
       expect(listDeliveries).toHaveBeenCalledTimes(2)
       await advance(1)
       expect(listDeliveries).toHaveBeenCalledTimes(3)
@@ -95,7 +96,7 @@ describe('Deliveries polling', () => {
       await renderPage()
       await advance()
       expect(listDeliveries).toHaveBeenCalledTimes(1)
-      await advance(10_000)
+      await advance(POLL_SLOW_MS - POLL_FAST_MS)
       expect(listDeliveries).toHaveBeenCalledTimes(2)
       expect(container.textContent).toContain('example.com')
       await advance()
@@ -137,7 +138,7 @@ it('does not interrupt a slow initial load on poll or tab return', async () => {
     })
     .mockResolvedValue(page([delivery]))
   await renderPage()
-  await advance(30_000)
+  await advance(POLL_SLOW_MS * 2)
   await act(async () => {
     setHidden(true)
     setHidden(false)

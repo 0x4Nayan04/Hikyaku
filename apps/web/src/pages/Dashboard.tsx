@@ -27,6 +27,7 @@ import {
   type OnboardingStep,
   type OnboardingStepId,
 } from '@/lib/tenant-onboarding'
+import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
 import { cn } from '@/lib/utils'
 
 function isAbortError(err: unknown): boolean {
@@ -155,7 +156,7 @@ export function Dashboard() {
   }, [load])
 
   usePolling({
-    intervalMs: 10_000,
+    intervalMs: POLL_DEFAULT_MS,
     refreshOnVisible: true,
     onPoll: refresh,
   })
@@ -167,7 +168,7 @@ export function Dashboard() {
       marker="Overview"
       title="Dashboard"
       description="Ingest volume, active deliveries, and 24-hour final outcomes."
-      actions={<LiveChip active={isLive} lastUpdated={lastUpdated} />}
+      actions={<LiveChip active={isLive} lastUpdated={lastUpdated} intervalMs={POLL_DEFAULT_MS} />}
     >
       {error ? (
         <PageBanner variant="error" title="Could not load stats" description={error} />
@@ -371,7 +372,7 @@ const onboardingStepMeta: Record<
   },
   test_event: {
     icon: Send,
-    hint: 'Dev tools · send a real sample webhook',
+    hint: 'Dev tools · send a real test webhook',
     tone: 'info',
   },
   deliveries: {
@@ -442,7 +443,7 @@ function EmptyDashboardCTA({ steps }: { steps: OnboardingStep[] }) {
   return (
     <DataPanel
       title="Get started"
-      description="Wire a receiver, create a key, then smoke-test. Metrics show up once deliveries start."
+      description="Add a receiver, send a test event, then watch deliveries. Metrics show up once deliveries start."
     >
       <div className="dashboard-activity-list">
         {steps.map((step) => (

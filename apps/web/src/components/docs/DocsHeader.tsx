@@ -5,7 +5,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
-import { APP_NAME } from '@/lib/app-meta'
+import { APP_HOME_LABEL, APP_NAME } from '@/lib/app-meta'
 import { useSession } from '@/providers/session-context'
 
 export const DocsHeader = memo(function DocsHeader() {
@@ -24,7 +24,7 @@ export const DocsHeader = memo(function DocsHeader() {
     <header className="docs-header">
       <LandingFrameInner className="docs-header-inner">
         <div className="docs-header-brand">
-          <Link to="/" className="docs-header-logo focus-ring" aria-label={`${APP_NAME} home`}>
+          <Link to="/" className="docs-header-logo focus-ring" aria-label={APP_HOME_LABEL}>
             <HikyakuMark decorative className="size-7 shrink-0" />
             <span>{APP_NAME}</span>
           </Link>

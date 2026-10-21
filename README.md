@@ -64,7 +64,7 @@ pnpm dev
 
 1. Open http://localhost:5173/bootstrap and enter `ADMIN_BOOTSTRAP_SECRET` from `.env`.
 2. Create the installer account and first workspace, then sign in at `/login`.
-3. On **Dashboard**, add an endpoint (or use [webhook.site](https://webhook.site)), send a sample event, and open **Deliveries**.
+3. On **Dashboard**, add an endpoint (or use [webhook.site](https://webhook.site)), send a test event, and open **Deliveries**.
 
 Optional local seed (two demo tenants + printed API keys; never for production):
 

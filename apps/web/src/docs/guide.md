@@ -30,7 +30,7 @@ Pick a path below. Both need the API and worker running — `pnpm dev` starts th
 1. Create your installer account and first workspace at [/bootstrap](/bootstrap) (first deploy only).
 2. Sign in and open your workspace dashboard. Existing admin-only accounts can use **Create my workspace** in Admin.
 3. Open **Endpoints** and register a receiver URL.
-4. Send a sample event using the existing **Test event** form, then inspect its deliveries. API keys are only needed afterward for backend ingest.
+4. Send a test event using the existing **Test event** form, then inspect its deliveries. API keys are only needed afterward for backend ingest.
 5. Prefer `POST /v1/events` with the key (curl below). **Test event** in the console is a smoke-test shortcut.
 6. Confirm the result under **Deliveries**.
 

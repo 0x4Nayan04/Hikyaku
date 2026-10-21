@@ -66,7 +66,7 @@ it('stays in the app when logout fails', async () => {
   )
   await act(async () => accountButton?.click())
   const logoutButton = Array.from(container.querySelectorAll('button')).find((button) =>
-    button.textContent?.includes('Log out'),
+    button.textContent?.includes('Sign out'),
   )
 
   await act(async () => logoutButton?.click())

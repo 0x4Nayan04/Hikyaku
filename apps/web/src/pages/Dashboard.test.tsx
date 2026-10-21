@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { getStats, listApiKeys, listDeliveries, listEndpoints, listEvents } from '@/api/client';
 import type { Paginated, Stats } from '@/api/types';
+import { POLL_DEFAULT_MS } from '@/lib/ui-timing';
 import { Dashboard } from '@/pages/Dashboard';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -104,7 +105,7 @@ describe('Dashboard polling', () => {
 
     expect(getStats).toHaveBeenCalledTimes(1)
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000)
+      await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS * 3)
     })
     expect(getStats).toHaveBeenCalledTimes(4)
   })
@@ -118,11 +119,11 @@ describe('Dashboard polling', () => {
 
     expect(getStats).toHaveBeenCalledTimes(1)
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(10_000)
+      await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS)
     })
     expect(getStats).toHaveBeenCalledTimes(2)
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(20_000)
+      await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS * 2)
     })
     expect(getStats).toHaveBeenCalledTimes(4)
   })
@@ -211,7 +212,7 @@ describe('Dashboard empty-state probes', () => {
 
     vi.mocked(listEndpoints).mockResolvedValue(page())
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(10_000)
+      await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS)
     })
     expect(container.textContent).not.toContain('Could not check endpoints')
     expect(container.textContent).toContain('Create an endpoint')
@@ -264,7 +265,7 @@ it('refreshes on tab return and skips slow initial loads without changing the 10
     .mockResolvedValue(activeStats)
   await renderDashboard()
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(30_000)
+    await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS * 3)
   })
   expect(getStats).toHaveBeenCalledTimes(1)
   expect(signal.aborted).toBe(false)
@@ -282,7 +283,7 @@ it('refreshes on tab return and skips slow initial loads without changing the 10
   })
   await act(async () => {
     visibility(true)
-    await vi.advanceTimersByTimeAsync(30_000)
+    await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS * 3)
   })
   expect(getStats).toHaveBeenCalledTimes(1)
   await act(async () => {
@@ -293,7 +294,7 @@ it('refreshes on tab return and skips slow initial loads without changing the 10
   expect(listDeliveries).toHaveBeenCalledTimes(2)
   expect(listEndpoints).toHaveBeenCalledTimes(2)
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(9_999)
+    await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS - 1)
   })
   expect(getStats).toHaveBeenCalledTimes(2)
   await act(async () => {
@@ -315,7 +316,7 @@ it('cancels the remaining failed batch and recovers on the next refresh', async 
   expect(signal?.aborted).toBe(true)
   expect(container.textContent).toContain('Could not load stats')
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(10_000)
+    await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS)
   })
   expect(getStats).toHaveBeenCalledTimes(2)
   expect(container.textContent).not.toContain('Could not load stats')

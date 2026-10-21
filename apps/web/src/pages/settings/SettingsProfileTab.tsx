@@ -124,7 +124,7 @@ export function SettingsProfileTab() {
 
       <FormPanel
         title="Security"
-        description="Password for signing into the console."
+        description="Password for signing in to the console."
         footer={
           <div className="flex flex-wrap items-center gap-3">
             <Button size="sm" type="submit" form="security-form" disabled={!canSubmit}>

@@ -168,7 +168,7 @@ export default function Bootstrap() {
               {(
                 [
                   'Add your receiver endpoint',
-                  'Send a sample event',
+                  'Send a test event',
                   'Inspect delivery results',
                   'Open Admin separately when needed',
                 ] as const

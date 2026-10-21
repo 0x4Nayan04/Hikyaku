@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/format'
 import { useDetailFetch } from '@/hooks/useDetailFetch'
 import { usePolling } from '@/hooks/usePolling'
+import { POLL_FAST_MS } from '@/lib/ui-timing'
 
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
@@ -31,7 +32,7 @@ export default function EventDetail() {
     missingError: 'Event ID is missing',
     fallbackError: 'Failed to load event',
   })
-  usePolling({ enabled: event?.status === 'pending', onPoll: reload })
+  usePolling({ enabled: event?.status === 'pending', intervalMs: POLL_FAST_MS, onPoll: reload })
 
   const payloadText = event ? JSON.stringify(event.payload, null, 2) : ''
 

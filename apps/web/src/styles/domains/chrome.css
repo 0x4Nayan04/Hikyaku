@@ -1,5 +1,4 @@
 @layer utilities {
-  /* ── Central frame (landing, auth, docs, console catalog) ── */
   .landing-frame-outer {
     position: relative;
     display: flex;
@@ -61,7 +60,6 @@
     padding: clamp(1.25rem, 4vw, var(--space-s2));
   }
 
-  /* ── Public / auth nav ── */
   .landing-nav {
     position: sticky;
     top: 0;

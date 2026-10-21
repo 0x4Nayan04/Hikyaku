@@ -23,7 +23,7 @@
   .Toastify__toast .Toastify__close-button {
     border-radius: 0;
     background: transparent;
-    color: var(--color-muted);
+    color: var(--color-muted-strong);
     transition:
       color 150ms ease,
       background-color 150ms ease;

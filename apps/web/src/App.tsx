@@ -4,6 +4,7 @@ import { RequireSession } from '@/components/layout/RequireSession'
 import { RequireSuperAdmin } from '@/components/layout/RequireSuperAdmin'
 import { RequireTenantUser } from '@/components/layout/RequireTenantUser'
 import { SkipLink } from '@/components/SkipLink'
+import { PRODUCT_LINKS } from '@/lib/app-meta'
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
@@ -49,7 +50,8 @@ export default function App() {
         <Routes>
           <Route path="/docs/*" element={<DocsRoutes />} />
           <Route path="/" element={<Landing />} />
-          <Route path="/why-haiku" element={<Name />} />
+          <Route path={PRODUCT_LINKS.whyHikyaku} element={<Name />} />
+          <Route path="/why-haiku" element={<Navigate to={PRODUCT_LINKS.whyHikyaku} replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/bootstrap" element={<Bootstrap />} />
           <Route path="/accept-invite" element={<AcceptInvite />} />

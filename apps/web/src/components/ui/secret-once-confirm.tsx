@@ -21,7 +21,6 @@ function downloadText(filename: string, text: string) {
   URL.revokeObjectURL(url)
 }
 
-/** Checkpoint before dismissing a one-time secret reveal. */
 export function SecretOnceConfirm({
   confirmed,
   onConfirmedChange,

@@ -1,4 +1,3 @@
-/** Whether Login should advertise the one-time /bootstrap setup link. */
 export function shouldShowBootstrapSetupLink(available: boolean | null): boolean {
   return available === true
 }
@@ -7,7 +6,6 @@ type GuestLandingPrimaryCta =
   | { label: 'Run one-time setup'; path: '/bootstrap' }
   | { label: 'Sign in'; path: '/login' }
 
-/** Bootstrap the first admin; all tenant accounts are invitation-only. */
 export function resolveGuestLandingPrimaryCta(
   bootstrapAvailable: boolean | null,
 ): GuestLandingPrimaryCta {
@@ -17,11 +15,9 @@ export function resolveGuestLandingPrimaryCta(
   return { label: 'Sign in', path: '/login' }
 }
 
-/** Password policy shown up front on the login form (no self-serve reset). */
 export const LOGIN_PASSWORD_RESET_HINT =
   'Ask Admin for a one-time reset link. There is no self-serve password reset.'
 
-/** Combined invite + reset next steps after a failed sign-in. */
 export const LOGIN_FAILED_RECOVERY =
   'Need an invite? Ask Admin. Need a password reset? Ask them for a one-time reset link. There is no self-serve reset.'
 

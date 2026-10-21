@@ -27,11 +27,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
+import { useDetailFetch } from '@/hooks/useDetailFetch'
 import { usePolling } from '@/hooks/usePolling'
 import { formatDateTime, formatDeliveryAttempts, formatDeliveryError } from '@/lib/format'
-import { cn } from '@/lib/utils'
 import { toast } from '@/lib/toast'
-import { useDetailFetch } from '@/hooks/useDetailFetch'
+import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
+import { cn } from '@/lib/utils'
 
 function httpStatusTone(status: number): BadgeTone {
   if (status >= 500) return 'danger'
@@ -125,7 +126,7 @@ export default function DeliveryDetail() {
 
   usePolling({
     enabled: polling,
-    intervalMs: 10_000,
+    intervalMs: POLL_DEFAULT_MS,
     onPoll: refreshDelivery,
   })
 
@@ -165,7 +166,7 @@ export default function DeliveryDetail() {
       }
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <LiveChip active={error === null && polling} />
+          <LiveChip active={error === null && polling} intervalMs={POLL_DEFAULT_MS} />
           <Button size="sm" variant="secondary" asChild>
             <Link to="/deliveries">
               <ArrowLeft className="size-3.5" aria-hidden="true" />

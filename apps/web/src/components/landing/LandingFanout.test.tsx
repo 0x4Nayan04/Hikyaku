@@ -9,7 +9,7 @@ describe('LandingFanout', () => {
 
     expect(html).toContain('role="img"')
     expect(html).toContain(
-      `${APP_NAME} accepts order.paid, signs deliveries, delivers two endpoints, and schedules a retry for a 429 in the ledger.`,
+      `${APP_NAME} accepts order.paid, signs deliveries, delivers to three endpoints, and schedules a retry for a 429 in the ledger.`,
     )
     expect(html).toContain('order.paid')
     expect(html).toContain('signed')

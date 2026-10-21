@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { copyToClipboard } from '@/lib/clipboard'
+import { COPY_FEEDBACK_MS } from '@/lib/ui-timing'
 
 type AttemptResponseBodyProps = {
   body: string
@@ -12,7 +13,7 @@ export function AttemptResponseBody({ body }: AttemptResponseBodyProps) {
   async function handleCopy() {
     if (!(await copyToClipboard(body, 'Response'))) return
     setCopied(true)
-    window.setTimeout(() => setCopied(false), 1600)
+    window.setTimeout(() => setCopied(false), COPY_FEEDBACK_MS)
   }
 
   return (

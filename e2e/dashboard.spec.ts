@@ -118,6 +118,6 @@ test.describe('dashboard smoke', () => {
     await page.getByRole('button', { name: 'Sign in' }).click()
     await page.getByRole('button', { name: 'Open account menu' }).click()
     await page.getByRole('menuitem', { name: 'Profile' }).press('End')
-    await expect(page.getByRole('menuitem', { name: 'Log out' })).toBeFocused()
+    await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeFocused()
   })
 })

@@ -4,7 +4,7 @@
   }
 
   .lp-section {
-    padding-block: clamp(2.25rem, 4vw, 3.5rem) clamp(2.75rem, 5vw, 4.25rem);
+    padding-block: var(--section-pad-y);
   }
 
   .lp-eyebrow {
@@ -153,7 +153,7 @@
   .lp-hero__inner {
     position: relative;
     z-index: 1;
-    padding-block: clamp(1.75rem, 3.5vw, 2.75rem) clamp(2rem, 3.5vw, 3rem);
+    padding-block: var(--hero-pad-y) var(--hero-pad-bottom);
   }
   .lp-hero__center {
     display: flex;
@@ -439,7 +439,7 @@
     background: var(--color-surface);
   }
   .lp-flow .lp-section {
-    padding-block: clamp(1.75rem, 3vw, 2.5rem) clamp(2.75rem, 5vw, 4.25rem);
+    padding-block: var(--landing-pad-y) var(--section-pad-y);
   }
   .lp-flow__stage {
     display: flex;
@@ -521,7 +521,7 @@
     background: var(--color-surface);
   }
   .lp-features .lp-section {
-    padding-top: clamp(1.75rem, 3vw, 2.5rem);
+    padding-top: var(--landing-pad-y);
   }
   .lp-feature-grid {
     display: grid;
@@ -565,7 +565,7 @@
     background: color-mix(in srgb, var(--color-primary) 2.5%, var(--color-surface));
   }
   .lp-preview .lp-section {
-    padding-top: clamp(1.75rem, 3vw, 2.5rem);
+    padding-top: var(--landing-pad-y);
   }
   .lp-preview__main {
     margin-top: 1.5rem;
@@ -803,7 +803,7 @@
     background: var(--color-surface);
   }
   .lp-faq .lp-section {
-    padding-top: clamp(1.75rem, 3vw, 2.5rem);
+    padding-top: var(--landing-pad-y);
   }
   .lp-faq__inner {
     display: flex;
@@ -829,7 +829,7 @@
     align-items: baseline;
     gap: 0.7rem;
     width: 100%;
-    padding: 0.85rem 1rem;
+    padding: var(--faq-trigger-pad-y) 1rem;
     cursor: pointer;
     list-style: none;
   }
@@ -864,7 +864,7 @@
     color: var(--color-ink);
   }
   .lp-faq__answer {
-    padding: 0 1rem 1.15rem 3.3rem;
+    padding: 0 1rem var(--faq-panel-pad-bottom) 3.3rem;
     font-size: 0.9375rem;
     line-height: 1.65;
     color: var(--color-muted-strong);
@@ -923,7 +923,7 @@
     color: var(--color-muted-strong);
   }
 
-  /* Footer — closing brand plate */
+  /* Footer */
   .landing-page .lp-footer {
     position: relative;
     overflow: hidden;

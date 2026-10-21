@@ -16,7 +16,7 @@ import { Link, useNavigate } from 'react-router-dom'
 const GLYPHS = [
   {
     kanji: '飛',
-    reading: 'tobi',
+    reading: 'hi',
     title: 'To fly',
     body: 'The distance the message has to cross.',
   },
@@ -77,7 +77,7 @@ export default function Name() {
                     Japan’s historic express couriers. The characters name the job: fly the
                     distance, run it to the door.
                   </p>
-                  <div className="lp-hero__actions" role="group" aria-label="Continue">
+                  <div className="lp-hero__actions" role="group" aria-label="Leave this page">
                     <Link to={PRODUCT_LINKS.home} className="lp-button lp-button--primary focus-ring">
                       Back home
                       <ArrowRight className="size-4" aria-hidden="true" />

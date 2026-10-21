@@ -10,7 +10,19 @@ import { SettingsTenantTab } from '@/pages/settings/SettingsTenantTab'
 import { SettingsProfileTab } from '@/pages/settings/SettingsProfileTab'
 import { useSettingsPage } from '@/pages/settings/useSettingsPage'
 
-const TENANT_ONLY_TABS = new Set(['tenant', 'api-keys'])
+const SETTINGS_TABS = ['profile', 'tenant', 'api-keys'] as const
+type SettingsTab = (typeof SETTINGS_TABS)[number]
+const TENANT_ONLY_TABS = new Set<SettingsTab>(['tenant', 'api-keys'])
+
+function isSettingsTab(value: string): value is SettingsTab {
+  return (SETTINGS_TABS as readonly string[]).includes(value)
+}
+
+function resolveSettingsTab(requestedTab: string, isSuperAdmin: boolean): SettingsTab {
+  if (!isSettingsTab(requestedTab)) return 'profile'
+  if (isSuperAdmin && TENANT_ONLY_TABS.has(requestedTab)) return 'profile'
+  return requestedTab
+}
 
 export default function Settings() {
   const { session } = useSession()
@@ -18,10 +30,7 @@ export default function Settings() {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedTab = searchParams.get('tab') ?? 'profile'
-  const tab =
-    requestedTab === 'vault' || (isSuperAdmin && TENANT_ONLY_TABS.has(requestedTab))
-      ? 'profile'
-      : requestedTab
+  const tab = resolveSettingsTab(requestedTab, isSuperAdmin)
   const setTab = (newTab: string) => setSearchParams({ tab: newTab }, { replace: true })
 
   useEffect(() => {
@@ -53,12 +62,12 @@ export default function Settings() {
 
   return (
     <ConsolePage
-      marker="Workspace"
+      marker="Account"
       title="Settings"
       description={
         isSuperAdmin
           ? 'Account password and platform admin access.'
-          : 'Profile, API keys, and tenant identity.'
+          : 'Profile, API keys, and workspace identity.'
       }
     >
       <Tabs value={tab} onValueChange={setTab}>
@@ -66,7 +75,7 @@ export default function Settings() {
           <TabsTrigger value="profile">Profile</TabsTrigger>
           {!isSuperAdmin && (
             <>
-              <TabsTrigger value="tenant">Tenant</TabsTrigger>
+              <TabsTrigger value="tenant">Workspace</TabsTrigger>
               <TabsTrigger value="api-keys">API keys</TabsTrigger>
             </>
           )}

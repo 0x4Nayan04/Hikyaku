@@ -7,7 +7,7 @@ import { userEmailMatches } from '../lib/invites.js'
 import { assertSeedAllowed } from './seedGuard.js'
 import { maybeSeedSuperAdmin } from './seedSuperAdmin.js'
 
-/** Local-only demo tenants. Password meets min-12 validation. */
+/** Local-only demo tenants. */
 const SEED_TENANTS = [
   {
     name: 'Acme',
