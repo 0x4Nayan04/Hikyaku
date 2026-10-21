@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_PUBLIC_API_URL?: string
   readonly VITE_GITHUB_URL?: string
   readonly VITE_SOCIAL_URL?: string
+  readonly VITE_PUBLIC_SITE_URL?: string
+  readonly VITE_WALKTHROUGH_URL?: string
 }
 
 declare module '*.md?html' {

@@ -103,6 +103,9 @@ describe('LandingHero walkthrough choice', () => {
       expect(host.querySelector('a[href="/docs#api-only-path"]')?.textContent).toContain(
         'Terminal walkthrough',
       )
+      expect(host.querySelector('a[href="/docs#console-path"]')?.textContent).toContain(
+        'Website walkthrough',
+      )
     }
   })
 })

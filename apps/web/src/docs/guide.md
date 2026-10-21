@@ -105,7 +105,7 @@ curl -b cookies.txt -X POST "{{API_BASE}}/v1/deliveries/DELIVERY_UUID/replay" \
 
 ### Console path
 
-1. Create your installer account and first workspace at [/bootstrap](/bootstrap) (first deploy only).
+1. On a **fresh install you run**, create the installer account and first workspace at [/bootstrap](/bootstrap) (once). The public demo at hikyaku.nayanswarnkar.com is landing and docs only — its console is invite-only and bootstrap is already closed.
 2. Sign in and open your workspace dashboard. Existing admin-only accounts can use **Create my workspace** in Admin.
 3. Open **Endpoints** and register a receiver URL.
 4. Send a test event using the existing **Test event** form, then inspect its deliveries. API keys are only needed afterward for backend ingest — or create them from the [API-only path](#api-only-path).
@@ -413,3 +413,13 @@ API keys are stored as SHA-256 hashes; the full secret is shown only on create o
 > **Protect secrets:** Do not commit API keys or signing secrets to source control or paste them into tickets. Revoke or rotate compromised credentials promptly ([API-only path](#api-only-path), Settings, **Rotate signing secret**, or the API routes above) and update receivers after endpoint secret rotation.
 
 Temporary DNS lookup failures use the normal bounded delivery retries. Private and loopback addresses are blocked when `NODE_ENV=production` and allowed outside production for local testing. Supported protocols, URL safety checks, and hostname resolution still apply in every environment, and endpoint registration rejects unresolved hostnames.
+
+## Known limits
+
+These are product boundaries, not defects. The same list lives in [SECURITY.md](https://github.com/0x4Nayan04/Hikyaku/blob/main/SECURITY.md) and `deploy/README.md`.
+
+- Endpoint signing secrets are stored so the worker can sign POSTs; they are not hashed like API keys. Protect the database and backups.
+- Signing-secret rotation replaces the secret immediately. There is no dual-secret window.
+- Redis down: auth rate limits and ingest enqueue return **503**. The outbox can recover committed deliveries; login cannot.
+- Invites and password resets are copy-paste links. There is no email delivery.
+- HTTP delivery is **at-least-once**. Subscribers must dedupe on `X-Webhook-Id`.

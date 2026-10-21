@@ -11,6 +11,7 @@ describe('titleForPath', () => {
     expect(titleForPath('/docs')).toBe('Hikyaku Docs')
     expect(titleForPath('/docs', '#signing')).toBe('Signing · Hikyaku Docs')
     expect(titleForPath('/docs', '#api-only-path')).toBe('Terminal walkthrough · Hikyaku Docs')
+    expect(titleForPath('/docs', '#known-limits')).toBe('Known limits · Hikyaku Docs')
     expect(titleForPath('/docs', '#console-path')).toBe('Website walkthrough · Hikyaku Docs')
     expect(titleForPath('/docs/anything')).toBe('Hikyaku Docs')
     expect(titleForPath('/dashboard')).toBe('Dashboard · Hikyaku')

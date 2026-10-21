@@ -138,6 +138,13 @@ export function LandingFooter() {
             >
               Privacy
             </Link>
+            <Link
+              to={`${PRODUCT_LINKS.docs}#known-limits`}
+              className="lp-footer__link lp-footer__link--quiet focus-ring"
+              onClick={handleDocsClick}
+            >
+              Known limits
+            </Link>
           </div>
         </div>
       </LandingFrameInner>

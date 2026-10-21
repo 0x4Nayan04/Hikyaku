@@ -10,9 +10,11 @@ Self-hosted, multi-tenant webhook delivery. Ingest an event once; the API fans i
 
 **Stack:** Node.js · Express · BullMQ · Postgres · Redis · Vite/React
 
-**Repo:** [github.com/0x4Nayan04/Hikyaku](https://github.com/0x4Nayan04/Hikyaku) · **License:** [MIT](./LICENSE)
+**Repo:** [github.com/0x4Nayan04/Hikyaku](https://github.com/0x4Nayan04/Hikyaku) · **License:** [MIT](./LICENSE) · **Security:** [SECURITY.md](./SECURITY.md)
 
-**Live demo (read-only browsing):** [hikyaku.nayanswarnkar.com](https://hikyaku.nayanswarnkar.com) — operator console is invite-only; use local bootstrap for a full walkthrough.
+**Live demo:** [hikyaku.nayanswarnkar.com](https://hikyaku.nayanswarnkar.com) — public landing and docs. The operator console is invite-only (no self-serve signup). For a full console, follow [Local development](#local-development) below, or the [website](https://hikyaku.nayanswarnkar.com/docs#console-path) and [terminal](https://hikyaku.nayanswarnkar.com/docs#api-only-path) walkthroughs.
+
+The hosted demo is **split**: web on Vercel, API + worker on Railway (`hikyakuapi.nayanswarnkar.com`). Session cookies stay on the Vercel origin. **Self-host** with one-host Docker Compose — that is the supported path for your own install.
 
 ## Architecture
 
@@ -97,10 +99,10 @@ curl -X POST "http://localhost:3000/v1/events" \
 
 ## Deploy
 
-**Main path:** one-host Docker Compose (API + worker + Postgres + Redis + Caddy).  
+**Self-host (your own install):** one-host Docker Compose (API + worker + Postgres + Redis + Caddy).
 See **[deploy/README.md](deploy/README.md)** for setup, HTTPS, backups, and upgrades.
 
-**Optional:** split hosting (web on Vercel, API/worker on Railway) is documented in the same file under [Optional: Vercel + Railway](deploy/README.md#optional-vercel--railway).
+**Public demo:** web on Vercel, API + worker on Railway. Same file, [Optional: Vercel + Railway](deploy/README.md#optional-vercel--railway).
 
 ## Project layout
 

@@ -117,6 +117,27 @@ export function LandingHero() {
             >
               Terminal walkthrough
             </Link>
+            {' · '}
+            <Link
+              to={`${PRODUCT_LINKS.docs}#console-path`}
+              className="lp-hero__choice-link focus-ring"
+            >
+              Website walkthrough
+            </Link>
+            {PUBLIC_LINKS.walkthrough ? (
+              <>
+                {' · '}
+                <a
+                  href={PUBLIC_LINKS.walkthrough}
+                  className="lp-hero__choice-link focus-ring"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Console video
+                  <span className="sr-only">(opens in a new tab)</span>
+                </a>
+              </>
+            ) : null}
           </p>
 
           <figure className="lp-hero__command" aria-label="Example ingest request">
