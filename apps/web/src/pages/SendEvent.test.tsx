@@ -85,6 +85,11 @@ describe('SendEvent endpoint gate', () => {
 
     expect(container.textContent).toContain('Send test event')
     expect(container.textContent).not.toContain('Create an endpoint first')
+    expect(container.textContent).toContain('Sends a real webhook to the active endpoints.')
+    expect(container.querySelector('a[href="/docs#ingest"]')).not.toBeNull()
+    expect(container.querySelector('a[href="/docs#api-only-path"]')?.textContent).toContain(
+      'Terminal walkthrough',
+    )
   })
 })
 

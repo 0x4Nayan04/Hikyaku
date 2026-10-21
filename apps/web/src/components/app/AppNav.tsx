@@ -41,7 +41,7 @@ export function AppNav({ isSuperAdmin, hasWorkspace, onNavigate, variant = 'side
               isMobile && 'border border-border bg-surface',
             )}
           >
-            {section.items.map((item, itemIndex) => {
+            {section.items.map((item) => {
               const Icon = item.icon
               const active = isNavItemActive(location.pathname, item, allItems)
               const description = showDescriptions ? item.description : undefined
@@ -64,8 +64,8 @@ export function AppNav({ isSuperAdmin, hasWorkspace, onNavigate, variant = 'side
                   >
                     {isMobile ? (
                       <>
-                        <span className="catalog-link-row-index">
-                          {String(itemIndex + 1).padStart(2, '0')}
+                        <span className="console-nav-row-icon" aria-hidden="true">
+                          <Icon className="size-4" strokeWidth={1.75} />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="catalog-link-row-label">{item.title}</span>
@@ -75,7 +75,6 @@ export function AppNav({ isSuperAdmin, hasWorkspace, onNavigate, variant = 'side
                             </span>
                           ) : null}
                         </span>
-                        <Icon className="size-4 shrink-0 text-primary" strokeWidth={1.75} />
                       </>
                     ) : (
                       <>

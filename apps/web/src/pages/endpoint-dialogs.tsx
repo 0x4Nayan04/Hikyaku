@@ -262,7 +262,7 @@ export function EndpointDialogs({
           if (!open) handleRotateClose()
         }}
       >
-        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogContent className="gap-0 overflow-y-auto p-0 sm:max-w-md">
           <div className="flex gap-3 border-b border-border bg-surface-muted/40 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5 pr-12">
             <div className="flex size-9 shrink-0 items-center justify-center border border-destructive/30 bg-destructive/10 text-destructive">
               <TriangleAlert className="size-4" aria-hidden="true" />

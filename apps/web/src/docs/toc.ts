@@ -1,6 +1,8 @@
 export const DOCS_TOC = [
   { id: 'introduction', label: 'Introduction' },
   { id: 'quick-start', label: 'Quick start' },
+  { id: 'api-only-path', label: 'Terminal walkthrough' },
+  { id: 'console-path', label: 'Website walkthrough' },
   { id: 'console-guide', label: 'Console guide' },
   { id: 'authentication', label: 'Authentication' },
   { id: 'ingest', label: 'Ingest' },

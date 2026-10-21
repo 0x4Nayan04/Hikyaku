@@ -11,7 +11,7 @@ const FAQ_ITEMS = [
   {
     id: 'failures',
     q: 'What if my endpoint is down?',
-    a: 'Hikyaku retries with exponential backoff, up to five HTTP attempts. An HTTP attempt records status when the subscriber responds, timing, and up to 1 KB of body. Replay a failed delivery from its detail page once the endpoint is active again.',
+    a: 'Hikyaku retries with exponential backoff, up to five HTTP attempts. An HTTP attempt records status when the subscriber responds, timing, and up to 1 KB of body. Replay a failed delivery from the console or terminal once the endpoint is active again.',
   },
   {
     id: 'signing',
@@ -56,13 +56,16 @@ function FaqAnswerBody({ item }: { item: FaqItem }) {
               <Link to={PRODUCT_LINKS.console} className="lp-faq__link">
                 console
               </Link>
-              , register an endpoint, then create an API key
+              , or skip it and use the terminal
             </li>
-            <li>POST /v1/events with the key, then watch Deliveries</li>
           </ol>
           <p>
-            <Link to={`${PRODUCT_LINKS.docs}/quick-start`} className="lp-faq__link">
-              Quick start with curl
+            Once you have an account, add endpoints, send events, and inspect or replay from the
+            website or terminal.
+          </p>
+          <p>
+            <Link to={`${PRODUCT_LINKS.docs}#api-only-path`} className="lp-faq__link">
+              Terminal walkthrough
             </Link>
           </p>
         </div>
@@ -104,12 +107,7 @@ export function LandingFaq() {
         <div className="lp-faq__frame">
           <div className="lp-faq__list">
             {FAQ_ITEMS.map((item, index) => (
-              <details
-                key={item.id}
-                className="lp-faq__item"
-                name="lp-faq"
-                open={index === 0}
-              >
+              <details key={item.id} className="lp-faq__item" name="lp-faq" open={index === 0}>
                 <summary className="lp-faq__summary focus-ring">
                   <span className="lp-faq__index" aria-hidden="true">
                     {String(index + 1).padStart(2, '0')}

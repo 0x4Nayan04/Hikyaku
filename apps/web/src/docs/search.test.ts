@@ -42,6 +42,14 @@ describe('docs search', () => {
   it('returns TOC-only rows when the query is empty', () => {
     const results = filterDocsSearch(index, '')
     expect(results.some((entry) => entry.id === 'introduction')).toBe(true)
+    expect(results.some((entry) => entry.id === 'api-only-path')).toBe(true)
+    expect(results.some((entry) => entry.id === 'console-path')).toBe(true)
     expect(results.every((entry) => entry.id !== 'node-js')).toBe(true)
+    expect(results.map((entry) => [entry.id, entry.label])).toEqual(
+      expect.arrayContaining([
+        ['api-only-path', 'Terminal walkthrough'],
+        ['console-path', 'Website walkthrough'],
+      ]),
+    )
   })
 })

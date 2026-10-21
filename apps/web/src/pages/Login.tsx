@@ -7,7 +7,6 @@ import { AuthFormField } from '@/components/auth/AuthFormField'
 import { PageBanner } from '@/components/console/PageBanner'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import {
-  LOGIN_FAILED_RECOVERY,
   LOGIN_PASSWORD_RESET_HINT,
   resolveLoginBanner,
   shouldShowBootstrapSetupLink,
@@ -40,7 +39,6 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [showRecovery, setShowRecovery] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [bootstrapAvailable, setBootstrapAvailable] = useState<boolean | null>(readBootstrapStatusCache)
 
@@ -87,7 +85,6 @@ export default function Login() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    setShowRecovery(false)
     setSubmitting(true)
 
     try {
@@ -98,7 +95,6 @@ export default function Login() {
       })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Unable to sign in. Try again.')
-      setShowRecovery(true)
     } finally {
       setSubmitting(false)
     }
@@ -113,35 +109,33 @@ export default function Login() {
       title="Welcome back"
       description="Sign in to manage endpoints, events, and deliveries for your tenant."
       sidePanel={
-        <div className="flex flex-col gap-6 h-full">
-          <div className="flex flex-col gap-6 flex-1">
-            <div>
-              <h2 className="font-display text-xl font-medium tracking-tight text-ink">
-                Delivery console
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-strong">
-                Manage endpoints, send events, and inspect delivery attempts for your tenant.
-              </p>
-            </div>
-
-            <ul className="space-y-3 text-sm">
-              {(
-                [
-                  'Delivery metrics and recent activity',
-                  'Automatic retries with exponential backoff',
-                  'Event payloads and attempt history',
-                  'API keys and endpoint settings',
-                ] as const
-              ).map((item) => (
-                <li key={item} className="flex items-start gap-2.5">
-                  <Check className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />
-                  <span className="text-muted-foreground">{item}</span>
-                </li>
-              ))}
-            </ul>
+        <div className="flex flex-col gap-6">
+          <div>
+            <h2 className="font-display text-xl font-medium tracking-tight text-ink">
+              Delivery console
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-strong">
+              Manage endpoints, send events, and inspect delivery attempts for your tenant.
+            </p>
           </div>
 
-          <div className="space-y-3">
+          <ul className="space-y-3 text-sm">
+            {(
+              [
+                'Delivery metrics and recent activity',
+                'Automatic retries with exponential backoff',
+                'Event payloads and attempt history',
+                'API keys and endpoint settings',
+              ] as const
+            ).map((item) => (
+              <li key={item} className="flex items-start gap-2.5">
+                <Check className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />
+                <span className="text-muted-foreground">{item}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex flex-col gap-3 border-t border-border pt-6">
             <p className="text-sm text-muted-strong">
               Need a workspace? Ask Admin for an invite.
             </p>
@@ -156,10 +150,10 @@ export default function Login() {
         </div>
       }
     >
-      <form className="flex flex-col gap-3" onSubmit={handleSubmit} aria-describedby="login-status">
+      <form className="auth-slip-form" onSubmit={handleSubmit} aria-describedby="login-status">
         <div
           id="login-status"
-          className={banner || error || showRecovery ? 'auth-form-status' : 'hidden'}
+          className={banner || error ? 'auth-form-status' : 'hidden'}
           aria-live="assertive"
           aria-atomic="true"
         >
@@ -171,9 +165,6 @@ export default function Login() {
             />
           ) : null}
           {error ? <PageBanner variant="error" title="Sign in failed" description={error} /> : null}
-          {showRecovery ? (
-            <PageBanner variant="info" title="Next steps" description={LOGIN_FAILED_RECOVERY} />
-          ) : null}
         </div>
 
         <AuthFormField
@@ -197,7 +188,7 @@ export default function Login() {
           required
         />
 
-        <p className="-mt-1 rounded-none border border-border bg-surface-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+        <p className="auth-slip-note">
           <span className="font-medium text-ink">Need a password reset?</span> {LOGIN_PASSWORD_RESET_HINT}
         </p>
 

@@ -128,8 +128,9 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
               aria-label={APP_HOME_LABEL}
             >
               <HikyakuMark decorative className="size-7 shrink-0" />
-              <span className="landing-nav-brand-text">{APP_NAME}</span>
+              <span className="landing-nav-brand-text max-[479px]:hidden">{APP_NAME}</span>
             </a>
+            <p className="console-topbar-workspace lg:hidden">{workspaceLabel}</p>
           </div>
 
           <div className="ml-auto flex min-w-0 items-center gap-2">
@@ -252,19 +253,10 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
             aria-label="Console navigation"
           >
             <div className="console-mobile-menu-header">
-              <a
-                href="/"
-                onClick={(event) => {
-                  goHome(event)
-                  closeMobileMenu()
-                }}
-                className="landing-nav-brand focus-ring"
-                aria-label={APP_HOME_LABEL}
-              >
-                <HikyakuMark decorative className="size-7" />
-                <span className="landing-nav-brand-text">{APP_NAME}</span>
-              </a>
-              <p className="console-mobile-menu-tenant">{workspaceLabel}</p>
+              <div className="min-w-0 flex-1">
+                <p className="console-mobile-menu-kicker">Workspace</p>
+                <p className="console-mobile-menu-tenant">{workspaceLabel}</p>
+              </div>
               <button
                 type="button"
                 className="landing-mobile-menu-btn"

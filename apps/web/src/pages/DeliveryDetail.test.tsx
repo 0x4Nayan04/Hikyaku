@@ -139,6 +139,7 @@ describe('DeliveryDetail', () => {
     const label = '1 attempt this run · 3 total'
     expect(container.textContent?.split(label).length).toBe(3)
     expect(container.textContent).not.toContain('3 attempts')
+    expect(container.querySelector(`a[href="/events/${replayedDelivery.event_id}"]`)).not.toBeNull()
     expect(replayButton()).not.toBeNull()
   })
 

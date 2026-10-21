@@ -5,21 +5,35 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PUBLIC_API_BASE } from '@/api/client'
+import type { MeResponse } from '@/api/types'
 import { LandingHero } from '@/components/landing/LandingHero'
 import { copyToClipboard } from '@/lib/clipboard'
 import { buildIngestCurl } from '@/lib/tenant-onboarding'
 import { SessionContext } from '@/providers/session-context'
 
+const bootstrapStatus = vi.hoisted(() => ({ available: false as boolean }))
+
 vi.mock('@/lib/bootstrap-status', () => ({
-  readBootstrapStatusCache: () => false,
-  loadBootstrapStatus: async () => false,
+  readBootstrapStatusCache: () => bootstrapStatus.available,
+  loadBootstrapStatus: async () => bootstrapStatus.available,
 }))
 vi.mock('@/lib/clipboard', () => ({ copyToClipboard: vi.fn(async () => true) }))
 
-function hero() {
+const signedIn: MeResponse = {
+  user: {
+    id: 'user-1',
+    email: 'owner@example.com',
+    name: 'Owner',
+    tenant_id: 'tenant-1',
+    is_super_admin: false,
+  },
+  tenant: { id: 'tenant-1', name: 'Acme' },
+}
+
+function hero(session: MeResponse | null = null) {
   return (
     <StrictMode>
-      <SessionContext.Provider value={{ session: null, loading: false, refresh: async () => {} }}>
+      <SessionContext.Provider value={{ session, loading: false, refresh: async () => {} }}>
         <MemoryRouter>
           <LandingHero />
         </MemoryRouter>
@@ -28,7 +42,10 @@ function hero() {
   )
 }
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  bootstrapStatus.available = false
+  vi.restoreAllMocks()
+})
 
 describe('LandingHero command', () => {
   it('includes Copy and the complete command on the first render, without effects or a shell', () => {
@@ -64,6 +81,28 @@ describe('LandingHero command', () => {
       await act(async () => root.unmount())
       vi.useRealTimers()
       vi.unstubAllGlobals()
+    }
+  })
+})
+
+describe('LandingHero walkthrough choice', () => {
+  it('keeps the terminal walkthrough link in guest, bootstrap, and signed-in markup', () => {
+    const states = [
+      { session: null, bootstrap: false },
+      { session: null, bootstrap: true },
+      { session: signedIn, bootstrap: false },
+    ]
+
+    for (const state of states) {
+      bootstrapStatus.available = state.bootstrap
+      const host = document.createElement('div')
+      host.innerHTML = renderToStaticMarkup(hero(state.session))
+      expect(host.textContent).toContain(
+        'Use the website or your terminal. Same jobs, your choice.',
+      )
+      expect(host.querySelector('a[href="/docs#api-only-path"]')?.textContent).toContain(
+        'Terminal walkthrough',
+      )
     }
   })
 })

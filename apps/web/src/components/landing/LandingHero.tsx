@@ -109,6 +109,16 @@ export function LandingHero() {
             )}
           </div>
 
+          <p className="lp-hero__choice">
+            Use the website or your terminal. Same jobs, your choice.{' '}
+            <Link
+              to={`${PRODUCT_LINKS.docs}#api-only-path`}
+              className="lp-hero__choice-link focus-ring"
+            >
+              Terminal walkthrough
+            </Link>
+          </p>
+
           <figure className="lp-hero__command" aria-label="Example ingest request">
             <div className="lp-hero__command-head">
               <div className="lp-hero__command-meta">

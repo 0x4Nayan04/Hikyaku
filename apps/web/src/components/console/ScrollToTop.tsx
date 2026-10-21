@@ -46,11 +46,11 @@ export function ScrollToTop({ scrollContainerRef }: ScrollToTopProps) {
       aria-hidden={!visible}
       onClick={scrollToTop}
       className={cn(
-        'scroll-to-top catalog-focus fixed z-50 inline-flex size-9 items-center justify-center',
+        'scroll-to-top catalog-focus fixed z-50 inline-flex size-11 items-center justify-center md:size-9',
         'border border-border bg-surface text-muted-strong shadow-none',
         'transition-[opacity,transform,visibility,color,border-color,background-color]',
         'duration-150 ease-out hover:border-primary hover:bg-surface hover:text-primary',
-        'right-5 bottom-5 md:right-6 md:bottom-6',
+        'right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] md:right-6 md:bottom-6',
         visible
           ? 'pointer-events-auto translate-y-0 opacity-100 visible'
           : 'pointer-events-none translate-y-2 opacity-0 invisible',
