@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/api/client'
+import type { SavedResult } from '@/lib/page-cache'
 import type { Paginated } from '@/api/types'
 
 type UsePaginatedListOptions<T> = {
@@ -12,6 +13,7 @@ type UsePaginatedListOptions<T> = {
   fallbackError: string
   queryKey?: string
   enabled?: boolean
+  cache?: SavedResult<Paginated<T>>
 }
 
 export function usePaginatedList<T>({
@@ -20,14 +22,18 @@ export function usePaginatedList<T>({
   fallbackError,
   queryKey,
   enabled = true,
+  cache,
 }: UsePaginatedListOptions<T>) {
-  const [data, setData] = useState<T[]>([])
-  const [hasMore, setHasMore] = useState(false)
+  const [initial] = useState(() =>
+    enabled ? cache?.read(JSON.stringify([queryKey, 0, pageSize])) : undefined,
+  )
+  const [data, setData] = useState<T[]>(initial?.data ?? [])
+  const [hasMore, setHasMore] = useState(initial?.has_more ?? false)
   const [offset, setOffset] = useState(0)
-  const [loadedKey, setLoadedKey] = useState<string | null>(null)
-  const [settledKey, setSettledKey] = useState<string | null>(null)
-  const currentKey = JSON.stringify([queryKey, offset, pageSize])
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  const currentKey = JSON.stringify([cache?.id, queryKey, offset, pageSize])
+  const [loadedKey, setLoadedKey] = useState<string | null>(initial ? currentKey : null)
+  const [settledKey, setSettledKey] = useState<string | null>(initial ? currentKey : null)
+  const [isRefreshing, setIsRefreshing] = useState(Boolean(initial))
   const [error, setError] = useState<string | null>(null)
   const fetchPageRef = useRef<typeof fetchPage | null>(null)
   const offsetRef = useRef(offset)
@@ -35,7 +41,8 @@ export function usePaginatedList<T>({
   const previousQueryKeyRef = useRef(queryKey)
   const requestRef = useRef(0)
   const abortRef = useRef<AbortController | null>(null)
-  const initializedRef = useRef(false)
+  const initializedRef = useRef(Boolean(initial))
+  const cacheRef = useRef(cache)
 
   useEffect(() => {
     fetchPageRef.current = fetchPage
@@ -44,12 +51,14 @@ export function usePaginatedList<T>({
   useEffect(() => {
     offsetRef.current = offset
     queryKeyRef.current = queryKey
-  }, [offset, queryKey])
+    cacheRef.current = cache
+  }, [offset, queryKey, cache])
 
   const isStale = (request: number, requestQueryKey: string | undefined) =>
     request !== requestRef.current || requestQueryKey !== queryKeyRef.current
 
   const load = useCallback(async (): Promise<boolean | undefined> => {
+    const generation = cache?.generation
     const request = ++requestRef.current
     const fetch = fetchPageRef.current
     if (!fetch) return undefined
@@ -59,14 +68,22 @@ export function usePaginatedList<T>({
     if (initializedRef.current) setIsRefreshing(true)
     const nextOffset = offsetRef.current
     const requestQueryKey = queryKeyRef.current
-    const requestKey = JSON.stringify([requestQueryKey, nextOffset, pageSize])
+    const requestKey = JSON.stringify([cache?.id, requestQueryKey, nextOffset, pageSize])
+    const stale = () =>
+      controller.signal.aborted ||
+      isStale(request, requestQueryKey) ||
+      cache !== cacheRef.current ||
+      generation !== cache?.generation
 
     try {
       const result = await fetch({ limit: pageSize, offset: nextOffset, signal: controller.signal })
-      if (isStale(request, requestQueryKey)) return undefined
+      if (stale()) return undefined
       if (result.data.length === 0 && result.offset > 0) {
         setOffset(Math.max(0, result.offset - pageSize))
         return true
+      }
+      if (nextOffset === 0 && generation !== undefined) {
+        cache?.write(JSON.stringify([requestQueryKey, 0, pageSize]), result, generation)
       }
       setLoadedKey(requestKey)
       setData(result.data)
@@ -76,17 +93,27 @@ export function usePaginatedList<T>({
       return true
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return undefined
-      if (isStale(request, requestQueryKey)) return undefined
+      if (stale()) return undefined
+      if (cache && err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        cache.clear()
+        setData([])
+        setHasMore(false)
+        setLoadedKey(null)
+        setSettledKey(requestKey)
+        initializedRef.current = true
+      }
       setError(err instanceof ApiError ? err.message : fallbackError)
       return false
     } finally {
-      if (abortRef.current === controller) abortRef.current = null
-      const stale = isStale(request, requestQueryKey)
-      if (!stale) initializedRef.current = true
-      if (!stale) setSettledKey(requestKey)
-      setIsRefreshing((refreshing) => (stale ? refreshing : false))
+      if (abortRef.current === controller) {
+        abortRef.current = null
+        setIsRefreshing(false)
+      }
+      const obsolete = stale()
+      if (!obsolete) initializedRef.current = true
+      if (!obsolete) setSettledKey(requestKey)
     }
-  }, [fallbackError, pageSize])
+  }, [fallbackError, pageSize, cache])
 
   useEffect(() => {
     if (!enabled) {

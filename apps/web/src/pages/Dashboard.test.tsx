@@ -1,12 +1,21 @@
 // @vitest-environment jsdom
-import { getStats, listApiKeys, listDeliveries, listEndpoints, listEvents } from '@/api/client';
-import type { Paginated, Stats } from '@/api/types';
-import { POLL_DEFAULT_MS } from '@/lib/ui-timing';
-import { Dashboard } from '@/pages/Dashboard';
-import { act } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
-import { MemoryRouter } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createPageCache } from '@/lib/page-cache'
+import { PageCacheContext } from '@/providers/page-cache-context'
+import {
+  ApiError,
+  getStats,
+  listApiKeys,
+  listDeliveries,
+  listEndpoints,
+  listEvents,
+} from '@/api/client'
+import type { Paginated, Stats } from '@/api/types'
+import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
+import { Dashboard } from '@/pages/Dashboard'
+import { act } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
+import { MemoryRouter } from 'react-router-dom'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/client')>()
@@ -54,6 +63,7 @@ function hang<T>(signal?: AbortSignal): Promise<T> {
   })
 }
 
+let pageCache: ReturnType<typeof createPageCache>
 let container: HTMLDivElement
 let root: Root
 let mounted = false
@@ -61,15 +71,18 @@ let mounted = false
 async function renderDashboard() {
   await act(async () => {
     root.render(
-      <MemoryRouter>
-        <Dashboard />
-      </MemoryRouter>,
+      <PageCacheContext.Provider value={pageCache}>
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>
+      </PageCacheContext.Provider>,
     )
   })
   mounted = true
 }
 
 beforeEach(() => {
+  pageCache = createPageCache()
   vi.useFakeTimers()
   container = document.createElement('div')
   document.body.appendChild(container)
@@ -332,4 +345,57 @@ it('cancels the remaining failed batch and recovers on the next refresh', async 
   })
   expect(getStats).toHaveBeenCalledTimes(2)
   expect(container.textContent).not.toContain('Could not load stats')
+})
+
+it('shows saved metrics on return while refreshing, then keeps them with an error on failure', async () => {
+  vi.mocked(getStats).mockResolvedValue(activeStats)
+  await renderDashboard()
+  expect(pageCache.dashboard.read('dashboard')?.stats).toEqual(activeStats)
+  await act(async () => root.render(null))
+  let reject!: (reason: Error) => void
+  vi.mocked(getStats).mockImplementationOnce(
+    () =>
+      new Promise((_, fail) => {
+        reject = fail
+      }),
+  )
+  await renderDashboard()
+  expect(container.textContent).toContain('Metrics')
+  expect(container.textContent).toContain('Updating…')
+  expect(container.textContent).not.toContain('Live')
+  await act(async () => reject(new Error('offline')))
+  expect(container.textContent).toContain('Metrics')
+  expect(container.textContent).toContain('Could not load stats')
+  expect(container.textContent).not.toContain('Updating…')
+  expect(container.textContent).not.toContain('Live')
+})
+
+it('does not save a dashboard response that finishes after invalidation', async () => {
+  let resolve!: (stats: Stats) => void
+  vi.mocked(getStats).mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        resolve = done
+      }),
+  )
+  await renderDashboard()
+  pageCache.dashboard.clear()
+  await act(async () => resolve(activeStats))
+  expect(pageCache.dashboard.read('dashboard')).toBeUndefined()
+  expect(container.textContent).not.toContain('Metrics')
+  vi.mocked(getStats).mockResolvedValue(activeStats)
+  await act(async () => vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS))
+  expect(container.textContent).toContain('Metrics')
+  expect(container.textContent).not.toContain('Updating…')
+})
+
+it('discards saved metrics when the server denies access', async () => {
+  vi.mocked(getStats).mockResolvedValueOnce(activeStats)
+  await renderDashboard()
+  await act(async () => root.render(null))
+  vi.mocked(getStats).mockRejectedValueOnce(new ApiError(403, 'forbidden', 'Access denied'))
+  await renderDashboard()
+  expect(container.textContent).not.toContain('Metrics')
+  expect(container.textContent).toContain('Access denied')
+  expect(pageCache.dashboard.read('dashboard')).toBeUndefined()
 })

@@ -1,3 +1,4 @@
+import { usePageCache } from '@/providers/page-cache-context'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -89,6 +90,7 @@ function AttemptTimelineItem({ attempt }: { attempt: DeliveryAttempt }) {
 }
 
 export default function DeliveryDetail() {
+  const pageCache = usePageCache()
   const readOnly = useReadOnlyWorkspace()
   const { id } = useParams<{ id: string }>()
   const [replayOpen, setReplayOpen] = useState(false)
@@ -139,6 +141,7 @@ export default function DeliveryDetail() {
 
     try {
       await replayDelivery(id)
+      pageCache?.clear()
       if (request !== replayRequestRef.current) return
       setAwaitingReplayId(id)
       setReplayOpen(false)

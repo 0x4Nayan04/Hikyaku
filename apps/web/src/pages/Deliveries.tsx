@@ -1,3 +1,4 @@
+import { usePageCache } from '@/providers/page-cache-context'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search, Send, X } from 'lucide-react'
 import { listDeliveries } from '@/api/client'
@@ -48,6 +49,7 @@ function parseStatusParam(value: string | null): DeliveryListStatus {
 }
 
 export default function Deliveries() {
+  const pageCache = usePageCache()
   const [searchParams, setSearchParams] = useSearchParams()
   const eventIdFilter = searchParams.get('event_id') || undefined
   const statusFilter = parseStatusParam(searchParams.get('status'))
@@ -63,6 +65,7 @@ export default function Deliveries() {
     error,
     refresh,
   } = usePaginatedList<Delivery>({
+    cache: pageCache?.deliveries,
     pageSize: PAGE_SIZE,
     fetchPage: ({ limit, offset, signal }) =>
       listDeliveries(
@@ -207,7 +210,15 @@ export default function Deliveries() {
     <ConsolePage
       title="Deliveries"
       description="One row per event and endpoint. Open a row for each attempt."
-      actions={<LiveChip active={isLive} intervalMs={pollIntervalMs} />}
+      actions={
+        isRefreshing ? (
+          <span role="status" className="text-sm text-muted-foreground">
+            Updating…
+          </span>
+        ) : (
+          <LiveChip active={isLive} intervalMs={pollIntervalMs} />
+        )
+      }
     >
       {error ? (
         <PageBanner variant="error" title="Could not load deliveries" description={error} />

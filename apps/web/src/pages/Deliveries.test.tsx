@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { createPageCache } from '@/lib/page-cache'
+import { PageCacheContext } from '@/providers/page-cache-context'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
@@ -14,6 +16,7 @@ vi.mock('@/api/client', async (importOriginal) => ({
 }))
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
+let pageCache: ReturnType<typeof createPageCache>
 let container: HTMLDivElement
 let root: Root
 const delivery: Delivery = {
@@ -35,9 +38,11 @@ function page(data: Delivery[]): Paginated<Delivery> {
 async function renderPage() {
   await act(async () => {
     root.render(
-      <MemoryRouter>
-        <Deliveries />
-      </MemoryRouter>,
+      <PageCacheContext.Provider value={pageCache}>
+        <MemoryRouter>
+          <Deliveries />
+        </MemoryRouter>
+      </PageCacheContext.Provider>,
     )
   })
 }
@@ -51,6 +56,7 @@ function setHidden(hidden: boolean) {
   document.dispatchEvent(new Event('visibilitychange'))
 }
 beforeEach(() => {
+  pageCache = createPageCache()
   vi.useFakeTimers()
   vi.mocked(listDeliveries).mockReset()
   container = document.createElement('div')
@@ -150,4 +156,26 @@ it('does not interrupt a slow initial load on poll or tab return', async () => {
   })
   await advance()
   expect(listDeliveries).toHaveBeenCalledTimes(2)
+})
+
+it('shows saved rows immediately on return and updates them after the response', async () => {
+  vi.mocked(listDeliveries).mockResolvedValueOnce(page([delivery]))
+  await renderPage()
+  await act(async () => root.render(null))
+  let resolve!: (result: Paginated<Delivery>) => void
+  vi.mocked(listDeliveries).mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        resolve = done
+      }),
+  )
+  await renderPage()
+  expect(container.querySelector('a[href="/deliveries/delivery-1"]')).not.toBeNull()
+  expect(container.textContent).toContain('Updating…')
+  expect(container.textContent).not.toContain('Live')
+  await act(async () => resolve(page([{ ...delivery, id: 'delivery-2', status: 'succeeded' }])))
+  expect(container.querySelector('a[href="/deliveries/delivery-1"]')).toBeNull()
+  expect(container.querySelector('a[href="/deliveries/delivery-2"]')).not.toBeNull()
+  expect(container.textContent).not.toContain('Updating…')
+  expect(container.textContent).toContain('Live')
 })

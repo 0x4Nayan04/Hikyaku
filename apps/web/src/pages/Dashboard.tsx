@@ -1,3 +1,5 @@
+import { usePageCache } from '@/providers/page-cache-context'
+import type { DashboardSnapshot } from '@/lib/page-cache'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -27,6 +29,34 @@ function isAbortError(err: unknown): boolean {
   return err instanceof Error && err.name === 'AbortError'
 }
 
+function buildActivity(
+  events: DashboardSnapshot['events'],
+  deliveries: DashboardSnapshot['deliveries'],
+): ActivityItem[] {
+  return [
+    ...events.map((event) => ({
+      id: `event-${event.id}`,
+      kind: 'event' as const,
+      eventType: event.type,
+      status: event.status,
+      to: `/events/${event.id}`,
+      createdAt: event.created_at,
+    })),
+    ...deliveries.map((delivery) => ({
+      id: `delivery-${delivery.id}`,
+      kind: 'delivery' as const,
+      eventType: `Delivery ${formatStatusLabel(delivery.status)}`,
+      status: delivery.status,
+      to: `/deliveries/${delivery.id}`,
+      createdAt: delivery.created_at,
+      attemptCount: delivery.attempt_count,
+      replayCount: delivery.replay_count,
+    })),
+  ]
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+    .slice(0, 5)
+}
+
 function hasDashboardData(stats: Stats): boolean {
   return (
     stats.events_today > 0 ||
@@ -46,23 +76,34 @@ type AttentionItem = {
 }
 
 export function Dashboard() {
+  const cache = usePageCache()
+  return <DashboardContent key={cache?.dashboard.id ?? 'uncached'} />
+}
+
+function DashboardContent() {
+  const cache = usePageCache()?.dashboard
   const readOnly = useReadOnlyWorkspace()
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [activity, setActivity] = useState<ActivityItem[]>([])
-  const [attention, setAttention] = useState<AttentionItem[]>([])
-  const [onboarding, setOnboarding] = useState<OnboardingStep[] | null>(null)
-  const [onboardingError, setOnboardingError] = useState<string | null>(null)
+  const [snapshot, setSnapshot] = useState(() => cache?.read('dashboard'))
+  const stats = snapshot?.stats ?? null
+  const activity = buildActivity(snapshot?.events ?? [], snapshot?.deliveries ?? [])
+  const attention = stats ? buildAttentionItems(stats, snapshot?.hasDisabledEndpoint ?? false) : []
+  const onboarding = snapshot?.onboarding ?? null
+  const onboardingError = snapshot?.onboardingError ?? null
   const [error, setError] = useState<string | null>(null)
-  const [isInitial, setIsInitial] = useState(true)
+  const [isInitial, setIsInitial] = useState(!snapshot)
   const [isLive, setIsLive] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState(() => new Date().toISOString())
+  const [isRefreshing, setIsRefreshing] = useState(Boolean(snapshot))
+  const lastUpdated = snapshot?.lastUpdated
   const abortRef = useRef<AbortController | null>(null)
 
   const load = useCallback(async () => {
+    const generation = cache?.generation
+    setIsRefreshing(true)
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
     const { signal } = controller
+    const stale = () => signal.aborted || generation !== cache?.generation
 
     try {
       const [data, disabled, eventsResult, deliveriesResult] = await Promise.all([
@@ -92,50 +133,38 @@ export function Dashboard() {
         }
       }
 
-      if (signal.aborted) return
-
-      const merged: ActivityItem[] = [
-        ...eventsResult.data.map((event) => ({
-          id: `event-${event.id}`,
-          kind: 'event' as const,
-          eventType: event.type,
-          status: event.status,
-          to: `/events/${event.id}`,
-          createdAt: event.created_at,
-        })),
-        ...deliveriesResult.data.map((delivery) => ({
-          id: `delivery-${delivery.id}`,
-          kind: 'delivery' as const,
-          eventType: `Delivery ${formatStatusLabel(delivery.status)}`,
-          status: delivery.status,
-          to: `/deliveries/${delivery.id}`,
-          createdAt: delivery.created_at,
-          attemptCount: delivery.attempt_count,
-          replayCount: delivery.replay_count,
-        })),
-      ]
-        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-        .slice(0, 5)
-
-      setStats(data)
-      setOnboarding(nextOnboarding)
-      setOnboardingError(nextOnboardingError)
-      setAttention(buildAttentionItems(data, disabled.data.length > 0))
-      setActivity(merged)
-      setLastUpdated(new Date().toISOString())
+      if (stale()) return
+      const next: DashboardSnapshot = {
+        stats: data,
+        hasDisabledEndpoint: disabled.data.length > 0,
+        events: eventsResult.data,
+        deliveries: deliveriesResult.data,
+        onboarding: nextOnboarding,
+        onboardingError: nextOnboardingError,
+        lastUpdated: new Date().toISOString(),
+      }
+      if (generation !== undefined) cache?.write('dashboard', next, generation)
+      setSnapshot(next)
       setError(null)
       setIsLive(true)
     } catch (err) {
-      if (isAbortError(err) || signal.aborted) return
+      if (isAbortError(err) || stale()) return
       controller.abort()
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        cache?.clear()
+        setSnapshot(undefined)
+      }
       setIsInitial(false)
       setError(err instanceof ApiError ? err.message : 'Failed to load stats')
       setIsLive(false)
     } finally {
-      if (abortRef.current === controller) abortRef.current = null
-      if (!controller.signal.aborted) setIsInitial(false)
+      if (abortRef.current === controller) {
+        abortRef.current = null
+        setIsRefreshing(false)
+      }
+      if (!stale()) setIsInitial(false)
     }
-  }, [])
+  }, [cache])
 
   useEffect(() => {
     void load()
@@ -162,7 +191,15 @@ export function Dashboard() {
       marker="Overview"
       title="Dashboard"
       description="Events, in-flight deliveries, and 24-hour outcomes."
-      actions={<LiveChip active={isLive} lastUpdated={lastUpdated} intervalMs={POLL_DEFAULT_MS} />}
+      actions={
+        isRefreshing && snapshot ? (
+          <span role="status" className="text-sm text-muted-foreground">
+            Updating…
+          </span>
+        ) : (
+          <LiveChip active={isLive} lastUpdated={lastUpdated} intervalMs={POLL_DEFAULT_MS} />
+        )
+      }
     >
       {error ? (
         <PageBanner variant="error" title="Could not load stats" description={error} />

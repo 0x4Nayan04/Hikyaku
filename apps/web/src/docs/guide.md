@@ -7,7 +7,8 @@ Ingest events, HMAC-signed deliveries, retries, and the delivery console.
 - **[API](#api-only-path)** — Sign in from a terminal, register a receiver, send an event, inspect or retry deliveries.
 - **[Console](#console-path)** — The same jobs in the website.
 - **[Signing](#signing)** — Verify `X-Webhook-Signature` (HMAC-SHA256) on the receiver.
-- **[OpenAPI reference](/openapi.yaml)** — Download the OpenAPI 3.1 description of routes, request bodies, responses, and authentication. Management uses a session cookie; API keys authorize event ingest only. Production cookie mutations also require an allowlisted `Origin`.
+
+[Download the OpenAPI reference](/openapi.yaml) — The OpenAPI 3.1 description of routes, request bodies, responses, and authentication. Management uses a session cookie; API keys authorize event ingest only. Production cookie mutations also require an allowlisted `Origin`.
 
 ## Introduction
 

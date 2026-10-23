@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { createPageCache } from '@/lib/page-cache'
+import { PageCacheContext } from '@/providers/page-cache-context'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
@@ -66,6 +68,7 @@ const replayedDelivery: DeliveryDetailType = {
   ],
 }
 
+let pageCache: ReturnType<typeof createPageCache>
 let container: HTMLDivElement
 let root: Root
 let navigate: ReturnType<typeof useNavigate>
@@ -92,17 +95,20 @@ async function queueReplay() {
 async function renderDelivery(id: string) {
   await act(async () => {
     root.render(
-      <MemoryRouter initialEntries={[`/deliveries/${id}`]}>
-        <Navigation />
-        <Routes>
-          <Route path="/deliveries/:id" element={<DeliveryDetail />} />
-        </Routes>
-      </MemoryRouter>,
+      <PageCacheContext.Provider value={pageCache}>
+        <MemoryRouter initialEntries={[`/deliveries/${id}`]}>
+          <Navigation />
+          <Routes>
+            <Route path="/deliveries/:id" element={<DeliveryDetail />} />
+          </Routes>
+        </MemoryRouter>
+      </PageCacheContext.Provider>,
     )
   })
 }
 
 beforeEach(() => {
+  pageCache = createPageCache()
   vi.useFakeTimers()
   Object.defineProperty(document, 'hidden', { configurable: true, value: false })
   vi.mocked(replayDelivery).mockReset()
@@ -176,6 +182,9 @@ describe('Delivery replay recovery', () => {
     vi.mocked(replayDelivery).mockResolvedValue({ id: replayedDelivery.id, status: 'pending' })
     await renderDelivery(replayedDelivery.id)
     await queueReplay()
+    expect(pageCache.deliveries.generation).toBe(1)
+    expect(pageCache.events.generation).toBe(1)
+    expect(pageCache.dashboard.generation).toBe(1)
     expect(toast.success).toHaveBeenCalledWith('Delivery replay queued')
     expect(toast.error).not.toHaveBeenCalled()
     expect(container.textContent).toContain('Replay queued; could not refresh delivery. Retrying…')
@@ -208,6 +217,8 @@ describe('Delivery replay recovery', () => {
     )
     await renderDelivery(replayedDelivery.id)
     await queueReplay()
+    expect(pageCache.deliveries.generation).toBe(0)
+    expect(pageCache.dashboard.generation).toBe(0)
     expect(toast.error).toHaveBeenCalledWith('Queue unavailable')
     expect(toast.success).not.toHaveBeenCalled()
     expect(document.body.textContent).toContain('Confirm replay')

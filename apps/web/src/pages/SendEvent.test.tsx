@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { createPageCache } from '@/lib/page-cache'
+import { PageCacheContext } from '@/providers/page-cache-context'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
@@ -30,20 +32,24 @@ const disabledEndpoint = {
   status: 'disabled',
 } as Endpoint
 
+let pageCache: ReturnType<typeof createPageCache>
 let container: HTMLDivElement
 let root: Root
 
 async function renderSendEvent() {
   await act(async () => {
     root.render(
-      <MemoryRouter>
-        <SendEvent />
-      </MemoryRouter>,
+      <PageCacheContext.Provider value={pageCache}>
+        <MemoryRouter>
+          <SendEvent />
+        </MemoryRouter>
+      </PageCacheContext.Provider>,
     )
   })
 }
 
 beforeEach(() => {
+  pageCache = createPageCache()
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -124,6 +130,10 @@ describe('SendEvent accepted status', () => {
       form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     })
 
+    expect(pageCache.events.generation).toBe(1)
+    expect(pageCache.deliveries.generation).toBe(1)
+    expect(pageCache.dashboard.generation).toBe(1)
+    expect(pageCache.endpoints.generation).toBe(1)
     expect(container.textContent).toContain('Partial Failure')
     expect(container.textContent).not.toContain('In progress')
   })
