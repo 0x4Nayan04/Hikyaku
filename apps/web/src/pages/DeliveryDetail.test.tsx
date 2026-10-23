@@ -92,11 +92,11 @@ async function queueReplay() {
   await clickButton('Confirm replay')
 }
 
-async function renderDelivery(id: string) {
+async function renderDelivery(id: string, state?: unknown) {
   await act(async () => {
     root.render(
       <PageCacheContext.Provider value={pageCache}>
-        <MemoryRouter initialEntries={[`/deliveries/${id}`]}>
+        <MemoryRouter initialEntries={[{ pathname: `/deliveries/${id}`, state }]}>
           <Navigation />
           <Routes>
             <Route path="/deliveries/:id" element={<DeliveryDetail />} />
@@ -129,6 +129,20 @@ afterEach(async () => {
 })
 
 describe('DeliveryDetail', () => {
+  it('restores the delivery list query and falls back for invalid state', async () => {
+    vi.mocked(getDelivery).mockReturnValue(new Promise(() => undefined))
+    await renderDelivery('one', {
+      listReturnTo: '/deliveries?event_id=e1&status=failed&updated_within=7d',
+    })
+    expect(
+      container.querySelector('a[href="/deliveries?event_id=e1&status=failed&updated_within=7d"]'),
+    ).not.toBeNull()
+
+    await act(async () => root.render(null))
+    await renderDelivery('two', { listReturnTo: '/events?status=failed' })
+    expect(container.querySelector('a[href="/deliveries"]')).not.toBeNull()
+  })
+
   it('replaces the loading heading when the delivery is missing', async () => {
     vi.mocked(getDelivery).mockRejectedValue(new ApiError(404, 'not_found', 'Delivery not found'))
     await renderDelivery('not-a-real-id')

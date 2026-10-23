@@ -92,7 +92,11 @@
     min-height: 0;
     overflow-y: auto;
     background:
-      radial-gradient(ellipse 80% 50% at 50% -10%, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 55%),
+      radial-gradient(
+        ellipse 80% 50% at 50% -10%,
+        color-mix(in srgb, var(--color-primary) 8%, transparent),
+        transparent 55%
+      ),
       var(--color-surface);
   }
 
@@ -368,14 +372,14 @@
     scroll-margin-top: 1.5rem;
   }
 
-  .docs-h3#start-here {
+  .docs-h2#start-here {
     margin-bottom: 0.875rem;
     font-family: var(--font-display);
     font-size: 1.05rem;
     letter-spacing: -0.025em;
   }
 
-  .docs-h3#start-here + .docs-list {
+  .docs-h2#start-here + .docs-list {
     display: grid;
     grid-template-columns: 1fr;
     gap: 1px;
@@ -387,12 +391,12 @@
   }
 
   @media (min-width: 640px) {
-    .docs-h3#start-here + .docs-list {
+    .docs-h2#start-here + .docs-list {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
 
-  .docs-h3#start-here + .docs-list > li {
+  .docs-h2#start-here + .docs-list > li {
     margin: 0;
     padding: 1.5rem 1.5rem 1.65rem;
     background: var(--color-surface);
@@ -401,21 +405,21 @@
     transition: background-color 120ms ease;
   }
 
-  .docs-h3#start-here + .docs-list > li:hover {
+  .docs-h2#start-here + .docs-list > li:hover {
     background: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface));
   }
 
-  .docs-h3#start-here + .docs-list > li + li {
+  .docs-h2#start-here + .docs-list > li + li {
     margin-top: 0;
   }
 
-  .docs-h3#start-here + .docs-list strong {
+  .docs-h2#start-here + .docs-list strong {
     display: block;
     margin-bottom: 0.4rem;
     font-weight: 600;
   }
 
-  .docs-h3#start-here + .docs-list strong a {
+  .docs-h2#start-here + .docs-list strong a {
     font-family: var(--font-display);
     font-size: 1.05rem;
     font-weight: 600;
@@ -424,7 +428,7 @@
     text-decoration: none;
   }
 
-  .docs-h3#start-here + .docs-list li:hover strong a {
+  .docs-h2#start-here + .docs-list li:hover strong a {
     color: var(--color-primary);
   }
 
@@ -517,6 +521,12 @@
     background-repeat: no-repeat;
     overflow-x: auto;
     box-shadow: 0 1px 0 color-mix(in srgb, var(--color-ink) 3%, transparent);
+  }
+
+  .docs-table-wrap:focus-visible,
+  .docs-code-body:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: -3px;
   }
 
   .docs-table {

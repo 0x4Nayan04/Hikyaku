@@ -7,6 +7,12 @@ export function formatStatusLabel(value: string): string {
   return value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
+export function formatEventStatusLabel(value: string): string {
+  if (value === 'completed') return 'All delivered'
+  if (value === 'pending') return 'In progress'
+  return formatStatusLabel(value)
+}
+
 function formatAttemptNoun(count: number): string {
   return `${count} attempt${count === 1 ? '' : 's'}`
 }
@@ -144,7 +150,6 @@ export function formatEndpointUrlForDisplay(url: string, maxLen = 56): string {
 
   return `${url.slice(0, maxLen - 1)}…`
 }
-
 
 /** Prefer host + last path segment so same-host URLs stay distinguishable. */
 export function formatEndpointUrlDistinctive(url: string, maxLen = 56): string {

@@ -4,6 +4,7 @@ import { RequireSession } from '@/components/layout/RequireSession'
 import { RequireSuperAdmin } from '@/components/layout/RequireSuperAdmin'
 import { RequireTenantUser } from '@/components/layout/RequireTenantUser'
 import { SkipLink } from '@/components/SkipLink'
+import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import { PRODUCT_LINKS } from '@/lib/app-meta'
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
@@ -46,41 +47,43 @@ export default function App() {
     <>
       <SkipLink />
       <DocumentTitle />
-      <Suspense fallback={<PublicRouteFallback />}>
-        <Routes>
-          <Route path="/docs/*" element={<DocsRoutes />} />
-          <Route path="/" element={<Landing />} />
-          <Route path={PRODUCT_LINKS.whyHikyaku} element={<Name />} />
-          <Route path="/why-haiku" element={<Navigate to={PRODUCT_LINKS.whyHikyaku} replace />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/bootstrap" element={<Bootstrap />} />
-          <Route path="/accept-invite" element={<AcceptInvite />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route element={<ConsoleLayout />}>
-            <Route element={<RequireSession />}>
-              <Route element={<RequireTenantUser />}>
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="endpoints" element={<Endpoints />} />
-                <Route path="events" element={<Events />} />
-                <Route path="events/send" element={<SendEvent />} />
-                <Route path="events/:id" element={<EventDetail />} />
-                <Route path="deliveries" element={<Deliveries />} />
-                <Route path="deliveries/:id" element={<DeliveryDetail />} />
-              </Route>
-              <Route path="settings" element={<Settings />} />
-              <Route
-                path="settings/profile"
-                element={<Navigate to="/settings?tab=profile" replace />}
-              />
-              <Route element={<RequireSuperAdmin />}>
-                <Route path="admin" element={<Admin />} />
-                <Route path="admin/tenants/:id" element={<TenantAdmin />} />
+      <RouteErrorBoundary fullPage>
+        <Suspense fallback={<PublicRouteFallback />}>
+          <Routes>
+            <Route path="/docs/*" element={<DocsRoutes />} />
+            <Route path="/" element={<Landing />} />
+            <Route path={PRODUCT_LINKS.whyHikyaku} element={<Name />} />
+            <Route path="/why-haiku" element={<Navigate to={PRODUCT_LINKS.whyHikyaku} replace />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/bootstrap" element={<Bootstrap />} />
+            <Route path="/accept-invite" element={<AcceptInvite />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route element={<ConsoleLayout />}>
+              <Route element={<RequireSession />}>
+                <Route element={<RequireTenantUser />}>
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="endpoints" element={<Endpoints />} />
+                  <Route path="events" element={<Events />} />
+                  <Route path="events/send" element={<SendEvent />} />
+                  <Route path="events/:id" element={<EventDetail />} />
+                  <Route path="deliveries" element={<Deliveries />} />
+                  <Route path="deliveries/:id" element={<DeliveryDetail />} />
+                </Route>
+                <Route path="settings" element={<Settings />} />
+                <Route
+                  path="settings/profile"
+                  element={<Navigate to="/settings?tab=profile" replace />}
+                />
+                <Route element={<RequireSuperAdmin />}>
+                  <Route path="admin" element={<Admin />} />
+                  <Route path="admin/tenants/:id" element={<TenantAdmin />} />
+                </Route>
               </Route>
             </Route>
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Suspense>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </RouteErrorBoundary>
     </>
   )
 }

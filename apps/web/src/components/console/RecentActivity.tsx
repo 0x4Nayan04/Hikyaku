@@ -6,6 +6,7 @@ import {
   formatCreatedStacked,
   formatDateTime,
   formatDeliveryAttempts,
+  formatEventStatusLabel,
   formatStatusLabel,
 } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -31,7 +32,7 @@ type RecentActivityProps = {
 function formatActivityMeta(item: ActivityItem): string {
   const parts = [
     item.kind === 'event' ? 'Event' : 'Delivery',
-    formatStatusLabel(item.status),
+    item.kind === 'event' ? formatEventStatusLabel(item.status) : formatStatusLabel(item.status),
     formatDateTime(item.createdAt),
   ]
 

@@ -102,7 +102,7 @@ export function TenantAdminDetails({
                     {user.name}
                   </DataTableCell>
                   <DataTableCell className="text-sm text-muted-strong" label="Email">
-                    {user.email}
+                    <span className="min-w-0 [overflow-wrap:anywhere]">{user.email}</span>
                   </DataTableCell>
                   <DataTableCell
                     className="hidden max-w-48 truncate font-mono text-xs text-muted-strong md:table-cell"

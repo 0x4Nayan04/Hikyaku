@@ -2,7 +2,7 @@
 
 Ingest events, HMAC-signed deliveries, retries, and the delivery console.
 
-### Start here
+## Start here
 
 - **[API](#api-only-path)** — Sign in from a terminal, register a receiver, send an event, inspect or retry deliveries.
 - **[Console](#console-path)** — The same jobs in the website.
@@ -35,12 +35,12 @@ Work from your terminal. Sign in once, save the login cookie, then use commands 
 
 Fill these in before you copy the commands:
 
-| Value | Local default | What it is |
+| Value | Configured example | What it is |
 | --- | --- | --- |
 | API address | `{{API_BASE}}` | Where `/v1` lives |
 | Email / password | your account | Tenant user login |
 | Receiver URL | `https://example.com/webhooks` | Where Hikyaku POSTs; [webhook.site](https://webhook.site) is fine for a first try |
-| Website origin | `http://localhost:5173` | Console origin. Cookie requests that **change data** must send `Origin` set to this value, and it must be listed in `CORS_ORIGIN`. Local `pnpm dev` does not enforce that header; production does. |
+| Website origin | `{{WEB_ORIGIN}}` | The console origin. Cookie requests that **change data** must send `Origin` set to this value. On a hosted deployment, the API must allowlist this exact console origin in `CORS_ORIGIN`. Local `pnpm dev` defaults to `http://localhost:5173`; the production API enforces the allowlist. |
 
 First install only: create the installer account with the [bootstrap](#authentication) command, then come back here to sign in.
 
@@ -57,7 +57,7 @@ curl -c cookies.txt -X POST "{{API_BASE}}/v1/auth/login" \
 ```bash
 curl -b cookies.txt -X POST "{{API_BASE}}/v1/endpoints" \
   -H "Content-Type: application/json" \
-  -H "Origin: http://localhost:5173" \
+  -H "Origin: {{WEB_ORIGIN}}" \
   -d '{
     "url": "https://example.com/webhooks",
     "description": "Orders handler"
@@ -66,7 +66,7 @@ curl -b cookies.txt -X POST "{{API_BASE}}/v1/endpoints" \
 
 ```bash
 curl -b cookies.txt -X POST "{{API_BASE}}/v1/api-keys" \
-  -H "Origin: http://localhost:5173"
+  -H "Origin: {{WEB_ORIGIN}}"
 ```
 
 **3. Send and inspect** — send with the key, then list that event’s deliveries with the cookie. `202 Accepted` means the event is queued, not that every delivery succeeded. If rows stay `pending`, the worker is not running.
@@ -98,7 +98,7 @@ Copy a delivery `id`, then:
 
 ```bash
 curl -b cookies.txt -X POST "{{API_BASE}}/v1/deliveries/DELIVERY_UUID/replay" \
-  -H "Origin: http://localhost:5173"
+  -H "Origin: {{WEB_ORIGIN}}"
 ```
 
 `202` means the retry is accepted, not that the receiver has succeeded yet. `in_progress` and `succeeded` return `400 invalid_state`.

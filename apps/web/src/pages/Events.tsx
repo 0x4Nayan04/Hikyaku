@@ -1,5 +1,5 @@
 import { usePageCache } from '@/providers/page-cache-context'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, Send } from 'lucide-react'
 import { listEvents } from '@/api/client'
 import type { EventStatus, EventSummary } from '@/api/types'
@@ -27,20 +27,21 @@ import { PaginationBar } from '@/components/console/PaginationBar'
 import { PAGE_SIZE, pageRange, shouldPaginate } from '@/components/console/pagination-utils'
 import { StatusBadge } from '@/components/console/StatusBadge'
 import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
-import { formatDateTime } from '@/lib/format'
+import { formatDateTime, formatEventStatusLabel } from '@/lib/format'
+import { isPlainPrimaryClick } from '@/lib/list-return'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { usePolling } from '@/hooks/usePolling'
 import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 
-const STATUS_OPTIONS: Array<{ value: 'all' | EventStatus; label: string }> = [
-  { value: 'all', label: 'All statuses' },
-  { value: 'pending', label: 'In progress' },
-  { value: 'completed', label: 'All delivered' },
-  { value: 'partial_failure', label: 'Partial Failure' },
-  { value: 'failed', label: 'Failed' },
-  { value: 'no_recipients', label: 'No Recipients' },
-]
+const STATUS_OPTIONS = [
+  'all',
+  'pending',
+  'completed',
+  'partial_failure',
+  'failed',
+  'no_recipients',
+] as const
 
 function parseStatusParam(value: string | null): 'all' | EventStatus {
   switch (value) {
@@ -58,7 +59,9 @@ function parseStatusParam(value: string | null): 'all' | EventStatus {
 export default function Events() {
   const pageCache = usePageCache()
   const readOnly = useReadOnlyWorkspace()
+  const location = useLocation()
   const navigate = useNavigate()
+  const listReturnTo = `${location.pathname}${location.search}${location.hash}`
   const [searchParams, setSearchParams] = useSearchParams()
   const statusFilter = parseStatusParam(searchParams.get('status'))
   const {
@@ -135,9 +138,9 @@ export default function Events() {
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
-          {STATUS_OPTIONS.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
+          {STATUS_OPTIONS.map((value) => (
+            <SelectItem key={value} value={value}>
+              {value === 'all' ? 'All statuses' : formatEventStatusLabel(value)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -214,21 +217,23 @@ export default function Events() {
                   <DataTableRow
                     key={event.id}
                     className="cursor-pointer"
-                    tabIndex={0}
-                    role="link"
-                    aria-label={`Open event ${event.type}`}
-                    onClick={() => navigate(`/events/${event.id}`)}
-                    onKeyDown={(keyboardEvent) => {
-                      if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
-                        keyboardEvent.preventDefault()
-                        navigate(`/events/${event.id}`)
-                      }
+                    onClick={(clickEvent) => {
+                      if (
+                        !isPlainPrimaryClick(clickEvent) ||
+                        (clickEvent.target as HTMLElement).closest('a')
+                      )
+                        return
+                      navigate(`/events/${event.id}`, { state: { listReturnTo } })
                     }}
                   >
                     <DataTableCell label="Type">
-                      <span className="font-medium text-ink group-hover:text-primary">
+                      <Link
+                        to={`/events/${event.id}`}
+                        state={{ listReturnTo }}
+                        className="font-medium text-ink group-hover:text-primary hover:underline"
+                      >
                         {event.type}
-                      </span>
+                      </Link>
                     </DataTableCell>
                     <DataTableCell label="Status">
                       <StatusBadge kind="event" status={event.status} />

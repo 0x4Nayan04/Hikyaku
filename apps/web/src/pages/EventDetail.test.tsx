@@ -19,10 +19,10 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 let container: HTMLDivElement
 let root: Root
 
-async function renderEvent(id: string) {
+async function renderEvent(id: string, state?: unknown) {
   await act(async () => {
     root.render(
-      <MemoryRouter initialEntries={[`/events/${id}`]}>
+      <MemoryRouter initialEntries={[{ pathname: `/events/${id}`, state }]}>
         <Routes>
           <Route path="/events/:id" element={<EventDetail />} />
         </Routes>
@@ -61,4 +61,14 @@ describe('EventDetail missing event', () => {
     expect(container.textContent).toContain('Event not found')
     expect(container.textContent).not.toContain('Loading event…')
   })
+})
+
+it('returns to a validated originating event list, with direct links falling back to root', async () => {
+  vi.mocked(getEvent).mockReturnValue(new Promise(() => undefined))
+  await renderEvent('one', { listReturnTo: '/events?status=failed#latest' })
+  expect(container.querySelector('a[href="/events?status=failed#latest"]')).not.toBeNull()
+
+  await act(async () => root.render(null))
+  await renderEvent('two', { listReturnTo: 'https://evil.example/events' })
+  expect(container.querySelector('a[href="/events"]')).not.toBeNull()
 })
