@@ -66,6 +66,14 @@
     z-index: 50;
     border-bottom: 1px solid var(--lp-rule, color-mix(in srgb, var(--color-ink) 7%, transparent));
     background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  }
+  /* Blur on a pseudo so `position: fixed` descendants (the mobile drawer) still use the viewport. */
+  .landing-nav::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
     backdrop-filter: blur(10px);
   }
   .landing-nav-inner-wrap {
@@ -144,7 +152,6 @@
     padding-inline: 1rem;
   }
   .landing-nav-menu-btn {
-    display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 2.25rem;
@@ -155,6 +162,12 @@
     color: var(--color-ink);
     cursor: pointer;
     transition: background-color 150ms ease;
+  }
+  /* Match Tailwind `md` (768px). Unscoped `display` here overrides `md:hidden`. */
+  @media (max-width: 767px) {
+    .landing-nav-menu-btn {
+      display: inline-flex;
+    }
   }
   .landing-nav-menu-btn:hover {
     background: color-mix(in srgb, var(--color-background-alt) 70%, transparent);
