@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { Delivery } from '@/api/types'
 import {
   DataTable,
@@ -16,6 +16,7 @@ import {
   formatEndpointUrlDistinctive,
   shortId,
 } from '@/lib/format'
+import { isPlainPrimaryClick } from '@/lib/list-return'
 
 type DeliveryCatalogListProps = {
   deliveries: Delivery[]
@@ -23,6 +24,8 @@ type DeliveryCatalogListProps = {
 
 export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const listReturnTo = `${location.pathname}${location.search}${location.hash}`
 
   return (
     <DataTable className="delivery-table">
@@ -45,13 +48,15 @@ export function DeliveryCatalogList({ deliveries }: DeliveryCatalogListProps) {
               key={delivery.id}
               className="cursor-pointer"
               onClick={(event) => {
-                if ((event.target as HTMLElement).closest('a')) return
-                navigate(deliveryPath)
+                if (!isPlainPrimaryClick(event) || (event.target as HTMLElement).closest('a'))
+                  return
+                navigate(deliveryPath, { state: { listReturnTo } })
               }}
             >
               <DataTableCell className="max-w-[18rem] md:max-w-88" label="Endpoint">
                 <Link
                   to={deliveryPath}
+                  state={{ listReturnTo }}
                   className="block min-w-0 truncate font-medium text-ink group-hover:text-primary hover:underline"
                   title={delivery.endpoint_url}
                   aria-label={`Open delivery to ${endpointLabel}`}

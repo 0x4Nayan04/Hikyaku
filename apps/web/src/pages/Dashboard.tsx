@@ -217,7 +217,9 @@ function DashboardContent() {
         <DashboardSkeleton />
       ) : stats ? (
         <div className="dashboard-page">
-          {!readOnly && !hasData && onboarding ? <EmptyDashboardCTA steps={onboarding} /> : null}
+          {!readOnly && !hasData && onboarding?.some((step) => !step.done) ? (
+            <EmptyDashboardCTA steps={onboarding} />
+          ) : null}
 
           {hasData && attention.length > 0 ? <AttentionStrip items={attention} /> : null}
 

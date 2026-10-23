@@ -1,7 +1,7 @@
 import { usePageCache } from '@/providers/page-cache-context'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { ApiError, getDelivery, replayDelivery } from '@/api/client'
 import type { DeliveryAttempt, DeliveryDetail as DeliveryDetailType } from '@/api/types'
@@ -32,6 +32,7 @@ import {
 import { useDetailFetch } from '@/hooks/useDetailFetch'
 import { usePolling } from '@/hooks/usePolling'
 import { formatDateTime, formatDeliveryAttempts, formatDeliveryError } from '@/lib/format'
+import { getListReturnTo } from '@/lib/list-return'
 import { toast } from '@/lib/toast'
 import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
 import { cn } from '@/lib/utils'
@@ -93,6 +94,8 @@ export default function DeliveryDetail() {
   const pageCache = usePageCache()
   const readOnly = useReadOnlyWorkspace()
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const listReturnTo = getListReturnTo(location.state, '/deliveries')
   const [replayOpen, setReplayOpen] = useState(false)
   const [replaying, setReplaying] = useState(false)
   const [awaitingReplayId, setAwaitingReplayId] = useState<string | null>(null)
@@ -173,7 +176,7 @@ export default function DeliveryDetail() {
         <div className="flex flex-wrap items-center gap-2">
           <LiveChip active={error === null && polling} intervalMs={POLL_DEFAULT_MS} />
           <Button size="sm" variant="secondary" asChild>
-            <Link to="/deliveries">
+            <Link to={listReturnTo}>
               <ArrowLeft className="size-3.5" aria-hidden="true" />
               Back to deliveries
             </Link>

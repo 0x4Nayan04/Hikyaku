@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { getEvent } from '@/api/client'
 import type { EventDetail as EventDetailType } from '@/api/types'
@@ -16,12 +16,15 @@ import {
 } from '@/components/console/SettingsCatalog'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/format'
+import { getListReturnTo } from '@/lib/list-return'
 import { useDetailFetch } from '@/hooks/useDetailFetch'
 import { usePolling } from '@/hooks/usePolling'
 import { POLL_FAST_MS } from '@/lib/ui-timing'
 
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const listReturnTo = getListReturnTo(location.state, '/events')
   const {
     data: event,
     loading,
@@ -47,7 +50,7 @@ export default function EventDetail() {
       }
       actions={
         <Button size="sm" variant="secondary" asChild>
-          <Link to="/events">
+          <Link to={listReturnTo}>
             <ArrowLeft className="size-3.5" aria-hidden="true" />
             Back to events
           </Link>

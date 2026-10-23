@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatDeliveryAttempts,
+  formatEventStatusLabel,
   formatEndpointUrlDistinctive,
   formatEndpointUrlForDisplay,
 } from './format'
+
+describe('formatEventStatusLabel', () => {
+  it('uses consistent event wording while preserving other status labels', () => {
+    expect(formatEventStatusLabel('completed')).toBe('All delivered')
+    expect(formatEventStatusLabel('pending')).toBe('In progress')
+    expect(formatEventStatusLabel('partial_failure')).toBe('Partial Failure')
+    expect(formatEventStatusLabel('no_recipients')).toBe('No Recipients')
+  })
+})
 
 describe('formatDeliveryAttempts', () => {
   it('pluralizes the current run', () => {
@@ -18,33 +28,27 @@ describe('formatDeliveryAttempts', () => {
   })
 
   it('adds the all-runs total on the detail page', () => {
-    expect(
-      formatDeliveryAttempts({ attemptCount: 1, replayCount: 1, totalAttempts: 2 }),
-    ).toBe('1 attempt this run · 2 total')
+    expect(formatDeliveryAttempts({ attemptCount: 1, replayCount: 1, totalAttempts: 2 })).toBe(
+      '1 attempt this run · 2 total',
+    )
   })
 })
 
 describe('formatEndpointUrlDistinctive', () => {
   it('keeps short URLs intact', () => {
-    expect(formatEndpointUrlDistinctive('https://hooks.example/a')).toBe(
-      'https://hooks.example/a',
-    )
+    expect(formatEndpointUrlDistinctive('https://hooks.example/a')).toBe('https://hooks.example/a')
   })
 
   it('prefers host plus last path segment for long same-host URLs', () => {
-    const url =
-      'https://webhook.site/hooks/v1/inbound/11502179-92cd-450c-9853-6463be2338b0'
+    const url = 'https://webhook.site/hooks/v1/inbound/11502179-92cd-450c-9853-6463be2338b0'
     expect(formatEndpointUrlDistinctive(url, 56)).toBe(
       'webhook.site/…/11502179-92cd-450c-9853-6463be2338b0',
     )
   })
 
   it('falls back to path tail when the budget is tight', () => {
-    const url =
-      'https://webhook.site/hooks/v1/inbound/11502179-92cd-450c-9853-6463be2338b0'
-    expect(formatEndpointUrlDistinctive(url, 40)).toBe(
-      '…/11502179-92cd-450c-9853-6463be2338b0',
-    )
+    const url = 'https://webhook.site/hooks/v1/inbound/11502179-92cd-450c-9853-6463be2338b0'
+    expect(formatEndpointUrlDistinctive(url, 40)).toBe('…/11502179-92cd-450c-9853-6463be2338b0')
   })
 })
 

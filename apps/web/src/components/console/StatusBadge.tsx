@@ -1,6 +1,6 @@
 import type { DeliveryStatus, EndpointStatus, EventStatus } from '@/api/types'
 import { Badge, type BadgeTone } from '@/components/ui/badge'
-import { formatStatusLabel } from '@/lib/format'
+import { formatEventStatusLabel, formatStatusLabel } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const deliveryTone: Record<DeliveryStatus, BadgeTone> = {
@@ -36,7 +36,7 @@ function getLabel(props: StatusBadgeProps): string {
     case 'delivery':
       return formatStatusLabel(props.status)
     case 'event':
-      return props.status === 'completed' ? 'All delivered' : props.status === 'pending' ? 'In progress' : formatStatusLabel(props.status)
+      return formatEventStatusLabel(props.status)
     case 'endpoint':
       return formatStatusLabel(props.status)
     case 'api-key':

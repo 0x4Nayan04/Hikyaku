@@ -10,6 +10,7 @@ import javascript from 'highlight.js/lib/languages/javascript'
 import json from 'highlight.js/lib/languages/json'
 import python from 'highlight.js/lib/languages/python'
 import { loadEnv, type Plugin } from 'vite'
+import { normalizeSiteUrl } from './src/lib/public-site-meta'
 
 hljs.registerLanguage('bash', bash)
 hljs.registerLanguage('shell', bash)
@@ -76,7 +77,13 @@ function MarkdownCodeBlock({ children, ...props }: ComponentProps<'pre'> & { nod
     ),
     createElement(
       'pre',
-      { className: 'docs-code-body', ...preProps },
+      {
+        ...preProps,
+        className: 'docs-code-body',
+        role: 'group',
+        'aria-label': `${lang || 'Code'} example`,
+        tabIndex: 0,
+      },
       highlighted
         ? createElement('code', {
             className: `hljs language-${lang}`,
@@ -114,7 +121,12 @@ const MARKDOWN_COMPONENTS: Components = {
   table: ({ node: _node, ...props }) =>
     createElement(
       'div',
-      { className: 'docs-table-wrap' },
+      {
+        className: 'docs-table-wrap',
+        role: 'group',
+        'aria-label': 'Scrollable documentation table',
+        tabIndex: 0,
+      },
       createElement('table', { className: 'docs-table', ...props }),
     ),
   pre: MarkdownCodeBlock,
@@ -198,15 +210,28 @@ function parseId(id: string): { filename: string; query: string } {
 
 export function compileDocsGuide(): Plugin {
   let apiBase = 'http://localhost:3000'
+  let webOrigin = 'http://localhost:5173'
 
   return {
     name: 'compile-docs-guide',
     enforce: 'pre',
     configResolved(config) {
       const env = loadEnv(config.mode, config.envDir ?? config.root, '')
+      webOrigin = 'http://localhost:5173'
       const publicUrl = firstNonEmpty(process.env.VITE_PUBLIC_API_URL, env.VITE_PUBLIC_API_URL)
       const browserUrl = firstNonEmpty(process.env.VITE_API_URL, env.VITE_API_URL)
       apiBase = publicUrl ?? browserUrl ?? apiBase
+      const configuredSiteUrl = firstNonEmpty(
+        process.env.VITE_PUBLIC_SITE_URL,
+        env.VITE_PUBLIC_SITE_URL,
+      )
+      if (configuredSiteUrl) {
+        try {
+          webOrigin = new URL(normalizeSiteUrl(configuredSiteUrl)).origin
+        } catch {
+          webOrigin = 'http://localhost:5173'
+        }
+      }
     },
     load(id) {
       const { filename, query } = parseId(id)
@@ -216,6 +241,7 @@ export function compileDocsGuide(): Plugin {
       const source = readFileSync(filename, 'utf8')
         .replaceAll('{{APP_NAME}}', APP_NAME)
         .replaceAll('{{API_BASE}}', apiBase)
+        .replaceAll('{{WEB_ORIGIN}}', webOrigin)
 
       if (query === 'html') {
         return `export default ${JSON.stringify(renderGuideHtml(source))}`

@@ -7,6 +7,7 @@ import { PageLoading } from '@/components/console/PageLoading'
 import { ScrollToTop } from '@/components/console/ScrollToTop'
 import { useSession } from '@/providers/session-context'
 import { PageBanner } from '@/components/console/PageBanner'
+import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import '@/styles/console-bridge.css'
 
 export default function ConsoleLayout() {
@@ -28,9 +29,11 @@ export default function ConsoleLayout() {
                 description="Synthetic sample data. Explore events and delivery attempts; changes and real webhook sends are disabled."
               />
             ) : null}
-            <Suspense fallback={<PageLoading />}>
-              <Outlet />
-            </Suspense>
+            <RouteErrorBoundary>
+              <Suspense fallback={<PageLoading />}>
+                <Outlet />
+              </Suspense>
+            </RouteErrorBoundary>
           </div>
         </main>
         <ScrollToTop scrollContainerRef={mainRef} />

@@ -161,6 +161,50 @@ describe('Dashboard polling', () => {
 })
 
 describe('Dashboard empty-state probes', () => {
+  it('hides completed onboarding for an established workspace with quiet daily metrics', async () => {
+    vi.mocked(getStats).mockResolvedValue(emptyStats)
+    vi.mocked(listEvents).mockResolvedValue(
+      page([
+        {
+          id: 'event',
+          type: 'order.paid',
+          status: 'completed',
+          idempotency_key: 'key',
+          created_at: '2026-10-21T00:00:00Z',
+        },
+      ]),
+    )
+    vi.mocked(listDeliveries).mockResolvedValue(
+      page([
+        {
+          id: 'delivery',
+          event_id: 'event',
+          endpoint_id: 'endpoint',
+          endpoint_url: 'https://example.test/webhook',
+          status: 'succeeded',
+          attempt_count: 1,
+          replay_count: 0,
+          next_retry_at: null,
+          last_error: null,
+          created_at: '2026-10-21T00:00:00Z',
+          updated_at: '2026-10-21T00:00:00Z',
+        },
+      ]),
+    )
+    vi.mocked(listEndpoints).mockImplementation(async (params) =>
+      page(params?.status === 'active' ? ([{ id: 'active' }] as never[]) : []),
+    )
+
+    await renderDashboard()
+
+    expect(container.textContent).not.toContain('Get started')
+    expect(container.textContent).toContain('Metrics')
+    expect(container.textContent).toContain('Quick actions')
+    expect(container.textContent).toContain('Recent activity')
+    expect(listEvents).toHaveBeenCalledTimes(1)
+    expect(listDeliveries).toHaveBeenCalledTimes(1)
+  })
+
   it('describes disabled endpoints without claiming a total from the one-row probe', async () => {
     vi.mocked(getStats).mockResolvedValue(activeStats)
     vi.mocked(listEndpoints).mockResolvedValue(page([{ id: 'disabled' }] as never[]))
