@@ -1,3 +1,4 @@
+import { ApiError, logout } from '@/api/client'
 import { useFocusTrap } from '@/components/accessibility/Accessibility'
 import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
@@ -5,6 +6,7 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useScrollSpy } from '@/hooks/useScrollSpy'
 import { APP_HOME_LABEL, APP_NAME, PRODUCT_LINKS } from '@/lib/app-meta'
 import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
+import { toast } from '@/lib/toast'
 import { useSession } from '@/providers/session-context'
 import { ArrowRight, LayoutDashboard, Menu, X } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
@@ -25,7 +27,7 @@ const SECTION_LINKS = [
 export const LandingNavbar = memo(function LandingNavbar() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { session } = useSession()
+  const { session, refresh } = useSession()
   const isLanding = location.pathname === '/'
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
@@ -53,6 +55,19 @@ export const LandingNavbar = memo(function LandingNavbar() {
     setIsMobileMenuOpen(false)
     menuButtonRef.current?.focus()
   }, [])
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout()
+    } catch (err) {
+      if (!(err instanceof ApiError && err.status === 401 && err.code === 'unauthorized')) {
+        toast.error('Could not sign out. Please try again.')
+        return
+      }
+    }
+    await refresh()
+    setIsMobileMenuOpen(false)
+  }, [refresh])
 
   return (
     <header className="landing-nav">
@@ -82,16 +97,25 @@ export const LandingNavbar = memo(function LandingNavbar() {
                 Docs
               </Link>
               {session ? (
-                <button
-                  type="button"
-                  onClick={() => navigate(getDefaultHomePath(session.user))}
-                  className="sm-btn sm-btn-primary sm-btn-split focus-ring"
-                >
-                  <span className="sm-btn-split-label">{getHomeLabel(session.user)}</span>
-                  <span className="sm-btn-split-icon">
-                    <LayoutDashboard className="size-3.5" aria-hidden="true" />
-                  </span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="landing-nav-docs focus-ring"
+                    onClick={() => void handleLogout()}
+                  >
+                    Sign out
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate(getDefaultHomePath(session.user))}
+                    className="sm-btn sm-btn-primary sm-btn-split focus-ring"
+                  >
+                    <span className="sm-btn-split-label">{getHomeLabel(session.user)}</span>
+                    <span className="sm-btn-split-icon">
+                      <LayoutDashboard className="size-3.5" aria-hidden="true" />
+                    </span>
+                  </button>
+                </>
               ) : (
                 <button
                   type="button"
@@ -160,16 +184,25 @@ export const LandingNavbar = memo(function LandingNavbar() {
             </nav>
             <div className="landing-nav-drawer-actions">
               {session ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigate(getDefaultHomePath(session.user))
-                    closeMobileMenu()
-                  }}
-                  className="sm-btn sm-btn-primary w-full"
-                >
-                  {getHomeLabel(session.user)}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate(getDefaultHomePath(session.user))
+                      closeMobileMenu()
+                    }}
+                    className="sm-btn sm-btn-primary w-full"
+                  >
+                    {getHomeLabel(session.user)}
+                  </button>
+                  <button
+                    type="button"
+                    className="sm-btn sm-btn-secondary w-full"
+                    onClick={() => void handleLogout()}
+                  >
+                    Sign out
+                  </button>
+                </>
               ) : (
                 <button
                   type="button"
