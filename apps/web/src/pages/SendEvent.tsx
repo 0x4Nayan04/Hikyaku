@@ -1,3 +1,4 @@
+import { usePageCache } from '@/providers/page-cache-context'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 import { Navigate } from 'react-router-dom'
 import { ApiError, getEvent, listEndpoints, sendEvent } from '@/api/client'
@@ -106,6 +107,7 @@ export default function SendEvent() {
 }
 
 function SendEventPage() {
+  const pageCache = usePageCache()
   const [gate, setGate] = useState<EndpointGate>({ status: 'loading' })
   const [form, dispatch] = useReducer(eventFormReducer, undefined, createInitialFormState)
 
@@ -158,6 +160,7 @@ function SendEventPage() {
         type: form.type.trim(),
         payload,
       })
+      pageCache?.clear()
       dispatch({ type: 'update', changes: { result: response } })
       toast.success('Event accepted')
     } catch (err) {

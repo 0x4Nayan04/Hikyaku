@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { createPageCache } from '@/lib/page-cache'
+import { PageCacheContext } from '@/providers/page-cache-context'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -32,17 +34,20 @@ function page(data: EventSummary[]): Paginated<EventSummary> {
   return { data, has_more: false, limit: 25, offset: 0 }
 }
 
+let pageCache: ReturnType<typeof createPageCache>
 let container: HTMLDivElement
 let root: Root
 
 async function renderEvents(path = '/events') {
   await act(async () => {
     root.render(
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route path="/events" element={<Events />} />
-        </Routes>
-      </MemoryRouter>,
+      <PageCacheContext.Provider value={pageCache}>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/events" element={<Events />} />
+          </Routes>
+        </MemoryRouter>
+      </PageCacheContext.Provider>,
     )
   })
 }
@@ -54,6 +59,7 @@ async function advance(ms = POLL_DEFAULT_MS) {
 }
 
 beforeEach(() => {
+  pageCache = createPageCache()
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -107,4 +113,17 @@ describe('Events polling', () => {
     expect(listEvents).toHaveBeenCalledTimes(2)
     expect(container.textContent).toContain('order.created')
   })
+})
+
+it('restores matching rows on return but does not reuse them for a different status', async () => {
+  vi.mocked(listEvents).mockResolvedValueOnce(page([event]))
+  await renderEvents()
+  await act(async () => root.render(null))
+  vi.mocked(listEvents).mockImplementation(() => new Promise(() => {}))
+  await renderEvents()
+  expect(container.textContent).toContain('order.created')
+  expect(container.textContent).toContain('Updating…')
+  await act(async () => root.render(null))
+  await renderEvents('/events?status=failed')
+  expect(container.textContent).not.toContain('order.created')
 })

@@ -2,6 +2,7 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { SavedResult } from '@/lib/page-cache'
 import { ApiError } from '@/api/client'
 import type { Paginated } from '@/api/types'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
@@ -22,6 +23,7 @@ type Props = {
   fallbackError?: string
   enabled?: boolean
   queryKey?: string
+  cache?: SavedResult<Paginated<Item>>
 }
 
 let container: HTMLDivElement
@@ -34,8 +36,9 @@ function Harness({
   fallbackError = 'Failed to load',
   enabled,
   queryKey,
+  cache,
 }: Props) {
-  state = usePaginatedList<Item>({ pageSize, fetchPage, fallbackError, enabled, queryKey })
+  state = usePaginatedList<Item>({ pageSize, fetchPage, fallbackError, enabled, queryKey, cache })
   return null
 }
 
@@ -306,4 +309,121 @@ it('background refresh skips busy loads and preserves current page/filter owners
   })
   expect(state!.offset).toBe(0)
   expect(state!.data).toEqual([{ id: 4 }])
+})
+
+describe('saved first pages', () => {
+  it('restores rows on return before the fresh response and retains them if refresh fails', async () => {
+    const cache = new SavedResult<Paginated<Item>>()
+    const next = deferred<Paginated<Item>>()
+    const fetchPage = vi
+      .fn<FetchPage>()
+      .mockResolvedValueOnce(page([1], true, 0))
+      .mockReturnValueOnce(next.promise)
+      .mockRejectedValueOnce(new Error('offline'))
+    await renderHarness({ fetchPage, cache, queryKey: 'all' })
+    await act(async () => root.render(null))
+    await renderHarness({ fetchPage, cache, queryKey: 'all' })
+    expect(state!.data).toEqual([{ id: 1 }])
+    expect(state!.hasMore).toBe(true)
+    expect(state!.isInitial).toBe(false)
+    expect(state!.isRefreshing).toBe(true)
+    expect(fetchPage).toHaveBeenCalledTimes(2)
+    await act(async () => next.resolve(page([2], false, 0)))
+    expect(state!.data).toEqual([{ id: 2 }])
+    expect(state!.isRefreshing).toBe(false)
+    await act(async () => {
+      await state!.refresh()
+    })
+    expect(state!.data).toEqual([{ id: 2 }])
+    expect(state!.error).toBe('Failed to load')
+  })
+
+  it.each(['filter', 'size', 'expired', 'owner'])(
+    'does not restore a result with a different %s',
+    async (change) => {
+      const cache = new SavedResult<Paginated<Item>>()
+      cache.write(JSON.stringify(['all', 0, 25]), page([1], false, 0), cache.generation)
+      const fetchPage = vi.fn<FetchPage>().mockReturnValue(deferred<Paginated<Item>>().promise)
+      const now =
+        change === 'expired' ? vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 60_000) : null
+      try {
+        await renderHarness({
+          fetchPage,
+          cache: change === 'owner' ? new SavedResult<Paginated<Item>>() : cache,
+          queryKey: change === 'filter' ? 'failed' : 'all',
+          pageSize: change === 'size' ? 10 : 25,
+        })
+        expect(state!.data).toEqual([])
+        expect(state!.isInitial).toBe(true)
+      } finally {
+        now?.mockRestore()
+      }
+    },
+  )
+
+  it('does not apply or save a response started before cache invalidation', async () => {
+    const cache = new SavedResult<Paginated<Item>>()
+    const next = deferred<Paginated<Item>>()
+    const fetchPage = vi
+      .fn<FetchPage>()
+      .mockReturnValueOnce(next.promise)
+      .mockResolvedValue(page([2], false, 0))
+    await renderHarness({ fetchPage, cache, queryKey: 'all' })
+    cache.clear()
+    await act(async () => next.resolve(page([1], false, 0)))
+    expect(state!.data).toEqual([])
+    expect(cache.read(JSON.stringify(['all', 0, 25]))).toBeUndefined()
+    await act(async () => {
+      await state!.refresh()
+    })
+    expect(state!.data).toEqual([{ id: 2 }])
+  })
+
+  it('hides the previous owner immediately when the session changes during a request', async () => {
+    const cache = new SavedResult<Paginated<Item>>()
+    cache.write(JSON.stringify(['all', 0, 25]), page([1], false, 0), cache.generation)
+    const old = deferred<Paginated<Item>>()
+    const next = deferred<Paginated<Item>>()
+    const fetchPage = vi
+      .fn<FetchPage>()
+      .mockReturnValueOnce(old.promise)
+      .mockReturnValueOnce(next.promise)
+    await renderHarness({ fetchPage, cache, queryKey: 'all' })
+    const newCache = new SavedResult<Paginated<Item>>()
+    await renderHarness({ fetchPage, cache: newCache, queryKey: 'all' })
+    expect(state!.data).toEqual([])
+    await act(async () => old.resolve(page([3], false, 0)))
+    expect(state!.data).toEqual([])
+    await act(async () => next.resolve(page([2], false, 0)))
+    expect(state!.data).toEqual([{ id: 2 }])
+  })
+
+  it('keeps the first page saved while later pages are loaded', async () => {
+    const cache = new SavedResult<Paginated<Item>>()
+    const fetchPage = vi
+      .fn<FetchPage>()
+      .mockResolvedValueOnce(page([1], true, 0))
+      .mockResolvedValueOnce(page([2], false, 25))
+      .mockReturnValue(deferred<Paginated<Item>>().promise)
+    await renderHarness({ fetchPage, cache, queryKey: 'all' })
+    await act(async () => state!.setOffset(25))
+    await act(async () => root.render(null))
+    await renderHarness({ fetchPage, cache, queryKey: 'all' })
+    expect(state!.offset).toBe(0)
+    expect(state!.data).toEqual([{ id: 1 }])
+  })
+})
+
+it('discards saved and visible rows when the server denies access', async () => {
+  const cache = new SavedResult<Paginated<Item>>()
+  const key = JSON.stringify(['all', 0, 25])
+  cache.write(key, page([1], false, 0), cache.generation)
+  const fetchPage = vi
+    .fn<FetchPage>()
+    .mockRejectedValue(new ApiError(403, 'forbidden', 'Access denied'))
+  await renderHarness({ cache, queryKey: 'all', fetchPage })
+  expect(state!.data).toEqual([])
+  expect(state!.error).toBe('Access denied')
+  expect(state!.isInitial).toBe(false)
+  expect(cache.read(key)).toBeUndefined()
 })

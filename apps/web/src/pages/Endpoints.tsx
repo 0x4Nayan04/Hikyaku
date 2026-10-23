@@ -1,3 +1,4 @@
+import { usePageCache } from '@/providers/page-cache-context'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -51,6 +52,7 @@ function emptyEndpointsTitle(statusFilter: 'all' | EndpointStatus): string {
 }
 
 export default function Endpoints() {
+  const pageCache = usePageCache()
   const readOnly = useReadOnlyWorkspace()
   const [searchParams, setSearchParams] = useSearchParams()
   const statusFilter = parseStatusParam(searchParams.get('status'))
@@ -65,6 +67,7 @@ export default function Endpoints() {
     error,
     reload,
   } = usePaginatedList<Endpoint>({
+    cache: pageCache?.endpoints,
     pageSize: PAGE_SIZE,
     fetchPage: ({ limit, offset, signal }) =>
       listEndpoints(
@@ -94,13 +97,19 @@ export default function Endpoints() {
     setOffset(0)
   }
 
+  async function reloadEndpoints() {
+    pageCache?.endpoints.clear()
+    pageCache?.dashboard.clear()
+    return reload()
+  }
+
   async function handleToggleStatus(endpoint: Endpoint) {
     const nextStatus = endpoint.status === 'active' ? 'disabled' : 'active'
     setTogglingId(endpoint.id)
 
     try {
       await patchEndpoint(endpoint.id, { status: nextStatus })
-      await reload()
+      await reloadEndpoints()
       toast.success(nextStatus === 'active' ? 'Endpoint enabled' : 'Endpoint disabled')
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Failed to update endpoint')
@@ -159,6 +168,11 @@ export default function Endpoints() {
       title="Endpoints"
       description="Receiver URLs for this workspace. Signing secrets are shown once on create or rotate."
     >
+      {isRefreshing ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          Updating…
+        </p>
+      ) : null}
       {error ? (
         <PageBanner variant="error" title="Could not load endpoints" description={error} />
       ) : null}
@@ -242,7 +256,7 @@ export default function Endpoints() {
           onEditTargetChange={setEditTarget}
           rotateTarget={rotateTarget}
           onRotateTargetChange={setRotateTarget}
-          onChanged={reload}
+          onChanged={reloadEndpoints}
         />
       )}
     </ConsolePage>

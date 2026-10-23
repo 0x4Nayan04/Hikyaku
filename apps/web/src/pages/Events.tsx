@@ -1,3 +1,4 @@
+import { usePageCache } from '@/providers/page-cache-context'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, Send } from 'lucide-react'
 import { listEvents } from '@/api/client'
@@ -55,6 +56,7 @@ function parseStatusParam(value: string | null): 'all' | EventStatus {
 }
 
 export default function Events() {
+  const pageCache = usePageCache()
   const readOnly = useReadOnlyWorkspace()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -70,6 +72,7 @@ export default function Events() {
     error,
     refresh,
   } = usePaginatedList<EventSummary>({
+    cache: pageCache?.events,
     pageSize: PAGE_SIZE,
     fetchPage: ({ limit, offset, signal }) =>
       listEvents(
@@ -164,6 +167,11 @@ export default function Events() {
         )
       }
     >
+      {isRefreshing ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          Updating…
+        </p>
+      ) : null}
       {error ? (
         <PageBanner variant="error" title="Could not load events" description={error} />
       ) : null}
