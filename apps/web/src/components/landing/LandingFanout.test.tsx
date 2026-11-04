@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { APP_NAME } from '@/lib/app-meta'
+import { APP_NAME } from '@/lib/meta/app-meta'
 import { LandingFanout } from '@/components/landing/LandingFanout'
 
 describe('LandingFanout', () => {

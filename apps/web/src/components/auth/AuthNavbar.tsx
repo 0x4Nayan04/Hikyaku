@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
-import { APP_HOME_LABEL, APP_NAME } from '@/lib/app-meta'
+import { APP_HOME_LABEL, APP_NAME } from '@/lib/meta/app-meta'
 
 export function AuthNavbar() {
   return (

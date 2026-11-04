@@ -1,0 +1,276 @@
+import { usePageCache } from '@/providers/page-cache-context'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Search, Send } from 'lucide-react'
+import { listEvents } from '@/api/client'
+import type { EventStatus, EventSummary } from '@/api/types'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { ConsolePage } from '@/components/console/chrome/ConsolePage'
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeader,
+  DataTableRow,
+} from '@/components/console/catalogs/DataTable'
+import { DataPanel } from '@/components/console/catalogs/DataPanel'
+import { PageBanner } from '@/components/console/chrome/PageBanner'
+import { PageLoading } from '@/components/console/chrome/PageLoading'
+import { PaginationBar } from '@/components/console/pagination/PaginationBar'
+import {
+  PAGE_SIZE,
+  pageRange,
+  shouldPaginate,
+} from '@/components/console/pagination/pagination-utils'
+import { StatusBadge } from '@/components/console/catalogs/StatusBadge'
+import { DataPanelEmpty } from '@/components/console/catalogs/DataPanelEmpty'
+import { formatDateTime, formatEventStatusLabel } from '@/lib/format'
+import { isPlainPrimaryClick } from '@/lib/list-return'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { usePolling } from '@/hooks/usePolling'
+import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
+import { useReadOnlyWorkspace } from '@/providers/session-context'
+
+const STATUS_OPTIONS = [
+  'all',
+  'pending',
+  'completed',
+  'partial_failure',
+  'failed',
+  'no_recipients',
+] as const
+
+function parseStatusParam(value: string | null): 'all' | EventStatus {
+  switch (value) {
+    case 'pending':
+    case 'completed':
+    case 'partial_failure':
+    case 'failed':
+    case 'no_recipients':
+      return value
+    default:
+      return 'all'
+  }
+}
+
+export default function Events() {
+  const pageCache = usePageCache()
+  const readOnly = useReadOnlyWorkspace()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const listReturnTo = `${location.pathname}${location.search}${location.hash}`
+  const [searchParams, setSearchParams] = useSearchParams()
+  const statusFilter = parseStatusParam(searchParams.get('status'))
+  const {
+    data: events,
+    hasMore,
+    offset,
+    setOffset,
+    isInitial,
+    isEmpty: showEmpty,
+    isRefreshing,
+    error,
+    refresh,
+  } = usePaginatedList<EventSummary>({
+    cache: pageCache?.events,
+    pageSize: PAGE_SIZE,
+    fetchPage: ({ limit, offset, signal }) =>
+      listEvents(
+        {
+          limit,
+          offset,
+          status: statusFilter === 'all' ? undefined : statusFilter,
+        },
+        { signal },
+      ),
+    fallbackError: 'Failed to load events',
+    queryKey: statusFilter,
+  })
+  // Poll with refresh so quiet polls never abort an in-flight load (reload still available for explicit retries).
+  usePolling({ intervalMs: POLL_DEFAULT_MS, onPoll: refresh })
+
+  const isDatasetEmpty = showEmpty && statusFilter === 'all' && offset === 0
+
+  function setStatusFilter(value: 'all' | EventStatus) {
+    const next = new URLSearchParams(searchParams)
+    if (value === 'all') next.delete('status')
+    else next.set('status', value)
+    setSearchParams(next, { replace: true })
+    setOffset(0)
+  }
+
+  const emptyState =
+    statusFilter === 'all' ? (
+      <DataPanelEmpty
+        icon={Send}
+        title="No events yet"
+        description={
+          <>
+            Ingested events appear here after you send one.
+            <br />
+            {!readOnly && (
+              <Link to="/events/send" className="font-medium text-primary hover:underline">
+                Send a test event
+              </Link>
+            )}
+            .
+          </>
+        }
+      />
+    ) : (
+      <DataPanelEmpty
+        icon={Search}
+        title="No events match this status"
+        description="Choose a different status or view all events."
+      />
+    )
+
+  const eventPanelActions = (
+    <search className="log-panel-actions" aria-label="Filter events">
+      <Select
+        value={statusFilter}
+        onValueChange={(value) => setStatusFilter(parseStatusParam(value))}
+      >
+        <SelectTrigger className="log-panel-toolbar__filter" aria-label="Filter by status">
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent>
+          {STATUS_OPTIONS.map((value) => (
+            <SelectItem key={value} value={value}>
+              {value === 'all' ? 'All statuses' : formatEventStatusLabel(value)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </search>
+  )
+
+  const { pageStart, pageEnd } = pageRange(offset, events.length)
+  const canGoBack = offset > 0
+  const canGoForward = hasMore
+  const showFooter = !isInitial && shouldPaginate(hasMore, offset)
+
+  return (
+    <ConsolePage
+      title="Events"
+      description="Ingested events for this workspace. Open a row for payload and delivery outcomes."
+      actions={
+        !readOnly && (
+          <Button size="sm" className="sm-btn-split" asChild>
+            <Link to="/events/send">
+              <span className="sm-btn-split-label">Test event</span>
+              <span className="sm-btn-split-icon">
+                <Send className="size-3.5" aria-hidden="true" />
+              </span>
+            </Link>
+          </Button>
+        )
+      }
+    >
+      {isRefreshing ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          Updating…
+        </p>
+      ) : null}
+      {error ? (
+        <PageBanner variant="error" title="Could not load events" description={error} />
+      ) : null}
+
+      {isInitial && events.length === 0 ? (
+        <PageLoading variant="table" />
+      ) : (
+        <DataPanel
+          title={isDatasetEmpty ? undefined : 'Ingest log'}
+          loading={isRefreshing}
+          actions={isDatasetEmpty ? undefined : eventPanelActions}
+          footer={
+            showFooter ? (
+              <div className="pagination-bar-footer">
+                <PaginationBar
+                  pageStart={pageStart}
+                  pageEnd={pageEnd}
+                  canGoBack={canGoBack}
+                  canGoForward={canGoForward}
+                  onPrevious={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+                  onNext={() => setOffset(offset + PAGE_SIZE)}
+                />
+              </div>
+            ) : undefined
+          }
+        >
+          {events.length > 0 ? (
+            <DataTable>
+              <DataTableHeader>
+                <DataTableRow>
+                  <DataTableHead>Type</DataTableHead>
+                  <DataTableHead>Status</DataTableHead>
+                  <DataTableHead className="hidden md:table-cell">Idempotency key</DataTableHead>
+                  <DataTableHead className="hidden lg:table-cell">Event ID</DataTableHead>
+                  <DataTableHead className="whitespace-nowrap">Created</DataTableHead>
+                </DataTableRow>
+              </DataTableHeader>
+              <DataTableBody>
+                {events.map((event) => (
+                  <DataTableRow
+                    key={event.id}
+                    className="cursor-pointer"
+                    onClick={(clickEvent) => {
+                      if (
+                        !isPlainPrimaryClick(clickEvent) ||
+                        (clickEvent.target as HTMLElement).closest('a')
+                      )
+                        return
+                      navigate(`/events/${event.id}`, { state: { listReturnTo } })
+                    }}
+                  >
+                    <DataTableCell label="Type">
+                      <Link
+                        to={`/events/${event.id}`}
+                        state={{ listReturnTo }}
+                        className="font-medium text-ink group-hover:text-primary hover:underline"
+                      >
+                        {event.type}
+                      </Link>
+                    </DataTableCell>
+                    <DataTableCell label="Status">
+                      <StatusBadge kind="event" status={event.status} />
+                    </DataTableCell>
+                    <DataTableCell
+                      className="hidden max-w-[14rem] truncate font-mono text-xs text-muted-strong md:table-cell"
+                      title={event.idempotency_key}
+                      label="Idempotency key"
+                    >
+                      {event.idempotency_key}
+                    </DataTableCell>
+                    <DataTableCell
+                      className="hidden max-w-[14rem] truncate font-mono text-xs text-muted-strong lg:table-cell"
+                      title={event.id}
+                      label="Event ID"
+                    >
+                      {event.id}
+                    </DataTableCell>
+                    <DataTableCell
+                      className="whitespace-nowrap text-sm text-muted-strong"
+                      label="Created"
+                    >
+                      {formatDateTime(event.created_at)}
+                    </DataTableCell>
+                  </DataTableRow>
+                ))}
+              </DataTableBody>
+            </DataTable>
+          ) : showEmpty ? (
+            emptyState
+          ) : null}
+        </DataPanel>
+      )}
+    </ConsolePage>
+  )
+}

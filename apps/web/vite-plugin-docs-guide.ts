@@ -10,7 +10,7 @@ import javascript from 'highlight.js/lib/languages/javascript'
 import json from 'highlight.js/lib/languages/json'
 import python from 'highlight.js/lib/languages/python'
 import { loadEnv, type Plugin } from 'vite'
-import { normalizeSiteUrl } from './src/lib/public-site-meta'
+import { normalizeSiteUrl } from './src/lib/meta/public-site-meta'
 
 hljs.registerLanguage('bash', bash)
 hljs.registerLanguage('shell', bash)

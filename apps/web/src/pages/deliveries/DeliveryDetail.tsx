@@ -1,0 +1,329 @@
+import { usePageCache } from '@/providers/page-cache-context'
+import { useReadOnlyWorkspace } from '@/providers/session-context'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useParams } from 'react-router-dom'
+import { ArrowLeft, RotateCcw } from 'lucide-react'
+import { ApiError, getDelivery, replayDelivery } from '@/api/client'
+import type { DeliveryAttempt, DeliveryDetail as DeliveryDetailType } from '@/api/types'
+import { AttemptResponseBody } from '@/components/console/details/AttemptResponseBody'
+import { ConsolePage } from '@/components/console/chrome/ConsolePage'
+import { DataPanel } from '@/components/console/catalogs/DataPanel'
+import { FormPanel } from '@/components/console/forms/FormPanel'
+import { PageBanner } from '@/components/console/chrome/PageBanner'
+import { PageLoading } from '@/components/console/chrome/PageLoading'
+import {
+  DetailFieldList,
+  DetailFieldRow,
+  CopyValue,
+} from '@/components/console/details/DetailFields'
+import { StatusBadge } from '@/components/console/catalogs/StatusBadge'
+import { LiveChip } from '@/components/console/metrics/LiveChip'
+import { Button } from '@/components/ui/button'
+import { Badge, type BadgeTone } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+
+import { useDetailFetch } from '@/hooks/useDetailFetch'
+import { usePolling } from '@/hooks/usePolling'
+import { formatDateTime, formatDeliveryAttempts, formatDeliveryError } from '@/lib/format'
+import { getListReturnTo } from '@/lib/list-return'
+import { toast } from '@/lib/toast'
+import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
+import { cn } from '@/lib/utils'
+
+function httpStatusTone(status: number): BadgeTone {
+  if (status >= 500) return 'danger'
+  if (status >= 400) return 'warning'
+  if (status >= 200 && status < 300) return 'success'
+  return 'neutral'
+}
+
+function formatDeliveryAttemptLabel(delivery: DeliveryDetailType): string {
+  return formatDeliveryAttempts({
+    attemptCount: delivery.attempt_count,
+    replayCount: delivery.replay_count,
+    totalAttempts: delivery.attempts.length,
+  })
+}
+
+function AttemptTimelineItem({ attempt }: { attempt: DeliveryAttempt }) {
+  const isError = attempt.error || (attempt.http_status !== null && attempt.http_status >= 400)
+
+  return (
+    <div
+      className={cn(
+        'card-ring p-5',
+        isError && 'border-l-2 border-l-status-danger-border bg-status-danger-subtle/30',
+      )}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Attempt {attempt.attempt_number}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(attempt.created_at)}</p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          {attempt.http_status !== null ? (
+            <Badge variant="status" tone={httpStatusTone(attempt.http_status)}>
+              HTTP {attempt.http_status}
+            </Badge>
+          ) : (
+            <p className="text-sm font-medium text-muted-foreground">No response</p>
+          )}
+          {attempt.duration_ms !== null ? (
+            <p className="text-xs text-muted-foreground">{attempt.duration_ms} ms</p>
+          ) : null}
+        </div>
+      </div>
+
+      {attempt.error ? (
+        <p className="mt-3 text-sm text-destructive">{formatDeliveryError(attempt.error)}</p>
+      ) : null}
+
+      {attempt.response_body ? <AttemptResponseBody body={attempt.response_body} /> : null}
+    </div>
+  )
+}
+
+export default function DeliveryDetail() {
+  const pageCache = usePageCache()
+  const readOnly = useReadOnlyWorkspace()
+  const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const listReturnTo = getListReturnTo(location.state, '/deliveries')
+  const [replayOpen, setReplayOpen] = useState(false)
+  const [replaying, setReplaying] = useState(false)
+  const [awaitingReplayId, setAwaitingReplayId] = useState<string | null>(null)
+  const replayRequestRef = useRef(0)
+  const awaitingReplay = awaitingReplayId === id
+
+  useEffect(() => {
+    setAwaitingReplayId(null)
+    setReplaying(false)
+    setReplayOpen(false)
+    return () => {
+      replayRequestRef.current += 1
+    }
+  }, [id])
+  const {
+    data: delivery,
+    loading,
+    error,
+    reload,
+  } = useDetailFetch<DeliveryDetailType>({
+    id,
+    fetchDetail: getDelivery,
+    missingError: 'Delivery ID is missing',
+    fallbackError: 'Failed to load delivery',
+  })
+  async function refreshDelivery() {
+    const refreshed = await reload()
+    if (refreshed) {
+      setAwaitingReplayId((pendingId) => (pendingId === id ? null : pendingId))
+    }
+  }
+
+  const polling =
+    awaitingReplay || delivery?.status === 'pending' || delivery?.status === 'in_progress'
+
+  usePolling({
+    enabled: polling,
+    intervalMs: POLL_DEFAULT_MS,
+    onPoll: refreshDelivery,
+  })
+
+  async function handleReplay() {
+    if (!id || replaying || awaitingReplay) return
+    const request = ++replayRequestRef.current
+    setReplaying(true)
+
+    try {
+      await replayDelivery(id)
+      pageCache?.clear()
+      if (request !== replayRequestRef.current) return
+      setAwaitingReplayId(id)
+      setReplayOpen(false)
+      toast.success('Delivery replay queued')
+      await refreshDelivery()
+    } catch (err) {
+      if (request !== replayRequestRef.current) return
+      toast.error(err instanceof ApiError ? err.message : 'Failed to replay delivery')
+    } finally {
+      if (request === replayRequestRef.current) setReplaying(false)
+    }
+  }
+
+  return (
+    <ConsolePage
+      title={
+        delivery
+          ? `Delivery ${delivery.id.slice(0, 8)}…`
+          : loading
+            ? 'Loading delivery…'
+            : 'Delivery'
+      }
+      description={
+        delivery
+          ? `Last updated ${formatDateTime(delivery.updated_at)} · ${formatDeliveryAttemptLabel(delivery)}`
+          : 'Attempt history and replay for one delivery.'
+      }
+      actions={
+        <div className="flex flex-wrap items-center gap-2">
+          <LiveChip active={error === null && polling} intervalMs={POLL_DEFAULT_MS} />
+          <Button size="sm" variant="secondary" asChild>
+            <Link to={listReturnTo}>
+              <ArrowLeft className="size-3.5" aria-hidden="true" />
+              Back to deliveries
+            </Link>
+          </Button>
+          {!readOnly &&
+          !awaitingReplay &&
+          delivery?.status === 'failed' &&
+          delivery.endpoint_status === 'active' ? (
+            <Button size="sm" className="sm-btn-split" onClick={() => setReplayOpen(true)}>
+              <span className="sm-btn-split-label">Replay</span>
+              <span className="sm-btn-split-icon">
+                <RotateCcw className="size-3.5" aria-hidden="true" />
+              </span>
+            </Button>
+          ) : null}
+        </div>
+      }
+    >
+      {awaitingReplay ? (
+        <PageBanner
+          variant={error ? 'error' : 'info'}
+          title={
+            error
+              ? 'Replay queued; could not refresh delivery. Retrying…'
+              : 'Replay queued; refreshing delivery…'
+          }
+          description={error ?? 'Waiting for the updated delivery status.'}
+        />
+      ) : error ? (
+        <PageBanner variant="error" title="Could not load delivery" description={error} />
+      ) : null}
+
+      {loading ? (
+        <PageLoading variant="detail" />
+      ) : delivery ? (
+        <div className="flex flex-col gap-6">
+          <DataPanel title="Delivery overview">
+            <DetailFieldList className="settings-catalog-list--compact">
+              <DetailFieldRow label="Status">
+                <StatusBadge kind="delivery" status={delivery.status} />
+              </DetailFieldRow>
+              <DetailFieldRow label="Attempts">
+                <span className="text-sm text-ink">{formatDeliveryAttemptLabel(delivery)}</span>
+              </DetailFieldRow>
+              <DetailFieldRow label="Event" layout="stacked">
+                <div className="flex min-w-0 flex-col gap-2">
+                  <CopyValue value={delivery.event_id} copyLabel="Event ID" buttonLabel="Copy" />
+                  <Link
+                    to={`/events/${delivery.event_id}`}
+                    className="text-sm font-medium text-primary hover:underline"
+                  >
+                    Open event
+                  </Link>
+                </div>
+              </DetailFieldRow>
+              <DetailFieldRow label="Endpoint" layout="stacked">
+                <CopyValue
+                  value={delivery.endpoint_url}
+                  copyLabel="Endpoint URL"
+                  buttonLabel="Copy"
+                />
+              </DetailFieldRow>
+            </DetailFieldList>
+
+            {delivery.status === 'failed' && delivery.endpoint_status === 'disabled' ? (
+              <p className="border-t border-border/60 px-4 py-3 text-sm text-muted-strong md:px-5">
+                Replay is unavailable because the{' '}
+                <Link
+                  to="/endpoints?status=disabled"
+                  className="font-medium text-primary hover:underline"
+                >
+                  endpoint is disabled
+                </Link>
+                .
+              </p>
+            ) : null}
+
+            {delivery.last_error ? (
+              <div className="border-t border-border/60 px-4 py-3 md:px-5">
+                <PageBanner
+                  variant="error"
+                  title="Last error"
+                  description={formatDeliveryError(delivery.last_error)}
+                />
+              </div>
+            ) : null}
+
+            {delivery.next_retry_at ? (
+              <p className="border-t border-border/60 px-4 py-3 text-sm text-muted-strong md:px-5">
+                Next retry scheduled for {formatDateTime(delivery.next_retry_at)}
+              </p>
+            ) : null}
+          </DataPanel>
+
+          <div>
+            <p className="console-section-marker">Attempt timeline</p>
+            {delivery.attempts.length === 0 ? (
+              <FormPanel className="mt-3">
+                <p className="text-sm text-muted-strong">No attempts recorded yet.</p>
+              </FormPanel>
+            ) : (
+              <ol className="mt-3 flex flex-col gap-3">
+                {delivery.attempts.map((attempt, index) => (
+                  <li key={`${attempt.run_number}-${attempt.attempt_number}`}>
+                    {(index === 0 ||
+                      delivery.attempts[index - 1].run_number !== attempt.run_number) && (
+                      <h3 className="mb-3 text-sm font-semibold">
+                        {attempt.run_number === 0
+                          ? 'Original delivery'
+                          : `Replay ${attempt.run_number}`}
+                      </h3>
+                    )}
+                    <AttemptTimelineItem attempt={attempt} />
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      <Dialog open={replayOpen} onOpenChange={setReplayOpen}>
+        <DialogContent className="gap-0 p-0 sm:max-w-md">
+          <div className="catalog-dialog-secret px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))] pb-4">
+            <DialogHeader className="gap-1.5 text-left">
+              <DialogTitle className="catalog-dialog-secret__title">Replay delivery</DialogTitle>
+              <DialogDescription className="catalog-dialog-secret__desc">
+                This starts a new delivery run, preserves prior attempt history, and clears the
+                terminal error before scheduling delivery again.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <DialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/6 px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setReplayOpen(false)}
+              disabled={replaying}
+            >
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleReplay} disabled={replaying}>
+              {replaying ? 'Replaying…' : 'Confirm replay'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </ConsolePage>
+  )
+}

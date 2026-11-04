@@ -13,12 +13,12 @@ import {
   listTenantUsers,
 } from '@/api/client'
 import { SessionContext } from '@/providers/session-context'
-import Admin from '@/pages/Admin'
-import Deliveries from '@/pages/Deliveries'
-import Endpoints from '@/pages/Endpoints'
-import Events from '@/pages/Events'
-import Settings from '@/pages/Settings'
-import TenantAdmin from '@/pages/TenantAdmin'
+import Admin from '@/pages/admin/Admin'
+import Deliveries from '@/pages/deliveries/Deliveries'
+import Endpoints from '@/pages/endpoints/Endpoints'
+import Events from '@/pages/events/Events'
+import Settings from '@/pages/settings/Settings'
+import TenantAdmin from '@/pages/tenant-admin/TenantAdmin'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/client')>()),

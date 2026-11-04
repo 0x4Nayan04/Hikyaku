@@ -7,12 +7,12 @@ import {
   DataTableHead,
   DataTableHeader,
   DataTableRow,
-} from '@/components/console/DataTable'
-import { DataPanel } from '@/components/console/DataPanel'
-import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
-import { FormPanel } from '@/components/console/FormPanel'
-import { PaginationBar } from '@/components/console/PaginationBar'
-import { pageRange, shouldPaginate } from '@/components/console/pagination-utils'
+} from '@/components/console/catalogs/DataTable'
+import { DataPanel } from '@/components/console/catalogs/DataPanel'
+import { DataPanelEmpty } from '@/components/console/catalogs/DataPanelEmpty'
+import { FormPanel } from '@/components/console/forms/FormPanel'
+import { PaginationBar } from '@/components/console/pagination/PaginationBar'
+import { pageRange, shouldPaginate } from '@/components/console/pagination/pagination-utils'
 import { TenantAdminUserActions } from '@/pages/tenant-admin/TenantAdminUserActions'
 import { useSession } from '@/providers/session-context'
 
