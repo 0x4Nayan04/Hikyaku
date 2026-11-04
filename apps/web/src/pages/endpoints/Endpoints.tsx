@@ -6,14 +6,18 @@ import { Globe, Plus } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { ApiError, listEndpoints, patchEndpoint } from '@/api/client'
 import type { Endpoint, EndpointStatus } from '@/api/types'
-import { ConsolePage } from '@/components/console/ConsolePage'
-import { DataPanel } from '@/components/console/DataPanel'
-import { EndpointCatalogList } from '@/components/console/EndpointCatalogList'
-import { PageBanner } from '@/components/console/PageBanner'
-import { PageLoading } from '@/components/console/PageLoading'
-import { PaginationBar } from '@/components/console/PaginationBar'
-import { PAGE_SIZE, pageRange, shouldPaginate } from '@/components/console/pagination-utils'
-import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
+import { ConsolePage } from '@/components/console/chrome/ConsolePage'
+import { DataPanel } from '@/components/console/catalogs/DataPanel'
+import { EndpointCatalogList } from '@/components/console/catalogs/EndpointCatalogList'
+import { PageBanner } from '@/components/console/chrome/PageBanner'
+import { PageLoading } from '@/components/console/chrome/PageLoading'
+import { PaginationBar } from '@/components/console/pagination/PaginationBar'
+import {
+  PAGE_SIZE,
+  pageRange,
+  shouldPaginate,
+} from '@/components/console/pagination/pagination-utils'
+import { DataPanelEmpty } from '@/components/console/catalogs/DataPanelEmpty'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -23,7 +27,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
-import { EndpointDialogs } from '@/pages/endpoint-dialogs'
+import { CreateEndpointDialog } from '@/pages/endpoints/CreateEndpointDialog'
+import { EditEndpointLabelDialog } from '@/pages/endpoints/EditEndpointLabelDialog'
+import { RotateEndpointSecretDialog } from '@/pages/endpoints/RotateEndpointSecretDialog'
 
 const STATUS_OPTIONS: Array<{ value: 'all' | EndpointStatus; label: string }> = [
   { value: 'all', label: 'All statuses' },
@@ -249,15 +255,23 @@ export default function Endpoints() {
       )}
 
       {!readOnly && (
-        <EndpointDialogs
-          createOpen={createOpen}
-          onCreateOpenChange={setCreateOpen}
-          editTarget={editTarget}
-          onEditTargetChange={setEditTarget}
-          rotateTarget={rotateTarget}
-          onRotateTargetChange={setRotateTarget}
-          onChanged={reloadEndpoints}
-        />
+        <>
+          <CreateEndpointDialog
+            createOpen={createOpen}
+            onCreateOpenChange={setCreateOpen}
+            onChanged={reloadEndpoints}
+          />
+          <EditEndpointLabelDialog
+            editTarget={editTarget}
+            onEditTargetChange={setEditTarget}
+            onChanged={reloadEndpoints}
+          />
+          <RotateEndpointSecretDialog
+            rotateTarget={rotateTarget}
+            onRotateTargetChange={setRotateTarget}
+            onChanged={reloadEndpoints}
+          />
+        </>
       )}
     </ConsolePage>
   )

@@ -1,14 +1,13 @@
+import { SettingsApiKeysSection } from '@/pages/settings/SettingsApiKeysSection'
 import { useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ConsolePage } from '@/components/console/ConsolePage'
-import { SettingsLayout } from '@/components/console/SettingsLayout'
+import { ConsolePage } from '@/components/console/chrome/ConsolePage'
+import { SettingsLayout } from '@/pages/settings/SettingsLayout'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { isPlatformContext } from '@/lib/auth/auth-redirect'
 import { useSession } from '@/providers/session-context'
-import { SettingsApiKeyDialogs } from '@/pages/settings/SettingsApiKeyDialogs'
-import { SettingsApiKeysTab } from '@/pages/settings/SettingsApiKeysTab'
 import { SettingsTenantTab } from '@/pages/settings/SettingsTenantTab'
 import { SettingsProfileTab } from '@/pages/settings/SettingsProfileTab'
-import { useSettingsPage } from '@/pages/settings/useSettingsPage'
 
 const SETTINGS_TABS = ['profile', 'tenant', 'api-keys'] as const
 type SettingsTab = (typeof SETTINGS_TABS)[number]
@@ -27,7 +26,7 @@ function resolveSettingsTab(requestedTab: string, isSuperAdmin: boolean): Settin
 export default function Settings() {
   const { session } = useSession()
   const readOnly = session?.tenant?.read_only ?? false
-  const isSuperAdmin = (session?.user.is_super_admin ?? false) && !session?.tenant
+  const isSuperAdmin = isPlatformContext(session)
 
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedTab = searchParams.get('tab') ?? 'profile'
@@ -42,27 +41,6 @@ export default function Settings() {
       setSearchParams({ tab }, { replace: true })
     }
   }, [tab, requestedTab, setSearchParams])
-
-  const {
-    apiKeys,
-    apiKeyHasMore,
-    apiKeyOffset,
-    apiKeyPageSize,
-    setApiKeyOffset,
-    loadingKeys,
-    keysError,
-    keysEmpty,
-    creatingKey,
-    revokingId,
-    rotatingId,
-    secretKey,
-    revokeTarget,
-    setSecretKey,
-    setRevokeTarget,
-    handleCreateKey,
-    handleRevoke,
-    handleRotate,
-  } = useSettingsPage(isSuperAdmin || readOnly)
 
   return (
     <ConsolePage
@@ -100,39 +78,13 @@ export default function Settings() {
             {!readOnly && (
               <TabsContent value="api-keys">
                 <SettingsLayout>
-                  <SettingsApiKeysTab
-                    apiKeys={apiKeys}
-                    hasMore={apiKeyHasMore}
-                    offset={apiKeyOffset}
-                    pageSize={apiKeyPageSize}
-                    loadingKeys={loadingKeys}
-                    keysError={keysError}
-                    isEmpty={keysEmpty}
-                    creatingKey={creatingKey}
-                    rotatingId={rotatingId}
-                    revokingId={revokingId}
-                    onCreateKey={handleCreateKey}
-                    onRotate={handleRotate}
-                    onRevokeClick={setRevokeTarget}
-                    onOffsetChange={setApiKeyOffset}
-                  />
+                  <SettingsApiKeysSection />
                 </SettingsLayout>
               </TabsContent>
             )}
           </>
         )}
       </Tabs>
-
-      {!isSuperAdmin && !readOnly && (
-        <SettingsApiKeyDialogs
-          secretKey={secretKey}
-          revokeTarget={revokeTarget}
-          revokingId={revokingId}
-          onSecretKeyChange={setSecretKey}
-          onRevokeTargetChange={setRevokeTarget}
-          onRevoke={handleRevoke}
-        />
-      )}
     </ConsolePage>
   )
 }
