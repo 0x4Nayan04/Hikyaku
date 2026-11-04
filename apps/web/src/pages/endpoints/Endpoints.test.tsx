@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { SessionTestProvider } from '@/testing/SessionTestProvider'
 import { createPageCache } from '@/lib/page-cache'
 import { PageCacheContext } from '@/providers/page-cache-context'
 import { act } from 'react'
@@ -7,7 +8,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { listEndpoints, patchEndpoint } from '@/api/client'
 import type { Endpoint, Paginated } from '@/api/types'
-import Endpoints from '@/pages/Endpoints'
+import Endpoints from '@/pages/endpoints/Endpoints'
 
 vi.mock('@/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/client')>()
@@ -17,6 +18,8 @@ vi.mock('@/api/client', async (importOriginal) => {
     patchEndpoint: vi.fn(),
   }
 })
+
+vi.mock('@/lib/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -32,7 +35,14 @@ async function renderEndpoints(path: string) {
       <PageCacheContext.Provider value={pageCache}>
         <MemoryRouter initialEntries={[path]}>
           <Routes>
-            <Route path="/endpoints" element={<Endpoints />} />
+            <Route
+              path="/endpoints"
+              element={
+                <SessionTestProvider>
+                  <Endpoints />
+                </SessionTestProvider>
+              }
+            />
           </Routes>
         </MemoryRouter>
       </PageCacheContext.Provider>,

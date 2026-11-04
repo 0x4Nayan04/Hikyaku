@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { SessionTestProvider } from '@/testing/SessionTestProvider'
 import { createPageCache } from '@/lib/page-cache'
 import { PageCacheContext } from '@/providers/page-cache-context'
 import {
@@ -11,7 +12,7 @@ import {
 } from '@/api/client'
 import type { Paginated, Stats } from '@/api/types'
 import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
-import { Dashboard } from '@/pages/Dashboard'
+import { Dashboard } from '@/pages/dashboard/Dashboard'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
@@ -73,7 +74,9 @@ async function renderDashboard() {
     root.render(
       <PageCacheContext.Provider value={pageCache}>
         <MemoryRouter>
-          <Dashboard />
+          <SessionTestProvider>
+            <Dashboard />
+          </SessionTestProvider>
         </MemoryRouter>
       </PageCacheContext.Provider>,
     )

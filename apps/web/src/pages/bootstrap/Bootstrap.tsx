@@ -1,112 +1,25 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { Check, KeyRound, Lock, Mail, Shield, User } from 'lucide-react'
-import { ApiError, bootstrap, getBootstrapStatus } from '@/api/client'
 import { AuthFooterLink } from '@/components/auth/AuthFooterLink'
 import { AuthFormField } from '@/components/auth/AuthFormField'
-import { PageBanner } from '@/components/console/PageBanner'
+import { PageBanner } from '@/components/console/chrome/PageBanner'
 import { AuthLayout } from '@/layouts/AuthLayout'
-import { getDefaultHomePath } from '@/lib/auth-redirect'
-import { writeBootstrapStatusCache } from '@/lib/bootstrap-status'
-import { useSession } from '@/providers/session-context'
+
+import { useBootstrapSetup } from '@/pages/bootstrap/useBootstrapSetup'
 
 export default function Bootstrap() {
-  const navigate = useNavigate()
-  const { session, loading } = useSession()
+  const { status, loadError, error, submitting, retry, submit } = useBootstrapSetup()
   const [adminSecret, setAdminSecret] = useState('')
   const [workspaceName, setWorkspaceName] = useState('My workspace')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [checkingAvailability, setCheckingAvailability] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [availabilityAttempt, setAvailabilityAttempt] = useState(0)
-
-  useEffect(() => {
-    if (!loading && session) {
-      navigate(getDefaultHomePath(session.user), { replace: true })
-    }
-  }, [loading, session, navigate])
-
-  useEffect(() => {
-    if (loading || session) {
-      return
-    }
-
-    let cancelled = false
-
-    getBootstrapStatus()
-      .then((status) => {
-        if (cancelled) {
-          return
-        }
-        if (!status.available) {
-          navigate('/login', {
-            replace: true,
-            state: {
-              banner: 'already_set_up',
-              message: 'This deployment is already set up. Sign in with your account.',
-            },
-          })
-          return
-        }
-        setCheckingAvailability(false)
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setCheckingAvailability(false)
-          setLoadError(
-            err instanceof ApiError
-              ? err.message
-              : 'Unable to check setup availability. Check your connection and try again.',
-          )
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [loading, session, navigate, availabilityAttempt])
-
-  function retryAvailabilityCheck() {
-    setLoadError(null)
-    setCheckingAvailability(true)
-    setAvailabilityAttempt((attempt) => attempt + 1)
-  }
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setError(null)
-    setSubmitting(true)
-
-    try {
-      await bootstrap(adminSecret, { name, email, password, workspace_name: workspaceName })
-      writeBootstrapStatusCache(false)
-      navigate('/login', {
-        replace: true,
-        state: {
-          banner: 'bootstrap_complete',
-          message: 'Account and workspace created. Sign in to send your first webhook.',
-        },
-      })
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.code === 'forbidden') {
-          setError('Bootstrap is disabled because a user already exists. Sign in instead.')
-        } else {
-          setError(err.message)
-        }
-      } else {
-        setError('Unable to complete setup. Try again.')
-      }
-    } finally {
-      setSubmitting(false)
-    }
+    void submit(adminSecret, { name, email, password, workspace_name: workspaceName })
   }
 
-  if (checkingAvailability) {
+  if (status === 'checking') {
     return (
       <AuthLayout
         variant="split"
@@ -131,11 +44,7 @@ export default function Bootstrap() {
           <div className="auth-form-status">
             <PageBanner variant="error" title="Setup check failed" description={loadError} />
           </div>
-          <button
-            type="button"
-            onClick={retryAvailabilityCheck}
-            className="sm-btn sm-btn-primary sm-btn-block"
-          >
+          <button type="button" onClick={retry} className="sm-btn sm-btn-primary sm-btn-block">
             Try again
           </button>
           <div className="auth-slip-note">
@@ -222,8 +131,14 @@ export default function Bootstrap() {
           <h2 className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-muted-strong">
             Your account
           </h2>
-          <AuthFormField id="workspace-name" label="Workspace name" icon={User}
-            value={workspaceName} onChange={setWorkspaceName} required />
+          <AuthFormField
+            id="workspace-name"
+            label="Workspace name"
+            icon={User}
+            value={workspaceName}
+            onChange={setWorkspaceName}
+            required
+          />
           <AuthFormField
             id="name"
             label="Full name"

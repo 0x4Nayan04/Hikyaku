@@ -1,33 +1,23 @@
 import { usePageCache } from '@/providers/page-cache-context'
 import type { DashboardSnapshot } from '@/lib/page-cache'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
-import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Check, ChevronRight, PowerOff, Send, type LucideIcon } from 'lucide-react'
-import { ApiError, getStats, listDeliveries, listEndpoints, listEvents } from '@/api/client'
 import type { Stats } from '@/api/types'
-import { PageBanner } from '@/components/console/PageBanner'
-import { ConsolePage } from '@/components/console/ConsolePage'
-import { DataPanel } from '@/components/console/DataPanel'
-import { DashboardQuickActions } from '@/components/console/DashboardQuickActions'
-import { LiveChip } from '@/components/console/LiveChip'
-import { LiveMetrics } from '@/components/console/LiveMetrics'
-import { RecentActivity, type ActivityItem } from '@/components/console/RecentActivity'
+import { PageBanner } from '@/components/console/chrome/PageBanner'
+import { ConsolePage } from '@/components/console/chrome/ConsolePage'
+import { DataPanel } from '@/components/console/catalogs/DataPanel'
+import { DashboardQuickActions } from '@/pages/dashboard/DashboardQuickActions'
+import { LiveChip } from '@/components/console/metrics/LiveChip'
+import { LiveMetrics } from '@/components/console/metrics/LiveMetrics'
+import { RecentActivity, type ActivityItem } from '@/components/console/metrics/RecentActivity'
 import { Skeleton } from '@/components/ui/skeleton'
-import { usePolling } from '@/hooks/usePolling'
-import { PRODUCT_LINKS } from '@/lib/app-meta'
+import { hasDashboardData, useDashboardSnapshot } from '@/hooks/useDashboardSnapshot'
+import { PRODUCT_LINKS } from '@/lib/meta/app-meta'
 import { formatPercent, formatStatusLabel } from '@/lib/format'
-import {
-  buildOnboardingSteps,
-  type OnboardingStep,
-  type OnboardingStepId,
-} from '@/lib/tenant-onboarding'
+import { type OnboardingStep, type OnboardingStepId } from '@/lib/auth/tenant-onboarding'
 import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
 import { cn } from '@/lib/utils'
-
-function isAbortError(err: unknown): boolean {
-  return err instanceof Error && err.name === 'AbortError'
-}
 
 function buildActivity(
   events: DashboardSnapshot['events'],
@@ -57,15 +47,6 @@ function buildActivity(
     .slice(0, 5)
 }
 
-function hasDashboardData(stats: Stats): boolean {
-  return (
-    stats.events_today > 0 ||
-    stats.deliveries_active > 0 ||
-    stats.deliveries_succeeded_24h > 0 ||
-    stats.deliveries_failed_24h > 0
-  )
-}
-
 type AttentionItem = {
   id: string
   label: string
@@ -81,108 +62,14 @@ export function Dashboard() {
 }
 
 function DashboardContent() {
-  const cache = usePageCache()?.dashboard
   const readOnly = useReadOnlyWorkspace()
-  const [snapshot, setSnapshot] = useState(() => cache?.read('dashboard'))
+  const { snapshot, error, isInitial, isLive, isRefreshing, load } = useDashboardSnapshot()
   const stats = snapshot?.stats ?? null
   const activity = buildActivity(snapshot?.events ?? [], snapshot?.deliveries ?? [])
   const attention = stats ? buildAttentionItems(stats, snapshot?.hasDisabledEndpoint ?? false) : []
   const onboarding = snapshot?.onboarding ?? null
   const onboardingError = snapshot?.onboardingError ?? null
-  const [error, setError] = useState<string | null>(null)
-  const [isInitial, setIsInitial] = useState(!snapshot)
-  const [isLive, setIsLive] = useState(false)
-  const [isRefreshing, setIsRefreshing] = useState(Boolean(snapshot))
   const lastUpdated = snapshot?.lastUpdated
-  const abortRef = useRef<AbortController | null>(null)
-
-  const load = useCallback(async () => {
-    const generation = cache?.generation
-    setIsRefreshing(true)
-    abortRef.current?.abort()
-    const controller = new AbortController()
-    abortRef.current = controller
-    const { signal } = controller
-    const stale = () => signal.aborted || generation !== cache?.generation
-
-    try {
-      const [data, disabled, eventsResult, deliveriesResult] = await Promise.all([
-        getStats({ signal }),
-        listEndpoints({ status: 'disabled', limit: 1 }, { signal }),
-        listEvents({ limit: 5, offset: 0 }, { signal }),
-        listDeliveries({ limit: 5, offset: 0 }, { signal }),
-      ])
-
-      let nextOnboarding: OnboardingStep[] | null = null
-      let nextOnboardingError: string | null = null
-      if (!hasDashboardData(data)) {
-        try {
-          const activeEndpoints = await listEndpoints({ status: 'active', limit: 1 }, { signal })
-          const hasActiveEndpoint = activeEndpoints.data.length > 0
-          const hasAnyEndpoint = hasActiveEndpoint || disabled.data.length > 0
-          nextOnboarding = buildOnboardingSteps({
-            hasActiveEndpoint,
-            hasAnyEndpoint,
-            hasTestEvent: eventsResult.data.length > 0,
-            hasDeliveries: deliveriesResult.data.length > 0,
-          })
-        } catch (err) {
-          if (isAbortError(err)) throw err
-          nextOnboardingError =
-            err instanceof ApiError ? err.message : 'Failed to check active endpoints'
-        }
-      }
-
-      if (stale()) return
-      const next: DashboardSnapshot = {
-        stats: data,
-        hasDisabledEndpoint: disabled.data.length > 0,
-        events: eventsResult.data,
-        deliveries: deliveriesResult.data,
-        onboarding: nextOnboarding,
-        onboardingError: nextOnboardingError,
-        lastUpdated: new Date().toISOString(),
-      }
-      if (generation !== undefined) cache?.write('dashboard', next, generation)
-      setSnapshot(next)
-      setError(null)
-      setIsLive(true)
-    } catch (err) {
-      if (isAbortError(err) || stale()) return
-      controller.abort()
-      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-        cache?.clear()
-        setSnapshot(undefined)
-      }
-      setIsInitial(false)
-      setError(err instanceof ApiError ? err.message : 'Failed to load stats')
-      setIsLive(false)
-    } finally {
-      if (abortRef.current === controller) {
-        abortRef.current = null
-        setIsRefreshing(false)
-      }
-      if (!stale()) setIsInitial(false)
-    }
-  }, [cache])
-
-  useEffect(() => {
-    void load()
-    return () => {
-      abortRef.current?.abort()
-    }
-  }, [load])
-
-  const refresh = useCallback(async () => {
-    if (abortRef.current) return
-    await load()
-  }, [load])
-
-  usePolling({
-    intervalMs: POLL_DEFAULT_MS,
-    refreshOnVisible: true,
-    onPoll: refresh,
-  })
 
   const hasData = stats !== null && hasDashboardData(stats)
 
