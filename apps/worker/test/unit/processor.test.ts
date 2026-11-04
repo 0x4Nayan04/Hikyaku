@@ -50,13 +50,22 @@ describe('classifyDeliveryError', () => {
   })
 
   it('classifies blocked redirect and too many redirects as terminal errors', () => {
-    expect(classifyDeliveryError(new Error('blocked_url: private'))).toBe('blocked_url')
-    expect(classifyDeliveryError(new Error('too_many_redirects'))).toBe('too_many_redirects')
+    expect(
+      classifyDeliveryError(
+        new httpClient.WebhookTransportError('blocked_url', 'arbitrary wording'),
+      ),
+    ).toBe('blocked_url')
+    expect(classifyDeliveryError(new httpClient.WebhookTransportError('too_many_redirects'))).toBe(
+      'too_many_redirects',
+    )
   })
 
   it('classifies other errors as network_error', () => {
     expect(classifyDeliveryError(new TypeError('fetch failed'))).toBe('network_error')
     expect(classifyDeliveryError(new Error('ECONNREFUSED'))).toBe('network_error')
+    expect(classifyDeliveryError(new Error('blocked_url: misleading native message'))).toBe(
+      'network_error',
+    )
   })
 })
 
@@ -1259,7 +1268,10 @@ describe('processor', () => {
   it('fails fast when a redirect target is blocked', async () => {
     const db = getDb()
     vi.spyOn(httpClient, 'postWithTimeout').mockRejectedValue(
-      new Error('blocked_url: URL must not target a private or loopback address'),
+      new httpClient.WebhookTransportError(
+        'blocked_url',
+        'URL must not target a private or loopback address',
+      ),
     )
 
     const [tenant] = await db

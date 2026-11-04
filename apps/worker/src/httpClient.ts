@@ -9,6 +9,18 @@ const MAX_RESPONSE_BODY_BYTES = 1024
 const httpAgent = new HttpAgent({ keepAlive: true, maxSockets: 64 })
 const httpsAgent = new HttpsAgent({ keepAlive: true, maxSockets: 64 })
 
+export type WebhookTransportErrorKind = 'blocked_url' | 'too_many_redirects' | 'dns_error'
+
+export class WebhookTransportError extends Error {
+  constructor(
+    public readonly kind: WebhookTransportErrorKind,
+    message: string = kind,
+  ) {
+    super(message)
+    this.name = 'WebhookTransportError'
+  }
+}
+
 type PinnedTarget = { url: URL; addresses: LookupAddress[] }
 
 function timeoutError(): DOMException {
@@ -130,9 +142,8 @@ export async function postWithTimeout(
     const remainingMs = Math.max(0, timeoutMs - (Date.now() - start))
     const target = await resolveWithTimeout(currentUrl, allowPrivate, remainingMs)
     if (!target.ok) {
-      throw new Error(
-        `${target.kind === 'dns_error' ? 'dns_error' : 'blocked_url'}: ${target.reason}`,
-      )
+      const kind = target.kind === 'dns_error' ? 'dns_error' : 'blocked_url'
+      throw new WebhookTransportError(kind, `${kind}: ${target.reason}`)
     }
 
     const result = await requestOnce(target, body, headers, signal)
@@ -140,7 +151,7 @@ export async function postWithTimeout(
       return { status: result.status, body: result.body, durationMs: Date.now() - start }
     }
     if (redirects >= MAX_REDIRECTS) {
-      throw new Error('too_many_redirects')
+      throw new WebhookTransportError('too_many_redirects')
     }
     currentUrl = new URL(result.location, target.url).toString()
   }
