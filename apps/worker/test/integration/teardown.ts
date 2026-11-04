@@ -5,7 +5,7 @@ import { getQueue, closeQueue } from '../../../api/src/queue/client.js'
 import { closePool } from '../../src/db/client.js'
 import { closeRedis } from '../../src/lib/redis.js'
 
-export async function teardown(): Promise<void> {
+export default async function globalTeardown(): Promise<void> {
   for (const job of await getQueue().getJobs([
     'waiting',
     'delayed',
