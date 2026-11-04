@@ -7,6 +7,15 @@ describe('parsePagination', () => {
     expect(parsePagination({})).toEqual({ limit: 50, offset: 0 })
   })
 
+  it.each([{ limit: { nested: '1' } }, { offset: [{ nested: '1' }] }, { limit: 10 }])(
+    'rejects non-scalar query values',
+    (query) => expect(() => parsePagination(query)).toThrow(AppError),
+  )
+
+  it('retains first-string handling for repeated scalar parameters', () => {
+    expect(parsePagination({ limit: ['10', '20'] })).toEqual({ limit: 10, offset: 0 })
+  })
+
   it('caps limit at 100', () => {
     expect(parsePagination({ limit: '200' })).toEqual({ limit: 100, offset: 0 })
   })

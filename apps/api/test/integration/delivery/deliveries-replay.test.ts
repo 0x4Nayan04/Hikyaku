@@ -9,18 +9,18 @@ import {
   events,
 } from '@hikyaku/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import '../../src/config.js'
-import { closePool, getDb } from '../../src/db/client.js'
-import { closeRedis } from '../../src/lib/redis.js'
-import { queue } from '../../src/queue/client.js'
-import { createApp } from '../../src/server.js'
+import '../../../src/config.js'
+import { closePool, getDb } from '../../../src/db/client.js'
+import { closeRedis } from '../../../src/lib/redis.js'
+import { getQueue, closeQueue } from '../../../src/queue/client.js'
+import { createApp } from '../../../src/server.js'
 import {
   beginDeliveryTestIsolation,
   endDeliveryTestIsolation,
   seedDeliveryRow,
-} from '../helpers/delivery.js'
-import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
-import { createTenantSession } from '../helpers/user.js'
+} from '../../helpers/delivery.js'
+import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
+import { createTenantSession } from '../../helpers/user.js'
 
 const app = createApp()
 
@@ -60,7 +60,7 @@ describe('POST /v1/deliveries/:id/replay', () => {
 
   afterAll(async () => {
     await endDeliveryTestIsolation()
-    await queue.close()
+    await closeQueue()
     await deleteTenant(tenantId)
     await closePool()
     await closeRedis()
@@ -73,7 +73,7 @@ describe('POST /v1/deliveries/:id/replay', () => {
     expect(res.body).toEqual({ id: deliveryId, status: 'pending' })
 
     const db = getDb()
-    const jobs = await queue.getJobs(['waiting', 'active', 'delayed'])
+    const jobs = await getQueue().getJobs(['waiting', 'active', 'delayed'])
     const job = jobs.find((candidate) => candidate.data.deliveryId === deliveryId)
     expect(job).toBeDefined()
     expect(job?.data).toEqual({ deliveryId, tenantId, replayCount: 1 })
@@ -161,7 +161,7 @@ describe('POST /v1/deliveries/:id/replay', () => {
       })
       .where(eq(deliveries.id, deliveryId))
 
-    for (const job of await queue.getJobs(['waiting', 'delayed', 'active', 'paused'])) {
+    for (const job of await getQueue().getJobs(['waiting', 'delayed', 'active', 'paused'])) {
       if (job.data.deliveryId === deliveryId) await job.remove()
     }
 
@@ -190,7 +190,7 @@ describe('POST /v1/deliveries/:id/replay', () => {
     })
     expect(delivery?.nextRetryAt?.getTime()).toBe(retryAt.getTime())
 
-    const jobs = await queue.getJobs(['waiting', 'delayed', 'active', 'paused'])
+    const jobs = await getQueue().getJobs(['waiting', 'delayed', 'active', 'paused'])
     expect(jobs.some((job) => job.data.deliveryId === deliveryId)).toBe(false)
   })
 
@@ -247,12 +247,12 @@ describe('POST /v1/deliveries/:id/replay', () => {
       lastError: 'http_500',
     })
 
-    await enqueueDeliveryJob(queue, seeded.deliveryId, tenantId, 0)
+    await enqueueDeliveryJob(getQueue(), seeded.deliveryId, tenantId, 0)
 
     const res = await agent.post(`/v1/deliveries/${seeded.deliveryId}/replay`)
     expect(res.status).toBe(202)
 
-    const jobs = await queue.getJobs(['waiting', 'active', 'delayed', 'paused'])
+    const jobs = await getQueue().getJobs(['waiting', 'active', 'delayed', 'paused'])
     const matching = jobs.filter((job) => job.data.deliveryId === seeded.deliveryId)
     expect(matching.map((job) => job.data.replayCount).sort()).toEqual([0, 1])
 

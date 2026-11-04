@@ -1,7 +1,7 @@
 import { ENDPOINT_STATUSES, type EndpointStatus } from '@hikyaku/shared/constants'
 import { createEndpointSchema, patchEndpointSchema } from '@hikyaku/shared/zod'
 import { AppError } from '../../lib/errors.js'
-import { parseSchema, requireUuid } from '../../lib/validation.js'
+import { parseSchema, queryString, requireUuid } from '../../lib/validation.js'
 
 const ENDPOINT_STATUS_SET = new Set<string>(ENDPOINT_STATUSES)
 
@@ -19,10 +19,8 @@ export function parsePatchBody(body: unknown) {
   return parseSchema(patchEndpointSchema, body)
 }
 
-export function parseListQuery(query: {
-  status?: string | string[]
-}): { status?: EndpointStatus } {
-  const statusRaw = Array.isArray(query.status) ? query.status[0] : query.status
+export function parseListQuery(query: { status?: unknown }): { status?: EndpointStatus } {
+  const statusRaw = queryString(query.status, 'status')
 
   if (statusRaw === undefined) return {}
   if (!ENDPOINT_STATUS_SET.has(statusRaw)) {

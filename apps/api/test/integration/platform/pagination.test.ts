@@ -2,12 +2,12 @@ import request from 'supertest'
 import { eq } from 'drizzle-orm'
 import { apiKeys, deliveries, endpoints, events, users } from '@hikyaku/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import '../../src/config.js'
-import { closePool, getDb } from '../../src/db/client.js'
-import { closeRedis } from '../../src/lib/redis.js'
-import { createApp } from '../../src/server.js'
-import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
-import { createTenantSession, createUser, deleteUser } from '../helpers/user.js'
+import '../../../src/config.js'
+import { closePool, getDb } from '../../../src/db/client.js'
+import { closeRedis } from '../../../src/lib/redis.js'
+import { createApp } from '../../../src/server.js'
+import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
+import { createTenantSession, createUser, deleteUser } from '../../helpers/user.js'
 
 const app = createApp()
 
@@ -191,7 +191,9 @@ describe('list endpoint pagination', () => {
       const second = await superAgent.get(path).query({ limit: 2, offset: 2 })
       expect(first.status).toBe(200)
       expect(second.status).toBe(200)
-      const pagedIds = [...first.body.data, ...second.body.data].map((row: { id: string }) => row.id)
+      const pagedIds = [...first.body.data, ...second.body.data].map(
+        (row: { id: string }) => row.id,
+      )
       expect(pagedIds).toEqual(ids)
     } finally {
       await deleteTenant(tieTenant.tenantId)

@@ -1,8 +1,8 @@
 import request from 'supertest'
 import { afterAll, describe, expect, it } from 'vitest'
-import { closePool } from '../../src/db/client.js'
-import { closeRedis } from '../../src/lib/redis.js'
-import { createApp } from '../../src/server.js'
+import { closePool } from '../../../src/db/client.js'
+import { closeRedis } from '../../../src/lib/redis.js'
+import { createApp } from '../../../src/server.js'
 
 const app = createApp()
 
