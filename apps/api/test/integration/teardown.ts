@@ -1,7 +1,7 @@
 import '../../src/config.js'
 import { getQueue, closeQueue } from '../../src/queue/client.js'
 
-export default async function globalTeardown(): Promise<void> {
+export async function teardown(): Promise<void> {
   for (const job of await getQueue().getJobs([
     'waiting',
     'delayed',
