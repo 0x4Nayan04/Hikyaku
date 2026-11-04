@@ -1,6 +1,6 @@
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
-import { CONFIG_DEFAULTS } from './constants.js'
+import { CONFIG_DEFAULTS } from './constants/config.js'
 import * as schema from './schema.js'
 
 const { Pool } = pg

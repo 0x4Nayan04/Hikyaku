@@ -1,15 +1,32 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DELIVERY_JOB_OPTIONS,
   DELIVERY_STATUSES,
   ENDPOINT_STATUSES,
   EVENT_STATUSES,
   QUEUE_NAME,
+  queueName,
 } from '../../src/constants.js'
 
 describe('constants', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('resolves queue identity after test environment changes', () => {
+    vi.stubEnv('NODE_ENV', 'test')
+    vi.stubEnv('TEST_RUN_ID', 'first')
+    expect(queueName()).toBe('webhook-deliveries-test-first')
+    vi.stubEnv('TEST_RUN_ID', 'second')
+    expect(queueName()).toBe('webhook-deliveries-test-second')
+    vi.stubEnv('NODE_ENV', 'production')
+    expect(queueName()).toBe('webhook-deliveries')
+  })
+
   it('defines queue name', () => {
-    expect(QUEUE_NAME).toBe(process.env.NODE_ENV === 'test' && process.env.TEST_RUN_ID ? `webhook-deliveries-test-${process.env.TEST_RUN_ID}` : 'webhook-deliveries')
+    expect(QUEUE_NAME).toBe(
+      process.env.NODE_ENV === 'test' && process.env.TEST_RUN_ID
+        ? `webhook-deliveries-test-${process.env.TEST_RUN_ID}`
+        : 'webhook-deliveries',
+    )
     expect(DELIVERY_JOB_OPTIONS.attempts).toBe(1)
     expect(DELIVERY_JOB_OPTIONS.removeOnComplete).toEqual({ age: 3600, count: 1000 })
     expect(DELIVERY_JOB_OPTIONS.removeOnFail).toEqual({ age: 3600, count: 1000 })
