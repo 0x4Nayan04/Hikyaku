@@ -1,16 +1,16 @@
 const seededTenantIds: string[] = []
-import { QUEUE_NAME } from '@hikyaku/shared/constants'
+import { queueName } from '@hikyaku/shared/constants/queue'
 import { enqueueDeliveryJob } from '@hikyaku/shared/enqueueDelivery'
 import { deliveries, deliveryOutbox, endpoints, events, tenants } from '@hikyaku/shared/schema'
 import { Queue, Worker } from 'bullmq'
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import '../../src/config.js'
 import { closePool, getDb } from '../../src/db/client.js'
-import { closeRedis, getRedisConnectionOptions } from '../../src/lib/redis.js'
-import { sweepOrphanDeliveries } from '../../src/sweeper.js'
+import { closeRedis, getRedis, getRedisConnectionOptions } from '../../src/lib/redis.js'
+import { startSweeper, stopSweeper, sweepOrphanDeliveries } from '../../src/sweeper.js'
 
-const queue = new Queue(`${QUEUE_NAME}-sweeper-test-${process.pid}`, {
+const queue = new Queue(`${queueName()}-sweeper-test-${process.pid}`, {
   connection: getRedisConnectionOptions(),
 })
 
@@ -92,11 +92,61 @@ describe('sweepOrphanDeliveries', () => {
   })
 
   afterAll(async () => {
+    await stopSweeper()
     await clearQueue()
     await clearOrphanCandidates()
     await queue.close()
     await closePool()
     await closeRedis()
+  })
+
+  it('respects another sweeper lock and does not release a replacement owner token', async () => {
+    const redis = getRedis()
+    const lockKey = `${queue.name}:sweeper-lock`
+    const seeded = await seedPendingDelivery()
+    await redis.set(lockKey, 'another-worker', 'PX', 5_000)
+    startSweeper(queue)
+    await stopSweeper()
+    expect(await findDeliveryJob(seeded.id)).toBeUndefined()
+    expect(await redis.get(lockKey)).toBe('another-worker')
+    await redis.del(lockKey)
+
+    let release!: () => void
+    let signalLocked!: () => void
+    const locked = new Promise<void>((resolve) => {
+      signalLocked = resolve
+    })
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const holder = getDb().transaction(async (tx) => {
+      await tx.execute(sql`SELECT id FROM deliveries WHERE id = ${seeded.id} FOR UPDATE`)
+      signalLocked()
+      await gate
+    })
+    try {
+      await locked
+      startSweeper(queue)
+      const deadline = Date.now() + 2_000
+      let token: string | null = null
+      while (Date.now() < deadline && !token) {
+        token = await redis.get(lockKey)
+        if (!token) await new Promise((resolve) => setTimeout(resolve, 5))
+      }
+      expect(token).toBeTruthy()
+      await redis.set(lockKey, 'replacement-owner', 'PX', 5_000)
+      const stopped = stopSweeper()
+      release()
+      await holder
+      await stopped
+      expect(await redis.get(lockKey)).toBe('replacement-owner')
+      expect(await findDeliveryJob(seeded.id)).toBeDefined()
+    } finally {
+      release()
+      await holder
+      await stopSweeper()
+      await redis.del(lockKey)
+    }
   })
 
   it('fixture cleanup preserves rows outside this test run', async () => {
