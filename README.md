@@ -22,20 +22,22 @@ An optional [read-only console demo](deploy/README.md#read-only-console-demo) us
 
 ## Architecture
 
+```mermaid
+%%{init: {"look": "handDrawn"}}%%
+flowchart LR
+    Producer["Event producer"] -->|"POST /v1/events"| API["API"]
+    Console["Operator console"] -->|"Manage and inspect"| API
+    API -->|"Events, deliveries and outbox"| DB[("Postgres")]
+    API -->|"Enqueue delivery jobs"| Queue[("Redis / BullMQ")]
+    Queue -->|"Delivery jobs"| Worker["Worker"]
+    Worker -->|"Read delivery; record attempts"| DB
+    Worker -->|"Signed webhook POST"| Receiver["Subscriber endpoints"]
+    Worker -->|"Retry transient failures"| Queue
+    Sweeper["Recovery sweeper"] -->|"Find outbox and stale deliveries"| DB
+    Sweeper -->|"Re-enqueue jobs"| Queue
 ```
-Producer ──POST /v1/events──► API ──fan-out + enqueue──► Redis (BullMQ)
-                                      │
-                                      ▼
-                                   Worker (sign + deliver + retry)
-                                      │
-                    ┌─────────────────┼─────────────────┐
-                    ▼                 ▼                 ▼
-              Endpoint A        Endpoint B        Endpoint C
-           (HMAC-SHA256)         (backoff)       (attempt logs)
-                                      │
-                                      ▼
-                               Postgres + console
-```
+
+The API stores each event, its deliveries, and their outbox entries in one Postgres transaction, then enqueues delivery jobs. The worker's sweeper recovers outbox entries and stale deliveries. Each active endpoint gets a separate delivery; receivers should deduplicate retries using `X-Webhook-Id`.
 
 | Piece         | Role                                            |
 | ------------- | ----------------------------------------------- |
@@ -99,7 +101,7 @@ curl -X POST "http://localhost:3000/v1/events" \
   }'
 ```
 
-`202 Accepted` means the event is queued, not that every delivery succeeded. The response includes the event `id`.
+`202 Accepted` means the ingest was accepted, not that every delivery succeeded. The response includes the event `id`; if no endpoints are active, its status is `no_recipients` and no delivery is queued. If enqueue fails after the event is committed, the API can return `503` while the outbox still enables later delivery. Retry the same request with the same idempotency key and inspect the event before sending a new one.
 
 ## Deploy
 
@@ -128,17 +130,32 @@ pnpm typecheck
 pnpm lint
 ```
 
-The API and worker tests require explicit isolated resources: `TEST_DATABASE_URL`
-must name a PostgreSQL database ending in `_test`, `TEST_REDIS_URL` must select a
-dedicated Redis database greater than zero, and `TEST_RUN_ID` must be unique to the
-run. Unset application `DATABASE_URL` and `REDIS_URL`; tests never load development
-connections. Set test-only `ADMIN_BOOTSTRAP_SECRET` and `SESSION_SECRET` values too.
-Apply migrations to the isolated test database before running:
+API, worker, and browser tests require isolated Postgres and Redis resources. The
+test database name must end in `_test`, the Redis URL must select a dedicated
+database number greater than zero, and `TEST_RUN_ID` must be unique to the run.
+Provision these resources separately; the normal development Compose services are
+not isolated test resources. For example, edit `~/.hikyaku-test.env` to point at your test
+services, then export it in the shell (the test runners do not load it for you):
 
 ```sh
+cp -n .env.test.example ~/.hikyaku-test.env
+chmod 600 ~/.hikyaku-test.env
+# Edit ~/.hikyaku-test.env with your isolated test database and Redis URLs first.
+set -a
+. ~/.hikyaku-test.env
+set +a
+unset DATABASE_URL REDIS_URL
+export TEST_RUN_ID="local-$(date +%s)"
+pnpm --filter @hikyaku/shared build
+DATABASE_URL="$TEST_DATABASE_URL" pnpm db:migrate
 pnpm test:unit
 pnpm test:integration
+pnpm test:smoke
 ```
+
+The smoke suite starts its own API, worker, and web servers; it requires the
+Playwright Chromium browser. See [safe tests](deploy/README.md#safe-tests) for
+details. Keep test credentials separate from development and production.
 
 The API integration cases are grouped by auth, tenancy, events, delivery, and
 platform behavior. Lifecycle tests use controlled collaborators; the worker retry

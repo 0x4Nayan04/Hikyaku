@@ -640,9 +640,11 @@ paths:
       summary: Accept an event and fan out deliveries
       description:
         '202 means accepted, not delivered. Idempotency key is scoped to the tenant. Retrying
-        the same key/type/payload reuses the event and can create missing deliveries for active endpoints;
-        a different type or payload returns 409 idempotency_mismatch. Enqueue failure can return 503 after
-        persistence; retry with the same key/body. Default tenant limit: 120/minute; Bearer requests also
+        the same key/type/payload reuses the event, can create missing deliveries for active endpoints,
+        and can re-enqueue existing pending or in-progress deliveries. If there are no active endpoints,
+        the event has no_recipients status and no delivery jobs. A different type or payload returns 409
+        idempotency_mismatch. Enqueue failure can return 503 after persistence; the outbox may still be
+        delivered after recovery, so retry with the same key/body and inspect the event. Default tenant limit: 120/minute; Bearer requests also
         have an IP limit. Bearer auth takes precedence when supplied and bypasses session/CSRF.'
       security:
         - ingestBearer: []
@@ -843,7 +845,8 @@ paths:
         Only failed or pending deliveries on active endpoints can be replayed. Succeeded, in_progress
         and disabled-endpoint deliveries return 400 invalid_state. A failed delivery resets attempts and
         increments replay_count; pending deliveries are re-enqueued. 202 means accepted, not delivered.
-        Enqueue may return 503 after the state change has committed.
+        Enqueue may return 503 after the state change has committed; the outbox may still cause a delivery
+        after recovery. Inspect the delivery before taking further action.
       security:
         - sessionCookie: []
       responses:
@@ -1349,7 +1352,7 @@ components:
       name: limit
       in: query
       required: false
-      description: Integer input is clamped to 1..100; non-integers return 400.
+      description: Safe integer input is clamped to 1..100; invalid or unsafe integers return 400. For repeated parameters, the first value is used.
       schema:
         type: integer
         default: 50
@@ -1357,7 +1360,7 @@ components:
       name: offset
       in: query
       required: false
-      description: Integer input is clamped to zero or greater; non-integers return 400.
+      description: Safe integer input is clamped to zero or greater; invalid or unsafe integers return 400. For repeated parameters, the first value is used.
       schema:
         type: integer
         default: 0
@@ -2304,8 +2307,9 @@ components:
             $ref: '#/components/schemas/Error'
     Unavailable:
       description:
-        Redis rate-limit or enqueue failure; code service_unavailable. A delivery transaction
-        may already be committed. Retry ingest using the same idempotency key and body.
+        Redis rate-limit or enqueue failure; code service_unavailable. An ingest or replay transaction
+        may already be committed and the outbox may cause delivery after recovery. For ingest, retry
+        with the same idempotency key and body; inspect delivery state before replaying again.
       content:
         application/json:
           schema:
