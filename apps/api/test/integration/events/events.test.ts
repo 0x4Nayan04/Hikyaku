@@ -1,14 +1,14 @@
 import request from 'supertest'
-import { count, eq } from 'drizzle-orm'
+import { and, count, eq } from 'drizzle-orm'
 import { deliveries, deliveryOutbox, events } from '@hikyaku/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import '../../src/config.js'
-import { closePool, getDb } from '../../src/db/client.js'
-import { closeRedis } from '../../src/lib/redis.js'
-import { queue } from '../../src/queue/client.js'
-import { createApp } from '../../src/server.js'
-import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
-import { createTenantSession } from '../helpers/user.js'
+import '../../../src/config.js'
+import { closePool, getDb } from '../../../src/db/client.js'
+import { closeRedis } from '../../../src/lib/redis.js'
+import { getQueue, closeQueue } from '../../../src/queue/client.js'
+import { createApp } from '../../../src/server.js'
+import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
+import { createTenantSession } from '../../helpers/user.js'
 
 const app = createApp()
 
@@ -18,7 +18,7 @@ describe('POST /v1/events idempotency', () => {
   let agent: ReturnType<typeof request.agent>
 
   beforeAll(async () => {
-    for (const job of await queue.getJobs([
+    for (const job of await getQueue().getJobs([
       'waiting',
       'delayed',
       'completed',
@@ -39,7 +39,7 @@ describe('POST /v1/events idempotency', () => {
   })
 
   afterAll(async () => {
-    for (const job of await queue.getJobs([
+    for (const job of await getQueue().getJobs([
       'waiting',
       'delayed',
       'completed',
@@ -48,7 +48,7 @@ describe('POST /v1/events idempotency', () => {
     ])) {
       await job.remove()
     }
-    await queue.close()
+    await closeQueue()
     await deleteTenant(tenantId)
     await closePool()
     await closeRedis()
@@ -89,11 +89,48 @@ describe('POST /v1/events idempotency', () => {
       .from(deliveries)
       .where(tenantDeliveries)
 
-    const jobs = await queue.getJobs(['waiting', 'active', 'delayed'])
+    const jobs = await getQueue().getJobs(['waiting', 'active', 'delayed'])
     const job = jobs.find((candidate) => candidate.data.deliveryId === delivery.id)
     expect(job).toBeDefined()
     expect(job?.data).toEqual({ deliveryId: delivery.id, tenantId, replayCount: 0 })
   })
+
+  it.each([false, true])(
+    'serializes concurrent ingest (conflicting bodies: %s)',
+    async (conflicting) => {
+      const key = `concurrent-${crypto.randomUUID()}`
+      const responses = await Promise.all(
+        [0, 1].map((index) =>
+          request(app)
+            .post('/v1/events')
+            .set('Authorization', `Bearer ${apiKey}`)
+            .send({
+              idempotency_key: key,
+              type: 'concurrent.test',
+              payload: { value: conflicting ? index : 0 },
+            }),
+        ),
+      )
+      expect(responses.map((res) => res.status).sort()).toEqual(
+        conflicting ? [202, 409] : [202, 202],
+      )
+      const successful = responses.filter((res) => res.status === 202)
+      expect(new Set(successful.map((res) => res.body.id)).size).toBe(1)
+      const db = getDb()
+      const rows = await db
+        .select()
+        .from(events)
+        .where(and(eq(events.tenantId, tenantId), eq(events.idempotencyKey, key)))
+      expect(rows).toHaveLength(1)
+      const eventDeliveries = await db
+        .select()
+        .from(deliveries)
+        .where(eq(deliveries.eventId, rows[0].id))
+      expect(eventDeliveries).toHaveLength(1)
+      const jobs = await getQueue().getJobs(['waiting', 'active', 'delayed', 'paused'])
+      expect(jobs.filter((job) => job.data.deliveryId === eventDeliveries[0].id)).toHaveLength(1)
+    },
+  )
 
   it('rejects an unsafe integer in raw JSON without creating rows', async () => {
     const db = getDb()
@@ -216,7 +253,7 @@ describe('POST /v1/events idempotency', () => {
         .from(deliveries)
         .where(eq(deliveries.eventId, created.body.id))
       expect(delivery).toBeDefined()
-      const jobs = await queue.getJobs(['waiting', 'active', 'delayed'])
+      const jobs = await getQueue().getJobs(['waiting', 'active', 'delayed'])
       expect(jobs.some((job) => job.data.deliveryId === delivery.id)).toBe(true)
     } finally {
       await deleteTenant(tenantWithoutEndpoints.tenantId)

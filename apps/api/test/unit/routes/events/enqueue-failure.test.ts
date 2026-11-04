@@ -15,7 +15,7 @@ vi.mock('@hikyaku/shared/enqueueDelivery', () => ({
   enqueueDeliveryJobs: vi.fn(),
 }))
 
-vi.mock('../../../../src/queue/client.js', () => ({ queue: {} }))
+vi.mock('../../../../src/queue/client.js', () => ({ getQueue: () => ({}) }))
 
 const enqueueMock = vi.mocked(enqueueDeliveryJobs)
 
@@ -141,7 +141,7 @@ describe('ingestEvent enqueue failure', () => {
     expect(outbox.length).toBeGreaterThan(0)
   })
 
-  it('re-enqueues open deliveries on idempotent retry after a prior enqueue 503', async () => {
+  it('re-enqueues old and newly backfilled deliveries on idempotent retry after a prior enqueue 503', async () => {
     const idempotencyKey = `enqueue-retry-${randomUUID()}`
     enqueueMock.mockRejectedValueOnce(new Error('redis unreachable'))
 
@@ -171,6 +171,15 @@ describe('ingestEvent enqueue failure', () => {
 
     expect(open.length).toBeGreaterThan(0)
 
+    await getDb()
+      .insert(endpoints)
+      .values({
+        tenantId,
+        url: 'https://example.com/new-endpoint',
+        secret: `whsec_${'b'.repeat(32)}`,
+        status: 'active',
+      })
+
     enqueueMock.mockResolvedValue(undefined)
     enqueueMock.mockClear()
 
@@ -189,6 +198,9 @@ describe('ingestEvent enqueue failure', () => {
       expect.anything(),
       expect.arrayContaining(open.map((row) => ({ deliveryId: row.id, tenantId, replayCount: 0 }))),
     )
+
+    const queuedJobs = enqueueMock.mock.calls[0][1]
+    expect(queuedJobs).toHaveLength(open.length + 1)
 
     const leftover = await getDb()
       .select({ deliveryId: deliveryOutbox.deliveryId })
