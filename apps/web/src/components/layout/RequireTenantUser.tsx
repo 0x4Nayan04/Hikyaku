@@ -1,19 +1,15 @@
 import { Navigate, Outlet } from 'react-router-dom'
-import { getDefaultHomePath } from '@/lib/auth-redirect'
+import { getDefaultHomePath, hasTenantWorkspace, isPlatformContext } from '@/lib/auth/auth-redirect'
 import { useSession } from '@/providers/session-context'
 
-/**
- * Tenant-scoped console routes require a user bound to a tenant.
- * Super-admins are redirected before tenant API calls can fire.
- */
 export function RequireTenantUser() {
   const { session, loading } = useSession()
 
-  if (!loading && session?.user.is_super_admin && !session.tenant) {
+  if (!loading && session && isPlatformContext(session)) {
     return <Navigate to={getDefaultHomePath(session.user)} replace />
   }
 
-  if (!loading && session && !session.tenant) {
+  if (!loading && session && !hasTenantWorkspace(session)) {
     return <Navigate to="/login" replace />
   }
 

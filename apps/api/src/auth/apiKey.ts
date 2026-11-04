@@ -22,7 +22,7 @@ function touchLastUsedAt(keyHash: string, cutoff: Date): void {
     })
 }
 
-export async function resolveTenantId(apiKey: string): Promise<string | null> {
+export async function authenticateApiKeyForIngest(apiKey: string): Promise<string | null> {
   const keyHash = hashApiKey(apiKey)
   const rows = await getDb()
     .select({

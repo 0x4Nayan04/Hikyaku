@@ -3,7 +3,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { hashApiKey } from '@hikyaku/shared/crypto'
 import { apiKeys } from '@hikyaku/shared/schema'
 import '../../../src/config.js'
-import { resolveTenantId } from '../../../src/auth/apiKey.js'
+import { authenticateApiKeyForIngest } from '../../../src/auth/apiKey.js'
 import { closePool, getDb } from '../../../src/db/client.js'
 import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
 
@@ -17,7 +17,7 @@ async function readLastUsedAt(apiKey: string): Promise<Date | null> {
   return rows[0]?.lastUsedAt ?? null
 }
 
-describe('resolveTenantId', () => {
+describe('authenticateApiKeyForIngest', () => {
   afterAll(async () => {
     await closePool()
   })
@@ -25,19 +25,21 @@ describe('resolveTenantId', () => {
   it('returns tenant id for a valid api key', async () => {
     const { tenantId, apiKey } = await createTenantWithKey()
 
-    await expect(resolveTenantId(apiKey)).resolves.toBe(tenantId)
+    await expect(authenticateApiKeyForIngest(apiKey)).resolves.toBe(tenantId)
 
     await deleteTenant(tenantId)
   })
 
   it('returns null for an unknown api key', async () => {
-    await expect(resolveTenantId('whk_00000000000000000000000000000000')).resolves.toBeNull()
+    await expect(
+      authenticateApiKeyForIngest('whk_00000000000000000000000000000000'),
+    ).resolves.toBeNull()
   })
 
   it('returns null for a revoked api key', async () => {
     const { tenantId, apiKey } = await createTenantWithKey({ revoked: true })
 
-    await expect(resolveTenantId(apiKey)).resolves.toBeNull()
+    await expect(authenticateApiKeyForIngest(apiKey)).resolves.toBeNull()
 
     await deleteTenant(tenantId)
   })
@@ -47,7 +49,7 @@ describe('resolveTenantId', () => {
 
     expect(await readLastUsedAt(apiKey)).toBeNull()
 
-    await expect(resolveTenantId(apiKey)).resolves.toBe(tenantId)
+    await expect(authenticateApiKeyForIngest(apiKey)).resolves.toBe(tenantId)
 
     let lastUsedAt: Date | null = null
     for (let attempt = 0; attempt < 20; attempt++) {
@@ -72,7 +74,7 @@ describe('resolveTenantId', () => {
       .set({ lastUsedAt })
       .where(eq(apiKeys.keyHash, hashApiKey(apiKey)))
 
-    await expect(resolveTenantId(apiKey)).resolves.toBe(tenantId)
+    await expect(authenticateApiKeyForIngest(apiKey)).resolves.toBe(tenantId)
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(await readLastUsedAt(apiKey)).toEqual(lastUsedAt)
 
@@ -82,18 +84,18 @@ describe('resolveTenantId', () => {
   it('does not update last_used_at for an unknown api key', async () => {
     const unknownKey = 'whk_00000000000000000000000000000000'
 
-    await expect(resolveTenantId(unknownKey)).resolves.toBeNull()
+    await expect(authenticateApiKeyForIngest(unknownKey)).resolves.toBeNull()
   })
 
   it('rejects a key on the next lookup after revocation', async () => {
     const { tenantId, apiKey } = await createTenantWithKey()
     const keyHash = hashApiKey(apiKey)
 
-    await expect(resolveTenantId(apiKey)).resolves.toBe(tenantId)
+    await expect(authenticateApiKeyForIngest(apiKey)).resolves.toBe(tenantId)
 
     await getDb().update(apiKeys).set({ revokedAt: new Date() }).where(eq(apiKeys.keyHash, keyHash))
 
-    await expect(resolveTenantId(apiKey)).resolves.toBeNull()
+    await expect(authenticateApiKeyForIngest(apiKey)).resolves.toBeNull()
 
     await deleteTenant(tenantId)
   })

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-import { APP_NAME, PRODUCT_LINKS } from '@/lib/app-meta'
+import { APP_NAME, PRODUCT_LINKS } from '@/lib/meta/app-meta'
 
 export function DocsFooter() {
   const year = new Date().getFullYear()

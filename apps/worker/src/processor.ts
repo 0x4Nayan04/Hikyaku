@@ -1,8 +1,4 @@
-import {
-  ENDPOINT_STATUSES,
-  type DeliveryJobData,
-  type EndpointStatus,
-} from '@hikyaku/shared/constants'
+import type { DeliveryJobData } from '@hikyaku/shared/constants/queue'
 import { signPayload } from '@hikyaku/shared/crypto'
 import { reevaluateEventStatus } from '@hikyaku/shared/eventStatus'
 import { deliveryAttempts, deliveries } from '@hikyaku/shared/schema'
@@ -11,37 +7,10 @@ import { and, eq, sql } from 'drizzle-orm'
 import { calculateBackoffDelayMs } from './backoff.js'
 import { env } from './config.js'
 import { getDb } from './db/client.js'
-import { postWithTimeout } from './httpClient.js'
+import { postWithTimeout, WebhookTransportError } from './httpClient.js'
+import { parseClaimResult, type DeliveryContext } from './claimRow.js'
 import { logger } from './lib/logger.js'
 import { takeRateLimitToken } from './rateLimit.js'
-
-type DeliveryContext = {
-  id: string
-  tenantId: string
-  eventId: string
-  replayCount: number
-  attemptCount: number
-  eventType: string
-  eventPayload: unknown
-  eventCreatedAt: Date
-  url: string
-  secret: string
-  endpointStatus: EndpointStatus
-}
-
-type ClaimRow = {
-  id: string
-  tenant_id: string
-  event_id: string
-  replay_count: number
-  attempt_count: number
-  event_type: string
-  event_payload: unknown
-  event_created_at: Date
-  url: string
-  secret: string
-  endpoint_status: string
-}
 
 type HttpAttemptFields = {
   httpStatus: number | null
@@ -61,38 +30,14 @@ type DeliveryOutcome = {
 
 type OutcomeDecision =
   | {
-      action: 'fail_fast'
+      action: 'failed'
       lastError: string
-      attemptCount?: number
-      attempt?: AttemptOutcome
+      attempt: AttemptOutcome
       log: string
       logFields?: Record<string, unknown>
     }
   | { action: 'succeeded'; attempt: AttemptOutcome; httpStatus: number }
   | { action: 'retry'; lastError: string; attempt: HttpAttemptFields; retryAt: Date }
-
-function parseEndpointStatus(value: string): EndpointStatus {
-  for (const status of ENDPOINT_STATUSES) {
-    if (status === value) return status
-  }
-  throw new Error(`unexpected_endpoint_status:${value}`)
-}
-
-function toDeliveryContext(raw: ClaimRow): DeliveryContext {
-  return {
-    id: raw.id,
-    tenantId: raw.tenant_id,
-    eventId: raw.event_id,
-    attemptCount: Number(raw.attempt_count),
-    replayCount: Number(raw.replay_count),
-    eventType: raw.event_type,
-    eventPayload: raw.event_payload,
-    eventCreatedAt: new Date(raw.event_created_at),
-    url: raw.url,
-    secret: raw.secret,
-    endpointStatus: parseEndpointStatus(raw.endpoint_status),
-  }
-}
 
 async function recordOutcome(
   deliveryId: string,
@@ -172,8 +117,9 @@ function isTerminalTransportError(
 export function classifyDeliveryError(err: unknown): DeliveryTransportError {
   if (err instanceof Error) {
     if (err.name === 'AbortError') return 'timeout'
-    if (err.message.startsWith('blocked_url')) return 'blocked_url'
-    if (err.message === 'too_many_redirects') return 'too_many_redirects'
+    if (err instanceof WebhookTransportError) {
+      return err.kind === 'dns_error' ? 'network_error' : err.kind
+    }
   }
   return 'network_error'
 }
@@ -198,7 +144,7 @@ async function claimPendingDelivery(
   const db = getDb()
   const leaseStartedAt = new Date()
   const maxAttempts = env.MAX_DELIVERY_ATTEMPTS
-  const result = (await db.execute(sql`
+  const result: unknown = await db.execute(sql`
     WITH target AS (
       SELECT d.id, d.attempt_count AS previous_attempt_count
       FROM deliveries AS d
@@ -232,12 +178,11 @@ async function claimPendingDelivery(
       ep.url,
       ep.secret,
       ep.status AS endpoint_status
-  `)) as { rows: Array<ClaimRow & { previous_attempt_count: number | string }> }
+  `)
 
-  const raw = result.rows[0]
-  if (!raw) return null
-  const previousAttemptCount = Number(raw.previous_attempt_count)
-  const row = toDeliveryContext(raw)
+  const claimed = parseClaimResult(result)
+  if (!claimed) return null
+  const { row, previousAttemptCount } = claimed
   return {
     row,
     leaseStartedAt,
@@ -292,9 +237,8 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
 
   if (row.endpointStatus === 'disabled') {
     decision = {
-      action: 'fail_fast',
+      action: 'failed',
       lastError: 'endpoint_disabled',
-      attemptCount: reservedAttempt,
       attempt: { error: 'endpoint_disabled' },
       log: 'endpoint_disabled',
     }
@@ -328,16 +272,15 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
       responseBody = result.body
     } catch (err) {
       error = classifyDeliveryError(err)
-      log.info({ error }, 'delivery_transport_failure')
+      log.info({ error, err }, 'delivery_transport_failure')
     }
 
     const durationMs = Date.now() - start
 
     if (error !== null && isTerminalTransportError(error)) {
       decision = {
-        action: 'fail_fast',
+        action: 'failed',
         lastError: error,
-        attemptCount: reservedAttempt,
         attempt: { httpStatus, responseBody, error, durationMs },
         log: 'delivery_failed_fast',
         logFields: { last_error: error },
@@ -355,9 +298,8 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
 
       if (httpStatus !== null && !isRetryableHttpStatus(httpStatus)) {
         decision = {
-          action: 'fail_fast',
+          action: 'failed',
           lastError: `http_${httpStatus}`,
-          attemptCount: reservedAttempt,
           attempt: { httpStatus, responseBody, error: null, durationMs },
           log: 'delivery_failed_fast',
           logFields: { last_error: `http_${httpStatus}` },
@@ -366,9 +308,8 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
         const attempt: HttpAttemptFields = { httpStatus, responseBody, error, durationMs }
         if (reservedAttempt >= env.MAX_DELIVERY_ATTEMPTS) {
           decision = {
-            action: 'fail_fast',
+            action: 'failed',
             lastError: 'max_attempts',
-            attemptCount: reservedAttempt,
             attempt,
             log: 'delivery_dead_letter',
             logFields: { attempt_count: reservedAttempt },
@@ -403,16 +344,16 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
       log.info({ http_status: decision.httpStatus }, 'delivery_succeeded')
       return
     }
-    case 'fail_fast': {
+    case 'failed': {
       const wrote = await persist(
         {
           status: 'failed',
           lastError: decision.lastError,
           nextRetryAt: null,
-          ...(decision.attemptCount !== undefined ? { attemptCount: decision.attemptCount } : {}),
+          attemptCount: reservedAttempt,
         },
         attempt,
-        attempt !== undefined ? reservedAttempt : undefined,
+        reservedAttempt,
       )
       if (!wrote) return
       if (decision.logFields) log.info(decision.logFields, decision.log)

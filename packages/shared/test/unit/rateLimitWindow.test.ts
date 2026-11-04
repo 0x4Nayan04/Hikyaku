@@ -3,6 +3,13 @@ import { fixedWindowRedisKeys } from '../../src/rateLimitWindow.js'
 import { describe, expect, it } from 'vitest'
 
 describe('fixedWindowRedisKeys', () => {
+  it('uses a full TTL at an exact window boundary', () => {
+    expect(fixedWindowRedisKeys(['tenant'], RATE_LIMIT_DEFER_MS)).toEqual({
+      redisKeys: ['tenant:1'],
+      ttlMs: RATE_LIMIT_DEFER_MS,
+    })
+  })
+
   it('appends the UTC window and remaining ttl', () => {
     const now = RATE_LIMIT_DEFER_MS + 12_345
     expect(fixedWindowRedisKeys(['ingest:ratelimit:t1'], now)).toEqual({

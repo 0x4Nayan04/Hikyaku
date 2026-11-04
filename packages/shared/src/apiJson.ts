@@ -1,4 +1,4 @@
-import type { DeliveryStatus, EndpointStatus, EventStatus } from './constants.js'
+import type { DeliveryStatus, EndpointStatus, EventStatus } from './constants/status.js'
 
 export type DeliveriesSummary = {
   total: number

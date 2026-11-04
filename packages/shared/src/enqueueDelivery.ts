@@ -1,19 +1,38 @@
 import type { Queue } from 'bullmq'
-import { DELIVERY_JOB_OPTIONS, JOB_NAME, type DeliveryJobData } from './constants.js'
+import { DELIVERY_JOB_OPTIONS, JOB_NAME, type DeliveryJobData } from './constants/queue.js'
 
 export function deliveryJobDedupId(deliveryId: string, replayCount: number): string {
   return `${deliveryId}:${replayCount}`
 }
 
-export async function enqueueDeliveryJob(
+export function enqueueDeliveryJob(
+  queue: Queue<DeliveryJobData>,
+  job: DeliveryJobData,
+): Promise<void>
+export function enqueueDeliveryJob(
   queue: Queue<DeliveryJobData>,
   deliveryId: string,
   tenantId: string,
   replayCount: number,
+): Promise<void>
+export async function enqueueDeliveryJob(
+  queue: Queue<DeliveryJobData>,
+  jobOrId: DeliveryJobData | string,
+  tenantId?: string,
+  replayCount?: number,
 ): Promise<void> {
-  await queue.add(JOB_NAME, { deliveryId, tenantId, replayCount } satisfies DeliveryJobData, {
+  let job: DeliveryJobData
+  if (typeof jobOrId === 'string') {
+    if (tenantId === undefined || replayCount === undefined) {
+      throw new Error('delivery_job_payload_missing')
+    }
+    job = { deliveryId: jobOrId, tenantId, replayCount }
+  } else {
+    job = jobOrId
+  }
+  await queue.add(JOB_NAME, job, {
     ...DELIVERY_JOB_OPTIONS,
-    deduplication: { id: deliveryJobDedupId(deliveryId, replayCount) },
+    deduplication: { id: deliveryJobDedupId(job.deliveryId, job.replayCount) },
   })
 }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ArrowRight } from 'lucide-react'
-import { ApiError, createAdminInvite } from '@/api/client'
+import { useInviteSubmit } from '@/components/invites/useInviteSubmit'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { toast } from '@/lib/toast'
 
 type AdminInviteTenantDialogProps = {
   open: boolean
@@ -28,7 +27,6 @@ export function AdminInviteTenantDialog({
   const [tenantName, setTenantName] = useState('')
   const [ownerName, setOwnerName] = useState('')
   const [ownerEmail, setOwnerEmail] = useState('')
-  const [submitting, setSubmitting] = useState(false)
 
   function resetForm() {
     setTenantName('')
@@ -36,33 +34,23 @@ export function AdminInviteTenantDialog({
     setOwnerEmail('')
   }
 
-  async function handleInvite(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setSubmitting(true)
+  const {
+    submitting,
+    changeOpen: handleOpenChange,
+    submit,
+  } = useInviteSubmit({
+    onOpenChange,
+    onInvited,
+    reset: resetForm,
+  })
 
-    try {
-      const result = await createAdminInvite({
-        kind: 'tenant_owner',
-        tenant_name: tenantName.trim(),
-        owner_email: ownerEmail.trim(),
-        owner_name: ownerName.trim() || undefined,
-      })
-      resetForm()
-      onOpenChange(false)
-      onInvited({ inviteUrl: result.invite_url, expiresAt: result.expires_at })
-      toast.success('Invite created')
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to create invite')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && !submitting) {
-      resetForm()
-    }
-    onOpenChange(nextOpen)
+  function handleInvite(event: React.FormEvent<HTMLFormElement>) {
+    void submit(event, {
+      kind: 'tenant_owner',
+      tenant_name: tenantName.trim(),
+      owner_email: ownerEmail.trim(),
+      owner_name: ownerName.trim() || undefined,
+    })
   }
 
   return (

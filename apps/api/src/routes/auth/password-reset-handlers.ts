@@ -10,8 +10,8 @@ import {
   assertPasswordResetUsable,
   findInviteByToken,
   userEmailMatches,
-} from '../../lib/invites.js'
-import { revokeUserSessions } from '../../lib/revokeSessions.js'
+} from '../../auth/invites.js'
+import { revokeUserSessions } from '../../auth/revokeSessions.js'
 import { parseSchema } from '../../lib/validation.js'
 import { assertWritableTenant } from '../../auth/readOnly.js'
 

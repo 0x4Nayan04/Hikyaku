@@ -1,7 +1,7 @@
 import { EVENT_STATUSES, type EventStatus } from '@hikyaku/shared/constants'
 import { ingestEventSchema } from '@hikyaku/shared/zod'
 import { AppError } from '../../lib/errors.js'
-import { parseSchema, requireUuid } from '../../lib/validation.js'
+import { parseSchema, queryString, requireUuid } from '../../lib/validation.js'
 
 const EVENT_STATUS_SET = new Set<string>(EVENT_STATUSES)
 
@@ -13,8 +13,8 @@ export function parseIngestBody(body: unknown) {
   return parseSchema(ingestEventSchema, body)
 }
 
-export function parseListQuery(query: { status?: string | string[] }): { status?: EventStatus } {
-  const statusRaw = Array.isArray(query.status) ? query.status[0] : query.status
+export function parseListQuery(query: { status?: unknown }): { status?: EventStatus } {
+  const statusRaw = queryString(query.status, 'status')
 
   if (statusRaw === undefined) return {}
   if (!EVENT_STATUS_SET.has(statusRaw)) {

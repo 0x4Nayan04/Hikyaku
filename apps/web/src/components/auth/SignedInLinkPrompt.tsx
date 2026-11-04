@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ApiError, logout } from '@/api/client'
-import { PageBanner } from '@/components/console/PageBanner'
+import { PageBanner } from '@/components/console/chrome/PageBanner'
 import { useSession } from '@/providers/session-context'
 
 type SignedInLinkPromptProps = {

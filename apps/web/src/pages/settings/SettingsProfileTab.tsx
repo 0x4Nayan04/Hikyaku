@@ -4,16 +4,15 @@ import { ExternalLink, Lock, RotateCcw } from 'lucide-react'
 import { MIN_PASSWORD_LENGTH } from '@hikyaku/shared/constants'
 import { ApiError, changePassword } from '@/api/client'
 import { AuthFormField } from '@/components/auth/AuthFormField'
-import { PageBanner } from '@/components/console/PageBanner'
-import { PageLoading } from '@/components/console/PageLoading'
-import { DataPanel } from '@/components/console/DataPanel'
-import { FormPanel } from '@/components/console/FormPanel'
-import { SettingsLayout } from '@/components/console/SettingsLayout'
-import { SettingsAccountStrip } from '@/components/console/SettingsCatalog'
+import { PageBanner } from '@/components/console/chrome/PageBanner'
+import { PageLoading } from '@/components/console/chrome/PageLoading'
+import { DataPanel } from '@/components/console/catalogs/DataPanel'
+import { FormPanel } from '@/components/console/forms/FormPanel'
+import { SettingsLayout } from '@/pages/settings/SettingsLayout'
+import { AccountStrip } from '@/components/console/details/DetailFields'
 import { Button } from '@/components/ui/button'
 import { useSession } from '@/providers/session-context'
 import { copyToClipboard } from '@/lib/clipboard'
-import { toast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 
 function calculateStrength(password: string): { score: number; label: string } {
@@ -90,7 +89,6 @@ export function SettingsProfileTab() {
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Failed to change password'
       setFormError(message)
-      toast.error(message)
     } finally {
       setSubmitting(false)
     }
@@ -114,7 +112,7 @@ export function SettingsProfileTab() {
   return (
     <SettingsLayout>
       <DataPanel title="Account">
-        <SettingsAccountStrip
+        <AccountStrip
           name={session.user.name}
           email={session.user.email}
           roleLabel={roleLabel}

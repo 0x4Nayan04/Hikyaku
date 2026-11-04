@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS } from '../../src/constants.js'
 import {
   generateApiKey,
+  apiKeyDisplayPrefix,
+  prefixOf,
   generateInviteToken,
   hashApiKey,
   hashInviteToken,
@@ -96,4 +98,9 @@ describe('generateInviteToken / hashInviteToken', () => {
     expect(hashInviteToken(a)).not.toBe(hashInviteToken(b))
     expect(hashInviteToken(a)).toMatch(/^[a-f0-9]{64}$/)
   })
+})
+
+it('exposes only the display prefix of an API key and retains the compatibility alias', () => {
+  expect(apiKeyDisplayPrefix('whk_0123456789abcdef0123456789abcdef')).toBe('01234567')
+  expect(prefixOf).toBe(apiKeyDisplayPrefix)
 })

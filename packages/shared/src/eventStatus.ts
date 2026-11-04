@@ -1,15 +1,20 @@
 import { sql } from 'drizzle-orm'
-import { EVENT_STATUSES, type EventStatus } from './constants.js'
+import { z } from 'zod'
+import { EVENT_STATUSES, type EventStatus } from './constants/status.js'
 
 type DbExecutor = {
   execute: (query: ReturnType<typeof sql>) => Promise<unknown>
 }
 
+const rollupResultSchema = z.object({
+  rows: z.array(z.object({ status: z.enum(EVENT_STATUSES) })).nonempty(),
+})
+
 export async function reevaluateEventStatus(eventId: string, db: DbExecutor): Promise<EventStatus> {
   // Serialize rollups for concurrent deliveries of the same event. A separate
   // statement gets a fresh READ COMMITTED snapshot after the prior writer commits.
   await db.execute(sql`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`)
-  const result = (await db.execute(sql`
+  const result = await db.execute(sql`
     WITH summary AS (
       SELECT
         count(*) FILTER (WHERE status = 'succeeded') AS s,
@@ -35,11 +40,11 @@ export async function reevaluateEventStatus(eventId: string, db: DbExecutor): Pr
       RETURNING events.status
     )
     SELECT COALESCE((SELECT status FROM updated), (SELECT status FROM computed)) AS status
-  `)) as { rows?: Array<{ status?: string }> }
+  `)
 
-  const status = result.rows?.[0]?.status
-  if (!EVENT_STATUSES.includes(status as EventStatus)) {
+  const parsed = rollupResultSchema.safeParse(result)
+  if (!parsed.success) {
     throw new Error('event_status_update_missing_row')
   }
-  return status as EventStatus
+  return parsed.data.rows[0].status
 }

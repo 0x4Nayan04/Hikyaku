@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ApiError, createApiKey, listApiKeys, revokeApiKey, rotateApiKey } from '@/api/client'
-import { PAGE_SIZE } from '@/components/console/pagination-utils'
+import { PAGE_SIZE } from '@/components/console/pagination/pagination-utils'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { toast } from '@/lib/toast'
 import type { ApiKey, ApiKeyWithSecret } from '@/api/types'

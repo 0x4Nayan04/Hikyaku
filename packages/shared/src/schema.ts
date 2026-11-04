@@ -13,7 +13,8 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { DeliveryStatus, EndpointStatus, EventStatus } from './constants.js'
+import type { InviteKind } from './constants/auth.js'
+import type { DeliveryStatus, EndpointStatus, EventStatus } from './constants/status.js'
 
 export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -197,7 +198,7 @@ export const invites = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     tokenHash: text('token_hash').notNull().unique(),
-    kind: text('kind').notNull(),
+    kind: text('kind').notNull().$type<InviteKind>(),
     email: text('email').notNull(),
     tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
     tenantName: text('tenant_name'),

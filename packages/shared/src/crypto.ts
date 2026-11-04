@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
-import { WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS } from './constants.js'
+import { WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS } from './constants/auth.js'
 
 const API_KEY_PREFIX = 'whk_'
 const ENDPOINT_SECRET_PREFIX = 'whsec_'
@@ -34,9 +34,11 @@ export function hashInviteToken(token: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex')
 }
 
-export function prefixOf(apiKey: string): string {
+export function apiKeyDisplayPrefix(apiKey: string): string {
   return apiKey.slice(API_KEY_PREFIX.length, API_KEY_PREFIX.length + API_KEY_PREFIX_LENGTH)
 }
+
+export const prefixOf = apiKeyDisplayPrefix
 
 export function signPayload(secret: string, timestamp: number, body: string): string {
   const payload = `${timestamp}.${body}`

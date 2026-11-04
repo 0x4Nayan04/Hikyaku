@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
-import { apiEnvSchema, workerEnvSchema } from '../../src/env.js'
+import {
+  apiEnvSchema,
+  workerEnvSchema,
+  EnvValidationError,
+  parseApiEnv,
+  parseWorkerEnv,
+} from '../../src/env.js'
 
 const baseEnv = {
   NODE_ENV: 'test',
@@ -129,27 +135,29 @@ describe('apiEnvSchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('parseApiEnv requires TRUST_PROXY in production', async () => {
-    const { parseApiEnv } = await import('../../src/env.js')
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
-      throw new Error(`exit:${code ?? 0}`)
-    }) as never)
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    try {
-      expect(() =>
-        parseApiEnv({
-          ...baseEnv,
-          NODE_ENV: 'production',
-          ADMIN_BOOTSTRAP_SECRET: 'a'.repeat(32),
-          SESSION_SECRET: 'b'.repeat(32),
-        }),
-      ).toThrow(/exit:1/)
-      expect(errorSpy.mock.calls.some((c) => String(c[0]).includes('TRUST_PROXY'))).toBe(true)
-    } finally {
-      exitSpy.mockRestore()
-      errorSpy.mockRestore()
+  it.each([undefined, '', '   '])('requires explicit TRUST_PROXY in production (%s)', (value) => {
+    const source = {
+      ...baseEnv,
+      NODE_ENV: 'production',
+      ADMIN_BOOTSTRAP_SECRET: 'a'.repeat(32),
+      SESSION_SECRET: 'b'.repeat(32),
+      TRUST_PROXY: value,
     }
+    expect(apiEnvSchema.safeParse(source).success).toBe(false)
+    expect(() => parseApiEnv(source)).toThrow(EnvValidationError)
+    expect(() => parseApiEnv(source)).toThrow(/TRUST_PROXY: Must be set explicitly/)
+  })
+
+  it('allows explicit TRUST_PROXY=0 in production', () => {
+    expect(
+      parseApiEnv({
+        ...baseEnv,
+        NODE_ENV: 'production',
+        ADMIN_BOOTSTRAP_SECRET: 'a'.repeat(32),
+        SESSION_SECRET: 'b'.repeat(32),
+        TRUST_PROXY: '0',
+      }).TRUST_PROXY,
+    ).toBe(0)
   })
 
   it('parseApiEnv accepts TRUST_PROXY=1 in production', async () => {
@@ -194,5 +202,23 @@ describe('workerEnvSchema', () => {
     })
 
     expect(env.RATE_LIMIT_PER_MINUTE).toBe(250)
+  })
+})
+
+describe('environment parse failure ownership', () => {
+  it('throws readable validation failures without logging or exiting', () => {
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('unexpected exit')
+    })
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(() => parseApiEnv({})).toThrow(/Invalid API environment:/)
+      expect(() => parseWorkerEnv({})).toThrow(/Invalid worker environment:/)
+      expect(exit).not.toHaveBeenCalled()
+      expect(error).not.toHaveBeenCalled()
+    } finally {
+      exit.mockRestore()
+      error.mockRestore()
+    }
   })
 })

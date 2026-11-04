@@ -29,3 +29,12 @@ export function parseSchema<T>(schema: Schema<T>, value: unknown): T {
   }
   return parsed.data
 }
+
+export function queryString(value: unknown, name: string): string | undefined {
+  const selected = Array.isArray(value) ? value[0] : value
+  if (selected === undefined) return undefined
+  if (typeof selected !== 'string') {
+    throw new AppError(400, 'validation_error', `${name} must be a string`)
+  }
+  return selected
+}

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const evalMock = vi.fn()
+const { evalMock, logError } = vi.hoisted(() => ({ evalMock: vi.fn(), logError: vi.fn() }))
+vi.mock('../../../src/lib/logger.js', () => ({ logger: { error: logError } }))
 
 vi.mock('../../../src/lib/redis.js', () => ({
   getRedis: () => ({ eval: evalMock }),
@@ -80,5 +81,6 @@ describe('takeFixedWindowTokens', () => {
       statusCode: 503,
       code: 'service_unavailable',
     })
+    expect(logError).toHaveBeenCalledWith({ err: expect.any(Error) }, 'rate_limit_redis_failed')
   })
 })

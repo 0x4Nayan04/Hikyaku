@@ -1,4 +1,4 @@
-import { RATE_LIMIT_DEFER_MS, RATE_LIMIT_JITTER_MS } from '@hikyaku/shared/constants'
+import { RATE_LIMIT_DEFER_MS, RATE_LIMIT_JITTER_MS } from '@hikyaku/shared/constants/config'
 import { TAKE_FIXED_WINDOW_TOKENS_LUA, fixedWindowRedisKeys } from '@hikyaku/shared/rateLimitWindow'
 import { env } from './config.js'
 import { getRedis } from './lib/redis.js'
