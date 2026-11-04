@@ -69,7 +69,7 @@ curl -b cookies.txt -X POST "{{API_BASE}}/v1/api-keys" \
   -H "Origin: {{WEB_ORIGIN}}"
 ```
 
-**3. Send and inspect** — send with the key, then list that event’s deliveries with the cookie. `202 Accepted` means the event is queued, not that every delivery succeeded. If rows stay `pending`, the worker is not running.
+**3. Send and inspect** — send with the key, then list that event’s deliveries with the cookie. `202 Accepted` means ingest was accepted, not that every delivery succeeded. A pending delivery may be queued, waiting for a retry, or rate-limited; check the worker and its logs if it does not progress.
 
 ```bash
 curl -X POST "{{API_BASE}}/v1/events" \
@@ -126,6 +126,8 @@ Fresh deploys create a super-admin and their workspace at [/bootstrap](/bootstra
 - **Settings** — API keys, tenant identity, and account password. Super-admins with a workspace also have API key and tenant tabs.
 
 Super-admins use **Admin** to invite tenant owners, list/rename/delete tenants, invite or remove tenant users, and issue one-time password reset links. They may use an assigned workspace (deliveries, API keys) as well; **Admin** stays separate, and those workspaces cannot be deleted.
+
+If the console cannot check your session because the API or network is unavailable, it shows an error with **Try again** instead of treating the outage as a logout. An expired or invalid session still returns you to sign-in.
 
 ## Authentication
 
@@ -199,7 +201,9 @@ Post an event to `POST /v1/events`. The body must include three fields and stay 
 
 An event is `pending` while any delivery is open; `completed` only when all deliveries succeeded; `partial_failure` when all are terminal with mixed results; `failed` when all failed; and `no_recipients` when it has zero deliveries. List events with `GET /v1/events`, or open a single event with `GET /v1/events/:id`.
 
-> **Idempotency:** Reusing the same `idempotency_key` with the same type and payload returns the existing event with `202`. Reusing it with a different type or payload returns `409 idempotency_mismatch`. If active endpoints were added since the first request, the retry creates only the missing deliveries.
+> **Idempotency:** Reusing the same `idempotency_key` with the same type and payload returns the existing event with `202` if enqueue succeeds. Reusing it with a different type or payload returns `409 idempotency_mismatch`. If active endpoints were added since the first request, the retry creates only the missing deliveries and can re-enqueue existing open deliveries.
+
+> **Enqueue failure:** A `503 service_unavailable` can occur after the event and outbox are committed. The worker may deliver the event after Redis recovers even though the request returned `503`. Retry the same body with the same idempotency key and inspect the event rather than generating a new key.
 
 > **Large numbers:** Put identifiers and amounts that need exact precision in strings. Ingest uses ordinary JSON parsing, so an integer outside the safe range is rejected instead of being stored losslessly. Finite fractions such as `1.5` are accepted.
 
@@ -361,7 +365,7 @@ Auth: **public** — no credentials. **bootstrap** — `X-Admin-Secret`. **login
 | POST   | `/v1/admin/tenants/:id/users/:userId/reset-password` | admin | Issue a one-time password reset link |
 | POST   | `/v1/admin/invites` | admin | Create tenant-owner or user invite |
 
-All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (default 50, max 100). `events` filter by `?status=pending|completed|partial_failure|failed|no_recipients`, `api-keys` by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` (a delivery status, or `open` for pending and in progress), `?updated_within=24h`, and `?event_id=`. Responses look like `{ data, has_more, limit, offset }`.
+All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (defaults 50 and 0). Integer limits are clamped to 1–100 and offsets to at least 0; invalid or unsafe integers return `400 validation_error`. If a query parameter is repeated, the first value is used. `events` filter by `?status=pending|completed|partial_failure|failed|no_recipients`, `api-keys` by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` (a delivery status, or `open` for pending and in progress), `?updated_within=24h`, and `?event_id=`. Responses look like `{ data, has_more, limit, offset }`.
 
 Errors:
 
@@ -400,11 +404,11 @@ Transient failures retry automatically. Permanent client errors fail fast. After
 
 > When a tenant hits the rate limit, the worker defers the delivery until the next UTC minute plus a small jitter (logged as `rate_limited`). That pause is not a failure, does not update the delivery row’s `last_error`, and does not count toward the five-attempt cap. The admission is taken before the attempt is reserved, so a lost claim spends a rate-limit slot without sending or consuming an attempt.
 
-The worker reserves the attempt number in the database before the HTTP call. A reserved attempt counts toward the cap, including one interrupted by a crash. If the process dies after reservation and before the request is sent, that slot is still consumed and no HTTP call was made. Attempt history stores only committed outcomes, so an interrupted attempt can leave a gap in the timeline. A pending row whose `next_retry_at` is still in the future is not claimed; an early queue job finishes without sending until the retry time is due.
+The table shows defaults; `MAX_DELIVERY_ATTEMPTS`, `DELIVERY_TIMEOUT_MS`, and `RATE_LIMIT_PER_MINUTE` can be configured by the operator. The worker reserves the attempt number in the database before the HTTP call. A reserved attempt counts toward the cap, including one interrupted by a crash. If the process dies after reservation and before the request is sent, that slot is still consumed and no HTTP call was made. Attempt history stores only committed outcomes, so an interrupted attempt can leave a gap in the timeline. A pending row whose `next_retry_at` is still in the future is not claimed; an early queue job finishes without sending until the retry time is due.
 
 A response counts as success only when it finishes. A stream error or a connection that closes before the body ends is a transport failure and follows the retry rules, even if some body bytes and a 2xx status already arrived. The receiver may already have processed the webhook, so the retry can deliver a duplicate. Response bodies stored on the attempt are still truncated to about 1 KB. Timeouts stay timeouts.
 
-Delivery is at-least-once — dedupe with `X-Webhook-Id` (stable across retries; see [Outbound](#outbound)). Ingest→queue durability is in [Outbox](#outbox). The sweeper (default every 5 minutes, `SWEEP_INTERVAL_MS`) reclaims stale `in_progress` rows after the worker lease (delivery timeout + 30s) and re-enqueues due `pending` rows, without resetting attempt counts.
+Delivery is at-least-once — dedupe with `X-Webhook-Id` (stable across retries; see [Outbound](#outbound)). Ingest→queue durability is in [Outbox](#outbox). The sweeper (`SWEEP_INTERVAL_MS`, application default 5 minutes; production Compose default 30 seconds) reclaims stale `in_progress` rows after the worker lease (delivery timeout + 30s) and re-enqueues due `pending` rows, without resetting attempt counts.
 
 `POST /v1/deliveries/:id/replay` starts a new run only for a `failed` delivery. That call returns `202`, increments `replay_count`, resets the current run’s attempt counter and `next_retry_at`, and keeps previous attempts. You can do the same with **Replay** on the delivery detail page. Attempts expose `run_number`, starting at 0; the delivery ID and X-Webhook-Id remain unchanged. Each replay run is enqueued with a queue deduplication id of `delivery_id:replay_count`, so a new run is not confused with an older job for the same delivery. Replaying a `pending` delivery also returns `202` and re-enqueues that same run without changing the attempt count, run number, or `next_retry_at`. Replaying `in_progress` returns `400 invalid_state`: the sweeper recovers that delivery after the lease expires, and resetting it could start a competing send. A succeeded delivery, or any delivery whose endpoint is disabled, returns `400 invalid_state`.
 

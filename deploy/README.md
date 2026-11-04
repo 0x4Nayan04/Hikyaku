@@ -150,7 +150,7 @@ The API reads the current tenant flag for mutations; it does not trust a cached 
 
 ### Local verification and rollback
 
-Use explicit isolated test connections as described below. The API integration suite includes `test/integration/read-only-demo.test.ts`. For the real browser flow, run:
+Use explicit isolated test connections as described below. The API integration suite includes `apps/api/test/integration/auth/read-only-demo.test.ts`. For the real browser flow, run:
 
 ```sh
 VITE_DEMO_LOGIN=true pnpm test:smoke e2e/00-onboarding.spec.ts e2e/dashboard.spec.ts e2e/read-only-demo.spec.ts
@@ -236,7 +236,7 @@ Full product docs after `pnpm dev`: http://localhost:5173/docs
 
 ### Safe tests
 
-Use `.env.test.example` for `TEST_DATABASE_URL`, `TEST_REDIS_URL`, and a fresh `TEST_RUN_ID`. Tests never load the development `.env`. Use a separate Postgres DB ending in `_test` and a separate Redis DB number.
+Follow the root [verification setup](../README.md#verification) to provision isolated resources and export `~/.hikyaku-test.env`. The test runners do not load that file automatically. Use a Postgres database ending in `_test`, a dedicated Redis database number greater than zero, test-only secrets, and a unique `TEST_RUN_ID`. Unset application `DATABASE_URL` and `REDIS_URL` before running tests.
 
 ```sh
 pnpm --filter @hikyaku/shared build
@@ -245,4 +245,4 @@ pnpm test
 pnpm test:smoke
 ```
 
-Browser tests start their own API (3101) and web (5181). They never truncate unrelated databases; cleanup removes only run-owned fixtures.
+Browser tests start their own worker, API (3101), and web (5181); install Playwright Chromium before running them. They never truncate unrelated databases; cleanup removes only run-owned fixtures. The production Compose stack defaults to a 30-second sweep interval; the application default outside that stack is five minutes.
