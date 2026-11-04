@@ -1,4 +1,4 @@
-import { RATE_LIMIT_DEFER_MS } from './constants.js'
+import { RATE_LIMIT_DEFER_MS } from './constants/config.js'
 
 export const TAKE_FIXED_WINDOW_TOKENS_LUA = `
 local max = tonumber(ARGV[1])
@@ -22,6 +22,6 @@ export function fixedWindowRedisKeys(
   now = Date.now(),
 ): { redisKeys: string[]; ttlMs: number } {
   const window = Math.floor(now / RATE_LIMIT_DEFER_MS)
-  const ttlMs = RATE_LIMIT_DEFER_MS - (now % RATE_LIMIT_DEFER_MS) || RATE_LIMIT_DEFER_MS
+  const ttlMs = RATE_LIMIT_DEFER_MS - (now % RATE_LIMIT_DEFER_MS)
   return { redisKeys: keys.map((key) => `${key}:${window}`), ttlMs }
 }
