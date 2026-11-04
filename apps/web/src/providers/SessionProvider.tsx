@@ -1,27 +1,42 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPageCache } from '@/lib/page-cache'
 import { PageCacheContext } from '@/providers/page-cache-context'
-import { apiFetch } from '@/api/client'
+import { ApiError, getMe } from '@/api/client'
 import type { MeResponse } from '@/api/types'
 import { SessionContext, type SessionProviderProps } from '@/providers/session-context'
 
 export function SessionProvider({ children }: SessionProviderProps) {
   const [session, setSession] = useState<MeResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const requestRef = useRef(0)
 
   const refresh = useCallback(async () => {
+    const request = ++requestRef.current
+    setLoading(true)
+    setError(null)
     try {
-      const data = await apiFetch<MeResponse>('/v1/auth/me', { skipAuthRedirect: true })
-      setSession(data)
-    } catch {
-      setSession(null)
+      const data = await getMe()
+      if (request === requestRef.current) setSession(data)
+    } catch (err) {
+      if (request !== requestRef.current) return
+      if (err instanceof ApiError && err.status === 401) setSession(null)
+      else
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : 'Unable to load your session. Check your connection and try again.',
+        )
     } finally {
-      setLoading(false)
+      if (request === requestRef.current) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
     void refresh()
+    return () => {
+      requestRef.current += 1
+    }
   }, [refresh])
 
   const sessionKey = session
@@ -39,9 +54,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
     () => ({
       session,
       loading,
+      error,
       refresh,
     }),
-    [session, loading, refresh],
+    [session, loading, error, refresh],
   )
 
   return (

@@ -1,7 +1,10 @@
-import type { User } from '@/api/types'
-import { PRODUCT_LINKS } from '@/lib/app-meta'
+import type { MeResponse, User } from '@/api/types'
+import { PRODUCT_LINKS } from '@/lib/meta/app-meta'
 
-type LoginLocationState = {
+import type { LoginBannerKind } from '@/lib/auth/auth-first-run'
+
+export type LoginLocationState = {
+  banner?: LoginBannerKind
   message?: string
   from?: {
     pathname: string
@@ -41,7 +44,6 @@ function parseLocalPath(value: string | undefined): string | null {
   }
 }
 
-/** Paths both roles may use (not bounced for super-admin). */
 function isSharedPath(pathname: string): boolean {
   return pathname === '/settings' || pathname.startsWith('/settings/')
 }
@@ -52,12 +54,24 @@ function isTenantOnlyPath(pathname: string): boolean {
   return true
 }
 
+export function hasAdminAccess(user: Pick<User, 'is_super_admin'> | null | undefined): boolean {
+  return user?.is_super_admin === true
+}
+
+export function hasTenantWorkspace(session: MeResponse | null): boolean {
+  return session?.tenant != null
+}
+
+export function isPlatformContext(session: MeResponse | null): boolean {
+  return hasAdminAccess(session?.user) && !hasTenantWorkspace(session)
+}
+
 export function getDefaultHomePath(user: Pick<User, 'is_super_admin' | 'tenant_id'>): string {
-  return user.is_super_admin && !user.tenant_id ? ADMIN_HOME : TENANT_HOME
+  return hasAdminAccess(user) && !user.tenant_id ? ADMIN_HOME : TENANT_HOME
 }
 
 export function getHomeLabel(user: Pick<User, 'is_super_admin' | 'tenant_id'>): string {
-  return user.is_super_admin && !user.tenant_id ? 'Admin' : 'Dashboard'
+  return hasAdminAccess(user) && !user.tenant_id ? 'Admin' : 'Dashboard'
 }
 
 export function getLoginPath(location: Pick<Location, 'pathname' | 'search' | 'hash'>): string {
@@ -82,7 +96,7 @@ export function getPostLoginPath(
 
   const pathname = new URL(path, 'http://hikyaku.local').pathname
 
-  if (user.is_super_admin && !user.tenant_id && isTenantOnlyPath(pathname)) {
+  if (hasAdminAccess(user) && !user.tenant_id && isTenantOnlyPath(pathname)) {
     return ADMIN_HOME
   }
 

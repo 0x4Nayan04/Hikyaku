@@ -3,8 +3,7 @@ export function shouldShowBootstrapSetupLink(available: boolean | null): boolean
 }
 
 type GuestLandingPrimaryCta =
-  | { label: 'Run one-time setup'; path: '/bootstrap' }
-  | { label: 'Sign in'; path: '/login' }
+  { label: 'Run one-time setup'; path: '/bootstrap' } | { label: 'Sign in'; path: '/login' }
 
 export function resolveGuestLandingPrimaryCta(
   bootstrapAvailable: boolean | null,
@@ -19,10 +18,7 @@ export const LOGIN_PASSWORD_RESET_HINT =
   'Ask Admin for a one-time reset link. There is no self-serve password reset.'
 
 export type LoginBannerKind =
-  | 'bootstrap_complete'
-  | 'invite_accepted'
-  | 'already_set_up'
-  | 'password_updated'
+  'bootstrap_complete' | 'invite_accepted' | 'already_set_up' | 'password_updated'
 
 type LoginBanner = {
   title: string

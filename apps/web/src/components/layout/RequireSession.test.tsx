@@ -2,7 +2,7 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RequireSession } from '@/components/layout/RequireSession'
 import { SessionContext } from '@/providers/session-context'
 
@@ -17,11 +17,15 @@ function LoginProbe() {
   return <div>Login</div>
 }
 
-async function renderGate(state: unknown) {
+async function renderGate(
+  state: unknown,
+  error?: string,
+  refresh: () => Promise<void> = async () => undefined,
+) {
   await act(async () => {
     root.render(
       <MemoryRouter initialEntries={[{ pathname: '/settings', search: '?tab=profile', state }]}>
-        <SessionContext.Provider value={{ session: null, loading: false, refresh: async () => undefined }}>
+        <SessionContext.Provider value={{ session: null, loading: false, error, refresh }}>
           <Routes>
             <Route element={<RequireSession />}>
               <Route path="/settings" element={<div>Protected</div>} />
@@ -58,4 +62,13 @@ describe('RequireSession', () => {
     })
     expect(loginLocation?.state).not.toHaveProperty('banner')
   })
+})
+
+it('shows a retryable session error instead of claiming the user logged out', async () => {
+  const refresh = vi.fn().mockResolvedValue(undefined)
+  await renderGate(null, 'Service temporarily unavailable', refresh)
+  expect(loginLocation).toBeNull()
+  expect(container.textContent).toContain('Could not load your session')
+  await act(async () => container.querySelector('button')!.click())
+  expect(refresh).toHaveBeenCalledOnce()
 })
