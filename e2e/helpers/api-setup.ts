@@ -1,4 +1,4 @@
-import { configureTestEnvironment } from '../../packages/shared/src/testEnv'
+import { configureTestEnvironment } from '../../packages/shared/src/testing/testEnv'
 configureTestEnvironment()
 const API_BASE = 'http://localhost:3101'
 const ADMIN_SECRET = process.env.ADMIN_BOOTSTRAP_SECRET!

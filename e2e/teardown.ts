@@ -1,12 +1,13 @@
 import { createDbClient } from '../packages/shared/src/db'
-import { configureTestEnvironment } from '../packages/shared/src/testEnv'
+import { configureTestEnvironment } from '../packages/shared/src/testing/testEnv'
 
 export default async function teardown() {
   configureTestEnvironment()
-  const { queue } = await import('../apps/api/src/queue/client')
+  const { getQueue, closeQueue } = await import('../apps/api/src/queue/client')
+  const queue = getQueue()
   try {
     for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) await job.remove()
-  } finally { await queue.close() }
+  } finally { await closeQueue() }
   const client = createDbClient(process.env.TEST_DATABASE_URL!)
   const connection = await client.getPool().connect()
   try {

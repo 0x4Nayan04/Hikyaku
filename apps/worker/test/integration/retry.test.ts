@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { DeliveryJobData } from '@hikyaku/shared/constants'
 import { deliveries, deliveryAttempts, events } from '@hikyaku/shared/schema'
-import { DelayedError, Worker, type Job } from 'bullmq'
+import { DelayedError, QueueEvents, Worker, type Job } from 'bullmq'
 import * as backoff from '../../src/backoff.js'
 import { queueName } from '@hikyaku/shared/constants/queue'
 import { getRedisConnectionOptions } from '../../src/lib/redis.js'
@@ -177,10 +177,11 @@ describe('retry integration', () => {
   })
 
   it('automatically schedules an HTTP retry through BullMQ without manual promotion', async () => {
-    const retryDelayMs = 2_000
+    const retryDelayMs = 500
     vi.spyOn(backoff, 'calculateBackoffDelayMs').mockReturnValue(retryDelayMs)
     const mock = await startFlakyMockServer(1, 503)
     let worker: Worker | undefined
+    let queueEvents: QueueEvents | undefined
     try {
       const endpoint = await agent.post('/v1/endpoints').send({
         url: `http://127.0.0.1:${mock.port}/hook`,
@@ -196,43 +197,32 @@ describe('retry integration', () => {
         .select()
         .from(deliveries)
         .where(eq(deliveries.eventId, ingest.body.id))
-      let retryObserved = false
+      const queue = getQueue()
+      expect(await queue.isPaused()).toBe(false)
+      const queuedJob = (await queue.getWaiting()).find(
+        (job) => job.data.deliveryId === delivery.id,
+      )
+      if (!queuedJob) throw new Error('Ingest did not enqueue the delivery')
+      queueEvents = new QueueEvents(queueName(), {
+        connection: getRedisConnectionOptions(),
+        lastEventId: '0-0',
+      })
+      await queueEvents.waitUntilReady()
+      const retryTimes: number[] = []
+      queueEvents.on('delayed', ({ jobId, delay }) => {
+        if (jobId === queuedJob.id) retryTimes.push(Number(delay))
+      })
       worker = new Worker(queueName(), processor, {
         connection: getRedisConnectionOptions(),
         concurrency: 1,
       })
-      // Use the BullMQ 'delayed' event as the reliable signal — fires the instant
-      // the job is moved to the delayed queue, with no polling race.
-      worker.on('delayed', async (job) => {
-        if (job.data.deliveryId !== delivery.id) return
-        retryObserved = true
-        expect(mock.getRequestCount()).toBe(1)
-        const [current] = await getDb()
-          .select()
-          .from(deliveries)
-          .where(eq(deliveries.id, delivery.id))
-        expect(current?.nextRetryAt).not.toBeNull()
-        expect(current?.nextRetryAt!.getTime()).toBeGreaterThan(Date.now())
-        const delayedJob = (await getQueue().getDelayed()).find(
-          (j) => j.data.deliveryId === delivery.id,
-        )
-        expect(delayedJob).toBeDefined()
-      })
-      const deadline = Date.now() + 12_000
-      let succeeded = false
-      while (Date.now() < deadline) {
-        const [current] = await getDb()
-          .select()
-          .from(deliveries)
-          .where(eq(deliveries.id, delivery.id))
-        if (current?.status === 'succeeded') {
-          succeeded = true
-          break
-        }
-        await new Promise((resolve) => setTimeout(resolve, 50))
-      }
-      expect(retryObserved).toBe(true)
-      expect(succeeded).toBe(true)
+      await queuedJob.waitUntilFinished(queueEvents, 8_000)
+      expect(retryTimes).toHaveLength(1)
+      const [current] = await getDb()
+        .select()
+        .from(deliveries)
+        .where(eq(deliveries.id, delivery.id))
+      expect(current.status).toBe('succeeded')
       expect(mock.getRequestCount()).toBe(2)
       const attempts = await getDb()
         .select()
@@ -240,11 +230,13 @@ describe('retry integration', () => {
         .where(eq(deliveryAttempts.deliveryId, delivery.id))
         .orderBy(asc(deliveryAttempts.attemptNumber))
       expect(attempts.map((attempt) => attempt.httpStatus)).toEqual([503, 200])
+      expect(attempts[1].createdAt.getTime()).toBeGreaterThanOrEqual(retryTimes[0])
     } finally {
       await worker?.close()
+      await queueEvents?.close()
       await mock.close()
     }
-  }, 15_000)
+  }, 10_000)
 
   it('succeeds after three 503 responses then 200 (#2)', async () => {
     const mock = await startFlakyMockServer(3, 503)
