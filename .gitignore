@@ -27,3 +27,12 @@ DEPLOY_READINESS_PLAN.md
 /docs/v1-scope.md
 /docs/v1-audit.md
 /.scratch/
+
+# Local scan tooling output
+.desloppify/
+scorecard.png
+dogfood-output/
+
+# /Users/newtonuser/Documents/personal/code/Hikyaku/docs
+.project-kb
+docs/*
