@@ -8,7 +8,7 @@ import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useFocusTrap } from '@/components/accessibility/Accessibility'
 import { useSession } from '@/providers/session-context'
-import { APP_HOME_LABEL, APP_NAME } from '@/lib/app-meta'
+import { APP_HOME_LABEL, APP_NAME } from '@/lib/meta/app-meta'
 import { toast } from '@/lib/toast'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -98,7 +98,8 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
     navigate('/login', { replace: true })
   }
 
-  const workspaceLabel = isSuperAdmin && !session?.tenant ? 'Platform admin' : (session?.tenant?.name ?? 'Workspace')
+  const workspaceLabel =
+    isSuperAdmin && !session?.tenant ? 'Platform admin' : (session?.tenant?.name ?? 'Workspace')
 
   const roleLabel = isSuperAdmin ? 'Super admin' : 'Tenant operator'
 
@@ -267,7 +268,12 @@ export function AppTopBar({ session, loading, isSuperAdmin }: AppTopBarProps) {
               </button>
             </div>
             <div className="p-4">
-              <AppNav hasWorkspace={!!session?.tenant} isSuperAdmin={isSuperAdmin} variant="mobile" onNavigate={closeMobileMenu} />
+              <AppNav
+                hasWorkspace={!!session?.tenant}
+                isSuperAdmin={isSuperAdmin}
+                variant="mobile"
+                onNavigate={closeMobileMenu}
+              />
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { DotPattern } from '@/components/ui/dot-pattern'
-import { APP_HOME_LABEL, APP_NAME, PRODUCT_LINKS, PUBLIC_LINKS } from '@/lib/app-meta'
+import { APP_HOME_LABEL, APP_NAME, PRODUCT_LINKS, PUBLIC_LINKS } from '@/lib/meta/app-meta'
 import { ArrowUpRight } from 'lucide-react'
 import type { MouseEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
@@ -81,7 +81,9 @@ export function LandingFooter() {
     if (url.pathname !== PRODUCT_LINKS.docs) return
     event.preventDefault()
     if (url.hash) {
-      document.getElementById(url.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document
+        .getElementById(url.hash.slice(1))
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return
     }
     window.scrollTo({ top: 0, behavior: 'smooth' })

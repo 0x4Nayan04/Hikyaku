@@ -1,5 +1,5 @@
 import type { Delivery, Endpoint, EventSummary, Paginated, Stats } from '@/api/types'
-import type { OnboardingStep } from '@/lib/tenant-onboarding'
+import type { OnboardingStep } from '@/lib/auth/tenant-onboarding'
 
 let nextId = 0
 

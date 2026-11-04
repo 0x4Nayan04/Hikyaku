@@ -1,32 +1,32 @@
-import { Landing } from '@/pages/Landing'
+import { Landing } from '@/pages/marketing/Landing'
 import { DocumentTitle } from '@/components/DocumentTitle'
 import { RequireSession } from '@/components/layout/RequireSession'
 import { RequireSuperAdmin } from '@/components/layout/RequireSuperAdmin'
 import { RequireTenantUser } from '@/components/layout/RequireTenantUser'
 import { SkipLink } from '@/components/SkipLink'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
-import { PRODUCT_LINKS } from '@/lib/app-meta'
+import { PRODUCT_LINKS } from '@/lib/meta/app-meta'
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 const ConsoleLayout = lazy(() => import('@/layouts/ConsoleLayout'))
-const AcceptInvite = lazy(() => import('@/pages/AcceptInvite'))
-const ResetPassword = lazy(() => import('@/pages/ResetPassword'))
-const Bootstrap = lazy(() => import('@/pages/Bootstrap'))
-const Dashboard = lazy(() => import('@/pages/Dashboard'))
-const Deliveries = lazy(() => import('@/pages/Deliveries'))
-const DeliveryDetail = lazy(() => import('@/pages/DeliveryDetail'))
-const Endpoints = lazy(() => import('@/pages/Endpoints'))
-const EventDetail = lazy(() => import('@/pages/EventDetail'))
-const Events = lazy(() => import('@/pages/Events'))
+const AcceptInvite = lazy(() => import('@/pages/auth/AcceptInvite'))
+const ResetPassword = lazy(() => import('@/pages/auth/ResetPassword'))
+const Bootstrap = lazy(() => import('@/pages/bootstrap/Bootstrap'))
+const Dashboard = lazy(() => import('@/pages/dashboard/Dashboard'))
+const Deliveries = lazy(() => import('@/pages/deliveries/Deliveries'))
+const DeliveryDetail = lazy(() => import('@/pages/deliveries/DeliveryDetail'))
+const Endpoints = lazy(() => import('@/pages/endpoints/Endpoints'))
+const EventDetail = lazy(() => import('@/pages/events/EventDetail'))
+const Events = lazy(() => import('@/pages/events/Events'))
 const DocsRoutes = lazy(() => import('@/pages/docs'))
-const Name = lazy(() => import('@/pages/Name'))
-const Login = lazy(() => import('@/pages/Login'))
+const WhyHikyaku = lazy(() => import('@/pages/marketing/WhyHikyaku'))
+const Login = lazy(() => import('@/pages/auth/Login'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
-const Admin = lazy(() => import('@/pages/Admin'))
-const SendEvent = lazy(() => import('@/pages/SendEvent'))
-const Settings = lazy(() => import('@/pages/Settings'))
-const TenantAdmin = lazy(() => import('@/pages/TenantAdmin'))
+const Admin = lazy(() => import('@/pages/admin/Admin'))
+const SendEvent = lazy(() => import('@/pages/events/SendEvent'))
+const Settings = lazy(() => import('@/pages/settings/Settings'))
+const TenantAdmin = lazy(() => import('@/pages/tenant-admin/TenantAdmin'))
 
 function PublicRouteFallback() {
   return (
@@ -52,7 +52,7 @@ export default function App() {
           <Routes>
             <Route path="/docs/*" element={<DocsRoutes />} />
             <Route path="/" element={<Landing />} />
-            <Route path={PRODUCT_LINKS.whyHikyaku} element={<Name />} />
+            <Route path={PRODUCT_LINKS.whyHikyaku} element={<WhyHikyaku />} />
             <Route path="/why-haiku" element={<Navigate to={PRODUCT_LINKS.whyHikyaku} replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/bootstrap" element={<Bootstrap />} />

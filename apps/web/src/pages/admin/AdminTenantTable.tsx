@@ -10,13 +10,17 @@ import {
   DataTableHead,
   DataTableHeader,
   DataTableRow,
-} from '@/components/console/DataTable'
-import { DataPanel } from '@/components/console/DataPanel'
-import { DataPanelEmpty } from '@/components/console/DataPanelEmpty'
-import { PageLoading } from '@/components/console/PageLoading'
-import { PaginationBar } from '@/components/console/PaginationBar'
-import { PAGE_SIZE, pageRange, shouldPaginate } from '@/components/console/pagination-utils'
-import { SettingsCopyAction } from '@/components/console/SettingsCatalog'
+} from '@/components/console/catalogs/DataTable'
+import { DataPanel } from '@/components/console/catalogs/DataPanel'
+import { DataPanelEmpty } from '@/components/console/catalogs/DataPanelEmpty'
+import { PageLoading } from '@/components/console/chrome/PageLoading'
+import { PaginationBar } from '@/components/console/pagination/PaginationBar'
+import {
+  PAGE_SIZE,
+  pageRange,
+  shouldPaginate,
+} from '@/components/console/pagination/pagination-utils'
+import { CopyAction } from '@/components/console/details/DetailFields'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -145,7 +149,7 @@ export function AdminTenantTable({
                     >
                       {tenant.id.slice(0, 8)}…{tenant.id.slice(-4)}
                     </code>
-                    <SettingsCopyAction value={tenant.id} copyLabel="Tenant ID" />
+                    <CopyAction value={tenant.id} copyLabel="Tenant ID" />
                   </div>
                 </DataTableCell>
                 <DataTableCell
