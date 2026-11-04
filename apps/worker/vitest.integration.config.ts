@@ -5,6 +5,6 @@ export default defineConfig({
     include: ['test/integration/**/*.test.ts'],
     fileParallelism: false,
     setupFiles: ['./test/integration/setup.ts'],
-    globalSetup: './test/integration/teardown.ts',
+    globalTeardown: './test/integration/teardown.ts',
   },
 })
