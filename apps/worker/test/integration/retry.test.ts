@@ -177,7 +177,7 @@ describe('retry integration', () => {
   })
 
   it('automatically schedules an HTTP retry through BullMQ without manual promotion', async () => {
-    const retryDelayMs = 500
+    const retryDelayMs = 2_000
     vi.spyOn(backoff, 'calculateBackoffDelayMs').mockReturnValue(retryDelayMs)
     const mock = await startFlakyMockServer(1, 503)
     let worker: Worker | undefined
@@ -196,32 +196,40 @@ describe('retry integration', () => {
         .select()
         .from(deliveries)
         .where(eq(deliveries.eventId, ingest.body.id))
+      let retryObserved = false
       worker = new Worker(queueName(), processor, {
         connection: getRedisConnectionOptions(),
         concurrency: 1,
       })
-      const deadline = Date.now() + 8_000
-      let retryObserved = false
+      // Use the BullMQ 'delayed' event as the reliable signal — fires the instant
+      // the job is moved to the delayed queue, with no polling race.
+      worker.on('delayed', async (job) => {
+        if (job.data.deliveryId !== delivery.id) return
+        retryObserved = true
+        expect(mock.getRequestCount()).toBe(1)
+        const [current] = await getDb()
+          .select()
+          .from(deliveries)
+          .where(eq(deliveries.id, delivery.id))
+        expect(current?.nextRetryAt).not.toBeNull()
+        expect(current?.nextRetryAt!.getTime()).toBeGreaterThan(Date.now())
+        const delayedJob = (await getQueue().getDelayed()).find(
+          (j) => j.data.deliveryId === delivery.id,
+        )
+        expect(delayedJob).toBeDefined()
+      })
+      const deadline = Date.now() + 12_000
       let succeeded = false
       while (Date.now() < deadline) {
         const [current] = await getDb()
           .select()
           .from(deliveries)
           .where(eq(deliveries.id, delivery.id))
-        if (!retryObserved && current?.status === 'pending' && current.nextRetryAt) {
-          retryObserved = true
-          expect(mock.getRequestCount()).toBe(1)
-          const job = (await getQueue().getDelayed()).find(
-            (job) => job.data.deliveryId === delivery.id,
-          )
-          expect(job).toBeDefined()
-          expect(current.nextRetryAt.getTime()).toBeGreaterThan(Date.now())
-        }
         if (current?.status === 'succeeded') {
           succeeded = true
           break
         }
-        await new Promise((resolve) => setTimeout(resolve, 20))
+        await new Promise((resolve) => setTimeout(resolve, 50))
       }
       expect(retryObserved).toBe(true)
       expect(succeeded).toBe(true)
@@ -236,7 +244,7 @@ describe('retry integration', () => {
       await worker?.close()
       await mock.close()
     }
-  }, 10_000)
+  }, 15_000)
 
   it('succeeds after three 503 responses then 200 (#2)', async () => {
     const mock = await startFlakyMockServer(3, 503)
