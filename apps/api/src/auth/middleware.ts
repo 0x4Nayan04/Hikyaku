@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
 import { AppError } from '../lib/errors.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
-import { resolveTenantId } from './apiKey.js'
+import { authenticateApiKeyForIngest } from './apiKey.js'
 import { BEARER_PREFIX } from './bearer.js'
 import { attachSessionUser } from './requireSession.js'
 
@@ -42,7 +42,7 @@ export const requireTenantAuth = asyncHandler(
   async (req: Request, _res: Response, next: NextFunction) => {
     const token = parseBearerToken(req.get('authorization'))
     if (token !== null) {
-      const tenantId = await resolveTenantId(token)
+      const tenantId = await authenticateApiKeyForIngest(token)
       if (!tenantId) {
         throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
       }

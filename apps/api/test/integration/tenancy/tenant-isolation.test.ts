@@ -2,13 +2,13 @@ import request from 'supertest'
 import { eq } from 'drizzle-orm'
 import { deliveries } from '@hikyaku/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import '../../src/config.js'
-import { closePool, getDb } from '../../src/db/client.js'
-import { closeRedis } from '../../src/lib/redis.js'
-import { queue } from '../../src/queue/client.js'
-import { createApp } from '../../src/server.js'
-import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
-import { createTenantSession } from '../helpers/user.js'
+import '../../../src/config.js'
+import { closePool, getDb } from '../../../src/db/client.js'
+import { closeRedis } from '../../../src/lib/redis.js'
+import { getQueue, closeQueue } from '../../../src/queue/client.js'
+import { createApp } from '../../../src/server.js'
+import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
+import { createTenantSession } from '../../helpers/user.js'
 
 const app = createApp()
 
@@ -20,7 +20,13 @@ describe('tenant isolation (#4)', () => {
   let globexAgent: ReturnType<typeof request.agent>
 
   beforeAll(async () => {
-    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+    for (const job of await getQueue().getJobs([
+      'waiting',
+      'delayed',
+      'completed',
+      'failed',
+      'paused',
+    ])) {
       await job.remove()
     }
 
@@ -62,10 +68,16 @@ describe('tenant isolation (#4)', () => {
   })
 
   afterAll(async () => {
-    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+    for (const job of await getQueue().getJobs([
+      'waiting',
+      'delayed',
+      'completed',
+      'failed',
+      'paused',
+    ])) {
       await job.remove()
     }
-    await queue.close()
+    await closeQueue()
     await deleteTenant(acme.tenantId)
     await deleteTenant(globex.tenantId)
     await closePool()

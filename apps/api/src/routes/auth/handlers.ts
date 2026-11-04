@@ -13,8 +13,8 @@ import { createCredentialFingerprint, writeSessionUser } from '../../auth/sessio
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
-import { userEmailMatches } from '../../lib/invites.js'
-import { revokeUserSessions } from '../../lib/revokeSessions.js'
+import { userEmailMatches } from '../../auth/invites.js'
+import { revokeUserSessions } from '../../auth/revokeSessions.js'
 import { toUserJson, userColumns } from './serialize.js'
 import { requireAdminSecret } from './validation.js'
 

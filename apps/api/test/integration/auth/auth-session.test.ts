@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import '../../src/config.js'
-import { closePool } from '../../src/db/client.js'
-import { closeRedis } from '../../src/lib/redis.js'
-import { createApp } from '../../src/server.js'
-import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
-import { createUser, deleteUser } from '../helpers/user.js'
+import '../../../src/config.js'
+import { closePool } from '../../../src/db/client.js'
+import { closeRedis } from '../../../src/lib/redis.js'
+import { createApp } from '../../../src/server.js'
+import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
+import { createUser, deleteUser } from '../../helpers/user.js'
 
 const app = createApp()
 

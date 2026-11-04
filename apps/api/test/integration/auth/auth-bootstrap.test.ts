@@ -2,11 +2,11 @@ import { count, eq } from 'drizzle-orm'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { users } from '@hikyaku/shared/schema'
-import { env } from '../../src/config.js'
-import { closePool, getDb } from '../../src/db/client.js'
-import { closeRedis } from '../../src/lib/redis.js'
-import { createApp } from '../../src/server.js'
-import { createUser, deleteUser } from '../helpers/user.js'
+import { env } from '../../../src/config.js'
+import { closePool, getDb } from '../../../src/db/client.js'
+import { closeRedis } from '../../../src/lib/redis.js'
+import { createApp } from '../../../src/server.js'
+import { createUser, deleteUser } from '../../helpers/user.js'
 
 const app = createApp()
 

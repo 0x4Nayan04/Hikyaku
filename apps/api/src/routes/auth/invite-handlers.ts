@@ -11,7 +11,7 @@ import {
   assertInviteUsable,
   findInviteByToken,
   PASSWORD_RESET_KIND,
-} from '../../lib/invites.js'
+} from '../../auth/invites.js'
 import { parseSchema } from '../../lib/validation.js'
 import { toUserJson, userColumns } from './serialize.js'
 import { assertWritableTenant } from '../../auth/readOnly.js'
@@ -91,7 +91,7 @@ export const acceptInvite = asyncHandler(async (req: Request, res: Response) => 
 
     await assertEmailAvailable(invite.email, tx)
 
-    let createdUser
+    let tenantId: string
 
     if (invite.kind === 'tenant_owner') {
       if (!invite.tenantName) {
@@ -103,16 +103,7 @@ export const acceptInvite = asyncHandler(async (req: Request, res: Response) => 
         .values({ name: invite.tenantName })
         .returning({ id: tenants.id })
 
-      ;[createdUser] = await tx
-        .insert(users)
-        .values({
-          tenantId: tenant.id,
-          email: invite.email,
-          passwordHash,
-          name: body.name,
-          isSuperAdmin: false,
-        })
-        .returning(userColumns)
+      tenantId = tenant.id
     } else if (invite.kind === 'tenant_user') {
       if (!invite.tenantId) {
         throw new AppError(500, 'internal_error', 'Invite is missing tenant')
@@ -128,20 +119,15 @@ export const acceptInvite = asyncHandler(async (req: Request, res: Response) => 
         throw new AppError(404, 'not_found', 'Tenant not found')
       }
 
-      ;[createdUser] = await tx
-        .insert(users)
-        .values({
-          tenantId: tenant.id,
-          email: invite.email,
-          passwordHash,
-          name: body.name,
-          isSuperAdmin: false,
-        })
-        .returning(userColumns)
+      tenantId = tenant.id
     } else {
       throw new AppError(500, 'internal_error', 'Unknown invite kind')
     }
 
+    const [createdUser] = await tx
+      .insert(users)
+      .values({ tenantId, email: invite.email, passwordHash, name: body.name, isSuperAdmin: false })
+      .returning(userColumns)
     return createdUser
   })
 
