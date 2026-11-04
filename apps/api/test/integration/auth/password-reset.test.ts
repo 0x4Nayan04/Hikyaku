@@ -3,12 +3,12 @@ import request from 'supertest'
 import { eq } from 'drizzle-orm'
 import { invites } from '@hikyaku/shared/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import '../../src/config.js'
-import { closePool, getDb } from '../../src/db/client.js'
-import { closeRedis } from '../../src/lib/redis.js'
-import { createApp } from '../../src/server.js'
-import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
-import { createUser, deleteUser } from '../helpers/user.js'
+import '../../../src/config.js'
+import { closePool, getDb } from '../../../src/db/client.js'
+import { closeRedis } from '../../../src/lib/redis.js'
+import { createApp } from '../../../src/server.js'
+import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
+import { createUser, deleteUser } from '../../helpers/user.js'
 
 const app = createApp()
 const OLD_PASSWORD = 'test-password-min-12-chars'
@@ -99,12 +99,18 @@ describe('admin password reset links', () => {
 
     expect((await session.get('/v1/auth/me')).status).toBe(401)
     expect(
-      (await request(app).post('/v1/auth/login').send({ email: user.email, password: OLD_PASSWORD }))
-        .status,
+      (
+        await request(app)
+          .post('/v1/auth/login')
+          .send({ email: user.email, password: OLD_PASSWORD })
+      ).status,
     ).toBe(401)
     expect(
-      (await request(app).post('/v1/auth/login').send({ email: user.email, password: NEW_PASSWORD }))
-        .status,
+      (
+        await request(app)
+          .post('/v1/auth/login')
+          .send({ email: user.email, password: NEW_PASSWORD })
+      ).status,
     ).toBe(200)
     expect(
       (await request(app).post('/v1/auth/password-reset').send({ token, password: NEW_PASSWORD }))
@@ -152,14 +158,12 @@ describe('admin password reset links', () => {
     const token = new URL(issued.body.reset_url).searchParams.get('token')
 
     expect(
-      (await request(app).post('/v1/auth/password-reset').send({ token, password: 'short' })).status,
+      (await request(app).post('/v1/auth/password-reset').send({ token, password: 'short' }))
+        .status,
     ).toBe(400)
     expect(
-      (
-        await admin.post(
-          `/v1/admin/tenants/${tenantId}/users/${randomUUID()}/reset-password`,
-        )
-      ).status,
+      (await admin.post(`/v1/admin/tenants/${tenantId}/users/${randomUUID()}/reset-password`))
+        .status,
     ).toBe(404)
 
     const member = request.agent(app)

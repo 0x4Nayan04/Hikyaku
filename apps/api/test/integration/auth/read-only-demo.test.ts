@@ -20,14 +20,14 @@ import {
   tenants,
   users,
 } from '@hikyaku/shared/schema'
-import '../../src/config.js'
-import { closePool, getDb } from '../../src/db/client.js'
-import { closeRedis } from '../../src/lib/redis.js'
-import { queue } from '../../src/queue/client.js'
-import { createApp } from '../../src/server.js'
-import { DEMO_TENANT_ID, seedDemoTenant } from '../../src/scripts/seedDemoTenant.js'
-import { createUser, deleteUser } from '../helpers/user.js'
-import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
+import '../../../src/config.js'
+import { closePool, getDb } from '../../../src/db/client.js'
+import { closeRedis } from '../../../src/lib/redis.js'
+import { closeQueue } from '../../../src/queue/client.js'
+import { createApp } from '../../../src/server.js'
+import { DEMO_TENANT_ID, seedDemoTenant } from '../../../src/scripts/seedDemoTenant.js'
+import { createUser, deleteUser } from '../../helpers/user.js'
+import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
 
 const app = createApp()
 const db = getDb()
@@ -78,7 +78,7 @@ afterAll(async () => {
   if (seeded) await deleteTenant(DEMO_TENANT_ID)
   if (ordinaryTenantId) await deleteTenant(ordinaryTenantId)
   if (adminId) await deleteUser(adminId)
-  await queue.close()
+  await closeQueue()
   await closeRedis()
   await closePool()
 })
@@ -196,7 +196,7 @@ describe('public read-only demo', () => {
   })
 
   it('rejects pre-existing invite/reset tokens without consuming them or changing the password', async () => {
-    for (const kind of ['tenant_user', 'password_reset']) {
+    for (const kind of ['tenant_user', 'password_reset'] as const) {
       const token = generateInviteToken()
       const [invite] = await db
         .insert(invites)
@@ -224,7 +224,9 @@ describe('public read-only demo', () => {
   })
 
   it('preserves ordinary writes and tenant isolation; never overwrites an existing writable workspace', async () => {
-    const me = await (await import('../helpers/user.js')).createTenantSession(app, ordinaryTenantId)
+    const me = await (
+      await import('../../helpers/user.js')
+    ).createTenantSession(app, ordinaryTenantId)
     expect((await me.get('/v1/auth/me')).body.tenant.read_only).toBe(false)
     expect((await me.post('/v1/api-keys')).status).toBe(201)
     expect(

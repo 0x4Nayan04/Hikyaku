@@ -1,3 +1,4 @@
+import { INVITE_KINDS, SIGNUP_INVITE_KINDS, type InviteKind } from '@hikyaku/shared/constants/auth'
 import type { ExtractTablesWithRelations } from 'drizzle-orm'
 import type { NodePgDatabase, NodePgQueryResultHKT } from 'drizzle-orm/node-postgres'
 import type { PgTransaction } from 'drizzle-orm/pg-core'
@@ -6,7 +7,7 @@ import { invites, users } from '@hikyaku/shared/schema'
 import { hashInviteToken } from '@hikyaku/shared/crypto'
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import { getDb } from '../db/client.js'
-import { AppError } from './errors.js'
+import { AppError } from '../lib/errors.js'
 
 type Db = NodePgDatabase<typeof schema>
 type Tx = PgTransaction<
@@ -19,7 +20,7 @@ type DbExecutor = Db | Tx
 export type InviteRow = {
   id: string
   tokenHash: string
-  kind: string
+  kind: InviteKind
   email: string
   tenantId: string | null
   tenantName: string | null
@@ -62,8 +63,6 @@ export async function assertEmailAvailable(email: string, tx?: DbExecutor): Prom
   }
 }
 
-const SIGNUP_INVITE_KINDS = ['tenant_owner', 'tenant_user'] as const
-
 export async function invalidatePendingSignupInvites(email: string, tx: DbExecutor): Promise<void> {
   await tx
     .update(invites)
@@ -90,7 +89,7 @@ export async function findInviteByToken(token: string): Promise<InviteRow | null
   return invite ?? null
 }
 
-export const PASSWORD_RESET_KIND = 'password_reset'
+export const PASSWORD_RESET_KIND = INVITE_KINDS.PASSWORD_RESET
 
 export function assertInviteUsable(invite: InviteRow): void {
   if (invite.acceptedAt) {

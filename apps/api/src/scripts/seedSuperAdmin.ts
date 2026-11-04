@@ -3,7 +3,7 @@ import * as schema from '@hikyaku/shared/schema'
 import { users } from '@hikyaku/shared/schema'
 import { bootstrapSchema } from '@hikyaku/shared/zod'
 import { hashPassword } from '@hikyaku/shared/password'
-import { userEmailMatches } from '../lib/invites.js'
+import { userEmailMatches } from '../auth/invites.js'
 
 type SeedDb = NodePgDatabase<typeof schema>
 

@@ -4,7 +4,7 @@ import {
   assertInviteUsable,
   assertPasswordResetUsable,
   type InviteRow,
-} from '../../../src/lib/invites.js'
+} from '../../../src/auth/invites.js'
 
 function makeInvite(overrides: Partial<InviteRow> = {}): InviteRow {
   return {

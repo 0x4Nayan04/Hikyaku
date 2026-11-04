@@ -1,11 +1,11 @@
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import '../../src/config.js'
-import { closePool } from '../../src/db/client.js'
-import { closeRedis } from '../../src/lib/redis.js'
-import { createApp } from '../../src/server.js'
-import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
-import { createTenantSession } from '../helpers/user.js'
+import '../../../src/config.js'
+import { closePool } from '../../../src/db/client.js'
+import { closeRedis } from '../../../src/lib/redis.js'
+import { createApp } from '../../../src/server.js'
+import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
+import { createTenantSession } from '../../helpers/user.js'
 
 const app = createApp()
 
@@ -18,6 +18,10 @@ describe('api-keys', () => {
     const tenant = await createTenantWithKey()
     tenantId = tenant.tenantId
     agent = await createTenantSession(app, tenantId)
+    const keys = await agent.get('/v1/api-keys')
+    expect(keys.status).toBe(200)
+    seedKeyId = keys.body.data[0].id
+    expect(seedKeyId).toEqual(expect.any(String))
   })
 
   afterAll(async () => {
@@ -41,8 +45,6 @@ describe('api-keys', () => {
     })
     expect(res.body.data[0].api_key).toBeUndefined()
     expect(res.body.data[0]).not.toHaveProperty('api_key')
-
-    seedKeyId = res.body.data[0].id
   })
 
   it('creates an API key and returns plaintext once', async () => {

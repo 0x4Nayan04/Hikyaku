@@ -12,13 +12,13 @@ import {
   invalidatePendingSignupInvites,
   inviteEmailMatches,
   PASSWORD_RESET_KIND,
-} from '../../lib/invites.js'
+} from '../../auth/invites.js'
 import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import {
   refreshTenantNameInSessions,
   revokeTenantSessions,
   revokeUserSessions,
-} from '../../lib/revokeSessions.js'
+} from '../../auth/revokeSessions.js'
 import { isUuid, parseSchema } from '../../lib/validation.js'
 import { toAdminTenantJson } from './serialize.js'
 import { parseTenantId, parseUserId } from './validation.js'

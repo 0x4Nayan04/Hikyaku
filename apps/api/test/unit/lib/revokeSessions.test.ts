@@ -3,7 +3,10 @@ import { sessions } from '@hikyaku/shared/schema'
 import { eq } from 'drizzle-orm'
 import '../../../src/config.js'
 import { closePool, getDb } from '../../../src/db/client.js'
-import { refreshTenantNameInSessions, revokeUserSessions } from '../../../src/lib/revokeSessions.js'
+import {
+  refreshTenantNameInSessions,
+  revokeUserSessions,
+} from '../../../src/auth/revokeSessions.js'
 import { createUser, deleteUser } from '../../helpers/user.js'
 import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
 
@@ -34,14 +37,26 @@ describe('revokeUserSessions', () => {
 
       await revokeUserSessions(a.userId)
 
-      const remainingA = await db.select().from(sessions).where(eq(sessions.sid, `sid-a-${a.userId}`))
-      const remainingB = await db.select().from(sessions).where(eq(sessions.sid, `sid-b-${b.userId}`))
+      const remainingA = await db
+        .select()
+        .from(sessions)
+        .where(eq(sessions.sid, `sid-a-${a.userId}`))
+      const remainingB = await db
+        .select()
+        .from(sessions)
+        .where(eq(sessions.sid, `sid-b-${b.userId}`))
 
       expect(remainingA).toHaveLength(0)
       expect(remainingB).toHaveLength(1)
     } finally {
-      await db.delete(sessions).where(eq(sessions.sid, `sid-a-${a.userId}`)).catch(() => undefined)
-      await db.delete(sessions).where(eq(sessions.sid, `sid-b-${b.userId}`)).catch(() => undefined)
+      await db
+        .delete(sessions)
+        .where(eq(sessions.sid, `sid-a-${a.userId}`))
+        .catch(() => undefined)
+      await db
+        .delete(sessions)
+        .where(eq(sessions.sid, `sid-b-${b.userId}`))
+        .catch(() => undefined)
       await deleteUser(a.userId)
       await deleteUser(b.userId)
       await deleteTenant(tenantId)
@@ -77,7 +92,10 @@ describe('refreshTenantNameInSessions', () => {
       const [row] = await db.select().from(sessions).where(eq(sessions.sid, sid))
       expect(row.sess).toMatchObject({ tenantId, tenantName: 'New Co' })
     } finally {
-      await db.delete(sessions).where(eq(sessions.sid, sid)).catch(() => undefined)
+      await db
+        .delete(sessions)
+        .where(eq(sessions.sid, sid))
+        .catch(() => undefined)
       await deleteUser(user.userId)
       await deleteTenant(tenantId)
     }
