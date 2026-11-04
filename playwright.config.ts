@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-import { configureTestEnvironment } from './packages/shared/src/testEnv'
+import { configureTestEnvironment } from './packages/shared/src/testing/testEnv'
 configureTestEnvironment()
 const reuseExistingServer = false
 process.env.PORT = '3101'

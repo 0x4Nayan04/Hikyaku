@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 import { expect, test } from '@playwright/test'
 import { createDbClient } from '../packages/shared/src/db'
-import { configureTestEnvironment } from '../packages/shared/src/testEnv'
+import { configureTestEnvironment } from '../packages/shared/src/testing/testEnv'
 
 test.beforeEach(async () => {
   configureTestEnvironment()
