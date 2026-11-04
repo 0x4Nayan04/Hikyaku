@@ -8,12 +8,12 @@ import { PUBLIC_API_BASE } from '@/api/client'
 import type { MeResponse } from '@/api/types'
 import { LandingHero } from '@/components/landing/LandingHero'
 import { copyToClipboard } from '@/lib/clipboard'
-import { buildIngestCurl } from '@/lib/tenant-onboarding'
+import { buildIngestCurl } from '@/lib/auth/tenant-onboarding'
 import { SessionContext } from '@/providers/session-context'
 
 const bootstrapStatus = vi.hoisted(() => ({ available: false as boolean }))
 
-vi.mock('@/lib/bootstrap-status', () => ({
+vi.mock('@/lib/auth/bootstrap-status', () => ({
   readBootstrapStatusCache: () => bootstrapStatus.available,
   loadBootstrapStatus: async () => bootstrapStatus.available,
 }))

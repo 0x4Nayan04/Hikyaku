@@ -156,9 +156,6 @@ importers:
       react-dom:
         specifier: ^19.2.6
         version: 19.2.7(react@19.2.7)
-      react-icons:
-        specifier: ^5.7.0
-        version: 5.7.0(react@19.2.7)
       react-router-dom:
         specifier: ^7.18.2
         version: 7.18.4(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -254,9 +251,6 @@ importers:
       bcrypt:
         specifier: ^6.0.0
         version: 6.0.0
-      bullmq:
-        specifier: ^5.34.5
-        version: 5.79.2(supports-color@8.1.1)
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(gel@2.2.0(supports-color@8.1.1))(pg@8.22.0)
@@ -279,6 +273,9 @@ importers:
       '@types/pg':
         specifier: ^8.11.10
         version: 8.20.0
+      bullmq:
+        specifier: ^5.34.5
+        version: 5.79.2(supports-color@8.1.1)
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -3817,11 +3814,6 @@ packages:
     peerDependenciesMeta:
       react:
         optional: true
-
-  react-icons@5.7.0:
-    resolution: {integrity: sha512-LBLy340Rzqy6+/yVhZKT3B/QpP1BZaesGqasf09HPOBzRarcDIFH0WwXlXQfE7q7ipxK4MSiC5DIBWURCny6fw==}
-    peerDependencies:
-      react: '*'
 
   react-markdown@10.1.0:
     resolution: {integrity: sha512-qKxVopLT/TyA6BX3Ue5NwabOsAzm0Q7kAPwq6L+wWDwisYs7R8vZ0nRXqq6rkueboxpkjvLGU9fWifiX/ZZFxQ==}
@@ -8021,10 +8013,6 @@ snapshots:
       '@react-grab/cli': 0.2.0
       bippy: 0.6.1(react@19.2.7)
     optionalDependencies:
-      react: 19.2.7
-
-  react-icons@5.7.0(react@19.2.7):
-    dependencies:
       react: 19.2.7
 
   react-markdown@10.1.0(@types/react@19.2.17)(react@19.2.7)(supports-color@8.1.1):

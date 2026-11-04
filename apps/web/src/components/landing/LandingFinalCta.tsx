@@ -1,7 +1,7 @@
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
-import { PRODUCT_LINKS, PUBLIC_LINKS } from '@/lib/app-meta'
+import { PRODUCT_LINKS, PUBLIC_LINKS } from '@/lib/meta/app-meta'
 import { ArrowRight } from 'lucide-react'
-import { SiGithub } from 'react-icons/si'
+import { GithubIcon } from '@/components/icons/GithubIcon'
 import { Link } from 'react-router-dom'
 
 export function LandingFinalCta() {
@@ -16,7 +16,10 @@ export function LandingFinalCta() {
           bootstrap or accept an invite.
         </p>
         <div className="lp-final__actions" role="group" aria-label="Quick start">
-          <Link to={`${PRODUCT_LINKS.docs}/quick-start`} className="lp-button lp-button--primary focus-ring">
+          <Link
+            to={`${PRODUCT_LINKS.docs}/quick-start`}
+            className="lp-button lp-button--primary focus-ring"
+          >
             View quick start
             <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
@@ -26,7 +29,7 @@ export function LandingFinalCta() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <SiGithub className="size-4" aria-hidden="true" />
+            <GithubIcon className="size-4" aria-hidden="true" />
             View on GitHub
             <span className="sr-only">(opens in a new tab)</span>
           </a>

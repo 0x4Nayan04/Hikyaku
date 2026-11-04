@@ -1,16 +1,16 @@
 import { PUBLIC_API_BASE } from '@/api/client'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { DotPattern } from '@/components/ui/dot-pattern'
-import { APP_NAME, PRODUCT_LINKS, PUBLIC_LINKS } from '@/lib/app-meta'
-import { resolveGuestLandingPrimaryCta } from '@/lib/auth-first-run'
-import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
-import { loadBootstrapStatus, readBootstrapStatusCache } from '@/lib/bootstrap-status'
+import { APP_NAME, PRODUCT_LINKS, PUBLIC_LINKS } from '@/lib/meta/app-meta'
+import { resolveGuestLandingPrimaryCta } from '@/lib/auth/auth-first-run'
+import { getDefaultHomePath, getHomeLabel } from '@/lib/auth/auth-redirect'
+import { loadBootstrapStatus, readBootstrapStatusCache } from '@/lib/auth/bootstrap-status'
 import { copyToClipboard } from '@/lib/clipboard'
-import { buildIngestCurl } from '@/lib/tenant-onboarding'
+import { buildIngestCurl } from '@/lib/auth/tenant-onboarding'
 import { COPY_FEEDBACK_MS } from '@/lib/ui-timing'
 import { useSession } from '@/providers/session-context'
 import { ArrowRight, Check, Copy, LayoutDashboard } from 'lucide-react'
-import { SiGithub } from 'react-icons/si'
+import { GithubIcon } from '@/components/icons/GithubIcon'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -101,7 +101,7 @@ export function LandingHero() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <SiGithub className="size-4" aria-hidden="true" />
+                  <GithubIcon className="size-4" aria-hidden="true" />
                   View on GitHub
                   <span className="sr-only">(opens in a new tab)</span>
                 </a>
