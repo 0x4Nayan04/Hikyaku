@@ -1,7 +1,7 @@
 import type { DeliveryStatus, EventStatus } from '@hikyaku/shared/constants'
 import { deliveries, endpoints, events } from '@hikyaku/shared/schema'
 import { getDb } from '../../src/db/client.js'
-import { queue } from '../../src/queue/client.js'
+import { getQueue } from '../../src/queue/client.js'
 
 type SeedDeliveryOptions = {
   tenantId: string
@@ -20,26 +20,33 @@ export async function waitForActiveJobsToFinish(timeoutMs = 5_000): Promise<void
   const deadline = Date.now() + timeoutMs
 
   while (Date.now() < deadline) {
-    const active = await queue.getJobs(['active'], 0, 10)
+    const active = await getQueue().getJobs(['active'], 0, 10)
     if (active.length === 0) {
       return
     }
 
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
+  throw new Error('Active delivery jobs did not finish before test isolation timeout')
 }
 
 export async function beginDeliveryTestIsolation(): Promise<void> {
-  await queue.pause()
+  await getQueue().pause()
   await waitForActiveJobsToFinish()
-  for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
-      await job.remove()
-    }
-  await queue.pause()
+  for (const job of await getQueue().getJobs([
+    'waiting',
+    'delayed',
+    'completed',
+    'failed',
+    'paused',
+  ])) {
+    await job.remove()
+  }
+  await getQueue().pause()
 }
 
 export async function endDeliveryTestIsolation(): Promise<void> {
-  await queue.pause()
+  await getQueue().pause()
 }
 
 export async function seedDeliveryRow(options: SeedDeliveryOptions): Promise<{
