@@ -1,12 +1,15 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { DeliveryJobData } from '@hikyaku/shared/constants'
 import { deliveries, deliveryAttempts, events } from '@hikyaku/shared/schema'
-import type { Job } from 'bullmq'
+import { DelayedError, Worker, type Job } from 'bullmq'
+import * as backoff from '../../src/backoff.js'
+import { queueName } from '@hikyaku/shared/constants/queue'
+import { getRedisConnectionOptions } from '../../src/lib/redis.js'
 import { asc, eq } from 'drizzle-orm'
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../../../api/src/config.js'
-import { queue } from '../../../api/src/queue/client.js'
+import { getQueue } from '../../../api/src/queue/client.js'
 import { createApp } from '../../../api/src/server.js'
 import { createTenantWithKey, deleteTenant } from '../../../api/test/helpers/tenant.js'
 import { createTenantSession } from '../../../api/test/helpers/user.js'
@@ -124,8 +127,8 @@ async function runProcessorUntilSettled(
 
     try {
       await processor(makeJob(deliveryId, tenantId))
-    } catch {
-      // A retry throws DelayedError after the outcome is saved. The next loop marks it due.
+    } catch (err) {
+      if (!(err instanceof DelayedError)) throw err
     }
   }
 
@@ -144,7 +147,7 @@ describe('retry integration', () => {
   let agent: ReturnType<typeof request.agent>
 
   beforeEach(async () => {
-    for (const job of await queue.getJobs([
+    for (const job of await getQueue().getJobs([
       'waiting',
       'delayed',
       'completed',
@@ -160,7 +163,8 @@ describe('retry integration', () => {
   })
 
   afterEach(async () => {
-    for (const job of await queue.getJobs([
+    vi.restoreAllMocks()
+    for (const job of await getQueue().getJobs([
       'waiting',
       'delayed',
       'completed',
@@ -171,6 +175,68 @@ describe('retry integration', () => {
     }
     await deleteTenant(tenantId)
   })
+
+  it('automatically schedules an HTTP retry through BullMQ without manual promotion', async () => {
+    const retryDelayMs = 500
+    vi.spyOn(backoff, 'calculateBackoffDelayMs').mockReturnValue(retryDelayMs)
+    const mock = await startFlakyMockServer(1, 503)
+    let worker: Worker | undefined
+    try {
+      const endpoint = await agent.post('/v1/endpoints').send({
+        url: `http://127.0.0.1:${mock.port}/hook`,
+        description: 'automatic retry',
+      })
+      expect(endpoint.status).toBe(201)
+      const ingest = await request(app)
+        .post('/v1/events')
+        .set('Authorization', `Bearer ${apiKey}`)
+        .send({ idempotency_key: 'automatic-retry', type: 'order.created', payload: {} })
+      expect(ingest.status).toBe(202)
+      const [delivery] = await getDb()
+        .select()
+        .from(deliveries)
+        .where(eq(deliveries.eventId, ingest.body.id))
+      worker = new Worker(queueName(), processor, {
+        connection: getRedisConnectionOptions(),
+        concurrency: 1,
+      })
+      const deadline = Date.now() + 8_000
+      let retryObserved = false
+      let succeeded = false
+      while (Date.now() < deadline) {
+        const [current] = await getDb()
+          .select()
+          .from(deliveries)
+          .where(eq(deliveries.id, delivery.id))
+        if (!retryObserved && current?.status === 'pending' && current.nextRetryAt) {
+          retryObserved = true
+          expect(mock.getRequestCount()).toBe(1)
+          const job = (await getQueue().getDelayed()).find(
+            (job) => job.data.deliveryId === delivery.id,
+          )
+          expect(job).toBeDefined()
+          expect(current.nextRetryAt.getTime()).toBeGreaterThan(Date.now())
+        }
+        if (current?.status === 'succeeded') {
+          succeeded = true
+          break
+        }
+        await new Promise((resolve) => setTimeout(resolve, 20))
+      }
+      expect(retryObserved).toBe(true)
+      expect(succeeded).toBe(true)
+      expect(mock.getRequestCount()).toBe(2)
+      const attempts = await getDb()
+        .select()
+        .from(deliveryAttempts)
+        .where(eq(deliveryAttempts.deliveryId, delivery.id))
+        .orderBy(asc(deliveryAttempts.attemptNumber))
+      expect(attempts.map((attempt) => attempt.httpStatus)).toEqual([503, 200])
+    } finally {
+      await worker?.close()
+      await mock.close()
+    }
+  }, 10_000)
 
   it('succeeds after three 503 responses then 200 (#2)', async () => {
     const mock = await startFlakyMockServer(3, 503)

@@ -1,4 +1,4 @@
-import { QUEUE_NAME } from '@hikyaku/shared/constants'
+import { queueName } from '@hikyaku/shared/constants/queue'
 import { WORKER_LOCK_DURATION_MS } from '../../src/config.js'
 import { deliveries, deliveryAttempts } from '@hikyaku/shared/schema'
 import { Worker } from 'bullmq'
@@ -7,7 +7,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../../api/src/config.js'
-import { queue } from '../../../api/src/queue/client.js'
+import { getQueue } from '../../../api/src/queue/client.js'
 import { createApp } from '../../../api/src/server.js'
 import { createTenantWithKey, deleteTenant } from '../../../api/test/helpers/tenant.js'
 import { createTenantSession } from '../../../api/test/helpers/user.js'
@@ -62,11 +62,17 @@ function startCountingMockServer(): Promise<{
 }
 
 async function clearQueue(): Promise<void> {
-  await queue.pause()
-  for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
-      await job.remove()
-    }
-  await queue.resume()
+  await getQueue().pause()
+  for (const job of await getQueue().getJobs([
+    'waiting',
+    'delayed',
+    'completed',
+    'failed',
+    'paused',
+  ])) {
+    await job.remove()
+  }
+  await getQueue().resume()
 }
 
 async function countDeliveriesByStatus(tenantId: string): Promise<DeliveryCounts> {
@@ -113,7 +119,7 @@ async function waitForDeliveryCounts(
 }
 
 async function promoteDelayedJobs(): Promise<void> {
-  const delayed = await queue.getDelayed()
+  const delayed = await getQueue().getDelayed()
   await Promise.all(delayed.map((job) => job.promote()))
 }
 
@@ -181,7 +187,7 @@ describe('rate limit integration', () => {
       expect(ingestRes.status, JSON.stringify(ingestRes.body)).toBe(202)
     }
 
-    const worker = new Worker(QUEUE_NAME, processor, {
+    const worker = new Worker(queueName(), processor, {
       connection: getRedisConnectionOptions(),
       concurrency: 1,
       lockDuration: WORKER_LOCK_DURATION_MS,
