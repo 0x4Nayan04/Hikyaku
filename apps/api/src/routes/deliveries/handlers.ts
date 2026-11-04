@@ -9,7 +9,7 @@ import { AppError, enqueueOr503 } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
 import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
-import { queue } from '../../queue/client.js'
+import { getQueue } from '../../queue/client.js'
 import { toDeliveryDetailJson, toDeliveryListJson } from './serialize.js'
 import { parseDeliveryId, parseListQuery } from './validation.js'
 
@@ -187,7 +187,7 @@ export const replayDelivery: RequestHandler = asyncHandler(async (req: Request, 
   }
 
   await enqueueOr503(
-    enqueueDeliveryJob(queue, id, tenantId, replayCount),
+    enqueueDeliveryJob(getQueue(), { deliveryId: id, tenantId, replayCount }),
     { delivery_id: id },
     'replay_enqueue_failed',
   )

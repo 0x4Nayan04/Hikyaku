@@ -1,4 +1,5 @@
 import { AppError } from './errors.js'
+import { queryString } from './validation.js'
 
 export type PaginationParams = {
   limit: number
@@ -22,12 +23,9 @@ function parseInteger(value: string | undefined, name: string, fallback: number)
   return Number(value)
 }
 
-export function parsePagination(query: {
-  limit?: string | string[]
-  offset?: string | string[]
-}): PaginationParams {
-  const limitRaw = Array.isArray(query.limit) ? query.limit[0] : query.limit
-  const offsetRaw = Array.isArray(query.offset) ? query.offset[0] : query.offset
+export function parsePagination(query: { limit?: unknown; offset?: unknown }): PaginationParams {
+  const limitRaw = queryString(query.limit, 'limit')
+  const offsetRaw = queryString(query.offset, 'offset')
 
   const limitParsed = parseInteger(limitRaw, 'limit', 50)
   const offsetParsed = parseInteger(offsetRaw, 'offset', 0)

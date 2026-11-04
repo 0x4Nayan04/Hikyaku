@@ -2,18 +2,18 @@ import request from 'supertest'
 import { eq } from 'drizzle-orm'
 import { deliveries, deliveryAttempts } from '@hikyaku/shared/schema'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import '../../src/config.js'
-import { closePool, getDb } from '../../src/db/client.js'
-import { closeRedis } from '../../src/lib/redis.js'
-import { queue } from '../../src/queue/client.js'
-import { createApp } from '../../src/server.js'
+import '../../../src/config.js'
+import { closePool, getDb } from '../../../src/db/client.js'
+import { closeRedis } from '../../../src/lib/redis.js'
+import { closeQueue } from '../../../src/queue/client.js'
+import { createApp } from '../../../src/server.js'
 import {
   beginDeliveryTestIsolation,
   endDeliveryTestIsolation,
   seedDeliveryRow,
-} from '../helpers/delivery.js'
-import { createTenantWithKey, deleteTenant } from '../helpers/tenant.js'
-import { createTenantSession } from '../helpers/user.js'
+} from '../../helpers/delivery.js'
+import { createTenantWithKey, deleteTenant } from '../../helpers/tenant.js'
+import { createTenantSession } from '../../helpers/user.js'
 
 const app = createApp()
 
@@ -52,7 +52,7 @@ describe('GET /v1/deliveries', () => {
 
   afterAll(async () => {
     await endDeliveryTestIsolation()
-    await queue.close()
+    await closeQueue()
     await deleteTenant(tenantId)
     await closePool()
     await closeRedis()

@@ -1,10 +1,10 @@
 import request from 'supertest'
 import { afterAll, describe, expect, it } from 'vitest'
-import { env } from '../../src/config.js'
-import { closePool } from '../../src/db/client.js'
-import { closeRedis } from '../../src/lib/redis.js'
-import { parseCorsOrigins } from '../../src/lib/cors.js'
-import { createApp } from '../../src/server.js'
+import { env } from '../../../src/config.js'
+import { closePool } from '../../../src/db/client.js'
+import { closeRedis } from '../../../src/lib/redis.js'
+import { parseCorsOrigins } from '../../../src/lib/cors.js'
+import { createApp } from '../../../src/server.js'
 
 const app = createApp()
 const allowedOrigin = parseCorsOrigins(env.CORS_ORIGIN)[0]
@@ -35,9 +35,7 @@ describe('CORS credentials', () => {
   })
 
   it('rejects mutation requests from an unapproved browser origin', async () => {
-    const res = await request(app)
-      .post('/v1/auth/logout')
-      .set('Origin', 'https://attacker.example')
+    const res = await request(app).post('/v1/auth/logout').set('Origin', 'https://attacker.example')
 
     expect(res.status).toBe(403)
     expect(res.body).toEqual({

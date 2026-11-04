@@ -1,6 +1,6 @@
 import { DELIVERY_STATUSES, type DeliveryStatus } from '@hikyaku/shared/constants'
 import { AppError } from '../../lib/errors.js'
-import { isUuid, requireUuid } from '../../lib/validation.js'
+import { isUuid, queryString, requireUuid } from '../../lib/validation.js'
 
 const DELIVERY_STATUS_SET = new Set<string>(DELIVERY_STATUSES)
 
@@ -9,15 +9,13 @@ export function parseDeliveryId(id: string): void {
 }
 
 export function parseListQuery(query: {
-  status?: string | string[]
-  event_id?: string | string[]
-  updated_within?: string | string[]
+  status?: unknown
+  event_id?: unknown
+  updated_within?: unknown
 }): { status?: DeliveryStatus; open?: boolean; eventId?: string; updatedWithin24h?: boolean } {
-  const statusRaw = Array.isArray(query.status) ? query.status[0] : query.status
-  const eventIdRaw = Array.isArray(query.event_id) ? query.event_id[0] : query.event_id
-  const updatedWithinRaw = Array.isArray(query.updated_within)
-    ? query.updated_within[0]
-    : query.updated_within
+  const statusRaw = queryString(query.status, 'status')
+  const eventIdRaw = queryString(query.event_id, 'event_id')
+  const updatedWithinRaw = queryString(query.updated_within, 'updated_within')
 
   const result: {
     status?: DeliveryStatus
