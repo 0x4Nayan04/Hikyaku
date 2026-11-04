@@ -1,5 +1,7 @@
 import { z } from 'zod'
-import { ENDPOINT_STATUSES, MAX_INGEST_BODY_BYTES, MIN_PASSWORD_LENGTH } from './constants.js'
+import { INVITE_KINDS, MIN_PASSWORD_LENGTH } from './constants/auth.js'
+import { MAX_INGEST_BODY_BYTES } from './constants/config.js'
+import { ENDPOINT_STATUSES } from './constants/status.js'
 
 const emailSchema = z.string().trim().toLowerCase().email().max(320)
 const userNameSchema = z.string().trim().min(1).max(256)
@@ -87,14 +89,14 @@ export const adminPatchTenantSchema = z.object({
 const optionalInviteNameSchema = userNameSchema.optional()
 
 const adminCreateTenantOwnerInviteSchema = z.object({
-  kind: z.literal('tenant_owner'),
+  kind: z.literal(INVITE_KINDS.TENANT_OWNER),
   tenant_name: userNameSchema,
   owner_email: emailSchema,
   owner_name: optionalInviteNameSchema,
 })
 
 const adminCreateTenantUserInviteSchema = z.object({
-  kind: z.literal('tenant_user'),
+  kind: z.literal(INVITE_KINDS.TENANT_USER),
   tenant_id: z.string().uuid(),
   email: emailSchema,
   name: optionalInviteNameSchema,
@@ -125,3 +127,6 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>
 export type AdminCreateInviteInput = z.infer<typeof adminCreateInviteSchema>
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>
 export type PasswordResetInput = z.infer<typeof passwordResetSchema>
+
+export type CreateWorkspaceInput = z.infer<typeof createWorkspaceSchema>
+export type AdminPatchTenantInput = z.infer<typeof adminPatchTenantSchema>

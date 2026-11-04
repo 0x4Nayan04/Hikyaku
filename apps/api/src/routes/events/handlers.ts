@@ -1,4 +1,3 @@
-import type { DeliveryJobData } from '@hikyaku/shared/constants'
 import { deliveries, deliveryOutbox, events } from '@hikyaku/shared/schema'
 import { enqueueDeliveryJobs } from '@hikyaku/shared/enqueueDelivery'
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
@@ -10,7 +9,7 @@ import { asyncHandler } from '../../lib/asyncHandler.js'
 import { logger } from '../../lib/logger.js'
 import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
-import { queue } from '../../queue/client.js'
+import { getQueue } from '../../queue/client.js'
 import {
   type DeliveriesSummary,
   toEventDetailJson,
@@ -18,24 +17,6 @@ import {
   toIngestEventJson,
 } from './serialize.js'
 import { parseEventId, parseIngestBody, parseListQuery } from './validation.js'
-
-/** Open deliveries for an event — used so idempotent ingest retries re-enqueue orphans. */
-async function listOpenDeliveryJobs(eventId: string, tenantId: string): Promise<DeliveryJobData[]> {
-  return getDb()
-    .select({
-      deliveryId: deliveries.id,
-      tenantId: deliveries.tenantId,
-      replayCount: deliveries.replayCount,
-    })
-    .from(deliveries)
-    .where(
-      and(
-        eq(deliveries.eventId, eventId),
-        eq(deliveries.tenantId, tenantId),
-        inArray(deliveries.status, ['pending', 'in_progress']),
-      ),
-    )
-}
 
 async function loadDeliveriesSummary(
   eventId: string,
@@ -77,22 +58,10 @@ export const ingestEvent = asyncHandler(async (req: Request, res: Response) => {
   const tenantId = getTenantId(req)
   const result = await ingestFanout(tenantId, body)
 
-  // Duplicate retries must re-enqueue open deliveries left behind by a prior enqueue 503.
-  let jobs: DeliveryJobData[]
-  if (result.newDeliveryIds.length > 0) {
-    jobs = result.newDeliveryIds.map((deliveryId) => ({
-      deliveryId,
-      tenantId,
-      replayCount: 0,
-    }))
-  } else if (result.isDuplicate) {
-    jobs = await listOpenDeliveryJobs(result.event.id, tenantId)
-  } else {
-    jobs = []
-  }
+  const jobs = result.jobs
 
   await enqueueOr503(
-    enqueueDeliveryJobs(queue, jobs),
+    enqueueDeliveryJobs(getQueue(), jobs),
     { delivery_ids: jobs.map((job) => job.deliveryId) },
     'enqueue_failed',
   )

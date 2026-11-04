@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { Button } from '@/components/ui/button'
-import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
+import { getDefaultHomePath, getHomeLabel } from '@/lib/auth/auth-redirect'
 import { useSession } from '@/providers/session-context'
 
 export default function NotFound() {

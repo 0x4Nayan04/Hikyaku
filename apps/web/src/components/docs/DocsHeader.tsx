@@ -4,8 +4,8 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 
 import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
-import { getDefaultHomePath, getHomeLabel } from '@/lib/auth-redirect'
-import { APP_HOME_LABEL, APP_NAME } from '@/lib/app-meta'
+import { getDefaultHomePath, getHomeLabel } from '@/lib/auth/auth-redirect'
+import { APP_HOME_LABEL, APP_NAME } from '@/lib/meta/app-meta'
 import { useSession } from '@/providers/session-context'
 
 export const DocsHeader = memo(function DocsHeader() {

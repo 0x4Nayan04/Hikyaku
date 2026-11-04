@@ -6,7 +6,7 @@ import { asc, eq } from 'drizzle-orm'
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../../../api/src/config.js'
-import { queue } from '../../../api/src/queue/client.js'
+import { getQueue } from '../../../api/src/queue/client.js'
 import { createApp } from '../../../api/src/server.js'
 import { seedDeliveryRow } from '../../../api/test/helpers/delivery.js'
 import { createTenantWithKey, deleteTenant } from '../../../api/test/helpers/tenant.js'
@@ -68,7 +68,7 @@ describe('delivery replay', () => {
   let agent: ReturnType<typeof request.agent>
 
   beforeEach(async () => {
-    for (const job of await queue.getJobs([
+    for (const job of await getQueue().getJobs([
       'waiting',
       'delayed',
       'completed',
@@ -83,7 +83,7 @@ describe('delivery replay', () => {
   })
 
   afterEach(async () => {
-    for (const job of await queue.getJobs([
+    for (const job of await getQueue().getJobs([
       'waiting',
       'delayed',
       'completed',

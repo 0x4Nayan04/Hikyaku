@@ -1,0 +1,134 @@
+// @vitest-environment jsdom
+import { act } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { Delivery } from '@/api/types'
+import { DeliveryCatalogList } from '@/components/console/catalogs/DeliveryCatalogList'
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true
+
+const replayed: Delivery = {
+  id: '12345678-aaaa-bbbb-cccc-ddddeeeeffff',
+  event_id: 'event-1',
+  endpoint_id: 'endpoint-1',
+  endpoint_url: 'https://example.com/hook',
+  status: 'failed',
+  replay_count: 1,
+  attempt_count: 1,
+  next_retry_at: null,
+  last_error: null,
+  created_at: '2026-09-26T12:00:00.000Z',
+  updated_at: '2026-09-26T12:05:00.000Z',
+}
+
+const currentRunOnly: Delivery = {
+  ...replayed,
+  id: '22345678-aaaa-bbbb-cccc-ddddeeeeffff',
+  replay_count: 0,
+  attempt_count: 2,
+}
+
+let container: HTMLDivElement
+let root: Root
+let locationPath: string | null
+
+function LocationProbe({ children }: { children: React.ReactNode }) {
+  locationPath = useLocation().pathname
+  return children
+}
+
+async function renderList(deliveries: Delivery[]) {
+  await act(async () => {
+    root.render(
+      <MemoryRouter initialEntries={['/deliveries']}>
+        <LocationProbe>
+          <Routes>
+            <Route path="/deliveries" element={<DeliveryCatalogList deliveries={deliveries} />} />
+            <Route path="/deliveries/:id" element={<div>Delivery detail</div>} />
+            <Route path="/events/:id" element={<div>Event detail</div>} />
+          </Routes>
+        </LocationProbe>
+      </MemoryRouter>,
+    )
+  })
+}
+
+beforeEach(() => {
+  container = document.createElement('div')
+  document.body.appendChild(container)
+  root = createRoot(container)
+  locationPath = null
+})
+
+afterEach(async () => {
+  await act(async () => {
+    root.unmount()
+  })
+  document.body.removeChild(container)
+})
+
+describe('DeliveryCatalogList attempts', () => {
+  it('labels a replay separately from the current-run count', async () => {
+    await renderList([replayed, currentRunOnly])
+
+    expect(container.textContent).toContain('1 attempt · replayed 1x')
+    expect(container.textContent).toContain('2 attempts')
+    expect(container.textContent).not.toContain('this run')
+  })
+})
+
+describe('DeliveryCatalogList stacked cards', () => {
+  it('labels every cell including columns hidden on small tables', async () => {
+    await renderList([replayed])
+
+    expect(container.querySelector('table.console-data-table')).not.toBeNull()
+    expect(container.querySelector('td[data-label="Endpoint"]')).not.toBeNull()
+    expect(container.querySelector('td[data-label="Event"]')).not.toBeNull()
+    expect(container.querySelector('td[data-label="Status"]')).not.toBeNull()
+    expect(container.querySelector('td[data-label="Attempts"]')).not.toBeNull()
+    expect(container.querySelector('td[data-label="Updated"]')).not.toBeNull()
+  })
+})
+
+describe('DeliveryCatalogList accessibility', () => {
+  it('exposes real delivery and event links without a nested interactive row role', async () => {
+    await renderList([replayed])
+
+    const row = container.querySelector('tbody tr')
+    expect(row).not.toBeNull()
+    expect(row?.getAttribute('role')).toBeNull()
+    expect(row?.getAttribute('tabindex')).toBeNull()
+
+    const deliveryLink = container.querySelector(
+      `a[href="/deliveries/${replayed.id}"]`,
+    ) as HTMLAnchorElement | null
+    const eventLink = container.querySelector(
+      `a[href="/events/${replayed.event_id}"]`,
+    ) as HTMLAnchorElement | null
+    expect(deliveryLink).not.toBeNull()
+    expect(eventLink).not.toBeNull()
+    expect(deliveryLink?.getAttribute('aria-label')).toBe(
+      'Open delivery to https://example.com/hook',
+    )
+
+    await act(async () => {
+      eventLink?.click()
+    })
+    expect(locationPath).toBe(`/events/${replayed.event_id}`)
+  })
+
+  it('opens the delivery from the endpoint link', async () => {
+    await renderList([replayed])
+
+    const deliveryLink = container.querySelector(
+      `a[href="/deliveries/${replayed.id}"]`,
+    ) as HTMLAnchorElement
+
+    expect(deliveryLink.getAttribute('aria-label')).toMatch(/^Open delivery to /)
+    await act(async () => {
+      deliveryLink.click()
+    })
+    expect(locationPath).toBe(`/deliveries/${replayed.id}`)
+  })
+})

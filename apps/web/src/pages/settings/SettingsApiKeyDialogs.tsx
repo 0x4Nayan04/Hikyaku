@@ -15,7 +15,7 @@ import { SecretReveal } from '@/components/ui/secret-reveal'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { PUBLIC_API_BASE } from '@/api/client'
 import { copyToClipboard } from '@/lib/clipboard'
-import { buildIngestCurl } from '@/lib/tenant-onboarding'
+import { buildIngestCurl } from '@/lib/auth/tenant-onboarding'
 
 type SettingsApiKeyDialogsProps = {
   secretKey: ApiKeyWithSecret | null
@@ -137,7 +137,7 @@ export function SettingsApiKeyDialogs({
       <Dialog
         open={revokeTarget !== null}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && revokingId === null) {
             onRevokeTargetChange(null)
           }
         }}

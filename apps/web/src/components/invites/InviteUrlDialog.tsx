@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Copy } from 'lucide-react'
-import { PageBanner } from '@/components/console/PageBanner'
+import { PageBanner } from '@/components/console/chrome/PageBanner'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,

@@ -1,7 +1,7 @@
 import { ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
-import { PRODUCT_LINKS } from '@/lib/app-meta'
+import { PRODUCT_LINKS } from '@/lib/meta/app-meta'
 
 const FAQ_ITEMS = [
   {

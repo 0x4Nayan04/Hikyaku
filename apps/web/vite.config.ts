@@ -4,7 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { applyPublicSiteMeta, normalizeSiteUrl } from './src/lib/public-site-meta'
+import { applyPublicSiteMeta, normalizeSiteUrl } from './src/lib/meta/public-site-meta'
 import { compileDocsGuide } from './vite-plugin-docs-guide'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 

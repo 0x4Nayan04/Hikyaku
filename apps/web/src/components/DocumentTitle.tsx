@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { robotsForPath } from '@/lib/page-robots'
-import { titleForPath } from '@/lib/page-title'
+import { robotsForPath } from '@/lib/meta/page-robots'
+import { titleForPath } from '@/lib/meta/page-title'
 
 function upsertRobotsMeta(content: string) {
   let el = document.querySelector('meta[name="robots"]')

@@ -1,9 +1,9 @@
-import { generateApiKey, hashApiKey, prefixOf } from '@hikyaku/shared/crypto'
+import { generateApiKey, hashApiKey, apiKeyDisplayPrefix } from '@hikyaku/shared/crypto'
 import { hashPassword } from '@hikyaku/shared/password'
 import { apiKeys, tenants, users } from '@hikyaku/shared/schema'
 import { env } from '../config.js'
 import { closePool, getDb } from '../db/client.js'
-import { userEmailMatches } from '../lib/invites.js'
+import { userEmailMatches } from '../auth/invites.js'
 import { assertSeedAllowed } from './seedGuard.js'
 import { maybeSeedSuperAdmin } from './seedSuperAdmin.js'
 
@@ -59,7 +59,7 @@ async function seed(): Promise<void> {
       await tx.insert(apiKeys).values({
         tenantId: tenant.id,
         keyHash: hashApiKey(apiKey),
-        prefix: prefixOf(apiKey),
+        prefix: apiKeyDisplayPrefix(apiKey),
       })
     })
 

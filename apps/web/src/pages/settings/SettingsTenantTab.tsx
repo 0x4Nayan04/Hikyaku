@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom'
-import { DataPanel } from '@/components/console/DataPanel'
-import { PageLoading } from '@/components/console/PageLoading'
+import { DataPanel } from '@/components/console/catalogs/DataPanel'
+import { PageLoading } from '@/components/console/chrome/PageLoading'
 import {
-  SettingsCatalogList,
-  SettingsCatalogRow,
-  SettingsCopyValue,
-} from '@/components/console/SettingsCatalog'
+  DetailFieldList,
+  DetailFieldRow,
+  CopyValue,
+} from '@/components/console/details/DetailFields'
 import { useSession } from '@/providers/session-context'
 
 export function SettingsTenantTab() {
@@ -30,18 +30,14 @@ export function SettingsTenantTab() {
           <PageLoading variant="inline" />
         </div>
       ) : session?.tenant ? (
-        <SettingsCatalogList>
-          <SettingsCatalogRow label="Workspace name">
+        <DetailFieldList>
+          <DetailFieldRow label="Workspace name">
             <span className="font-medium">{tenantName}</span>
-          </SettingsCatalogRow>
-          <SettingsCatalogRow label="Workspace ID" layout="stacked">
-            <SettingsCopyValue
-              value={session.tenant.id}
-              copyLabel="Workspace ID"
-              buttonLabel="Copy ID"
-            />
-          </SettingsCatalogRow>
-        </SettingsCatalogList>
+          </DetailFieldRow>
+          <DetailFieldRow label="Workspace ID" layout="stacked">
+            <CopyValue value={session.tenant.id} copyLabel="Workspace ID" buttonLabel="Copy ID" />
+          </DetailFieldRow>
+        </DetailFieldList>
       ) : (
         <div className="px-5 py-4">
           <p className="text-sm text-muted-strong">

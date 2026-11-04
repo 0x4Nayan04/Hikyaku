@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { verifyPayload } from '@hikyaku/shared/crypto'
-import { QUEUE_NAME } from '@hikyaku/shared/constants'
+import { queueName } from '@hikyaku/shared/constants/queue'
 import { WORKER_LOCK_DURATION_MS } from '../../src/config.js'
 import { deliveries, events } from '@hikyaku/shared/schema'
 import { Worker } from 'bullmq'
@@ -8,7 +8,7 @@ import { eq } from 'drizzle-orm'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import '../../../api/src/config.js'
-import { queue } from '../../../api/src/queue/client.js'
+import { getQueue } from '../../../api/src/queue/client.js'
 import { createApp } from '../../../api/src/server.js'
 import { createTenantWithKey, deleteTenant } from '../../../api/test/helpers/tenant.js'
 import { createTenantSession } from '../../../api/test/helpers/user.js'
@@ -92,7 +92,13 @@ describe('e2e pipeline', () => {
   let mockServer: Awaited<ReturnType<typeof startMockServer>>
 
   beforeAll(async () => {
-    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+    for (const job of await getQueue().getJobs([
+      'waiting',
+      'delayed',
+      'completed',
+      'failed',
+      'paused',
+    ])) {
       await job.remove()
     }
 
@@ -103,17 +109,15 @@ describe('e2e pipeline', () => {
 
     mockServer = await startMockServer()
 
-    const endpointRes = await agent
-      .post('/v1/endpoints')
-      .send({
-        url: `http://127.0.0.1:${mockServer.port}/hook`,
-        description: 'e2e pipeline',
-      })
+    const endpointRes = await agent.post('/v1/endpoints').send({
+      url: `http://127.0.0.1:${mockServer.port}/hook`,
+      description: 'e2e pipeline',
+    })
 
     expect(endpointRes.status).toBe(201)
     endpointSecret = endpointRes.body.secret as string
 
-    worker = new Worker(QUEUE_NAME, processor, {
+    worker = new Worker(queueName(), processor, {
       connection: getRedisConnectionOptions(),
       concurrency: 1,
       lockDuration: WORKER_LOCK_DURATION_MS,
@@ -123,7 +127,13 @@ describe('e2e pipeline', () => {
   afterAll(async () => {
     await worker.close()
     await mockServer.close()
-    for (const job of await queue.getJobs(['waiting', 'delayed', 'completed', 'failed', 'paused'])) {
+    for (const job of await getQueue().getJobs([
+      'waiting',
+      'delayed',
+      'completed',
+      'failed',
+      'paused',
+    ])) {
       await job.remove()
     }
     await deleteTenant(tenantId)

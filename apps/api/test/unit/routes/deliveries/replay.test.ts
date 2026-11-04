@@ -20,7 +20,7 @@ vi.mock('@hikyaku/shared/enqueueDelivery', () => ({
   enqueueDeliveryJob: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock('../../../../src/queue/client.js', () => ({ queue: {} }))
+vi.mock('../../../../src/queue/client.js', () => ({ getQueue: () => ({}) }))
 
 const enqueueMock = vi.mocked(enqueueDeliveryJob)
 
@@ -300,7 +300,11 @@ describe('replayDelivery validation', () => {
       expect(result.error).toBeUndefined()
       expect(result.statusCode).toBe(202)
       expect(result.body).toEqual({ id: delivery.id, status: 'pending' })
-      expect(enqueueMock).toHaveBeenCalledWith(expect.anything(), delivery.id, tenantId, 1)
+      expect(enqueueMock).toHaveBeenCalledWith(expect.anything(), {
+        deliveryId: delivery.id,
+        tenantId,
+        replayCount: 1,
+      })
 
       const [updated] = await db
         .select({
@@ -455,7 +459,11 @@ describe('replayDelivery validation', () => {
       expect(result.error).toBeUndefined()
       expect(result.statusCode).toBe(202)
       expect(result.body).toEqual({ id: delivery.id, status: 'pending' })
-      expect(enqueueMock).toHaveBeenCalledWith(expect.anything(), delivery.id, tenantId, 1)
+      expect(enqueueMock).toHaveBeenCalledWith(expect.anything(), {
+        deliveryId: delivery.id,
+        tenantId,
+        replayCount: 1,
+      })
 
       const [updated] = await db
         .select({

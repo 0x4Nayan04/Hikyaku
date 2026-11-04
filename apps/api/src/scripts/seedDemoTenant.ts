@@ -13,7 +13,7 @@ import { eq, sql } from 'drizzle-orm'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { closePool, getDb } from '../db/client.js'
-import { userEmailMatches } from '../lib/invites.js'
+import { userEmailMatches } from '../auth/invites.js'
 
 export const DEMO_TENANT_ID = 'd0000000-0000-4000-8000-000000000001'
 const DEMO_USER_ID = 'd0000000-0000-4000-8000-000000000002'

@@ -12,7 +12,6 @@ import type {
 import type {
   CreateInviteResponse,
   AdminTenant,
-  ApiErrorBody,
   ApiKey,
   ApiKeyWithSecret,
   Delivery,
@@ -32,10 +31,11 @@ import type {
   ReplayDeliveryResponse,
   Stats,
   User,
+  MeResponse,
   ValidateInviteResponse,
   ValidatePasswordResetResponse,
 } from './types'
-import { getLoginPath } from '@/lib/auth-redirect'
+import { getLoginPath } from '@/lib/auth/auth-redirect'
 
 const configuredApiUrl = import.meta.env.VITE_API_URL
 export const API_BASE =
@@ -84,12 +84,13 @@ async function parseErrorResponse(res: Response): Promise<ApiError> {
   let message = res.statusText || 'Request failed'
 
   try {
-    const body = (await res.json()) as ApiErrorBody
-    if (body.error?.code) {
-      code = body.error.code
-    }
-    if (body.error?.message) {
-      message = body.error.message
+    const body: unknown = await res.json()
+    if (typeof body === 'object' && body !== null && 'error' in body) {
+      const detail = body.error
+      if (typeof detail === 'object' && detail !== null) {
+        if ('code' in detail && typeof detail.code === 'string') code = detail.code
+        if ('message' in detail && typeof detail.message === 'string') message = detail.message
+      }
     }
   } catch {
     // Response body was not JSON.
@@ -98,47 +99,76 @@ async function parseErrorResponse(res: Response): Promise<ApiError> {
   return new ApiError(res.status, code, message)
 }
 
-export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
-  const { skipAuthRedirect, headers, ...init } = options
-
+export function apiFetch(
+  path: string,
+  options: ApiFetchOptions & { responseType: 'empty' },
+): Promise<void>
+export function apiFetch<T>(
+  path: string,
+  options?: ApiFetchOptions & { responseType?: 'json' },
+): Promise<T>
+export async function apiFetch<T>(
+  path: string,
+  options: ApiFetchOptions & { responseType?: 'json' | 'empty' } = {},
+): Promise<T | void> {
+  const { skipAuthRedirect: _skipAuthRedirect, responseType = 'json', headers, ...init } = options
+  const requestHeaders = new Headers(headers)
+  if (!requestHeaders.has('Content-Type')) requestHeaders.set('Content-Type', 'application/json')
   const res = await fetch(apiUrl(path), {
     ...init,
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
+    headers: requestHeaders,
   })
+  if (!res.ok) throw await parseErrorResponse(res)
+  if (responseType === 'empty') return
+  const text = await res.text()
+  if (!text)
+    throw new ApiError(res.status, 'invalid_response', 'Expected a JSON response from the server')
+  return JSON.parse(text) as T
+}
 
-  if (!res.ok) {
-    const error = await parseErrorResponse(res)
-    if (res.status === 401 && error.code === 'unauthorized' && !skipAuthRedirect) {
+export function sessionApiFetch(
+  path: string,
+  options: ApiFetchOptions & { responseType: 'empty' },
+): Promise<void>
+export function sessionApiFetch<T>(
+  path: string,
+  options?: ApiFetchOptions & { responseType?: 'json' },
+): Promise<T>
+export async function sessionApiFetch<T>(
+  path: string,
+  options: ApiFetchOptions & { responseType?: 'json' | 'empty' } = {},
+): Promise<T | void> {
+  try {
+    return options.responseType === 'empty'
+      ? await apiFetch(path, { ...options, responseType: 'empty' })
+      : await apiFetch<T>(path, { ...options, responseType: 'json' })
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      error.status === 401 &&
+      error.code === 'unauthorized' &&
+      !options.skipAuthRedirect
+    ) {
       window.location.assign(getLoginPath(window.location))
     }
     throw error
   }
+}
 
-  if (res.status === 204) {
-    return undefined as T
-  }
-
-  const text = await res.text()
-  if (!text) {
-    return undefined as T
-  }
-
-  return JSON.parse(text) as T
+export function getMe(options?: ApiFetchOptions): Promise<MeResponse> {
+  return apiFetch('/v1/auth/me', { ...options, skipAuthRedirect: true })
 }
 
 export function getBootstrapStatus(): Promise<{ available: boolean }> {
-  return apiFetch('/v1/auth/bootstrap-status', { skipAuthRedirect: true })
+  return sessionApiFetch('/v1/auth/bootstrap-status', { skipAuthRedirect: true })
 }
 
 export function bootstrap(
   adminSecret: string,
   body: BootstrapInput,
 ): Promise<{ user: Pick<User, 'id' | 'email' | 'is_super_admin'> }> {
-  return apiFetch('/v1/auth/bootstrap', {
+  return sessionApiFetch('/v1/auth/bootstrap', {
     method: 'POST',
     skipAuthRedirect: true,
     headers: { 'X-Admin-Secret': adminSecret },
@@ -147,7 +177,7 @@ export function bootstrap(
 }
 
 export function login(body: LoginInput): Promise<{ user: User }> {
-  return apiFetch('/v1/auth/login', {
+  return sessionApiFetch('/v1/auth/login', {
     method: 'POST',
     skipAuthRedirect: true,
     body: JSON.stringify(body),
@@ -155,58 +185,63 @@ export function login(body: LoginInput): Promise<{ user: User }> {
 }
 
 export function logout(): Promise<void> {
-  return apiFetch('/v1/auth/logout', { method: 'POST', skipAuthRedirect: true })
+  return sessionApiFetch('/v1/auth/logout', {
+    method: 'POST',
+    skipAuthRedirect: true,
+    responseType: 'empty',
+  })
 }
 
 export function changePassword(body: ChangePasswordInput): Promise<void> {
-  return apiFetch('/v1/auth/change-password', {
+  return sessionApiFetch('/v1/auth/change-password', {
+    responseType: 'empty',
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
 export function getStats(options?: ApiFetchOptions): Promise<Stats> {
-  return apiFetch('/v1/stats', options)
+  return sessionApiFetch('/v1/stats', options)
 }
 
 export function listEndpoints(
   params: ListEndpointsParams = {},
   options?: ApiFetchOptions,
 ): Promise<Paginated<Endpoint>> {
-  return apiFetch(`/v1/endpoints${buildQuery(params)}`, options)
+  return sessionApiFetch(`/v1/endpoints${buildQuery(params)}`, options)
 }
 
 export function createEndpoint(body: CreateEndpointInput): Promise<EndpointWithSecret> {
-  return apiFetch('/v1/endpoints', {
+  return sessionApiFetch('/v1/endpoints', {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
 export function patchEndpoint(id: string, body: PatchEndpointInput): Promise<Endpoint> {
-  return apiFetch(`/v1/endpoints/${id}`, {
+  return sessionApiFetch(`/v1/endpoints/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
   })
 }
 
 export function rotateEndpointSecret(id: string): Promise<EndpointWithSecret> {
-  return apiFetch(`/v1/endpoints/${id}/rotate`, { method: 'POST' })
+  return sessionApiFetch(`/v1/endpoints/${id}/rotate`, { method: 'POST' })
 }
 
 export function listEvents(
   params: ListEventsParams = {},
   options?: ApiFetchOptions,
 ): Promise<Paginated<EventSummary>> {
-  return apiFetch(`/v1/events${buildQuery(params)}`, options)
+  return sessionApiFetch(`/v1/events${buildQuery(params)}`, options)
 }
 
 export function getEvent(id: string, options?: ApiFetchOptions): Promise<EventDetail> {
-  return apiFetch(`/v1/events/${id}`, options)
+  return sessionApiFetch(`/v1/events/${id}`, options)
 }
 
 export function sendEvent(body: IngestEventInput): Promise<IngestEventResponse> {
-  return apiFetch('/v1/events', {
+  return sessionApiFetch('/v1/events', {
     method: 'POST',
     body: JSON.stringify(body),
   })
@@ -216,34 +251,34 @@ export function listDeliveries(
   params: ListDeliveriesParams = {},
   options?: ApiFetchOptions,
 ): Promise<Paginated<Delivery>> {
-  return apiFetch(`/v1/deliveries${buildQuery(params)}`, options)
+  return sessionApiFetch(`/v1/deliveries${buildQuery(params)}`, options)
 }
 
 export function getDelivery(id: string, options?: ApiFetchOptions): Promise<DeliveryDetail> {
-  return apiFetch(`/v1/deliveries/${id}`, options)
+  return sessionApiFetch(`/v1/deliveries/${id}`, options)
 }
 
 export function replayDelivery(id: string): Promise<ReplayDeliveryResponse> {
-  return apiFetch(`/v1/deliveries/${id}/replay`, { method: 'POST' })
+  return sessionApiFetch(`/v1/deliveries/${id}/replay`, { method: 'POST' })
 }
 
 export function listApiKeys(
   params: ListApiKeysParams = {},
   options?: ApiFetchOptions,
 ): Promise<Paginated<ApiKey>> {
-  return apiFetch(`/v1/api-keys${buildQuery(params)}`, options)
+  return sessionApiFetch(`/v1/api-keys${buildQuery(params)}`, options)
 }
 
 export function createApiKey(): Promise<ApiKeyWithSecret> {
-  return apiFetch('/v1/api-keys', { method: 'POST' })
+  return sessionApiFetch('/v1/api-keys', { method: 'POST' })
 }
 
 export function revokeApiKey(id: string): Promise<ApiKey> {
-  return apiFetch(`/v1/api-keys/${id}/revoke`, { method: 'POST' })
+  return sessionApiFetch(`/v1/api-keys/${id}/revoke`, { method: 'POST' })
 }
 
 export function rotateApiKey(id: string): Promise<ApiKeyWithSecret> {
-  return apiFetch(`/v1/api-keys/${id}/rotate`, { method: 'POST' })
+  return sessionApiFetch(`/v1/api-keys/${id}/rotate`, { method: 'POST' })
 }
 
 export function listAdminTenants(
@@ -251,19 +286,19 @@ export function listAdminTenants(
   options?: ApiFetchOptions,
 ): Promise<Paginated<AdminTenant>> {
   const { search, ...rest } = params
-  return apiFetch(`/v1/admin/tenants${buildQuery({ ...rest, search })}`, options)
+  return sessionApiFetch(`/v1/admin/tenants${buildQuery({ ...rest, search })}`, options)
 }
 
-export function getAdminTenant(id: string): Promise<AdminTenant> {
-  return apiFetch(`/v1/admin/tenants/${id}`)
+export function getAdminTenant(id: string, options?: ApiFetchOptions): Promise<AdminTenant> {
+  return sessionApiFetch(`/v1/admin/tenants/${id}`, options)
 }
 
 export function deleteAdminTenant(id: string): Promise<void> {
-  return apiFetch(`/v1/admin/tenants/${id}`, { method: 'DELETE' })
+  return sessionApiFetch(`/v1/admin/tenants/${id}`, { method: 'DELETE', responseType: 'empty' })
 }
 
 export function patchAdminTenant(id: string, body: { tenant_name: string }): Promise<AdminTenant> {
-  return apiFetch(`/v1/admin/tenants/${id}`, {
+  return sessionApiFetch(`/v1/admin/tenants/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
   })
@@ -274,37 +309,40 @@ export function listTenantUsers(
   params: PaginationParams = {},
   options?: ApiFetchOptions,
 ): Promise<Paginated<User>> {
-  return apiFetch(`/v1/admin/tenants/${tenantId}/users${buildQuery(params)}`, options)
+  return sessionApiFetch(`/v1/admin/tenants/${tenantId}/users${buildQuery(params)}`, options)
 }
 
 export function deleteAdminTenantUser(tenantId: string, userId: string): Promise<void> {
-  return apiFetch(`/v1/admin/tenants/${tenantId}/users/${userId}`, { method: 'DELETE' })
+  return sessionApiFetch(`/v1/admin/tenants/${tenantId}/users/${userId}`, {
+    method: 'DELETE',
+    responseType: 'empty',
+  })
 }
 
 export function createPasswordReset(
   tenantId: string,
   userId: string,
 ): Promise<PasswordResetLinkResponse> {
-  return apiFetch(`/v1/admin/tenants/${tenantId}/users/${userId}/reset-password`, {
+  return sessionApiFetch(`/v1/admin/tenants/${tenantId}/users/${userId}/reset-password`, {
     method: 'POST',
   })
 }
 
 export function createAdminInvite(body: AdminCreateInviteInput): Promise<CreateInviteResponse> {
-  return apiFetch('/v1/admin/invites', {
+  return sessionApiFetch('/v1/admin/invites', {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
 export function validateInvite(token: string): Promise<ValidateInviteResponse> {
-  return apiFetch(`/v1/auth/invites/validate${buildQuery({ token })}`, {
+  return sessionApiFetch(`/v1/auth/invites/validate${buildQuery({ token })}`, {
     skipAuthRedirect: true,
   })
 }
 
 export function acceptInvite(body: AcceptInviteInput): Promise<{ user: User }> {
-  return apiFetch('/v1/auth/accept-invite', {
+  return sessionApiFetch('/v1/auth/accept-invite', {
     method: 'POST',
     skipAuthRedirect: true,
     body: JSON.stringify(body),
@@ -312,22 +350,25 @@ export function acceptInvite(body: AcceptInviteInput): Promise<{ user: User }> {
 }
 
 export function validatePasswordReset(token: string): Promise<ValidatePasswordResetResponse> {
-  return apiFetch(`/v1/auth/password-reset/validate${buildQuery({ token })}`, {
+  return sessionApiFetch(`/v1/auth/password-reset/validate${buildQuery({ token })}`, {
     skipAuthRedirect: true,
   })
 }
 
 export function submitPasswordReset(body: PasswordResetInput): Promise<void> {
-  return apiFetch('/v1/auth/password-reset', {
+  return sessionApiFetch('/v1/auth/password-reset', {
+    responseType: 'empty',
     method: 'POST',
     skipAuthRedirect: true,
     body: JSON.stringify(body),
   })
 }
 
-export function createMyWorkspace(workspaceName: string): Promise<{ id: string; name: string }> {
-  return apiFetch('/v1/auth/workspace', {
+export function createMyWorkspace(body: {
+  workspace_name: string
+}): Promise<{ id: string; name: string }> {
+  return sessionApiFetch('/v1/auth/workspace', {
     method: 'POST',
-    body: JSON.stringify({ workspace_name: workspaceName }),
+    body: JSON.stringify(body),
   })
 }

@@ -17,7 +17,11 @@ function makeQueue() {
 describe('enqueueDeliveryJob', () => {
   it('adds when no job exists', async () => {
     const queue = makeQueue()
-    await enqueueDeliveryJob(queue.queue, 'delivery-1', 'tenant-1', 0)
+    await enqueueDeliveryJob(queue.queue, {
+      deliveryId: 'delivery-1',
+      tenantId: 'tenant-1',
+      replayCount: 0,
+    })
     expect(queue.add).toHaveBeenCalledWith(
       'deliver',
       { deliveryId: 'delivery-1', tenantId: 'tenant-1', replayCount: 0 },

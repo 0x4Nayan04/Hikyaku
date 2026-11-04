@@ -1,0 +1,150 @@
+import { Link } from 'react-router-dom'
+import { Activity, ArrowRight, ChevronRight, Package, RefreshCw, Send } from 'lucide-react'
+import type { DeliveryStatus, EventStatus } from '@/api/types'
+import { DataPanel } from '@/components/console/catalogs/DataPanel'
+import {
+  formatCreatedStacked,
+  formatDateTime,
+  formatDeliveryAttempts,
+  formatEventStatusLabel,
+  formatStatusLabel,
+} from '@/lib/format'
+import { cn } from '@/lib/utils'
+
+export type ActivityItem = {
+  id: string
+  kind: 'event' | 'delivery'
+  eventType: string
+  status: EventStatus | DeliveryStatus
+  to: string
+  createdAt: string
+  attemptCount?: number
+  replayCount?: number
+}
+
+type RecentActivityProps = {
+  items: ActivityItem[]
+  lastUpdated: string
+  isLive: boolean
+  onRefresh: () => void
+}
+
+function formatActivityMeta(item: ActivityItem): string {
+  const parts = [
+    item.kind === 'event' ? 'Event' : 'Delivery',
+    item.kind === 'event' ? formatEventStatusLabel(item.status) : formatStatusLabel(item.status),
+    formatDateTime(item.createdAt),
+  ]
+
+  if (item.attemptCount != null) {
+    parts.splice(
+      2,
+      0,
+      formatDeliveryAttempts({
+        attemptCount: item.attemptCount,
+        replayCount: item.replayCount ?? 0,
+      }),
+    )
+  }
+
+  return parts.join(' · ')
+}
+
+function ActivityRow({ item }: { item: ActivityItem }) {
+  const isEvent = item.kind === 'event'
+
+  return (
+    <Link to={item.to} className="dashboard-activity-row group">
+      <span
+        className={cn(
+          'dashboard-activity-row__icon',
+          isEvent
+            ? 'dashboard-activity-row__icon--event'
+            : 'dashboard-activity-row__icon--delivery',
+        )}
+        aria-hidden="true"
+      >
+        {isEvent ? (
+          <Send className="size-4" strokeWidth={1.75} />
+        ) : (
+          <Package className="size-4" strokeWidth={1.75} />
+        )}
+      </span>
+      <div className="dashboard-activity-row__main">
+        <p className="dashboard-activity-row__name">{item.eventType}</p>
+        <p className="dashboard-panel-row__hint">{formatActivityMeta(item)}</p>
+      </div>
+      <ChevronRight
+        className="size-4 shrink-0 text-muted-strong/40 transition-colors duration-150 group-hover:text-primary"
+        strokeWidth={2}
+        aria-hidden="true"
+      />
+    </Link>
+  )
+}
+
+function ActivityFooter({
+  isLive,
+  lastUpdated,
+  onRefresh,
+}: {
+  isLive: boolean
+  lastUpdated: string
+  onRefresh: () => void
+}) {
+  return (
+    <div className="dashboard-panel-footer">
+      <button type="button" onClick={onRefresh} className="ra-refresh-btn">
+        <RefreshCw className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
+        Refresh
+      </button>
+      <p className="dashboard-panel-footer__meta">
+        {isLive ? (
+          <>
+            <span className="dashboard-panel-footer__live" aria-hidden="true" />
+            Auto-refresh on
+            <span className="dashboard-panel-footer__sep" aria-hidden="true">
+              ·
+            </span>
+          </>
+        ) : null}
+        Last updated {formatCreatedStacked(lastUpdated).time}
+      </p>
+    </div>
+  )
+}
+
+export function RecentActivity({ items, lastUpdated, isLive, onRefresh }: RecentActivityProps) {
+  return (
+    <DataPanel
+      title="Recent activity"
+      description="Latest events and deliveries"
+      actions={
+        <Link to="/events" className="ra-cta-btn">
+          View all events
+          <ArrowRight className="size-3.5" aria-hidden="true" />
+        </Link>
+      }
+      empty={
+        items.length === 0 ? (
+          <div className="dashboard-activity-empty">
+            <span className="dashboard-activity-empty__icon" aria-hidden="true">
+              <Activity className="size-5" strokeWidth={1.75} />
+            </span>
+            <p>No recent events or deliveries yet.</p>
+          </div>
+        ) : undefined
+      }
+      emptyFlush
+      footer={<ActivityFooter isLive={isLive} lastUpdated={lastUpdated} onRefresh={onRefresh} />}
+    >
+      {items.length > 0 ? (
+        <div className="dashboard-activity-list">
+          {items.map((item) => (
+            <ActivityRow key={item.id} item={item} />
+          ))}
+        </div>
+      ) : null}
+    </DataPanel>
+  )
+}

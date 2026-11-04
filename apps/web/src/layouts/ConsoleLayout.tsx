@@ -3,17 +3,18 @@ import { Outlet } from 'react-router-dom'
 import { AppAside } from '@/components/app/AppAside'
 import { AppTopBar } from '@/components/app/AppTopBar'
 import { AppCatalogShell } from '@/components/app/AppCatalogShell'
-import { PageLoading } from '@/components/console/PageLoading'
-import { ScrollToTop } from '@/components/console/ScrollToTop'
+import { PageLoading } from '@/components/console/chrome/PageLoading'
+import { ScrollToTop } from '@/components/console/chrome/ScrollToTop'
+import { hasAdminAccess } from '@/lib/auth/auth-redirect'
 import { useSession } from '@/providers/session-context'
-import { PageBanner } from '@/components/console/PageBanner'
+import { PageBanner } from '@/components/console/chrome/PageBanner'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import '@/styles/console-bridge.css'
 
 export default function ConsoleLayout() {
   const mainRef = useRef<HTMLElement>(null)
   const { session, loading } = useSession()
-  const isSuperAdmin = session?.user.is_super_admin ?? false
+  const isSuperAdmin = hasAdminAccess(session?.user)
 
   return (
     <AppCatalogShell>

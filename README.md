@@ -119,6 +119,31 @@ e2e/             Playwright smoke tests
 deploy/          Production Compose stack + ops notes
 ```
 
+## Verification
+
+Run the static checks from the workspace root:
+
+```sh
+pnpm typecheck
+pnpm lint
+```
+
+The API and worker tests require explicit isolated resources: `TEST_DATABASE_URL`
+must name a PostgreSQL database ending in `_test`, `TEST_REDIS_URL` must select a
+dedicated Redis database greater than zero, and `TEST_RUN_ID` must be unique to the
+run. Unset application `DATABASE_URL` and `REDIS_URL`; tests never load development
+connections. Set test-only `ADMIN_BOOTSTRAP_SECRET` and `SESSION_SECRET` values too.
+Apply migrations to the isolated test database before running:
+
+```sh
+pnpm test:unit
+pnpm test:integration
+```
+
+The API integration cases are grouped by auth, tenancy, events, delivery, and
+platform behavior. Lifecycle tests use controlled collaborators; the worker retry
+integration also verifies a real BullMQ job retries automatically after HTTP 503.
+
 ## More detail
 
 Environment variables, delivery guarantees, health checks, scripts, and safe test setup live in **[deploy/README.md](deploy/README.md)** (ops & reference) and `.env.example` / `.env.test.example`.

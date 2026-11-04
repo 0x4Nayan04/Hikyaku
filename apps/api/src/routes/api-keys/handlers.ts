@@ -1,4 +1,4 @@
-import { generateApiKey, hashApiKey, prefixOf } from '@hikyaku/shared/crypto'
+import { generateApiKey, hashApiKey, apiKeyDisplayPrefix } from '@hikyaku/shared/crypto'
 import { apiKeys } from '@hikyaku/shared/schema'
 import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm'
 import type { Request, Response } from 'express'
@@ -60,7 +60,7 @@ export const createApiKey = asyncHandler(async (req: Request, res: Response) => 
     .values({
       tenantId: getTenantId(req),
       keyHash: hashApiKey(apiKey),
-      prefix: prefixOf(apiKey),
+      prefix: apiKeyDisplayPrefix(apiKey),
     })
     .returning(apiKeyColumns)
 
@@ -137,7 +137,7 @@ export const rotateApiKey = asyncHandler(async (req: Request, res: Response) => 
       .values({
         tenantId,
         keyHash: hashApiKey(apiKey),
-        prefix: prefixOf(apiKey),
+        prefix: apiKeyDisplayPrefix(apiKey),
       })
       .returning(apiKeyColumns)
 

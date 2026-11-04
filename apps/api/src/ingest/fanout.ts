@@ -1,8 +1,9 @@
+import type { DeliveryJobData } from '@hikyaku/shared/constants/queue'
 import { reevaluateEventStatus } from '@hikyaku/shared/eventStatus'
 import type * as schema from '@hikyaku/shared/schema'
 import { deliveries, deliveryOutbox, events } from '@hikyaku/shared/schema'
 import type { IngestEventInput } from '@hikyaku/shared/zod'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { isDeepStrictEqual } from 'node:util'
 import { getDb } from '../db/client.js'
@@ -30,7 +31,7 @@ export type EventRow = typeof events.$inferSelect
 
 type FanoutResult = {
   event: EventListRow
-  newDeliveryIds: string[]
+  jobs: DeliveryJobData[]
   isDuplicate: boolean
 }
 
@@ -129,8 +130,24 @@ export async function ingestFanout(
     }
 
     const newDeliveryIds = await insertDeliveries(tx, tenantId, event.id)
+    const jobs: DeliveryJobData[] = inserted
+      ? newDeliveryIds.map((deliveryId) => ({ deliveryId, tenantId, replayCount: 0 }))
+      : await tx
+          .select({
+            deliveryId: deliveries.id,
+            tenantId: deliveries.tenantId,
+            replayCount: deliveries.replayCount,
+          })
+          .from(deliveries)
+          .where(
+            and(
+              eq(deliveries.eventId, event.id),
+              eq(deliveries.tenantId, tenantId),
+              inArray(deliveries.status, ['pending', 'in_progress']),
+            ),
+          )
     const status = await reevaluateEventStatus(event.id, tx)
 
-    return { event: toListRow(event, status), newDeliveryIds, isDuplicate: !inserted }
+    return { event: toListRow(event, status), jobs, isDuplicate: !inserted }
   })
 }

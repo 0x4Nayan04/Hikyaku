@@ -1,4 +1,4 @@
-import { APP_NAME } from '@/lib/app-meta'
+import { APP_NAME } from '@/lib/meta/app-meta'
 
 /**
  * Packed stage — nodes fill the frame; spine at y=108.
