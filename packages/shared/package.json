@@ -57,12 +57,28 @@
       "default": "./dist/logger.js"
     },
     "./testEnv": {
-      "types": "./dist/testEnv.d.ts",
-      "default": "./dist/testEnv.js"
+      "types": "./dist/testing/testEnv.d.ts",
+      "default": "./dist/testing/testEnv.js"
     },
     "./redis": {
       "types": "./dist/redis.d.ts",
       "default": "./dist/redis.js"
+    },
+    "./constants/auth": {
+      "types": "./dist/constants/auth.d.ts",
+      "default": "./dist/constants/auth.js"
+    },
+    "./constants/config": {
+      "types": "./dist/constants/config.d.ts",
+      "default": "./dist/constants/config.js"
+    },
+    "./constants/queue": {
+      "types": "./dist/constants/queue.d.ts",
+      "default": "./dist/constants/queue.js"
+    },
+    "./constants/status": {
+      "types": "./dist/constants/status.d.ts",
+      "default": "./dist/constants/status.js"
     }
   },
   "scripts": {
@@ -72,7 +88,6 @@
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
-    "bullmq": "^5.34.5",
     "drizzle-orm": "^0.45.2",
     "pg": "^8.13.1",
     "pino": "^9.6.0",
@@ -83,6 +98,10 @@
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "bullmq": "^5.34.5"
+  },
+  "peerDependencies": {
+    "bullmq": "^5.34.5"
   }
 }
