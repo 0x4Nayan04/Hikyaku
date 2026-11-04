@@ -1,7 +1,7 @@
 import { HikyakuMark } from '@/components/auth/HikyakuMark'
 import { LandingFrameInner } from '@/components/landing/LandingFrameInner'
 import { DotPattern } from '@/components/ui/dot-pattern'
-import { APP_HOME_LABEL, APP_NAME, PRODUCT_LINKS, PUBLIC_LINKS } from '@/lib/meta/app-meta'
+import { APP_NAME, PRODUCT_LINKS, PUBLIC_LINKS } from '@/lib/meta/app-meta'
 import { ArrowUpRight } from 'lucide-react'
 import type { MouseEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
@@ -95,18 +95,15 @@ export function LandingFooter() {
       <LandingFrameInner className="lp-footer__inner">
         <div className="lp-footer__top">
           <div className="lp-footer__brand">
-            <Link
-              to={PRODUCT_LINKS.home}
-              aria-label={APP_HOME_LABEL}
-              className="lp-footer__identity focus-ring"
-            >
+            <Link to={PRODUCT_LINKS.home} className="lp-footer__identity focus-ring">
               <HikyakuMark decorative className="lp-footer__mark size-9" />
               <span className="lp-footer__name">
                 <strong>{APP_NAME}</strong>
-                <em lang="ja" aria-hidden="true">
+                <em lang="ja">
                   飛脚
                 </em>
               </span>
+              <span className="sr-only"> — home</span>
             </Link>
             <p>Reliable, self-hosted webhook delivery.</p>
           </div>
