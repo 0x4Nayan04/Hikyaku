@@ -164,15 +164,32 @@ describe('minimal super-admin tenant management', () => {
     }
   })
 
-  it('renames a tenant', async () => {
-    const name = `Renamed-${randomUUID().slice(0, 8)}`
-    const response = await (
-      await loginSuperAdmin()
-    )
-      .patch(`/v1/admin/tenants/${existingTenantId}`)
-      .send({ tenant_name: name })
-    expect(response.status).toBe(200)
-    expect(response.body.name).toBe(name)
+  it('renames a tenant and exposes the fresh name to an existing session', async () => {
+    const user = await createUser({ tenantId: existingTenantId })
+    try {
+      const tenantAgent = request.agent(app)
+      expect(
+        (
+          await tenantAgent.post('/v1/auth/login').send({
+            email: user.email,
+            password: user.password,
+          })
+        ).status,
+      ).toBe(200)
+      const name = `Renamed-${randomUUID().slice(0, 8)}`
+      const response = await (
+        await loginSuperAdmin()
+      )
+        .patch(`/v1/admin/tenants/${existingTenantId}`)
+        .send({ tenant_name: name })
+      expect(response.status).toBe(200)
+      expect(response.body.name).toBe(name)
+      const me = await tenantAgent.get('/v1/auth/me')
+      expect(me.status).toBe(200)
+      expect(me.body.tenant).toMatchObject({ id: existingTenantId, name })
+    } finally {
+      await deleteUser(user.userId)
+    }
   })
 
   it('does not expose direct tenant or user creation', async () => {

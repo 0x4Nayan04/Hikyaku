@@ -91,9 +91,17 @@ export async function findInviteByToken(token: string): Promise<InviteRow | null
 
 export const PASSWORD_RESET_KIND = INVITE_KINDS.PASSWORD_RESET
 
+function usedTokenError(passwordReset: boolean): AppError {
+  return new AppError(
+    410,
+    passwordReset ? 'reset_used' : 'invite_used',
+    passwordReset ? 'This reset link has already been used' : 'Invite has already been used',
+  )
+}
+
 export function assertInviteUsable(invite: InviteRow): void {
   if (invite.acceptedAt) {
-    throw new AppError(410, 'invite_used', 'Invite has already been used')
+    throw usedTokenError(false)
   }
 
   if (invite.expiresAt.getTime() <= Date.now()) {
@@ -107,10 +115,33 @@ export function assertPasswordResetUsable(invite: InviteRow): void {
   }
 
   if (invite.acceptedAt) {
-    throw new AppError(410, 'reset_used', 'This reset link has already been used')
+    throw usedTokenError(true)
   }
 
   if (invite.expiresAt.getTime() <= Date.now()) {
     throw new AppError(410, 'reset_expired', 'This reset link has expired')
   }
+}
+
+/** Consume in the caller's transaction so later business failures roll the token back. */
+export async function consumeInvite(invite: InviteRow, tx: Tx): Promise<void> {
+  const [consumed] = await tx
+    .update(invites)
+    .set({ acceptedAt: new Date() })
+    .where(
+      and(eq(invites.id, invite.id), isNull(invites.acceptedAt), gt(invites.expiresAt, new Date())),
+    )
+    .returning({ id: invites.id })
+  if (consumed) return
+
+  const [current] = await tx
+    .select({ acceptedAt: invites.acceptedAt, expiresAt: invites.expiresAt, kind: invites.kind })
+    .from(invites)
+    .where(eq(invites.id, invite.id))
+    .limit(1)
+  const assertUsable =
+    invite.kind === PASSWORD_RESET_KIND ? assertPasswordResetUsable : assertInviteUsable
+  if (current) assertUsable({ ...invite, ...current })
+  // A missing row (or an otherwise unclassified lost race) is already consumed.
+  throw usedTokenError(invite.kind === PASSWORD_RESET_KIND)
 }

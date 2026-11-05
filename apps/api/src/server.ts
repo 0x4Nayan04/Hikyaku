@@ -58,7 +58,7 @@ export function createApp(): Application {
   app.use('/v1', statsRouter)
   app.use('/v1', apiKeysRouter)
   app.use('/v1', endpointsRouter)
-  app.use('/v1', eventsRouter)
+  app.use('/', eventsRouter)
   app.use('/v1', deliveriesRouter)
   app.use('/v1/admin', adminRouter)
 

@@ -1,13 +1,14 @@
-import { invites, users } from '@hikyaku/shared/schema'
+import { users } from '@hikyaku/shared/schema'
 import { hashPassword } from '@hikyaku/shared/password'
 import { passwordResetSchema } from '@hikyaku/shared/zod'
-import { and, eq, gt, isNull } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import type { Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
 import {
   assertPasswordResetUsable,
+  consumeInvite,
   findInviteByToken,
   userEmailMatches,
 } from '../../auth/invites.js'
@@ -48,38 +49,7 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   const db = getDb()
 
   await db.transaction(async (tx) => {
-    const [consumed] = await tx
-      .update(invites)
-      .set({ acceptedAt: new Date() })
-      .where(
-        and(
-          eq(invites.id, invite.id),
-          isNull(invites.acceptedAt),
-          gt(invites.expiresAt, new Date()),
-        ),
-      )
-      .returning({ id: invites.id })
-
-    if (!consumed) {
-      const [current] = await tx
-        .select({
-          acceptedAt: invites.acceptedAt,
-          expiresAt: invites.expiresAt,
-          kind: invites.kind,
-        })
-        .from(invites)
-        .where(eq(invites.id, invite.id))
-        .limit(1)
-      if (current) {
-        assertPasswordResetUsable({
-          ...invite,
-          acceptedAt: current.acceptedAt,
-          expiresAt: current.expiresAt,
-          kind: current.kind,
-        })
-      }
-      throw new AppError(410, 'reset_used', 'This reset link has already been used')
-    }
+    await consumeInvite(invite, tx)
 
     const [user] = await tx
       .select({ id: users.id, tenantId: users.tenantId })
