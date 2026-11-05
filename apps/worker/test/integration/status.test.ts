@@ -52,7 +52,8 @@ async function getEventStatus(eventId: string): Promise<string> {
 
 describe('reevaluateEventStatus', () => {
   afterAll(async () => {
-    if (seededTenantIds.length) await getDb().delete(tenants).where(inArray(tenants.id, seededTenantIds))
+    if (seededTenantIds.length)
+      await getDb().delete(tenants).where(inArray(tenants.id, seededTenantIds))
     await closePool()
   })
 
@@ -89,7 +90,7 @@ describe('reevaluateEventStatus', () => {
   it('sets no_recipients when there are zero deliveries', async () => {
     const db = getDb()
     const [tenant] = await db.insert(tenants).values({ name: 'Status Zero' }).returning()
-  seededTenantIds.push(tenant.id)
+    seededTenantIds.push(tenant.id)
     const [event] = await db
       .insert(events)
       .values({
@@ -107,10 +108,14 @@ describe('reevaluateEventStatus', () => {
   it('does not leave a stale rollup when two deliveries finish together', async () => {
     const { eventId } = await seedEventWithDeliveries(['pending', 'pending'])
     const rows = await getDb().select().from(deliveries).where(eq(deliveries.eventId, eventId))
-    await Promise.all(rows.map(row => getDb().transaction(async tx => {
-      await tx.update(deliveries).set({ status: 'succeeded' }).where(eq(deliveries.id, row.id))
-      await reevaluateEventStatus(eventId, tx)
-    })))
+    await Promise.all(
+      rows.map((row) =>
+        getDb().transaction(async (tx) => {
+          await tx.update(deliveries).set({ status: 'succeeded' }).where(eq(deliveries.id, row.id))
+          await reevaluateEventStatus(eventId, tx)
+        }),
+      ),
+    )
     expect(await getEventStatus(eventId)).toBe('completed')
   })
 

@@ -133,7 +133,7 @@ export async function postWithTimeout(
   headers: Record<string, string>,
   timeoutMs: number,
   allowPrivate = false,
-): Promise<{ status: number; body: string; durationMs: number }> {
+): Promise<{ status: number; body: string }> {
   const start = Date.now()
   const signal = AbortSignal.timeout(timeoutMs)
   let currentUrl = url
@@ -148,7 +148,7 @@ export async function postWithTimeout(
 
     const result = await requestOnce(target, body, headers, signal)
     if (result.status < 300 || result.status >= 400 || !result.location) {
-      return { status: result.status, body: result.body, durationMs: Date.now() - start }
+      return { status: result.status, body: result.body }
     }
     if (redirects >= MAX_REDIRECTS) {
       throw new WebhookTransportError('too_many_redirects')

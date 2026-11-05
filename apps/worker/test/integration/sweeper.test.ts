@@ -277,7 +277,11 @@ describe('sweepOrphanDeliveries', () => {
 
   it('skips deliveries that already have an in-flight queue job', async () => {
     const seeded = await seedPendingDelivery()
-    await enqueueDeliveryJob(queue, seeded.id, seeded.tenantId, 0)
+    await enqueueDeliveryJob(queue, {
+      deliveryId: seeded.id,
+      tenantId: seeded.tenantId,
+      replayCount: 0,
+    })
 
     await sweepOrphanDeliveries(queue)
 
@@ -299,7 +303,11 @@ describe('sweepOrphanDeliveries', () => {
 
   it('re-enqueues after a previous BullMQ job failed', async () => {
     const seeded = await seedPendingDelivery()
-    await enqueueDeliveryJob(queue, seeded.id, seeded.tenantId, 0)
+    await enqueueDeliveryJob(queue, {
+      deliveryId: seeded.id,
+      tenantId: seeded.tenantId,
+      replayCount: 0,
+    })
 
     const worker = new Worker(queue.name, null, {
       connection: getRedisConnectionOptions(),
