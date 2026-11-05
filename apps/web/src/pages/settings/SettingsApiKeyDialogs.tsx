@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { Copy, KeyRound, ShieldCheck, TriangleAlert } from 'lucide-react'
 import type { ApiKey, ApiKeyWithSecret } from '@/api/types'
 import { Button } from '@/components/ui/button'
@@ -10,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { SecretOnceConfirm } from '@/components/ui/secret-once-confirm'
+import { SecretOnceDialog } from '@/components/ui/secret-once-dialog'
 import { SecretReveal } from '@/components/ui/secret-reveal'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { PUBLIC_API_BASE } from '@/api/client'
@@ -35,104 +34,73 @@ export function SettingsApiKeyDialogs({
   onRevoke,
 }: SettingsApiKeyDialogsProps) {
   const ingestCurl = secretKey ? buildIngestCurl(secretKey.api_key, PUBLIC_API_BASE) : null
-  const [secretSaved, setSecretSaved] = useState(false)
-
-  useEffect(() => {
-    setSecretSaved(false)
-  }, [secretKey?.id])
-
-  function dismissSecret() {
-    onSecretKeyChange(null)
-    setSecretSaved(false)
-  }
 
   return (
     <>
-      <Dialog
+      <SecretOnceDialog
         open={secretKey !== null}
-        onOpenChange={(open) => {
-          if (!open && secretSaved) dismissSecret()
-        }}
+        secret={secretKey?.api_key ?? null}
+        onClose={() => onSecretKeyChange(null)}
+        downloadFilename={`hikyaku-api-key-${secretKey?.prefix}.txt`}
+        className="gap-0 overflow-y-auto p-0 sm:max-w-lg"
+        footerClassName="mx-0 mb-0 mt-0"
       >
-        <DialogContent
-          className="gap-0 overflow-y-auto p-0 sm:max-w-lg"
-          showCloseButton={false}
-          onEscapeKeyDown={(event) => {
-            if (!secretSaved) event.preventDefault()
-          }}
-          onPointerDownOutside={(event) => {
-            if (!secretSaved) event.preventDefault()
-          }}
-        >
-          <div className="flex gap-3 border-b border-border bg-surface-muted/40 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5 pr-12">
-            <div className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface text-primary">
-              <KeyRound className="size-4" aria-hidden="true" />
-            </div>
-            <DialogHeader className="gap-1.5 text-left">
-              <DialogTitle className="text-lg leading-tight">Your API key is ready</DialogTitle>
-              <DialogDescription className="text-muted-strong">
-                This is the only time the full key will be shown. Confirm you’ve saved it before
-                closing.
-              </DialogDescription>
-            </DialogHeader>
+        <div className="flex gap-3 border-b border-border bg-surface-muted/40 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5 pr-12">
+          <div className="flex size-9 shrink-0 items-center justify-center border border-border bg-surface text-primary">
+            <KeyRound className="size-4" aria-hidden="true" />
           </div>
+          <DialogHeader className="gap-1.5 text-left">
+            <DialogTitle className="text-lg leading-tight">Your API key is ready</DialogTitle>
+            <DialogDescription className="text-muted-strong">
+              This is the only time the full key will be shown. Confirm you’ve saved it before
+              closing.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-          <div className="flex flex-col gap-4 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5">
-            {secretKey ? (
-              <SecretReveal
-                value={secretKey.api_key}
-                hint="This key only sends events. Managing endpoints, creating keys, viewing deliveries, and replaying require your signed-in session."
-                onCopy={() => void copyToClipboard(secretKey.api_key, 'API key')}
-                copyLabel="Copy key"
-              />
-            ) : null}
+        <div className="flex flex-col gap-4 px-[clamp(1.25rem,4vw,var(--space-s2))] py-5">
+          {secretKey ? (
+            <SecretReveal
+              value={secretKey.api_key}
+              hint="This key only sends events. Managing endpoints, creating keys, viewing deliveries, and replaying require your signed-in session."
+              onCopy={() => void copyToClipboard(secretKey.api_key, 'API key')}
+              copyLabel="Copy key"
+            />
+          ) : null}
 
-            {ingestCurl ? (
-              <div className="settings-ingest-curl">
-                <div className="settings-ingest-curl__bar">
-                  <span className="settings-ingest-curl__label">
-                    Send an event from your terminal.
-                  </span>
-                  <span className="settings-ingest-curl__hint">
-                    Copy into your terminal — key is already filled in.
-                  </span>
-                </div>
-                <pre className="settings-ingest-curl__code">{ingestCurl}</pre>
-                <Button
-                  size="sm"
-                  type="button"
-                  variant="secondary"
-                  className="self-start"
-                  onClick={() => void copyToClipboard(ingestCurl, 'curl command')}
-                >
-                  <Copy className="size-3.5" aria-hidden="true" />
-                  Copy curl
-                </Button>
+          {ingestCurl ? (
+            <div className="settings-ingest-curl">
+              <div className="settings-ingest-curl__bar">
+                <span className="settings-ingest-curl__label">
+                  Send an event from your terminal.
+                </span>
+                <span className="settings-ingest-curl__hint">
+                  Copy into your terminal — key is already filled in.
+                </span>
               </div>
-            ) : null}
+              <pre className="settings-ingest-curl__code">{ingestCurl}</pre>
+              <Button
+                size="sm"
+                type="button"
+                variant="secondary"
+                className="self-start"
+                onClick={() => void copyToClipboard(ingestCurl, 'curl command')}
+              >
+                <Copy className="size-3.5" aria-hidden="true" />
+                Copy curl
+              </Button>
+            </div>
+          ) : null}
 
-            <Alert>
-              <ShieldCheck aria-hidden="true" />
-              <AlertTitle>Store it somewhere secure</AlertTitle>
-              <AlertDescription>
-                Treat this key like a password. If it is exposed, revoke it and create a new one.
-              </AlertDescription>
-            </Alert>
-          </div>
-
-          <DialogFooter className="mx-0 mb-0 mt-0">
-            {secretKey ? (
-              <SecretOnceConfirm
-                confirmed={secretSaved}
-                onConfirmedChange={setSecretSaved}
-                secret={secretKey.api_key}
-                downloadFilename={`hikyaku-api-key-${secretKey.prefix}.txt`}
-                onDone={dismissSecret}
-              />
-            ) : null}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <Alert>
+            <ShieldCheck aria-hidden="true" />
+            <AlertTitle>Store it somewhere secure</AlertTitle>
+            <AlertDescription>
+              Treat this key like a password. If it is exposed, revoke it and create a new one.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </SecretOnceDialog>
 
       <Dialog
         open={revokeTarget !== null}

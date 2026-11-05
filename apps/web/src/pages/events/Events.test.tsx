@@ -155,3 +155,42 @@ it('restores matching rows on return but does not reuse them for a different sta
   await renderEvents('/events?status=failed')
   expect(container.textContent).not.toContain('order.created')
 })
+
+it('refreshes stale event rows immediately on tab return, without hidden polling or duplicate loads', async () => {
+  vi.useFakeTimers()
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+  vi.mocked(listEvents)
+    .mockResolvedValueOnce(emptyPage)
+    .mockResolvedValue(page([event]))
+  await renderEvents()
+  expect(container.textContent).toContain('No events yet')
+
+  await act(async () => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS * 3)
+  })
+  expect(listEvents).toHaveBeenCalledTimes(1)
+
+  await act(async () => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+    document.dispatchEvent(new Event('visibilitychange'))
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  expect(listEvents).toHaveBeenCalledTimes(2)
+  expect(container.textContent).toContain('order.created')
+})
+
+it.each(['pending', 'completed', 'partial_failure', 'failed', 'no_recipients', 'all', 'invalid'])(
+  'preserves event status filter %s',
+  async (status) => {
+    vi.mocked(listEvents).mockResolvedValue(emptyPage)
+    await renderEvents(`/events?status=${status}`)
+    expect(listEvents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: status === 'all' || status === 'invalid' ? undefined : status,
+      }),
+      expect.anything(),
+    )
+  },
+)

@@ -1,9 +1,9 @@
 import { SettingsApiKeyDialogs } from './SettingsApiKeyDialogs'
 import { SettingsApiKeysTab } from './SettingsApiKeysTab'
-import { useSettingsPage } from './useSettingsPage'
+import { useApiKeys } from './useApiKeys'
 
 export function SettingsApiKeysSection() {
-  const state = useSettingsPage()
+  const state = useApiKeys()
   return (
     <>
       <SettingsApiKeysTab

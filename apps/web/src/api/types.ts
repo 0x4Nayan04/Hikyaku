@@ -26,13 +26,6 @@ export type Endpoint = EndpointJson
 export type EndpointWithSecret = EndpointWithSecretJson
 export type EndpointLastDelivery = EndpointLastDeliveryJson
 
-export type ApiErrorBody = {
-  error?: {
-    code?: string
-    message?: string
-  }
-}
-
 export type PaginationParams = {
   limit?: number
   offset?: number

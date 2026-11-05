@@ -1,3 +1,4 @@
+import { isWorkspaceActionAvailable, SEND_EVENT_ACTION } from '@/lib/workspace-actions'
 import { Link } from 'react-router-dom'
 import { ChevronRight, Package, Send, Webhook, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -5,6 +6,7 @@ import { useReadOnlyWorkspace } from '@/providers/session-context'
 
 type QuickAction = {
   to: string
+  requiresWrite?: boolean
   icon: LucideIcon
   tone: 'info' | 'success' | 'neutral'
   title: string
@@ -13,7 +15,7 @@ type QuickAction = {
 
 const actions: QuickAction[] = [
   {
-    to: '/events/send',
+    ...SEND_EVENT_ACTION,
     icon: Send,
     tone: 'info',
     title: 'Test event',
@@ -46,7 +48,7 @@ export function DashboardQuickActions() {
   return (
     <div className="dashboard-activity-list">
       {actions
-        .filter((action) => !readOnly || action.to !== '/events/send')
+        .filter((action) => isWorkspaceActionAvailable(action, readOnly))
         .map((action) => {
           const Icon = action.icon
           return (

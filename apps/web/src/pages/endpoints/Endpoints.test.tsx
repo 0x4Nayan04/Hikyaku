@@ -125,3 +125,16 @@ it('clears saved endpoint and dashboard results after changing endpoint status, 
   expect(pageCache.dashboard.generation).toBe(1)
   expect(pageCache.endpoints.read(JSON.stringify(['active', 0, 25]))).toBeUndefined()
 })
+
+it.each(['active', 'disabled', 'all', 'invalid'])(
+  'preserves endpoint status filter %s',
+  async (status) => {
+    await renderEndpoints(`/endpoints?status=${status}`)
+    expect(listEndpoints).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: status === 'all' ? undefined : status === 'invalid' ? 'active' : status,
+      }),
+      expect.anything(),
+    )
+  },
+)

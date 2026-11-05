@@ -1,16 +1,8 @@
-import { useEffect, useState } from 'react'
 import { Copy } from 'lucide-react'
 import { PageBanner } from '@/components/console/chrome/PageBanner'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { SecretOnceConfirm } from '@/components/ui/secret-once-confirm'
+import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { SecretOnceDialog } from '@/components/ui/secret-once-dialog'
 import { formatDateTime } from '@/lib/format'
 import { copyToClipboard } from '@/lib/clipboard'
 
@@ -33,18 +25,6 @@ export function InviteUrlDialog({
   description = 'Copy this link now and send it to the invitee. The server cannot show it again after you close this dialog.',
   copyLabel = 'Invite link',
 }: InviteUrlDialogProps) {
-  const [saved, setSaved] = useState(false)
-
-  useEffect(() => {
-    setSaved(false)
-  }, [inviteUrl, open])
-
-  function dismiss() {
-    if (!saved) return
-    onOpenChange(false)
-    setSaved(false)
-  }
-
   async function copyInviteUrl() {
     if (!inviteUrl) {
       return
@@ -54,77 +34,50 @@ export function InviteUrlDialog({
   }
 
   return (
-    <Dialog
+    <SecretOnceDialog
       open={open}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen && saved) dismiss()
-      }}
+      secret={inviteUrl}
+      onClose={() => onOpenChange(false)}
+      downloadFilename="hikyaku-invite-link.txt"
+      confirmLabel="I’ve copied this link somewhere I can send it"
     >
-      <DialogContent
-        className="gap-0 p-0 sm:max-w-lg"
-        showCloseButton={false}
-        onEscapeKeyDown={(event) => {
-          if (!saved) event.preventDefault()
-        }}
-        onPointerDownOutside={(event) => {
-          if (!saved) event.preventDefault()
-        }}
-      >
-        <div className="catalog-dialog-secret px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))] pb-4">
-          <DialogHeader className="gap-1.5 text-left">
-            <DialogTitle className="catalog-dialog-secret__title">{title}</DialogTitle>
-            <DialogDescription className="catalog-dialog-secret__desc">
-              {description}
-            </DialogDescription>
-          </DialogHeader>
+      <div className="catalog-dialog-secret px-[clamp(1.25rem,4vw,var(--space-s2))] pt-[clamp(1.25rem,4vw,var(--space-s2))] pb-4">
+        <DialogHeader className="gap-1.5 text-left">
+          <DialogTitle className="catalog-dialog-secret__title">{title}</DialogTitle>
+          <DialogDescription className="catalog-dialog-secret__desc">
+            {description}
+          </DialogDescription>
+        </DialogHeader>
 
-          {inviteUrl ? (
-            <div className="flex flex-col gap-4">
-              <PageBanner
-                variant="info"
-                title="Shown once"
-                description={
-                  expiresAt
-                    ? `Link expires ${formatDateTime(expiresAt)}. Treat it like a password.`
-                    : 'Treat this link like a password.'
-                }
-              />
-
-              <div className="flex items-center gap-2 border border-border bg-muted/30 p-3">
-                <code className="flex-1 overflow-x-auto font-mono text-xs break-all text-foreground">
-                  {inviteUrl}
-                </code>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="shrink-0 px-2.5"
-                  onClick={copyInviteUrl}
-                  aria-label={`Copy ${copyLabel.toLowerCase()}`}
-                >
-                  <Copy className="size-4" />
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <DialogFooter className="mx-0 mb-0 mt-0 border-t border-border bg-muted/6 px-[clamp(1.25rem,4vw,var(--space-s2))] py-3">
-          {inviteUrl ? (
-            <SecretOnceConfirm
-              confirmed={saved}
-              onConfirmedChange={setSaved}
-              secret={inviteUrl}
-              downloadFilename="hikyaku-invite-link.txt"
-              confirmLabel="I’ve copied this link somewhere I can send it"
-              onDone={dismiss}
+        {inviteUrl ? (
+          <div className="flex flex-col gap-4">
+            <PageBanner
+              variant="info"
+              title="Shown once"
+              description={
+                expiresAt
+                  ? `Link expires ${formatDateTime(expiresAt)}. Treat it like a password.`
+                  : 'Treat this link like a password.'
+              }
             />
-          ) : (
-            <Button type="button" onClick={() => onOpenChange(false)}>
-              Done
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+
+            <div className="flex items-center gap-2 border border-border bg-muted/30 p-3">
+              <code className="flex-1 overflow-x-auto font-mono text-xs break-all text-foreground">
+                {inviteUrl}
+              </code>
+              <Button
+                type="button"
+                variant="secondary"
+                className="shrink-0 px-2.5"
+                onClick={copyInviteUrl}
+                aria-label={`Copy ${copyLabel.toLowerCase()}`}
+              >
+                <Copy className="size-4" />
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </SecretOnceDialog>
   )
 }

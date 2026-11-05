@@ -1,3 +1,4 @@
+import { isWorkspaceActionAvailable, SEND_EVENT_ACTION } from '@/lib/workspace-actions'
 import { usePageCache } from '@/providers/page-cache-context'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 import { Navigate } from 'react-router-dom'
@@ -84,7 +85,10 @@ type EventFormState = {
   result: IngestEventResponse | null
 }
 
-type EventFormAction = { type: 'update'; changes: Partial<EventFormState> } | { type: 'reset' }
+type EventFormAction =
+  | { type: 'update'; changes: Partial<EventFormState> }
+  | { type: 'status'; id: string; status: EventStatus }
+  | { type: 'reset' }
 
 function createInitialFormState(): EventFormState {
   return {
@@ -99,11 +103,21 @@ function createInitialFormState(): EventFormState {
 }
 
 function eventFormReducer(state: EventFormState, action: EventFormAction): EventFormState {
-  return action.type === 'reset' ? createInitialFormState() : { ...state, ...action.changes }
+  if (action.type === 'reset') return createInitialFormState()
+  if (action.type === 'status') {
+    return state.result?.id === action.id
+      ? { ...state, result: { ...state.result, status: action.status } }
+      : state
+  }
+  return { ...state, ...action.changes }
 }
 
 export default function SendEvent() {
-  return useReadOnlyWorkspace() ? <Navigate to="/events" replace /> : <SendEventPage />
+  return isWorkspaceActionAvailable(SEND_EVENT_ACTION, useReadOnlyWorkspace()) ? (
+    <SendEventPage />
+  ) : (
+    <Navigate to="/events" replace />
+  )
 }
 
 function SendEventPage() {
@@ -173,30 +187,39 @@ function SendEventPage() {
   }
 
   const accepted = form.result
-  const mountedRef = useRef(true)
-  useEffect(() => {
-    mountedRef.current = true
-    return () => {
-      mountedRef.current = false
-    }
-  }, [])
-
+  const acceptedId = accepted?.id
+  const statusAbortRef = useRef<AbortController | null>(null)
+  const [statusError, setStatusError] = useState<string | null>(null)
   const refreshAcceptedEvent = useCallback(async () => {
-    if (!accepted || !isOpenEventStatus(accepted.status)) return
-    const event = await getEvent(accepted.id)
-    if (!mountedRef.current || event.status === accepted.status) return
-    dispatch({
-      type: 'update',
-      changes: { result: { ...accepted, status: event.status } },
-    })
-  }, [accepted])
+    if (!acceptedId || statusAbortRef.current) return
+    const controller = new AbortController()
+    statusAbortRef.current = controller
+    try {
+      const event = await getEvent(acceptedId, { signal: controller.signal })
+      if (controller.signal.aborted) return
+      setStatusError(null)
+      dispatch({ type: 'status', id: acceptedId, status: event.status })
+    } catch (err) {
+      if (controller.signal.aborted) return
+      setStatusError(err instanceof ApiError ? err.message : 'Failed to refresh event status')
+    } finally {
+      if (statusAbortRef.current === controller) statusAbortRef.current = null
+    }
+  }, [acceptedId])
 
+  const hasOpenAcceptedEvent = accepted !== null && isOpenEventStatus(accepted.status)
   useEffect(() => {
+    setStatusError(null)
+    if (!hasOpenAcceptedEvent) return
     void refreshAcceptedEvent()
-  }, [refreshAcceptedEvent])
+    return () => {
+      statusAbortRef.current?.abort()
+      statusAbortRef.current = null
+    }
+  }, [hasOpenAcceptedEvent, refreshAcceptedEvent])
 
   usePolling({
-    enabled: accepted !== null && isOpenEventStatus(accepted.status),
+    enabled: hasOpenAcceptedEvent,
     intervalMs: POLL_FAST_MS,
     refreshOnVisible: true,
     onPoll: refreshAcceptedEvent,
@@ -243,6 +266,13 @@ function SendEventPage() {
 
       {gate.status === 'ready' && gate.canSend ? (
         <>
+          {statusError ? (
+            <PageBanner
+              variant="error"
+              title="Could not update event status"
+              description={`${statusError}. Status will retry automatically.`}
+            />
+          ) : null}
           {form.result ? (
             <DataPanel
               title="Accepted event"

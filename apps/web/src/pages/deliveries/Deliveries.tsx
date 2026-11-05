@@ -1,3 +1,6 @@
+import { DELIVERY_STATUSES } from '@hikyaku/shared/constants'
+import { useReadOnlyWorkspace } from '@/providers/session-context'
+import { isWorkspaceActionAvailable, SEND_EVENT_ACTION } from '@/lib/workspace-actions'
 import { usePageCache } from '@/providers/page-cache-context'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search, Send, X } from 'lucide-react'
@@ -30,30 +33,15 @@ import { POLL_FAST_MS, POLL_SLOW_MS } from '@/lib/ui-timing'
 
 type DeliveryListStatus = 'all' | DeliveryStatus | 'open'
 
-const STATUS_OPTIONS: Array<{ value: DeliveryListStatus; label: string }> = [
-  { value: 'all', label: 'All statuses' },
-  { value: 'open', label: 'Open' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'in_progress', label: formatStatusLabel('in_progress') },
-  { value: 'succeeded', label: 'Succeeded' },
-  { value: 'failed', label: 'Failed' },
-]
+const STATUS_OPTIONS = ['all', 'open', ...DELIVERY_STATUSES] as const
 
 function parseStatusParam(value: string | null): DeliveryListStatus {
-  if (
-    value === 'open' ||
-    value === 'pending' ||
-    value === 'in_progress' ||
-    value === 'succeeded' ||
-    value === 'failed'
-  ) {
-    return value
-  }
-  return 'all'
+  return STATUS_OPTIONS.find((status) => status === value) ?? 'all'
 }
 
 export default function Deliveries() {
   const pageCache = usePageCache()
+  const canSend = isWorkspaceActionAvailable(SEND_EVENT_ACTION, useReadOnlyWorkspace())
   const [searchParams, setSearchParams] = useSearchParams()
   const eventIdFilter = searchParams.get('event_id') || undefined
   const statusFilter = parseStatusParam(searchParams.get('status'))
@@ -151,10 +139,17 @@ export default function Deliveries() {
         description={
           <>
             Deliveries appear here after you send an event.{' '}
-            <Link to="/events/send" className="font-medium text-primary hover:underline">
-              Send a test event
-            </Link>
-            .
+            {canSend ? (
+              <>
+                <Link
+                  to={SEND_EVENT_ACTION.to}
+                  className="font-medium text-primary hover:underline"
+                >
+                  Send a test event
+                </Link>
+                .
+              </>
+            ) : null}
           </>
         }
       />
@@ -200,9 +195,9 @@ export default function Deliveries() {
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
-          {STATUS_OPTIONS.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
+          {STATUS_OPTIONS.map((status) => (
+            <SelectItem key={status} value={status}>
+              {status === 'all' ? 'All statuses' : formatStatusLabel(status)}
             </SelectItem>
           ))}
         </SelectContent>

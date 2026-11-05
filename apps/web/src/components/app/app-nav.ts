@@ -1,3 +1,4 @@
+import { isWorkspaceActionAvailable, SEND_EVENT_ACTION } from '@/lib/workspace-actions'
 import type { LucideIcon } from 'lucide-react'
 import { LayoutDashboard, List, Package, Send, Settings, Shield, Webhook } from 'lucide-react'
 
@@ -8,6 +9,7 @@ export type AppNavItem = {
   description?: string
   superAdminOnly?: boolean
   tenantOnly?: boolean
+  requiresWrite?: boolean
 }
 
 type AppNavSection = {
@@ -25,7 +27,7 @@ export function filterNavSections(
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
-        if (readOnly && item.to === '/events/send') return false
+        if (!isWorkspaceActionAvailable(item, readOnly)) return false
         if (item.superAdminOnly && !isSuperAdmin) return false
         if (item.tenantOnly && !hasWorkspace) return false
         return true
@@ -99,7 +101,7 @@ const appNavSections: AppNavSection[] = [
     items: [
       {
         title: 'Test event',
-        to: '/events/send',
+        ...SEND_EVENT_ACTION,
         icon: Send,
         description: 'Send a real test webhook',
         tenantOnly: true,
