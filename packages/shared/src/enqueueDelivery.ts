@@ -5,35 +5,18 @@ export function deliveryJobDedupId(deliveryId: string, replayCount: number): str
   return `${deliveryId}:${replayCount}`
 }
 
-export function enqueueDeliveryJob(
-  queue: Queue<DeliveryJobData>,
-  job: DeliveryJobData,
-): Promise<void>
-export function enqueueDeliveryJob(
-  queue: Queue<DeliveryJobData>,
-  deliveryId: string,
-  tenantId: string,
-  replayCount: number,
-): Promise<void>
-export async function enqueueDeliveryJob(
-  queue: Queue<DeliveryJobData>,
-  jobOrId: DeliveryJobData | string,
-  tenantId?: string,
-  replayCount?: number,
-): Promise<void> {
-  let job: DeliveryJobData
-  if (typeof jobOrId === 'string') {
-    if (tenantId === undefined || replayCount === undefined) {
-      throw new Error('delivery_job_payload_missing')
-    }
-    job = { deliveryId: jobOrId, tenantId, replayCount }
-  } else {
-    job = jobOrId
-  }
-  await queue.add(JOB_NAME, job, {
+function deliveryJobOptions(job: DeliveryJobData) {
+  return {
     ...DELIVERY_JOB_OPTIONS,
     deduplication: { id: deliveryJobDedupId(job.deliveryId, job.replayCount) },
-  })
+  }
+}
+
+export async function enqueueDeliveryJob(
+  queue: Queue<DeliveryJobData>,
+  job: DeliveryJobData,
+): Promise<void> {
+  await queue.add(JOB_NAME, job, deliveryJobOptions(job))
 }
 
 export async function enqueueDeliveryJobs(
@@ -46,10 +29,7 @@ export async function enqueueDeliveryJobs(
     jobs.map((job) => ({
       name: JOB_NAME,
       data: job,
-      opts: {
-        ...DELIVERY_JOB_OPTIONS,
-        deduplication: { id: deliveryJobDedupId(job.deliveryId, job.replayCount) },
-      },
+      opts: deliveryJobOptions(job),
     })),
   )
 }

@@ -6,8 +6,6 @@ export function queueName(): string {
     : 'webhook-deliveries'
 }
 
-export const QUEUE_NAME = queueName()
-
 export const JOB_NAME = 'deliver'
 
 export type DeliveryJobData = {

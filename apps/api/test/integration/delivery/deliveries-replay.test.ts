@@ -247,7 +247,11 @@ describe('POST /v1/deliveries/:id/replay', () => {
       lastError: 'http_500',
     })
 
-    await enqueueDeliveryJob(getQueue(), seeded.deliveryId, tenantId, 0)
+    await enqueueDeliveryJob(getQueue(), {
+      deliveryId: seeded.deliveryId,
+      tenantId,
+      replayCount: 0,
+    })
 
     const res = await agent.post(`/v1/deliveries/${seeded.deliveryId}/replay`)
     expect(res.status).toBe(202)

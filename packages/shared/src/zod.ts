@@ -127,6 +127,3 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>
 export type AdminCreateInviteInput = z.infer<typeof adminCreateInviteSchema>
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>
 export type PasswordResetInput = z.infer<typeof passwordResetSchema>
-
-export type CreateWorkspaceInput = z.infer<typeof createWorkspaceSchema>
-export type AdminPatchTenantInput = z.infer<typeof adminPatchTenantSchema>

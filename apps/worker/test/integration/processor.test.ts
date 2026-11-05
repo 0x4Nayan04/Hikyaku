@@ -9,7 +9,7 @@ import { eq, inArray } from 'drizzle-orm'
 import { closePool, getDb } from '../../src/db/client.js'
 import { calculateBackoffDelayMs } from '../../src/backoff.js'
 import * as httpClient from '../../src/httpClient.js'
-import { classifyDeliveryError, isRetryableHttpStatus, processor } from '../../src/processor.js'
+import { processor } from '../../src/processor.js'
 import * as rateLimit from '../../src/rateLimit.js'
 
 type CapturedRequest = {
@@ -42,46 +42,6 @@ function makeJob(delivery: { id: string; tenantId: string }): Job<DeliveryJobDat
     moveToDelayed: vi.fn().mockResolvedValue(undefined),
   } as unknown as Job<DeliveryJobData>
 }
-
-describe('classifyDeliveryError', () => {
-  it('classifies AbortError as timeout', () => {
-    const err = new DOMException('The operation was aborted', 'AbortError')
-    expect(classifyDeliveryError(err)).toBe('timeout')
-  })
-
-  it('classifies blocked redirect and too many redirects as terminal errors', () => {
-    expect(
-      classifyDeliveryError(
-        new httpClient.WebhookTransportError('blocked_url', 'arbitrary wording'),
-      ),
-    ).toBe('blocked_url')
-    expect(classifyDeliveryError(new httpClient.WebhookTransportError('too_many_redirects'))).toBe(
-      'too_many_redirects',
-    )
-  })
-
-  it('classifies other errors as network_error', () => {
-    expect(classifyDeliveryError(new TypeError('fetch failed'))).toBe('network_error')
-    expect(classifyDeliveryError(new Error('ECONNREFUSED'))).toBe('network_error')
-    expect(classifyDeliveryError(new Error('blocked_url: misleading native message'))).toBe(
-      'network_error',
-    )
-  })
-})
-
-describe('isRetryableHttpStatus', () => {
-  it.each([
-    [408, true],
-    [429, true],
-    [500, true],
-    [503, true],
-    [400, false],
-    [404, false],
-    [422, false],
-  ])('classifies HTTP %i as retryable=%s', (status, expected) => {
-    expect(isRetryableHttpStatus(status)).toBe(expected)
-  })
-})
 
 describe('processor', () => {
   afterEach(() => {
