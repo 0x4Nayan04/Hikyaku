@@ -259,4 +259,35 @@ describe('POST /v1/events idempotency', () => {
       await deleteTenant(tenantWithoutEndpoints.tenantId)
     }
   })
+
+  it('allows the same idempotency key independently in different tenants', async () => {
+    const other = await createTenantWithKey()
+    const body = { idempotency_key: 'shared-across-tenants', type: 'test', payload: {} }
+    try {
+      const first = await request(app)
+        .post('/v1/events')
+        .set('Authorization', `Bearer ${apiKey}`)
+        .send(body)
+      const second = await request(app)
+        .post('/v1/events')
+        .set('Authorization', `Bearer ${other.apiKey}`)
+        .send(body)
+      expect(first.status).toBe(202)
+      expect(second.status).toBe(202)
+      expect(first.body.id).not.toBe(second.body.id)
+      const rows = await getDb()
+        .select()
+        .from(events)
+        .where(eq(events.idempotencyKey, body.idempotency_key))
+      expect(rows.map((row) => row.tenantId).sort()).toEqual([tenantId, other.tenantId].sort())
+      const repeated = await request(app)
+        .post('/v1/events')
+        .set('Authorization', `Bearer ${other.apiKey}`)
+        .send(body)
+      expect(repeated.status).toBe(202)
+      expect(repeated.body.id).toBe(second.body.id)
+    } finally {
+      await deleteTenant(other.tenantId)
+    }
+  })
 })
