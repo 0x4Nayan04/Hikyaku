@@ -42,6 +42,50 @@ function routeFiles(dir: string): string[] {
   })
 }
 
+function staticRoute(node: ts.Expression, file: ts.SourceFile): string {
+  if (ts.isStringLiteralLike(node)) return node.text
+  if (ts.isTemplateExpression(node)) {
+    return (
+      node.head.text +
+      node.templateSpans
+        .map((span) => staticRoute(span.expression, file) + span.literal.text)
+        .join('')
+    )
+  }
+  if (ts.isIdentifier(node)) {
+    let value: string | undefined
+    visit(file, (candidate) => {
+      if (
+        ts.isVariableDeclaration(candidate) &&
+        ts.isIdentifier(candidate.name) &&
+        candidate.name.text === node.text &&
+        candidate.initializer
+      ) {
+        value = staticRoute(candidate.initializer, file)
+      }
+      if (
+        ts.isImportDeclaration(candidate) &&
+        ts.isStringLiteral(candidate.moduleSpecifier) &&
+        candidate.moduleSpecifier.text.startsWith('.')
+      ) {
+        const bindings = candidate.importClause?.namedBindings
+        if (!bindings || !ts.isNamedImports(bindings)) return
+        const binding = bindings.elements.find((entry) => entry.name.text === node.text)
+        if (!binding) return
+        const imported = readSource(
+          path.resolve(
+            path.dirname(file.fileName),
+            candidate.moduleSpecifier.text.replace(/\.js$/, '.ts'),
+          ),
+        )
+        value = staticRoute(binding.propertyName ?? binding.name, imported)
+      }
+    })
+    if (value !== undefined) return value
+  }
+  throw new Error(`Unsupported route expression ${node.getText(file)} in ${file.fileName}`)
+}
+
 /** Read registrations without importing the app, opening DB/Redis, or executing handlers. */
 function registeredOperations() {
   const mounts = new Map<string, string>()
@@ -83,10 +127,13 @@ function registeredOperations() {
       // Fail explicitly if a new registration uses a pattern this guard cannot inspect.
       expect(['get', 'post', 'patch', 'put', 'delete', 'head', 'options']).toContain(method)
       const [route, ...handlers] = node.arguments
-      if (!route || !ts.isStringLiteral(route)) throw new Error(`Non-literal route in ${filename}`)
+      if (!route) throw new Error(`Missing route in ${filename}`)
       operations.push({
         method,
-        pathname: `${mounts.get(router)}${route.text}`.replace(/:([A-Za-z_][\w]*)/g, '{$1}'),
+        pathname: `${mounts.get(router)?.replace(/\/$/, '')}${staticRoute(route, file)}`.replace(
+          /:([A-Za-z_][\w]*)/g,
+          '{$1}',
+        ),
         middleware: handlers.map((handler) => handler.getText(file)),
       })
     })

@@ -4,7 +4,7 @@ import type { Request, RequestHandler } from 'express'
 import session from 'express-session'
 import { env } from '../config.js'
 import { getPool } from '../db/client.js'
-import { BEARER_PREFIX } from './bearer.js'
+import { isStatelessIngest } from '../routes/events/ingest-route.js'
 
 /** Server-only SHA-256 of the password hash verified at login. Never expose in API responses or logs. */
 export function createCredentialFingerprint(passwordHash: string): string {
@@ -18,12 +18,7 @@ export const SESSION_COOKIE_NAME = 'sid'
 /** Health probes and Bearer ingest skip express-session + CSRF. Cookie ingest still uses both. */
 export function shouldSkipSessionStack(req: Pick<Request, 'method' | 'path' | 'headers'>): boolean {
   if (req.path === '/v1/health' || req.path === '/v1/ready') return true
-  return (
-    req.method === 'POST' &&
-    req.path === '/v1/events' &&
-    typeof req.headers.authorization === 'string' &&
-    req.headers.authorization.startsWith(BEARER_PREFIX)
-  )
+  return isStatelessIngest(req)
 }
 
 export function skipSessionStack(mw: RequestHandler): RequestHandler {
@@ -85,10 +80,7 @@ export function readSessionUserBlob(
   }
 }
 
-export function writeSessionUser(
-  session: Partial<SessionUserBlob>,
-  user: SessionUserBlob,
-): void {
+export function writeSessionUser(session: Partial<SessionUserBlob>, user: SessionUserBlob): void {
   session.userId = user.userId
   session.email = user.email
   session.name = user.name

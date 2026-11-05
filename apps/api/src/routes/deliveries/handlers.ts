@@ -5,10 +5,11 @@ import { deliveries, deliveryAttempts, deliveryOutbox, endpoints } from '@hikyak
 import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm'
 import type { Request, RequestHandler, Response } from 'express'
 import { getDb } from '../../db/client.js'
-import { AppError, enqueueOr503 } from '../../lib/errors.js'
+import { AppError } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
 import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
+import { enqueueAndAcknowledge } from '../../queue/publish.js'
 import { getQueue } from '../../queue/client.js'
 import { toDeliveryDetailJson, toDeliveryListJson } from './serialize.js'
 import { parseDeliveryId, parseListQuery } from './validation.js'
@@ -186,15 +187,12 @@ export const replayDelivery: RequestHandler = asyncHandler(async (req: Request, 
     })
   }
 
-  await enqueueOr503(
+  await enqueueAndAcknowledge(
     enqueueDeliveryJob(getQueue(), { deliveryId: id, tenantId, replayCount }),
+    [id],
     { delivery_id: id },
     'replay_enqueue_failed',
   )
-
-  await getDb()
-    .delete(deliveryOutbox)
-    .where(inArray(deliveryOutbox.deliveryId, [id]))
 
   const body: ReplayDeliveryJson = {
     id,

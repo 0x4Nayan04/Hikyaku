@@ -1,3 +1,4 @@
+import { promisify } from 'node:util'
 import {
   bootstrapSchema,
   changePasswordSchema,
@@ -22,39 +23,15 @@ import { requireAdminSecret } from './validation.js'
 const BOOTSTRAP_LOCK_KEY = 872_014_001
 
 function saveSession(req: Request): Promise<void> {
-  return new Promise((resolve, reject) => {
-    req.session.save((err) => {
-      if (err) {
-        reject(err)
-        return
-      }
-      resolve()
-    })
-  })
+  return promisify(req.session.save).call(req.session)
 }
 
 function regenerateSession(req: Request): Promise<void> {
-  return new Promise((resolve, reject) => {
-    req.session.regenerate((err) => {
-      if (err) {
-        reject(err)
-        return
-      }
-      resolve()
-    })
-  })
+  return promisify(req.session.regenerate).call(req.session)
 }
 
 function destroySession(req: Request): Promise<void> {
-  return new Promise((resolve, reject) => {
-    req.session.destroy((err) => {
-      if (err) {
-        reject(err)
-        return
-      }
-      resolve()
-    })
-  })
+  return promisify(req.session.destroy).call(req.session)
 }
 
 async function isBootstrapAvailable(): Promise<boolean> {

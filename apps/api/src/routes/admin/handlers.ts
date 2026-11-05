@@ -14,11 +14,7 @@ import {
   PASSWORD_RESET_KIND,
 } from '../../auth/invites.js'
 import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
-import {
-  refreshTenantNameInSessions,
-  revokeTenantSessions,
-  revokeUserSessions,
-} from '../../auth/revokeSessions.js'
+import { revokeTenantSessions, revokeUserSessions } from '../../auth/revokeSessions.js'
 import { isUuid, parseSchema } from '../../lib/validation.js'
 import { toAdminTenantJson } from './serialize.js'
 import { parseTenantId, parseUserId } from './validation.js'
@@ -141,7 +137,6 @@ export const patchTenant = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError(404, 'not_found', 'Tenant not found')
   }
 
-  await refreshTenantNameInSessions(row.id, row.name)
   res.json(toAdminTenantJson(row))
 })
 

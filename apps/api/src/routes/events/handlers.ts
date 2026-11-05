@@ -1,14 +1,15 @@
-import { deliveries, deliveryOutbox, events } from '@hikyaku/shared/schema'
+import { deliveries, events } from '@hikyaku/shared/schema'
 import { enqueueDeliveryJobs } from '@hikyaku/shared/enqueueDelivery'
-import { and, count, desc, eq, inArray } from 'drizzle-orm'
+import { and, count, desc, eq } from 'drizzle-orm'
 import type { Request, Response } from 'express'
 import { getDb } from '../../db/client.js'
 import { ingestFanout, eventDetailColumns, eventListColumns } from '../../ingest/fanout.js'
-import { AppError, enqueueOr503 } from '../../lib/errors.js'
+import { AppError } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
 import { logger } from '../../lib/logger.js'
 import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import { getTenantId } from '../../lib/tenant.js'
+import { enqueueAndAcknowledge } from '../../queue/publish.js'
 import { getQueue } from '../../queue/client.js'
 import {
   type DeliveriesSummary,
@@ -60,22 +61,13 @@ export const ingestEvent = asyncHandler(async (req: Request, res: Response) => {
 
   const jobs = result.jobs
 
-  await enqueueOr503(
+  const deliveryIds = jobs.map((job) => job.deliveryId)
+  await enqueueAndAcknowledge(
     enqueueDeliveryJobs(getQueue(), jobs),
-    { delivery_ids: jobs.map((job) => job.deliveryId) },
+    deliveryIds,
+    { delivery_ids: deliveryIds },
     'enqueue_failed',
   )
-
-  if (jobs.length > 0) {
-    await getDb()
-      .delete(deliveryOutbox)
-      .where(
-        inArray(
-          deliveryOutbox.deliveryId,
-          jobs.map((job) => job.deliveryId),
-        ),
-      )
-  }
 
   if (!result.isDuplicate) {
     logger.info(

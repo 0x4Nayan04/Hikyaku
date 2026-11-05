@@ -40,9 +40,8 @@ vi.mock('@hikyaku/shared/password', async (importOriginal) => {
   }
 })
 
-const { changePassword, createMyWorkspace, login, me } = await import(
-  '../../../../src/routes/auth/handlers.js'
-)
+const { changePassword, createMyWorkspace, login, logout, me } =
+  await import('../../../../src/routes/auth/handlers.js')
 
 type SessionRecord = Partial<SessionUserBlob> & {
   regenerate: (cb: (err?: Error) => void) => void
@@ -52,14 +51,19 @@ type SessionRecord = Partial<SessionUserBlob> & {
 
 function createMutableSession(initial: Partial<SessionUserBlob> = {}): SessionRecord {
   const session = { ...initial } as SessionRecord
-  session.regenerate = (cb) => {
+  session.regenerate = function (cb) {
+    expect(this).toBe(session)
     for (const key of Object.keys(session) as Array<keyof SessionRecord>) {
       if (typeof session[key] !== 'function') delete session[key]
     }
     cb()
   }
-  session.save = (cb) => cb()
-  session.destroy = (cb) => {
+  session.save = function (cb) {
+    expect(this).toBe(session)
+    cb()
+  }
+  session.destroy = function (cb) {
+    expect(this).toBe(session)
     for (const key of Object.keys(session) as Array<keyof SessionRecord>) {
       if (typeof session[key] !== 'function') delete session[key]
     }
@@ -122,6 +126,16 @@ describe('auth credential race guards', () => {
 
   afterAll(async () => {
     await closePool()
+  })
+
+  it('propagates session destruction failure instead of completing logout', async () => {
+    const session = createMutableSession()
+    const failure = new Error('session store unavailable')
+    session.destroy = function (cb) {
+      expect(this).toBe(session)
+      cb(failure)
+    }
+    expect(await runHandler(logout, createRequest({ session }))).toEqual({ error: failure })
   })
 
   it('rejects a late login session after concurrent password reset during verify', async () => {
@@ -271,7 +285,9 @@ describe('auth credential race guards', () => {
       .limit(1)
     expect(row?.passwordHash).toBe(resetHash)
 
-    const sessions = await getDb().execute(sql`SELECT sid FROM sessions WHERE sid = ${newerSessionId}`)
+    const sessions = await getDb().execute(
+      sql`SELECT sid FROM sessions WHERE sid = ${newerSessionId}`,
+    )
     expect(sessions.rowCount).toBe(1)
 
     await getDb().execute(sql`DELETE FROM sessions WHERE sid = ${newerSessionId}`)

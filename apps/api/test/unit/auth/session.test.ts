@@ -40,9 +40,8 @@ describe('createSessionMiddleware cookie options', () => {
 
 describe('session user blob', () => {
   it('reads a complete blob and ignores incomplete or legacy sessions', async () => {
-    const { createCredentialFingerprint, readSessionUserBlob, writeSessionUser } = await import(
-      '../../../src/auth/session.js'
-    )
+    const { createCredentialFingerprint, readSessionUserBlob, writeSessionUser } =
+      await import('../../../src/auth/session.js')
 
     expect(readSessionUserBlob({ userId: 'u1' })).toBeNull()
     expect(
@@ -122,5 +121,14 @@ describe('shouldSkipSessionStack', () => {
         headers: { authorization: 'Bearer whk_test' },
       }),
     ).toBe(false)
+  })
+
+  it.each([
+    { method: 'POST', path: '/v1/events/other', headers: { authorization: 'Bearer whk_test' } },
+    { method: 'POST', path: '/v1/endpoints', headers: { authorization: 'Bearer whk_test' } },
+    { method: 'POST', path: '/v1/events', headers: { authorization: 'bearer whk_test' } },
+  ])('retains sessions and CSRF for unrelated or non-Bearer requests: $path', async (req) => {
+    const { shouldSkipSessionStack } = await import('../../../src/auth/session.js')
+    expect(shouldSkipSessionStack(req)).toBe(false)
   })
 })
