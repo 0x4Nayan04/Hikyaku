@@ -37,7 +37,7 @@ import { formatDateTime, formatEventStatusLabel } from '@/lib/format'
 import { isPlainPrimaryClick } from '@/lib/list-return'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { usePolling } from '@/hooks/usePolling'
-import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
+import { POLL_FAST_MS } from '@/lib/ui-timing'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 
 const STATUS_OPTIONS = ['all', ...EVENT_STATUSES] as const
@@ -80,7 +80,7 @@ export default function Events() {
     queryKey: statusFilter,
   })
   // Poll with refresh so quiet polls never abort an in-flight load (reload still available for explicit retries).
-  usePolling({ intervalMs: POLL_DEFAULT_MS, refreshOnVisible: true, onPoll: refresh })
+  usePolling({ intervalMs: POLL_FAST_MS, refreshOnVisible: true, onPoll: refresh })
 
   const isDatasetEmpty = showEmpty && statusFilter === 'all' && offset === 0
 
