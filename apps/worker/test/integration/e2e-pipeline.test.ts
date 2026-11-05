@@ -27,9 +27,11 @@ type CapturedRequest = {
 function startMockServer(): Promise<{
   port: number
   getCapture: () => CapturedRequest | undefined
+  getCaptures: () => CapturedRequest[]
   close: () => Promise<void>
 }> {
   let captured: CapturedRequest | undefined
+  const captures: CapturedRequest[] = []
 
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     let body = ''
@@ -38,6 +40,7 @@ function startMockServer(): Promise<{
     })
     req.on('end', () => {
       captured = { body, headers: req.headers }
+      captures.push(captured)
       res.writeHead(200)
       res.end('ok')
     })
@@ -50,6 +53,7 @@ function startMockServer(): Promise<{
       resolve({
         port,
         getCapture: () => captured,
+        getCaptures: () => captures,
         close: () =>
           new Promise((closeResolve, closeReject) => {
             server.close((err) => (err ? closeReject(err) : closeResolve()))
@@ -194,5 +198,57 @@ describe('e2e pipeline', () => {
     const timestamp = Number(captured!.headers['x-webhook-timestamp'])
     const signature = String(captured!.headers['x-webhook-signature'])
     expect(verifyPayload(endpointSecret, timestamp, captured!.body, signature)).toBe(true)
+  })
+
+  it('delivers to every active endpoint and excludes disabled endpoints', async () => {
+    const second = await agent.post('/v1/endpoints').send({
+      url: `http://127.0.0.1:${mockServer.port}/second`,
+    })
+    const disabled = await agent.post('/v1/endpoints').send({
+      url: `http://127.0.0.1:${mockServer.port}/disabled`,
+    })
+    expect(second.status).toBe(201)
+    expect(disabled.status).toBe(201)
+    const disable = await agent
+      .patch(`/v1/endpoints/${disabled.body.id}`)
+      .send({ status: 'disabled' })
+    expect(disable.status).toBe(200)
+    const ingested = await request(app)
+      .post('/v1/events')
+      .set('Authorization', `Bearer ${apiKey}`)
+      .send({
+        idempotency_key: 'fanout-active-only',
+        type: 'fanout.test',
+        payload: { fanout: true },
+      })
+    expect(ingested.status).toBe(202)
+    const rows = await getDb()
+      .select()
+      .from(deliveries)
+      .where(eq(deliveries.eventId, ingested.body.id))
+    expect(rows).toHaveLength(2)
+    expect(rows.some((row) => row.endpointId === second.body.id)).toBe(true)
+    expect(rows.some((row) => row.endpointId === disabled.body.id)).toBe(false)
+    await Promise.all(rows.map((row) => waitForDeliveryStatus(row.id, 'succeeded')))
+    const receipts = mockServer
+      .getCaptures()
+      .filter((receipt) => JSON.parse(receipt.body).id === ingested.body.id)
+    expect(receipts).toHaveLength(2)
+    expect(receipts.map((receipt) => receipt.headers['x-webhook-id']).sort()).toEqual(
+      rows.map((row) => row.id).sort(),
+    )
+    for (const receipt of receipts) {
+      const delivery = rows.find((row) => row.id === receipt.headers['x-webhook-id'])!
+      const secret = delivery.endpointId === second.body.id ? second.body.secret : endpointSecret
+      expect(JSON.parse(receipt.body).data).toEqual({ fanout: true })
+      expect(
+        verifyPayload(
+          secret,
+          Number(receipt.headers['x-webhook-timestamp']),
+          receipt.body,
+          String(receipt.headers['x-webhook-signature']),
+        ),
+      ).toBe(true)
+    }
   })
 })

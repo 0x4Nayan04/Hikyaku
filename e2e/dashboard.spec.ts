@@ -120,4 +120,53 @@ test.describe('dashboard smoke', () => {
     await page.getByRole('menuitem', { name: 'Profile' }).press('End')
     await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeFocused()
   })
+
+test('rejects wrong passwords and clears tenant data across logout and login', async ({ page }) => {
+    const endpointLabel = `Tenant isolation ${Date.now()}`
+    await page.goto('/login')
+    await page.getByLabel('Email').fill(owner.email)
+    await page.getByRole('textbox', { name: 'Password' }).fill('incorrect-password-12')
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(page.getByRole('alert')).toBeVisible()
+    await expect(page).toHaveURL('/login')
+    expect((await page.request.get('http://localhost:3101/v1/auth/me')).status()).toBe(401)
+
+    await page.getByRole('textbox', { name: 'Password' }).fill(owner.password)
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(page).toHaveURL('/dashboard')
+    const createdEndpoint = await page.request.post('http://localhost:3101/v1/endpoints', {
+      data: {
+        url: `https://example.com/tenant-isolation-${Date.now()}`,
+        description: endpointLabel,
+      },
+    })
+    expect(createdEndpoint.status()).toBe(201)
+
+    await page.goto('/endpoints')
+    await expect(page.getByText(endpointLabel, { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Open account menu' }).click()
+    await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click()
+    await expect(page).toHaveURL('/login')
+    const otherOwner = await ensureSmokeOwner()
+    await page.getByLabel('Email').fill(otherOwner.email)
+    await page.getByRole('textbox', { name: 'Password' }).fill(otherOwner.password)
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(page).toHaveURL('/endpoints')
+    await page.getByRole('link', { name: 'Dashboard', exact: true }).click()
+    await expect(page).toHaveURL('/dashboard')
+    await page.getByRole('link', { name: 'Endpoints', exact: true }).click()
+    await expect(page).toHaveURL('/endpoints')
+    await expect(page.getByRole('heading', { name: 'Endpoints', exact: true })).toBeVisible()
+    await expect(page.getByText(endpointLabel, { exact: true })).toHaveCount(0)
+    const endpoints = await page.request.get('http://localhost:3101/v1/endpoints')
+    expect((await endpoints.json()).data).toEqual([])
+
+    await page.getByRole('button', { name: 'Open account menu' }).click()
+    await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click()
+    await expect(page).toHaveURL('/login')
+    await page.goto('/endpoints')
+    await expect(page).toHaveURL('/login')
+    await page.reload()
+    await expect(page).toHaveURL('/login')
+  })
 })
