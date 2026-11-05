@@ -8,7 +8,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { listEvents } from '@/api/client'
 import type { EventSummary, Paginated } from '@/api/types'
-import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
+import { POLL_DEFAULT_MS, POLL_FAST_MS } from '@/lib/ui-timing'
 import Events from '@/pages/events/Events'
 
 vi.mock('@/api/client', async (importOriginal) => {
@@ -66,7 +66,7 @@ function EventRouteProbe() {
   return <p data-testid="event-state">{JSON.stringify(location.state)}</p>
 }
 
-async function advance(ms = POLL_DEFAULT_MS) {
+async function advance(ms = POLL_FAST_MS) {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(ms)
   })
@@ -194,3 +194,17 @@ it.each(['pending', 'completed', 'partial_failure', 'failed', 'no_recipients', '
     )
   },
 )
+
+it('discovers new events within the fast foreground polling interval', async () => {
+  vi.useFakeTimers()
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+  vi.mocked(listEvents)
+    .mockResolvedValueOnce(emptyPage)
+    .mockResolvedValue(page([event]))
+  await renderEvents()
+  await advance(4999)
+  expect(listEvents).toHaveBeenCalledTimes(1)
+  await advance(1)
+  expect(listEvents).toHaveBeenCalledTimes(2)
+  expect(container.textContent).toContain('order.created')
+})
