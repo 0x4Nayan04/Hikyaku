@@ -5,7 +5,7 @@ import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { toast } from '@/lib/toast'
 import type { ApiKey, ApiKeyWithSecret } from '@/api/types'
 
-export function useSettingsPage(isSuperAdmin = false) {
+export function useApiKeys() {
   const {
     data: apiKeys,
     hasMore: apiKeyHasMore,
@@ -20,7 +20,6 @@ export function useSettingsPage(isSuperAdmin = false) {
     pageSize: PAGE_SIZE,
     fetchPage: ({ limit, offset, signal }) => listApiKeys({ limit, offset }, { signal }),
     fallbackError: 'Failed to load API keys',
-    enabled: !isSuperAdmin,
   })
 
   const [creatingKey, setCreatingKey] = useState(false)

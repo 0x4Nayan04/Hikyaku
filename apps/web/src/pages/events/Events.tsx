@@ -1,3 +1,5 @@
+import { EVENT_STATUSES } from '@hikyaku/shared/constants'
+import { isWorkspaceActionAvailable, SEND_EVENT_ACTION } from '@/lib/workspace-actions'
 import { usePageCache } from '@/providers/page-cache-context'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, Send } from 'lucide-react'
@@ -38,31 +40,15 @@ import { usePolling } from '@/hooks/usePolling'
 import { POLL_DEFAULT_MS } from '@/lib/ui-timing'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 
-const STATUS_OPTIONS = [
-  'all',
-  'pending',
-  'completed',
-  'partial_failure',
-  'failed',
-  'no_recipients',
-] as const
+const STATUS_OPTIONS = ['all', ...EVENT_STATUSES] as const
 
 function parseStatusParam(value: string | null): 'all' | EventStatus {
-  switch (value) {
-    case 'pending':
-    case 'completed':
-    case 'partial_failure':
-    case 'failed':
-    case 'no_recipients':
-      return value
-    default:
-      return 'all'
-  }
+  return EVENT_STATUSES.find((status) => status === value) ?? 'all'
 }
 
 export default function Events() {
   const pageCache = usePageCache()
-  const readOnly = useReadOnlyWorkspace()
+  const canSend = isWorkspaceActionAvailable(SEND_EVENT_ACTION, useReadOnlyWorkspace())
   const location = useLocation()
   const navigate = useNavigate()
   const listReturnTo = `${location.pathname}${location.search}${location.hash}`
@@ -94,7 +80,7 @@ export default function Events() {
     queryKey: statusFilter,
   })
   // Poll with refresh so quiet polls never abort an in-flight load (reload still available for explicit retries).
-  usePolling({ intervalMs: POLL_DEFAULT_MS, onPoll: refresh })
+  usePolling({ intervalMs: POLL_DEFAULT_MS, refreshOnVisible: true, onPoll: refresh })
 
   const isDatasetEmpty = showEmpty && statusFilter === 'all' && offset === 0
 
@@ -115,12 +101,12 @@ export default function Events() {
           <>
             Ingested events appear here after you send one.
             <br />
-            {!readOnly && (
-              <Link to="/events/send" className="font-medium text-primary hover:underline">
+            {canSend && (
+              <Link to={SEND_EVENT_ACTION.to} className="font-medium text-primary hover:underline">
                 Send a test event
               </Link>
             )}
-            .
+            {canSend ? '.' : null}
           </>
         }
       />
@@ -162,9 +148,9 @@ export default function Events() {
       title="Events"
       description="Ingested events for this workspace. Open a row for payload and delivery outcomes."
       actions={
-        !readOnly && (
+        canSend && (
           <Button size="sm" className="sm-btn-split" asChild>
-            <Link to="/events/send">
+            <Link to={SEND_EVENT_ACTION.to}>
               <span className="sm-btn-split-label">Test event</span>
               <span className="sm-btn-split-icon">
                 <Send className="size-3.5" aria-hidden="true" />

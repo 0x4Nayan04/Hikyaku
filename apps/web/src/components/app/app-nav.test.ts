@@ -80,3 +80,12 @@ it('shows both workspace operations and Admin for a workspace-linked super-admin
   expect(paths).toContain('/endpoints')
   expect(paths).toContain('/admin')
 })
+
+it('hides write actions in a read-only workspace while retaining read routes', () => {
+  const paths = filterNavSections(false, true, true).flatMap((section) =>
+    section.items.map((item) => item.to),
+  )
+  expect(paths).not.toContain('/events/send')
+  expect(paths).toContain('/events')
+  expect(paths).toContain('/deliveries')
+})

@@ -1,3 +1,5 @@
+import { formatStatusLabel } from '@/lib/format'
+import { ENDPOINT_STATUSES } from '@hikyaku/shared/constants'
 import { usePageCache } from '@/providers/page-cache-context'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 import { useState } from 'react'
@@ -31,15 +33,10 @@ import { CreateEndpointDialog } from '@/pages/endpoints/CreateEndpointDialog'
 import { EditEndpointLabelDialog } from '@/pages/endpoints/EditEndpointLabelDialog'
 import { RotateEndpointSecretDialog } from '@/pages/endpoints/RotateEndpointSecretDialog'
 
-const STATUS_OPTIONS: Array<{ value: 'all' | EndpointStatus; label: string }> = [
-  { value: 'all', label: 'All statuses' },
-  { value: 'active', label: 'Active' },
-  { value: 'disabled', label: 'Disabled' },
-]
+const STATUS_OPTIONS = ['all', ...ENDPOINT_STATUSES] as const
 
 function parseStatusParam(value: string | null): 'all' | EndpointStatus {
-  if (value === 'all' || value === 'disabled') return value
-  return 'active'
+  return STATUS_OPTIONS.find((status) => status === value) ?? 'active'
 }
 
 function emptyEndpointsTitle(statusFilter: 'all' | EndpointStatus): string {
@@ -214,9 +211,9 @@ export default function Endpoints() {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  {STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                  {STATUS_OPTIONS.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status === 'all' ? 'All statuses' : formatStatusLabel(status)}
                     </SelectItem>
                   ))}
                 </SelectContent>

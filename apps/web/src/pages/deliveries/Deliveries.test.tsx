@@ -1,3 +1,4 @@
+import { SessionContext } from '@/providers/session-context'
 // @vitest-environment jsdom
 import { createPageCache } from '@/lib/page-cache'
 import { PageCacheContext } from '@/providers/page-cache-context'
@@ -35,12 +36,29 @@ const delivery: Delivery = {
 function page(data: Delivery[]): Paginated<Delivery> {
   return { data, has_more: false, limit: 25, offset: 0 }
 }
-async function renderPage() {
+async function renderPage(path = '/deliveries', readOnly = false) {
   await act(async () => {
     root.render(
       <PageCacheContext.Provider value={pageCache}>
-        <MemoryRouter>
-          <Deliveries />
+        <MemoryRouter initialEntries={[path]}>
+          <SessionContext.Provider
+            value={{
+              session: {
+                user: {
+                  id: 'user-1',
+                  name: 'User',
+                  email: 'user@example.com',
+                  is_super_admin: false,
+                  tenant_id: 'tenant-1',
+                },
+                tenant: { id: 'tenant-1', name: 'Workspace', read_only: readOnly },
+              },
+              loading: false,
+              refresh: async () => undefined,
+            }}
+          >
+            <Deliveries />
+          </SessionContext.Provider>
         </MemoryRouter>
       </PageCacheContext.Provider>,
     )
@@ -179,3 +197,26 @@ it('shows saved rows immediately on return and updates them after the response',
   expect(container.textContent).not.toContain('Updating…')
   expect(container.textContent).toContain('Live')
 })
+
+it('omits the send action from an empty read-only workspace', async () => {
+  vi.mocked(listDeliveries).mockResolvedValue(page([]))
+  await renderPage('/deliveries', true)
+  expect(container.textContent).toContain('No deliveries yet')
+  expect(container.querySelector('a[href="/events/send"]')).toBeNull()
+})
+
+it.each(['pending', 'in_progress', 'succeeded', 'failed', 'open', 'all', 'invalid'])(
+  'preserves delivery status filter %s and other URL filters',
+  async (status) => {
+    vi.mocked(listDeliveries).mockResolvedValue(page([]))
+    await renderPage(`/deliveries?status=${status}&event_id=event-1&updated_within=24h`)
+    expect(listDeliveries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: status === 'all' || status === 'invalid' ? undefined : status,
+        event_id: 'event-1',
+        updated_within: '24h',
+      }),
+      expect.anything(),
+    )
+  },
+)

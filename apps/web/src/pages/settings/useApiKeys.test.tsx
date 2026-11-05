@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, createApiKey, listApiKeys, revokeApiKey, rotateApiKey } from '@/api/client'
 import type { ApiKeyWithSecret } from '@/api/types'
 import { toast } from '@/lib/toast'
-import { useSettingsPage } from './useSettingsPage'
+import { useApiKeys } from './useApiKeys'
 
 vi.mock('@/api/client', async (original) => ({
   ...(await original<typeof import('@/api/client')>()),
@@ -26,9 +26,9 @@ const key: ApiKeyWithSecret = {
 }
 const page = { data: [key], has_more: false, limit: 25, offset: 0 }
 let root: Root
-let current: ReturnType<typeof useSettingsPage>
+let current: ReturnType<typeof useApiKeys>
 function Probe() {
-  current = useSettingsPage()
+  current = useApiKeys()
   return null
 }
 beforeEach(async () => {

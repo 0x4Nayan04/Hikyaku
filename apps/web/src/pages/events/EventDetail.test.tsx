@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, getEvent } from '@/api/client'
+import type { EventDetail as EventDetailType } from '@/api/types'
 import EventDetail from '@/pages/events/EventDetail'
 
 vi.mock('@/api/client', async (importOriginal) => {
@@ -43,6 +44,7 @@ afterEach(async () => {
     root.unmount()
   })
   document.body.removeChild(container)
+  vi.useRealTimers()
 })
 
 describe('EventDetail missing event', () => {
@@ -71,4 +73,41 @@ it('returns to a validated originating event list, with direct links falling bac
   await act(async () => root.render(null))
   await renderEvent('two', { listReturnTo: 'https://evil.example/events' })
   expect(container.querySelector('a[href="/events"]')).not.toBeNull()
+})
+
+it('refreshes a pending event on tab return and stops once terminal', async () => {
+  vi.useFakeTimers()
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+  const pending: EventDetailType = {
+    id: 'event-1',
+    type: 'order.paid',
+    status: 'pending',
+    idempotency_key: 'key-1',
+    created_at: '2026-11-05T00:00:00Z',
+    payload: {},
+    deliveries_summary: { total: 1, succeeded: 0, failed: 0, pending: 1 },
+  }
+  vi.mocked(getEvent)
+    .mockResolvedValueOnce(pending)
+    .mockResolvedValue({
+      ...pending,
+      status: 'completed',
+      deliveries_summary: { total: 1, succeeded: 1, failed: 0, pending: 0 },
+    })
+  await renderEvent(pending.id)
+  await act(async () => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(15000)
+  })
+  expect(getEvent).toHaveBeenCalledTimes(1)
+  await act(async () => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  expect(getEvent).toHaveBeenCalledTimes(2)
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(15000)
+  })
+  expect(getEvent).toHaveBeenCalledTimes(2)
 })

@@ -303,3 +303,25 @@ describe('Delivery replay recovery', () => {
     expect(getDelivery).toHaveBeenCalledTimes(3)
   })
 })
+
+it('refreshes an open delivery on tab return and stops once terminal', async () => {
+  vi.mocked(getDelivery)
+    .mockResolvedValueOnce({ ...replayedDelivery, status: 'in_progress' })
+    .mockResolvedValue({ ...replayedDelivery, status: 'succeeded' })
+  await renderDelivery(replayedDelivery.id)
+  await act(async () => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS * 3)
+  })
+  expect(getDelivery).toHaveBeenCalledTimes(1)
+  await act(async () => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  expect(getDelivery).toHaveBeenCalledTimes(2)
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(POLL_DEFAULT_MS * 3)
+  })
+  expect(getDelivery).toHaveBeenCalledTimes(2)
+})

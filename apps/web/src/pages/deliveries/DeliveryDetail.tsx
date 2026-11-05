@@ -134,6 +134,7 @@ export default function DeliveryDetail() {
   usePolling({
     enabled: polling,
     intervalMs: POLL_DEFAULT_MS,
+    refreshOnVisible: true,
     onPoll: refreshDelivery,
   })
 
