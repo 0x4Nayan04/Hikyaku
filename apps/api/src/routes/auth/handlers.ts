@@ -11,6 +11,7 @@ import type { Request, Response } from 'express'
 import { tenants, users } from '@hikyaku/shared/schema'
 import { hashPassword, INVALID_PASSWORD_HASH, verifyPassword } from '@hikyaku/shared/password'
 import { createCredentialFingerprint, writeSessionUser } from '../../auth/session.js'
+import { unauthorizedSession } from '../../auth/unauthorized.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
@@ -143,7 +144,7 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
     session.name === undefined ||
     session.isSuperAdmin === undefined
   ) {
-    throw new AppError(401, 'unauthorized', 'Missing or invalid session')
+    throw unauthorizedSession()
   }
 
   res.status(200).json({
@@ -168,7 +169,7 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
   const body = parseSchema(changePasswordSchema, req.body)
   const userId = req.userId
   if (!userId) {
-    throw new AppError(401, 'unauthorized', 'Missing or invalid session')
+    throw unauthorizedSession()
   }
 
   const db = getDb()
@@ -198,7 +199,7 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
 
     if (updated.length === 0) {
       // Concurrent reset/change already moved the hash; do not revoke newer sessions.
-      throw new AppError(401, 'unauthorized', 'Missing or invalid session')
+      throw unauthorizedSession()
     }
 
     await revokeUserSessions(userId, tx)
@@ -227,7 +228,7 @@ export const createMyWorkspace = asyncHandler(async (req: Request, res: Response
   // Preserve the fingerprint already authenticated for this request — do not re-bless the DB hash.
   const { email, name, userId, credentialFingerprint } = req.session
   if (!credentialFingerprint) {
-    throw new AppError(401, 'unauthorized', 'Missing or invalid session')
+    throw unauthorizedSession()
   }
   await regenerateSession(req)
   writeSessionUser(req.session, {

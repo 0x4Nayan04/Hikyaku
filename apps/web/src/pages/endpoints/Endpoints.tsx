@@ -1,4 +1,5 @@
 import { formatStatusLabel } from '@/lib/format'
+import { parseStatusQueryParam, writeStatusQueryParam } from '@/lib/status-query'
 import { ENDPOINT_STATUSES } from '@hikyaku/shared/constants'
 import { usePageCache } from '@/providers/page-cache-context'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
@@ -34,9 +35,11 @@ import { EditEndpointLabelDialog } from '@/pages/endpoints/EditEndpointLabelDial
 import { RotateEndpointSecretDialog } from '@/pages/endpoints/RotateEndpointSecretDialog'
 
 const STATUS_OPTIONS = ['all', ...ENDPOINT_STATUSES] as const
+type EndpointListStatus = (typeof STATUS_OPTIONS)[number]
 
-function parseStatusParam(value: string | null): 'all' | EndpointStatus {
-  return STATUS_OPTIONS.find((status) => status === value) ?? 'active'
+function parseStatusParam(value: string | null): EndpointListStatus {
+  // Product default: show active receivers when the URL omits status.
+  return parseStatusQueryParam(value, STATUS_OPTIONS, 'active')
 }
 
 function emptyEndpointsTitle(statusFilter: 'all' | EndpointStatus): string {
@@ -92,10 +95,9 @@ export default function Endpoints() {
   const showLoading = isInitial && endpoints.length === 0
   const isDatasetEmpty = showEmpty && statusFilter === 'all' && offset === 0
 
-  function setStatusFilter(value: 'all' | EndpointStatus) {
+  function setStatusFilter(value: EndpointListStatus) {
     const next = new URLSearchParams(searchParams)
-    if (value === 'active') next.delete('status')
-    else next.set('status', value)
+    writeStatusQueryParam(next, value, 'active')
     setSearchParams(next, { replace: true })
     setOffset(0)
   }

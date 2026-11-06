@@ -2,15 +2,13 @@ import { isWorkspaceActionAvailable, SEND_EVENT_ACTION } from '@/lib/workspace-a
 import { usePageCache } from '@/providers/page-cache-context'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 import { Navigate } from 'react-router-dom'
-import { ApiError, getEvent, listEndpoints, sendEvent } from '@/api/client'
-import type { EventStatus, IngestEventResponse } from '@/api/types'
+import { ApiError, sendEvent } from '@/api/client'
+import type { EventStatus } from '@/api/types'
 import { ConsolePage } from '@/components/console/chrome/ConsolePage'
 import { DataPanel } from '@/components/console/catalogs/DataPanel'
 import { DataPanelEmpty } from '@/components/console/catalogs/DataPanelEmpty'
-import { FormPanel } from '@/components/console/forms/FormPanel'
 import { PageBanner } from '@/components/console/chrome/PageBanner'
 import { PageLoading } from '@/components/console/chrome/PageLoading'
-import { SendEventField } from '@/components/console/forms/SendEventField'
 import {
   DetailFieldList,
   DetailFieldRow,
@@ -18,99 +16,19 @@ import {
 } from '@/components/console/details/DetailFields'
 import { StatusBadge } from '@/components/console/catalogs/StatusBadge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { usePolling } from '@/hooks/usePolling'
 import { formatDateTime } from '@/lib/format'
 import { toast } from '@/lib/toast'
-import { POLL_FAST_MS } from '@/lib/ui-timing'
-import type { IngestEventInput } from '@hikyaku/shared/zod'
-import { ArrowRight, PowerOff, RefreshCw, RotateCcw, Send, Webhook } from 'lucide-react'
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { SendEventForm } from '@/pages/events/SendEventForm'
+import {
+  createInitialFormState,
+  eventFormReducer,
+  parsePayloadJson,
+} from '@/pages/events/sendEventFormState'
+import { useAcceptedEventStatus } from '@/pages/events/useAcceptedEventStatus'
+import { useEndpointGate } from '@/pages/events/useEndpointGate'
+import { ArrowRight, PowerOff, RefreshCw, Webhook } from 'lucide-react'
+import { useCallback, useReducer } from 'react'
 import { Link } from 'react-router-dom'
-
-const DEFAULT_PAYLOAD = `{
-  "order_id": "123",
-  "amount": 4999
-}`
-
-const PAYLOAD_LINE_COUNT = DEFAULT_PAYLOAD.split('\n').length
-
-function parsePayloadJson(raw: string): IngestEventInput['payload'] | null {
-  try {
-    const parsed: unknown = JSON.parse(raw)
-    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return null
-    }
-    return parsed as IngestEventInput['payload']
-  } catch {
-    return null
-  }
-}
-
-function isOpenEventStatus(status: EventStatus): boolean {
-  switch (status) {
-    case 'pending':
-      return true
-    case 'completed':
-    case 'partial_failure':
-    case 'failed':
-    case 'no_recipients':
-      return false
-    default: {
-      const exhaustive: never = status
-      return exhaustive
-    }
-  }
-}
-
-function fieldDescribedBy(id: string, hasHint: boolean, hasError: boolean): string | undefined {
-  const ids = [hasHint ? `${id}-hint` : null, hasError ? `${id}-error` : null].filter(Boolean)
-  return ids.length > 0 ? ids.join(' ') : undefined
-}
-
-type EndpointGate =
-  | { status: 'loading' }
-  | { status: 'ready'; canSend: true }
-  | { status: 'ready'; canSend: false; reason: 'none' | 'all_disabled' }
-  | { status: 'error'; message: string }
-
-type EventFormState = {
-  idempotencyKey: string
-  type: string
-  payloadText: string
-  payloadError: string | null
-  submitError: string | null
-  submitting: boolean
-  result: IngestEventResponse | null
-}
-
-type EventFormAction =
-  | { type: 'update'; changes: Partial<EventFormState> }
-  | { type: 'status'; id: string; status: EventStatus }
-  | { type: 'reset' }
-
-function createInitialFormState(): EventFormState {
-  return {
-    idempotencyKey: crypto.randomUUID(),
-    type: 'order.paid',
-    payloadText: DEFAULT_PAYLOAD,
-    payloadError: null,
-    submitError: null,
-    submitting: false,
-    result: null,
-  }
-}
-
-function eventFormReducer(state: EventFormState, action: EventFormAction): EventFormState {
-  if (action.type === 'reset') return createInitialFormState()
-  if (action.type === 'status') {
-    return state.result?.id === action.id
-      ? { ...state, result: { ...state.result, status: action.status } }
-      : state
-  }
-  return { ...state, ...action.changes }
-}
 
 export default function SendEvent() {
   return isWorkspaceActionAvailable(SEND_EVENT_ACTION, useReadOnlyWorkspace()) ? (
@@ -122,36 +40,12 @@ export default function SendEvent() {
 
 function SendEventPage() {
   const pageCache = usePageCache()
-  const [gate, setGate] = useState<EndpointGate>({ status: 'loading' })
+  const gate = useEndpointGate()
   const [form, dispatch] = useReducer(eventFormReducer, undefined, createInitialFormState)
-
-  useEffect(() => {
-    let cancelled = false
-    Promise.all([listEndpoints({ limit: 1 }), listEndpoints({ status: 'active', limit: 1 })])
-      .then(([anyEndpoints, activeEndpoints]) => {
-        if (cancelled) return
-        if (activeEndpoints.data.length > 0) {
-          setGate({ status: 'ready', canSend: true })
-          return
-        }
-        setGate({
-          status: 'ready',
-          canSend: false,
-          reason: anyEndpoints.data.length > 0 ? 'all_disabled' : 'none',
-        })
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setGate({
-            status: 'error',
-            message: err instanceof ApiError ? err.message : 'Failed to load endpoints',
-          })
-        }
-      })
-    return () => {
-      cancelled = true
-    }
+  const onAcceptedStatus = useCallback((id: string, status: EventStatus) => {
+    dispatch({ type: 'status', id, status })
   }, [])
+  const { statusError } = useAcceptedEventStatus(form.result, onAcceptedStatus)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -185,45 +79,6 @@ function SendEventPage() {
       dispatch({ type: 'update', changes: { submitting: false } })
     }
   }
-
-  const accepted = form.result
-  const acceptedId = accepted?.id
-  const statusAbortRef = useRef<AbortController | null>(null)
-  const [statusError, setStatusError] = useState<string | null>(null)
-  const refreshAcceptedEvent = useCallback(async () => {
-    if (!acceptedId || statusAbortRef.current) return
-    const controller = new AbortController()
-    statusAbortRef.current = controller
-    try {
-      const event = await getEvent(acceptedId, { signal: controller.signal })
-      if (controller.signal.aborted) return
-      setStatusError(null)
-      dispatch({ type: 'status', id: acceptedId, status: event.status })
-    } catch (err) {
-      if (controller.signal.aborted) return
-      setStatusError(err instanceof ApiError ? err.message : 'Failed to refresh event status')
-    } finally {
-      if (statusAbortRef.current === controller) statusAbortRef.current = null
-    }
-  }, [acceptedId])
-
-  const hasOpenAcceptedEvent = accepted !== null && isOpenEventStatus(accepted.status)
-  useEffect(() => {
-    setStatusError(null)
-    if (!hasOpenAcceptedEvent) return
-    void refreshAcceptedEvent()
-    return () => {
-      statusAbortRef.current?.abort()
-      statusAbortRef.current = null
-    }
-  }, [hasOpenAcceptedEvent, refreshAcceptedEvent])
-
-  usePolling({
-    enabled: hasOpenAcceptedEvent,
-    intervalMs: POLL_FAST_MS,
-    refreshOnVisible: true,
-    onPoll: refreshAcceptedEvent,
-  })
 
   return (
     <ConsolePage
@@ -354,167 +209,4 @@ function endpointGateEmpty(reason: 'none' | 'all_disabled') {
       return unreachable
     }
   }
-}
-
-function SendEventForm({
-  form,
-  dispatch,
-  onSubmit,
-}: {
-  form: EventFormState
-  dispatch: React.Dispatch<EventFormAction>
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
-}) {
-  return (
-    <FormPanel
-      className="send-event-form-panel"
-      title="Compose test event"
-      titleVariant="prominent"
-      description={
-        <>
-          <code className="send-event-api-endpoint">POST /v1/events</code> →{' '}
-          <strong className="font-medium text-ink">202</strong>, then watch{' '}
-          <Link to="/deliveries" className="font-medium text-primary hover:underline">
-            Deliveries
-          </Link>
-          .
-        </>
-      }
-      footerAlign="end"
-      footer={
-        <div className="send-event-form-actions flex flex-wrap items-center gap-3">
-          <Button
-            size="sm"
-            type="submit"
-            form="send-event-form"
-            disabled={form.submitting}
-            className="sm-btn-split"
-          >
-            <span className="sm-btn-split-label">
-              {form.submitting ? 'Sending…' : 'Send test event'}
-            </span>
-            <span className="sm-btn-split-icon">
-              <Send className="size-3.5" aria-hidden="true" />
-            </span>
-          </Button>
-          <Button
-            size="sm"
-            type="button"
-            variant="secondary"
-            onClick={() => dispatch({ type: 'reset' })}
-            disabled={form.submitting}
-          >
-            <RotateCcw className="size-3.5" aria-hidden="true" /> Reset form
-          </Button>
-        </div>
-      }
-    >
-      <form id="send-event-form" className="send-event-form" onSubmit={onSubmit}>
-        <fieldset className="m-0 border-0 p-0" disabled={form.submitting}>
-          <legend className="sr-only">Test event</legend>
-          {form.submitError ? (
-            <div className="send-event-form-error" role="alert">
-              <p className="send-event-form-error__title">Could not send event</p>
-              <p className="send-event-form-error__desc">{form.submitError}</p>
-            </div>
-          ) : null}
-          <div className="send-event-fields">
-            <SendEventField
-              id="idempotency-key"
-              variant="plain"
-              label="Idempotency key"
-              hint="Same key + same body returns the original event."
-              action={
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="send-event-field__head-btn"
-                  onClick={() =>
-                    dispatch({
-                      type: 'update',
-                      changes: { idempotencyKey: crypto.randomUUID(), submitError: null },
-                    })
-                  }
-                >
-                  <RefreshCw className="size-3.5" aria-hidden="true" />
-                  New UUID
-                </Button>
-              }
-            >
-              <div className="send-event-id-strip">
-                <Input
-                  id="idempotency-key"
-                  value={form.idempotencyKey}
-                  onChange={(event) =>
-                    dispatch({
-                      type: 'update',
-                      changes: { idempotencyKey: event.target.value, submitError: null },
-                    })
-                  }
-                  placeholder="e.g. 12a91c57-8f3a-4b2c-9d1e-6f7a8b9c0d1e"
-                  className="send-event-plain-input send-event-plain-input--mono"
-                  maxLength={256}
-                  required
-                  aria-describedby={fieldDescribedBy('idempotency-key', true, false)}
-                />
-              </div>
-            </SendEventField>
-            <SendEventField
-              id="event-type"
-              variant="plain"
-              label="Event type"
-              hint="e.g. order.paid"
-            >
-              <Input
-                id="event-type"
-                value={form.type}
-                onChange={(event) =>
-                  dispatch({
-                    type: 'update',
-                    changes: { type: event.target.value, submitError: null },
-                  })
-                }
-                placeholder="order.paid"
-                className="send-event-plain-input send-event-plain-input--bordered"
-                maxLength={128}
-                required
-                aria-describedby={fieldDescribedBy('event-type', true, false)}
-              />
-            </SendEventField>
-            <SendEventField
-              id="event-payload"
-              label="Payload"
-              meta="JSON object · max 256 KiB"
-              error={form.payloadError}
-            >
-              <Textarea
-                id="event-payload"
-                value={form.payloadText}
-                onChange={(event) =>
-                  dispatch({
-                    type: 'update',
-                    changes: {
-                      payloadText: event.target.value,
-                      payloadError: null,
-                      submitError: null,
-                    },
-                  })
-                }
-                rows={PAYLOAD_LINE_COUNT}
-                className="send-event-control-editor"
-                spellCheck={false}
-                required
-                aria-invalid={form.payloadError !== null}
-                aria-describedby={fieldDescribedBy(
-                  'event-payload',
-                  false,
-                  form.payloadError !== null,
-                )}
-              />
-            </SendEventField>
-          </div>
-        </fieldset>
-      </form>
-    </FormPanel>
-  )
 }

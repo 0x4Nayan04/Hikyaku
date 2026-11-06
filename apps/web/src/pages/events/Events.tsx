@@ -4,7 +4,7 @@ import { usePageCache } from '@/providers/page-cache-context'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, Send } from 'lucide-react'
 import { listEvents } from '@/api/client'
-import type { EventStatus, EventSummary } from '@/api/types'
+import type { EventSummary } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -35,15 +35,17 @@ import { StatusBadge } from '@/components/console/catalogs/StatusBadge'
 import { DataPanelEmpty } from '@/components/console/catalogs/DataPanelEmpty'
 import { formatDateTime, formatEventStatusLabel } from '@/lib/format'
 import { isPlainPrimaryClick } from '@/lib/list-return'
+import { parseStatusQueryParam, writeStatusQueryParam } from '@/lib/status-query'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { usePolling } from '@/hooks/usePolling'
 import { POLL_FAST_MS } from '@/lib/ui-timing'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 
 const STATUS_OPTIONS = ['all', ...EVENT_STATUSES] as const
+type EventListStatus = (typeof STATUS_OPTIONS)[number]
 
-function parseStatusParam(value: string | null): 'all' | EventStatus {
-  return EVENT_STATUSES.find((status) => status === value) ?? 'all'
+function parseStatusParam(value: string | null): EventListStatus {
+  return parseStatusQueryParam(value, STATUS_OPTIONS, 'all')
 }
 
 export default function Events() {
@@ -84,10 +86,9 @@ export default function Events() {
 
   const isDatasetEmpty = showEmpty && statusFilter === 'all' && offset === 0
 
-  function setStatusFilter(value: 'all' | EventStatus) {
+  function setStatusFilter(value: EventListStatus) {
     const next = new URLSearchParams(searchParams)
-    if (value === 'all') next.delete('status')
-    else next.set('status', value)
+    writeStatusQueryParam(next, value, 'all')
     setSearchParams(next, { replace: true })
     setOffset(0)
   }

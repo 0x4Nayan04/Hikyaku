@@ -4,8 +4,7 @@ import { asyncHandler } from '../lib/asyncHandler.js'
 import { authenticateApiKeyForIngest } from './apiKey.js'
 import { BEARER_PREFIX } from './bearer.js'
 import { attachSessionUser } from './requireSession.js'
-
-const UNAUTHORIZED_MESSAGE = 'Missing or invalid Bearer token or session'
+import { unauthorizedTenantAuth } from './unauthorized.js'
 
 function parseBearerToken(header: string | undefined): string | null {
   if (!header?.startsWith(BEARER_PREFIX)) {
@@ -21,13 +20,13 @@ async function requireTenantSession(req: Request): Promise<void> {
     await attachSessionUser(req)
   } catch (err) {
     if (err instanceof AppError && err.statusCode === 401) {
-      throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
+      throw unauthorizedTenantAuth()
     }
     throw err
   }
 
   if (!req.tenantId) {
-    throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
+    throw unauthorizedTenantAuth()
   }
 }
 
@@ -44,7 +43,7 @@ export const requireTenantAuth = asyncHandler(
     if (token !== null) {
       const tenantId = await authenticateApiKeyForIngest(token)
       if (!tenantId) {
-        throw new AppError(401, 'unauthorized', UNAUTHORIZED_MESSAGE)
+        throw unauthorizedTenantAuth()
       }
 
       req.tenantId = tenantId

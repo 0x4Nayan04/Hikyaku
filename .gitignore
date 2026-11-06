@@ -33,6 +33,12 @@ DEPLOY_READINESS_PLAN.md
 scorecard.png
 dogfood-output/
 
-# /Users/newtonuser/Documents/personal/code/Hikyaku/docs
 .project-kb
+
+# Local-only notes under docs/; keep published eng docs and OpenAPI tracked.
 docs/*
+!docs/openapi.yaml
+!docs/DEVELOPING.md
+!docs/TESTING.md
+!docs/adr/
+!docs/adr/**

@@ -5,7 +5,7 @@ import { usePageCache } from '@/providers/page-cache-context'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search, Send, X } from 'lucide-react'
 import { listDeliveries } from '@/api/client'
-import type { Delivery, DeliveryStatus } from '@/api/types'
+import type { Delivery } from '@/api/types'
 import {
   Select,
   SelectContent,
@@ -29,14 +29,14 @@ import { LiveChip } from '@/components/console/metrics/LiveChip'
 import { usePolling } from '@/hooks/usePolling'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { formatStatusLabel } from '@/lib/format'
+import { parseStatusQueryParam, writeStatusQueryParam } from '@/lib/status-query'
 import { POLL_FAST_MS, POLL_SLOW_MS } from '@/lib/ui-timing'
 
-type DeliveryListStatus = 'all' | DeliveryStatus | 'open'
-
 const STATUS_OPTIONS = ['all', 'open', ...DELIVERY_STATUSES] as const
+type DeliveryListStatus = (typeof STATUS_OPTIONS)[number]
 
 function parseStatusParam(value: string | null): DeliveryListStatus {
-  return STATUS_OPTIONS.find((status) => status === value) ?? 'all'
+  return parseStatusQueryParam(value, STATUS_OPTIONS, 'all')
 }
 
 export default function Deliveries() {
@@ -186,8 +186,7 @@ export default function Deliveries() {
         value={statusFilter}
         onValueChange={(value) => {
           patchParams((next) => {
-            if (value === 'all') next.delete('status')
-            else next.set('status', value)
+            writeStatusQueryParam(next, value, 'all')
           })
         }}
       >

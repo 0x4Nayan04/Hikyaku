@@ -236,7 +236,7 @@ Full product docs after `pnpm dev`: http://localhost:5173/docs
 
 ### Safe tests
 
-Follow the root [verification setup](../README.md#verification) to provision isolated resources and export `~/.hikyaku-test.env`. The test runners do not load that file automatically. Use a Postgres database ending in `_test`, a dedicated Redis database number greater than zero, test-only secrets, and a unique `TEST_RUN_ID`. Unset application `DATABASE_URL` and `REDIS_URL` before running tests.
+Use the engineer checklist in **[docs/TESTING.md](../docs/TESTING.md)** (isolated `_test` database, Redis DB &gt; 0, `TEST_RUN_ID`, unset app `DATABASE_URL`/`REDIS_URL`). Short form once that env is exported:
 
 ```sh
 pnpm --filter @hikyaku/shared build
@@ -245,4 +245,4 @@ pnpm test
 pnpm test:smoke
 ```
 
-Browser tests start their own worker, API (3101), and web (5181); install Playwright Chromium before running them. They never truncate unrelated databases; cleanup removes only run-owned fixtures. The production Compose stack defaults to a 30-second sweep interval; the application default outside that stack is five minutes.
+Browser tests start their own worker, API (3101), and web (5181); install Playwright Chromium before running them. They never truncate unrelated databases; cleanup removes only run-owned fixtures. Sweeper interval defaults differ by stack — see the table in `docs/TESTING.md`.
