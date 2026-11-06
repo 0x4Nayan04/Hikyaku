@@ -2,7 +2,7 @@ import { isWorkspaceActionAvailable, SEND_EVENT_ACTION } from '@/lib/workspace-a
 import { usePageCache } from '@/providers/page-cache-context'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 import { Navigate } from 'react-router-dom'
-import { ApiError, getEvent, listEndpoints, sendEvent } from '@/api/client'
+import { ApiError, sendEvent } from '@/api/client'
 import type { EventStatus, IngestEventResponse } from '@/api/types'
 import { ConsolePage } from '@/components/console/chrome/ConsolePage'
 import { DataPanel } from '@/components/console/catalogs/DataPanel'
@@ -20,13 +20,13 @@ import { StatusBadge } from '@/components/console/catalogs/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { usePolling } from '@/hooks/usePolling'
 import { formatDateTime } from '@/lib/format'
 import { toast } from '@/lib/toast'
-import { POLL_FAST_MS } from '@/lib/ui-timing'
 import type { IngestEventInput } from '@hikyaku/shared/zod'
 import { ArrowRight, PowerOff, RefreshCw, RotateCcw, Send, Webhook } from 'lucide-react'
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useReducer } from 'react'
+import { useEndpointAvailability } from './useEndpointAvailability'
+import { useAcceptedEventPolling } from './useAcceptedEventPolling'
 import { Link } from 'react-router-dom'
 
 const DEFAULT_PAYLOAD = `{
@@ -48,32 +48,10 @@ function parsePayloadJson(raw: string): IngestEventInput['payload'] | null {
   }
 }
 
-function isOpenEventStatus(status: EventStatus): boolean {
-  switch (status) {
-    case 'pending':
-      return true
-    case 'completed':
-    case 'partial_failure':
-    case 'failed':
-    case 'no_recipients':
-      return false
-    default: {
-      const exhaustive: never = status
-      return exhaustive
-    }
-  }
-}
-
 function fieldDescribedBy(id: string, hasHint: boolean, hasError: boolean): string | undefined {
   const ids = [hasHint ? `${id}-hint` : null, hasError ? `${id}-error` : null].filter(Boolean)
   return ids.length > 0 ? ids.join(' ') : undefined
 }
-
-type EndpointGate =
-  | { status: 'loading' }
-  | { status: 'ready'; canSend: true }
-  | { status: 'ready'; canSend: false; reason: 'none' | 'all_disabled' }
-  | { status: 'error'; message: string }
 
 type EventFormState = {
   idempotencyKey: string
@@ -122,36 +100,8 @@ export default function SendEvent() {
 
 function SendEventPage() {
   const pageCache = usePageCache()
-  const [gate, setGate] = useState<EndpointGate>({ status: 'loading' })
+  const gate = useEndpointAvailability()
   const [form, dispatch] = useReducer(eventFormReducer, undefined, createInitialFormState)
-
-  useEffect(() => {
-    let cancelled = false
-    Promise.all([listEndpoints({ limit: 1 }), listEndpoints({ status: 'active', limit: 1 })])
-      .then(([anyEndpoints, activeEndpoints]) => {
-        if (cancelled) return
-        if (activeEndpoints.data.length > 0) {
-          setGate({ status: 'ready', canSend: true })
-          return
-        }
-        setGate({
-          status: 'ready',
-          canSend: false,
-          reason: anyEndpoints.data.length > 0 ? 'all_disabled' : 'none',
-        })
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setGate({
-            status: 'error',
-            message: err instanceof ApiError ? err.message : 'Failed to load endpoints',
-          })
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -186,44 +136,10 @@ function SendEventPage() {
     }
   }
 
-  const accepted = form.result
-  const acceptedId = accepted?.id
-  const statusAbortRef = useRef<AbortController | null>(null)
-  const [statusError, setStatusError] = useState<string | null>(null)
-  const refreshAcceptedEvent = useCallback(async () => {
-    if (!acceptedId || statusAbortRef.current) return
-    const controller = new AbortController()
-    statusAbortRef.current = controller
-    try {
-      const event = await getEvent(acceptedId, { signal: controller.signal })
-      if (controller.signal.aborted) return
-      setStatusError(null)
-      dispatch({ type: 'status', id: acceptedId, status: event.status })
-    } catch (err) {
-      if (controller.signal.aborted) return
-      setStatusError(err instanceof ApiError ? err.message : 'Failed to refresh event status')
-    } finally {
-      if (statusAbortRef.current === controller) statusAbortRef.current = null
-    }
-  }, [acceptedId])
-
-  const hasOpenAcceptedEvent = accepted !== null && isOpenEventStatus(accepted.status)
-  useEffect(() => {
-    setStatusError(null)
-    if (!hasOpenAcceptedEvent) return
-    void refreshAcceptedEvent()
-    return () => {
-      statusAbortRef.current?.abort()
-      statusAbortRef.current = null
-    }
-  }, [hasOpenAcceptedEvent, refreshAcceptedEvent])
-
-  usePolling({
-    enabled: hasOpenAcceptedEvent,
-    intervalMs: POLL_FAST_MS,
-    refreshOnVisible: true,
-    onPoll: refreshAcceptedEvent,
-  })
+  const onStatus = useCallback((id: string, status: EventStatus) => {
+    dispatch({ type: 'status', id, status })
+  }, [])
+  const statusError = useAcceptedEventPolling(form.result, onStatus)
 
   return (
     <ConsolePage

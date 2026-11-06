@@ -1,3 +1,4 @@
+import { parseStatusQuery, updateStatusQuery } from '@/lib/status-query'
 import { DELIVERY_STATUSES } from '@hikyaku/shared/constants'
 import { useReadOnlyWorkspace } from '@/providers/session-context'
 import { isWorkspaceActionAvailable, SEND_EVENT_ACTION } from '@/lib/workspace-actions'
@@ -5,7 +6,7 @@ import { usePageCache } from '@/providers/page-cache-context'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search, Send, X } from 'lucide-react'
 import { listDeliveries } from '@/api/client'
-import type { Delivery, DeliveryStatus } from '@/api/types'
+import type { Delivery } from '@/api/types'
 import {
   Select,
   SelectContent,
@@ -31,12 +32,10 @@ import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { formatStatusLabel } from '@/lib/format'
 import { POLL_FAST_MS, POLL_SLOW_MS } from '@/lib/ui-timing'
 
-type DeliveryListStatus = 'all' | DeliveryStatus | 'open'
-
 const STATUS_OPTIONS = ['all', 'open', ...DELIVERY_STATUSES] as const
 
-function parseStatusParam(value: string | null): DeliveryListStatus {
-  return STATUS_OPTIONS.find((status) => status === value) ?? 'all'
+function parseStatusParam(value: string | null) {
+  return parseStatusQuery(value, STATUS_OPTIONS, 'all')
 }
 
 export default function Deliveries() {
@@ -185,10 +184,10 @@ export default function Deliveries() {
       <Select
         value={statusFilter}
         onValueChange={(value) => {
-          patchParams((next) => {
-            if (value === 'all') next.delete('status')
-            else next.set('status', value)
+          setSearchParams(updateStatusQuery(searchParams, parseStatusParam(value), 'all'), {
+            replace: true,
           })
+          setOffset(0)
         }}
       >
         <SelectTrigger className="log-panel-toolbar__filter" aria-label="Filter by status">

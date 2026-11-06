@@ -70,6 +70,24 @@ afterEach(async () => {
 })
 
 describe('SendEvent endpoint gate', () => {
+  it('keeps the form gated while endpoint lookup is pending', async () => {
+    const pending = deferred<Paginated<Endpoint>>()
+    vi.mocked(listEndpoints).mockReturnValue(pending.promise)
+    await renderSendEvent()
+    expect(container.textContent).not.toContain('Send test event')
+    await act(async () => {
+      pending.resolve(page())
+    })
+    expect(container.textContent).toContain('Create an endpoint first')
+  })
+
+  it('shows an endpoint lookup failure', async () => {
+    vi.mocked(listEndpoints).mockRejectedValue(new Error('offline'))
+    await renderSendEvent()
+    expect(container.textContent).toContain('Failed to load endpoints')
+    expect(container.textContent).not.toContain('Send test event')
+  })
+
   it('asks to create an endpoint when the workspace has none', async () => {
     vi.mocked(listEndpoints).mockResolvedValue(page())
     await renderSendEvent()
@@ -255,4 +273,50 @@ it('does not overlap the initial status request with timer refreshes', async () 
   } finally {
     vi.useRealTimers()
   }
+})
+
+it('refreshes on visibility and stops after a terminal status', async () => {
+  vi.useFakeTimers()
+  const hidden = vi.spyOn(document, 'hidden', 'get')
+  try {
+    hidden.mockReturnValue(false)
+    vi.mocked(getEvent)
+      .mockResolvedValueOnce({ id: 'evt-pending', status: 'pending' } as EventDetail)
+      .mockResolvedValue({ id: 'evt-pending', status: 'completed' } as EventDetail)
+    await acceptPendingEvent()
+    hidden.mockReturnValue(true)
+    document.dispatchEvent(new Event('visibilitychange'))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_FAST_MS)
+    })
+    expect(getEvent).toHaveBeenCalledTimes(1)
+    hidden.mockReturnValue(false)
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    expect(getEvent).toHaveBeenCalledTimes(2)
+    expect(container.textContent).toContain('All delivered')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_FAST_MS * 2)
+    })
+    expect(getEvent).toHaveBeenCalledTimes(2)
+  } finally {
+    hidden.mockRestore()
+    vi.useRealTimers()
+  }
+})
+
+it('aborts an in-flight status request on unmount', async () => {
+  const pending = deferred<EventDetail>()
+  vi.mocked(getEvent).mockReturnValue(pending.promise)
+  await acceptPendingEvent()
+  const signal = vi.mocked(getEvent).mock.calls[0][1]?.signal
+  await act(async () => {
+    root.unmount()
+  })
+  expect(signal?.aborted).toBe(true)
+  await act(async () => {
+    pending.resolve({ id: 'evt-pending', status: 'failed' } as EventDetail)
+  })
+  root = createRoot(container)
 })

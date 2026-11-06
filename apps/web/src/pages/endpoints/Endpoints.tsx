@@ -1,3 +1,4 @@
+import { parseStatusQuery, updateStatusQuery } from '@/lib/status-query'
 import { formatStatusLabel } from '@/lib/format'
 import { ENDPOINT_STATUSES } from '@hikyaku/shared/constants'
 import { usePageCache } from '@/providers/page-cache-context'
@@ -35,8 +36,8 @@ import { RotateEndpointSecretDialog } from '@/pages/endpoints/RotateEndpointSecr
 
 const STATUS_OPTIONS = ['all', ...ENDPOINT_STATUSES] as const
 
-function parseStatusParam(value: string | null): 'all' | EndpointStatus {
-  return STATUS_OPTIONS.find((status) => status === value) ?? 'active'
+function parseStatusParam(value: string | null) {
+  return parseStatusQuery(value, STATUS_OPTIONS, 'active')
 }
 
 function emptyEndpointsTitle(statusFilter: 'all' | EndpointStatus): string {
@@ -93,10 +94,7 @@ export default function Endpoints() {
   const isDatasetEmpty = showEmpty && statusFilter === 'all' && offset === 0
 
   function setStatusFilter(value: 'all' | EndpointStatus) {
-    const next = new URLSearchParams(searchParams)
-    if (value === 'active') next.delete('status')
-    else next.set('status', value)
-    setSearchParams(next, { replace: true })
+    setSearchParams(updateStatusQuery(searchParams, value, 'active'), { replace: true })
     setOffset(0)
   }
 

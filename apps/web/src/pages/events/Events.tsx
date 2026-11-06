@@ -1,3 +1,4 @@
+import { parseStatusQuery, updateStatusQuery } from '@/lib/status-query'
 import { EVENT_STATUSES } from '@hikyaku/shared/constants'
 import { isWorkspaceActionAvailable, SEND_EVENT_ACTION } from '@/lib/workspace-actions'
 import { usePageCache } from '@/providers/page-cache-context'
@@ -42,8 +43,8 @@ import { useReadOnlyWorkspace } from '@/providers/session-context'
 
 const STATUS_OPTIONS = ['all', ...EVENT_STATUSES] as const
 
-function parseStatusParam(value: string | null): 'all' | EventStatus {
-  return EVENT_STATUSES.find((status) => status === value) ?? 'all'
+function parseStatusParam(value: string | null) {
+  return parseStatusQuery(value, STATUS_OPTIONS, 'all')
 }
 
 export default function Events() {
@@ -85,10 +86,7 @@ export default function Events() {
   const isDatasetEmpty = showEmpty && statusFilter === 'all' && offset === 0
 
   function setStatusFilter(value: 'all' | EventStatus) {
-    const next = new URLSearchParams(searchParams)
-    if (value === 'all') next.delete('status')
-    else next.set('status', value)
-    setSearchParams(next, { replace: true })
+    setSearchParams(updateStatusQuery(searchParams, value, 'all'), { replace: true })
     setOffset(0)
   }
 
