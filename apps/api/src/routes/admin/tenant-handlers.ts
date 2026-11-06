@@ -1,18 +1,11 @@
-import { generateInviteToken, hashInviteToken } from '@hikyaku/shared/crypto'
 import { invites, tenants, users } from '@hikyaku/shared/schema'
-import { adminCreateInviteSchema, adminPatchTenantSchema } from '@hikyaku/shared/zod'
+import { adminPatchTenantSchema } from '@hikyaku/shared/zod'
 import { and, count, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm'
 import type { Request, Response } from 'express'
-import { env } from '../../config.js'
 import { getDb } from '../../db/client.js'
 import { AppError } from '../../lib/errors.js'
 import { asyncHandler } from '../../lib/asyncHandler.js'
-import {
-  assertEmailAvailable,
-  invalidatePendingSignupInvites,
-  inviteEmailMatches,
-  PASSWORD_RESET_KIND,
-} from '../../auth/invites.js'
+import { inviteEmailMatches, PASSWORD_RESET_KIND } from '../../auth/invites.js'
 import { paginatedJson, parsePagination, takePage } from '../../lib/pagination.js'
 import { revokeTenantSessions, revokeUserSessions } from '../../auth/revokeSessions.js'
 import { isUuid, parseSchema } from '../../lib/validation.js'
@@ -230,131 +223,4 @@ export const listTenantUsers = asyncHandler(async (req: Request, res: Response) 
       offset,
     ),
   )
-})
-
-export const createInvite = asyncHandler(async (req: Request, res: Response) => {
-  const body = parseSchema(adminCreateInviteSchema, req.body)
-  if (body.kind === 'tenant_user') await assertWritableTenant(body.tenant_id)
-  const createdByUserId = req.userId
-  if (!createdByUserId) {
-    throw new AppError(401, 'unauthorized', 'Missing or invalid session')
-  }
-
-  const db = getDb()
-  const rawToken = generateInviteToken()
-  const tokenHash = hashInviteToken(rawToken)
-  const expiresAt = new Date(Date.now() + env.INVITE_TTL_MS)
-  const email = body.kind === 'tenant_owner' ? body.owner_email : body.email
-
-  await db.transaction(async (tx) => {
-    // Serializes check-and-create for this email; released automatically on commit or rollback.
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${email}))`)
-    await assertEmailAvailable(email, tx)
-    await invalidatePendingSignupInvites(email, tx)
-
-    if (body.kind === 'tenant_owner') {
-      await tx.insert(invites).values({
-        tokenHash,
-        kind: body.kind,
-        email,
-        tenantName: body.tenant_name,
-        invitedName: body.owner_name ?? null,
-        createdByUserId,
-        expiresAt,
-      })
-    } else if (body.kind === 'tenant_user') {
-      const [tenant] = await tx
-        .select({ id: tenants.id })
-        .from(tenants)
-        .where(eq(tenants.id, body.tenant_id))
-        .limit(1)
-
-      if (!tenant) {
-        throw new AppError(404, 'not_found', 'Tenant not found')
-      }
-
-      await tx.insert(invites).values({
-        tokenHash,
-        kind: body.kind,
-        email,
-        tenantId: body.tenant_id,
-        invitedName: body.name ?? null,
-        createdByUserId,
-        expiresAt,
-      })
-    } else {
-      const _exhaustive: never = body
-      throw new AppError(500, 'internal_error', `Unknown invite kind: ${String(_exhaustive)}`)
-    }
-  })
-
-  const inviteUrl = `${env.WEB_APP_URL}/accept-invite?token=${encodeURIComponent(rawToken)}`
-
-  res.status(201).json({
-    invite_url: inviteUrl,
-    expires_at: expiresAt.toISOString(),
-  })
-})
-
-export const createPasswordReset = asyncHandler(async (req: Request, res: Response) => {
-  const { id, userId } = req.params
-  parseTenantId(id)
-  parseUserId(userId)
-  await assertWritableTenant(id)
-  const createdByUserId = req.userId
-  if (!createdByUserId) {
-    throw new AppError(401, 'unauthorized', 'Missing or invalid session')
-  }
-
-  const db = getDb()
-  const rawToken = generateInviteToken()
-  const tokenHash = hashInviteToken(rawToken)
-  const expiresAt = new Date(Date.now() + env.INVITE_TTL_MS)
-
-  await db.transaction(async (tx) => {
-    const [target] = await tx
-      .select({ id: users.id, email: users.email })
-      .from(users)
-      .where(and(eq(users.id, userId), eq(users.tenantId, id)))
-      .limit(1)
-
-    if (!target) {
-      throw new AppError(404, 'not_found', 'User not found')
-    }
-
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${target.email}))`)
-    const [lockedTarget] = await tx
-      .select({ id: users.id, email: users.email })
-      .from(users)
-      .where(and(eq(users.id, userId), eq(users.tenantId, id)))
-      .limit(1)
-
-    if (!lockedTarget) {
-      throw new AppError(404, 'not_found', 'User not found')
-    }
-
-    await tx
-      .update(invites)
-      .set({ acceptedAt: new Date() })
-      .where(
-        and(
-          inviteEmailMatches(lockedTarget.email),
-          eq(invites.kind, PASSWORD_RESET_KIND),
-          isNull(invites.acceptedAt),
-        ),
-      )
-    await tx.insert(invites).values({
-      tokenHash,
-      kind: PASSWORD_RESET_KIND,
-      email: lockedTarget.email,
-      tenantId: id,
-      createdByUserId,
-      expiresAt,
-    })
-  })
-
-  res.status(201).json({
-    reset_url: `${env.WEB_APP_URL}/reset-password?token=${encodeURIComponent(rawToken)}`,
-    expires_at: expiresAt.toISOString(),
-  })
 })

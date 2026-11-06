@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import type { NextFunction, Request, Response } from 'express'
 import { tenants, users } from '@hikyaku/shared/schema'
 import { getDb } from '../db/client.js'
-import { AppError } from '../lib/errors.js'
+import { missingSessionError } from './errors.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import {
   createCredentialFingerprint,
@@ -20,7 +20,7 @@ function applySessionUser(req: Request, user: SessionUserBlob): void {
 export async function attachSessionUser(req: Request): Promise<void> {
   const blob = readSessionUserBlob(req.session)
   if (!blob) {
-    throw new AppError(401, 'unauthorized', 'Missing or invalid session')
+    throw missingSessionError()
   }
 
   const rows = await getDb()
@@ -41,11 +41,11 @@ export async function attachSessionUser(req: Request): Promise<void> {
 
   const user = rows[0]
   if (!user) {
-    throw new AppError(401, 'unauthorized', 'Missing or invalid session')
+    throw missingSessionError()
   }
 
   if (createCredentialFingerprint(user.passwordHash) !== blob.credentialFingerprint) {
-    throw new AppError(401, 'unauthorized', 'Missing or invalid session')
+    throw missingSessionError()
   }
 
   const hydrated: SessionUserBlob = {

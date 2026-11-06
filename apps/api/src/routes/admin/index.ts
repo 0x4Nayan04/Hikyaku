@@ -1,15 +1,15 @@
 import { Router, type IRouter } from 'express'
 import { requireSuperAdmin } from '../../auth/requireSuperAdmin.js'
 import {
-  createInvite,
-  createPasswordReset,
   deleteTenant,
   deleteTenantUser,
   getTenant,
   listTenantUsers,
   listTenants,
   patchTenant,
-} from './handlers.js'
+} from './tenant-handlers.js'
+import { createInvite } from './invite-handlers.js'
+import { createPasswordReset } from './password-reset-handlers.js'
 
 export const adminRouter: IRouter = Router()
 
