@@ -69,6 +69,7 @@ export const endpoints = pgTable(
     secret: text('secret').notNull(),
     description: text('description'),
     status: text('status').notNull().default('active').$type<EndpointStatus>(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

@@ -151,6 +151,7 @@ type EndpointCatalogRowProps = {
   lastDelivery?: EndpointLastDelivery | null
   toggling: boolean
   onEdit: (endpoint: Endpoint) => void
+  onRemove: (endpoint: Endpoint) => void
   onRotate: (endpoint: Endpoint) => void
   onToggle: (endpoint: Endpoint) => void
 }
@@ -162,6 +163,7 @@ function EndpointCatalogRow({
   toggling,
   onEdit,
   onRotate,
+  onRemove,
   onToggle,
 }: EndpointCatalogRowProps) {
   const iconVariant = endpoint.status === 'disabled' ? 'disabled' : 'active'
@@ -261,6 +263,9 @@ function EndpointCatalogRow({
                   )}
                   {endpoint.status === 'active' ? 'Disable endpoint' : 'Enable endpoint'}
                 </DropdownMenuItem>
+                <DropdownMenuItem variant="destructive" onSelect={() => onRemove(endpoint)}>
+                  Remove endpoint
+                </DropdownMenuItem>
               </>
             )}
           </DropdownMenuContent>
@@ -275,6 +280,7 @@ type EndpointCatalogListProps = {
   endpoints: Endpoint[]
   togglingId: string | null
   onEdit: (endpoint: Endpoint) => void
+  onRemove: (endpoint: Endpoint) => void
   onRotate: (endpoint: Endpoint) => void
   onToggle: (endpoint: Endpoint) => void
 }
@@ -285,6 +291,7 @@ export function EndpointCatalogList({
   togglingId,
   onEdit,
   onRotate,
+  onRemove,
   onToggle,
 }: EndpointCatalogListProps) {
   return (
@@ -297,6 +304,7 @@ export function EndpointCatalogList({
           lastDelivery={endpoint.last_delivery}
           toggling={togglingId === endpoint.id}
           onEdit={onEdit}
+          onRemove={onRemove}
           onRotate={onRotate}
           onToggle={onToggle}
         />

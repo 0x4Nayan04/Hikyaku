@@ -32,6 +32,7 @@ import {
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { CreateEndpointDialog } from '@/pages/endpoints/CreateEndpointDialog'
 import { EditEndpointLabelDialog } from '@/pages/endpoints/EditEndpointLabelDialog'
+import { RemoveEndpointDialog } from '@/pages/endpoints/RemoveEndpointDialog'
 import { RotateEndpointSecretDialog } from '@/pages/endpoints/RotateEndpointSecretDialog'
 
 const STATUS_OPTIONS = ['all', ...ENDPOINT_STATUSES] as const
@@ -88,6 +89,7 @@ export default function Endpoints() {
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Endpoint | null>(null)
+  const [removeTarget, setRemoveTarget] = useState<Endpoint | null>(null)
   const [rotateTarget, setRotateTarget] = useState<Endpoint | null>(null)
 
   const showLoading = isInitial && endpoints.length === 0
@@ -235,6 +237,7 @@ export default function Endpoints() {
               readOnly={readOnly}
               endpoints={endpoints}
               togglingId={togglingId}
+              onRemove={setRemoveTarget}
               onEdit={(endpoint) => setEditTarget(endpoint)}
               onRotate={(endpoint) => setRotateTarget(endpoint)}
               onToggle={handleToggleStatus}
@@ -251,6 +254,11 @@ export default function Endpoints() {
 
       {!readOnly && (
         <>
+          <RemoveEndpointDialog
+            target={removeTarget}
+            onTargetChange={setRemoveTarget}
+            onChanged={reloadEndpoints}
+          />
           <CreateEndpointDialog
             createOpen={createOpen}
             onCreateOpenChange={setCreateOpen}

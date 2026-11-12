@@ -491,7 +491,7 @@ paths:
       tags:
         - Endpoints
       summary: List workspace endpoints
-      description: List workspace endpoints
+      description: List workspace endpoints, excluding permanently removed receivers in every status filter.
       security:
         - sessionCookie: []
       responses:
@@ -555,12 +555,46 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateEndpointInput'
   /v1/endpoints/{id}:
+    delete:
+      operationId: removeEndpoint
+      tags:
+        - Endpoints
+      summary: Permanently remove an endpoint while retaining delivery history
+      description: >-
+        Disables and permanently removes the endpoint from every endpoint list. Its row,
+        deliveries and attempts are retained. Repeated removal in the same workspace returns
+        204. Unknown endpoints and endpoints in another workspace return 404. Removed endpoints
+        cannot be edited, rotated, reactivated or replayed. No new HTTP sends are claimed after
+        removal; a delivery already claimed for sending may finish. Queued retries are marked
+        failed with endpoint_removed when processed, without an HTTP attempt.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Resource UUID; invalid UUIDs return 404.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Origin'
+      responses:
+        '204':
+          description: Endpoint permanently removed; no response body.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: patchEndpoint
       tags:
         - Endpoints
       summary: Change endpoint status or description
-      description: Change endpoint status or description
+      description: Change endpoint status or description. Removed endpoints return 404.
       security:
         - sessionCookie: []
       responses:
@@ -605,7 +639,7 @@ paths:
       summary: Rotate endpoint signing secret
       description:
         Replaces the previous secret immediately; no dual-secret overlap. Save the new secret
-        and update the receiver.
+        and update the receiver. Removed endpoints return 404.
       security:
         - sessionCookie: []
       responses:
@@ -843,7 +877,7 @@ paths:
       summary: Accept a failed or pending delivery for replay
       description:
         Only failed or pending deliveries on active endpoints can be replayed. Succeeded, in_progress
-        and disabled-endpoint deliveries return 400 invalid_state. A failed delivery resets attempts and
+        and disabled or removed endpoint deliveries return 400 invalid_state. A failed delivery resets attempts and
         increments replay_count; pending deliveries are re-enqueued. 202 means accepted, not delivered.
         Enqueue may return 503 after the state change has committed; the outbox may still cause a delivery
         after recovery. Inspect the delivery before taking further action.
@@ -1892,8 +1926,15 @@ components:
         - type: object
           required:
             - endpoint_status
+            - endpoint_deleted_at
             - attempts
           properties:
+            endpoint_deleted_at:
+              type:
+                - string
+                - 'null'
+              format: date-time
+              description: Removal timestamp, or null if the endpoint has not been removed.
             endpoint_status:
               type: string
               enum:

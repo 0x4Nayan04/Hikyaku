@@ -1,5 +1,5 @@
 import { endpoints } from '@hikyaku/shared/schema'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type * as schema from '@hikyaku/shared/schema'
 
@@ -12,7 +12,15 @@ export async function getActiveEndpointIds(
   const rows = await executor
     .select({ id: endpoints.id })
     .from(endpoints)
-    .where(and(eq(endpoints.tenantId, tenantId), eq(endpoints.status, 'active')))
+    .where(
+      and(
+        eq(endpoints.tenantId, tenantId),
+        eq(endpoints.status, 'active'),
+        isNull(endpoints.deletedAt),
+      ),
+    )
+    .orderBy(endpoints.id)
+    .for('share')
 
   return rows.map((row) => row.id)
 }

@@ -225,6 +225,10 @@ export function patchEndpoint(id: string, body: PatchEndpointInput): Promise<End
   })
 }
 
+export function removeEndpoint(id: string): Promise<void> {
+  return sessionApiFetch(`/v1/endpoints/${id}`, { method: 'DELETE', responseType: 'empty' })
+}
+
 export function rotateEndpointSecret(id: string): Promise<EndpointWithSecret> {
   return sessionApiFetch(`/v1/endpoints/${id}/rotate`, { method: 'POST' })
 }

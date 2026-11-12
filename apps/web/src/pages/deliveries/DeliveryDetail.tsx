@@ -185,7 +185,8 @@ export default function DeliveryDetail() {
           {!readOnly &&
           !awaitingReplay &&
           delivery?.status === 'failed' &&
-          delivery.endpoint_status === 'active' ? (
+          delivery.endpoint_status === 'active' &&
+          !delivery.endpoint_deleted_at ? (
             <Button size="sm" className="sm-btn-split" onClick={() => setReplayOpen(true)}>
               <span className="sm-btn-split-label">Replay</span>
               <span className="sm-btn-split-icon">
@@ -242,7 +243,12 @@ export default function DeliveryDetail() {
               </DetailFieldRow>
             </DetailFieldList>
 
-            {delivery.status === 'failed' && delivery.endpoint_status === 'disabled' ? (
+            {delivery.endpoint_deleted_at ? (
+              <p className="border-t border-border/60 px-4 py-3 text-sm text-muted-strong md:px-5">
+                Endpoint removed. Delivery history is retained. Replay and reactivation are
+                unavailable.
+              </p>
+            ) : delivery.status === 'failed' && delivery.endpoint_status === 'disabled' ? (
               <p className="border-t border-border/60 px-4 py-3 text-sm text-muted-strong md:px-5">
                 Replay is unavailable because the{' '}
                 <Link

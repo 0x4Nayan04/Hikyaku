@@ -106,6 +106,7 @@ const DELIVERY_ERROR_LABELS: Record<string, string> = {
   timeout: 'Timed out',
   network_error: 'Network error',
   endpoint_disabled: 'Endpoint disabled',
+  endpoint_removed: 'Endpoint removed',
   blocked_url: 'Blocked URL',
   too_many_redirects: 'Too many redirects',
   max_attempts: 'Max attempts reached',

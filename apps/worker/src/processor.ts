@@ -1,7 +1,7 @@
 import type { DeliveryJobData } from '@hikyaku/shared/constants/queue'
 import { signPayload } from '@hikyaku/shared/crypto'
 import { reevaluateEventStatus } from '@hikyaku/shared/eventStatus'
-import { deliveryAttempts, deliveries } from '@hikyaku/shared/schema'
+import { deliveryAttempts, deliveries, endpoints } from '@hikyaku/shared/schema'
 import { DelayedError, type Job } from 'bullmq'
 import { and, eq, sql } from 'drizzle-orm'
 import { calculateBackoffDelayMs } from './backoff.js'
@@ -144,7 +144,15 @@ async function claimPendingDelivery(
   const db = getDb()
   const leaseStartedAt = new Date()
   const maxAttempts = env.MAX_DELIVERY_ATTEMPTS
-  const result: unknown = await db.execute(sql`
+  const result: unknown = await db.transaction(async (tx) => {
+    // Serialize removal against the claim, then release before making the HTTP request.
+    await tx
+      .select({ id: endpoints.id })
+      .from(endpoints)
+      .innerJoin(deliveries, eq(deliveries.endpointId, endpoints.id))
+      .where(eq(deliveries.id, deliveryId))
+      .for('share', { of: endpoints })
+    return tx.execute(sql`
     WITH target AS (
       SELECT d.id, d.attempt_count AS previous_attempt_count
       FROM deliveries AS d
@@ -177,8 +185,10 @@ async function claimPendingDelivery(
       e.created_at AS event_created_at,
       ep.url,
       ep.secret,
-      ep.status AS endpoint_status
+      ep.status AS endpoint_status,
+      (ep.deleted_at IS NOT NULL) AS endpoint_removed
   `)
+  })
 
   const claimed = parseClaimResult(result)
   if (!claimed) return null
@@ -222,6 +232,17 @@ export async function processor(job: Job<DeliveryJobData>, token?: string): Prom
       attempt,
       attemptNumber,
     )
+
+  if (row.endpointRemoved) {
+    await persist({
+      status: 'failed',
+      lastError: 'endpoint_removed',
+      nextRetryAt: null,
+      attemptCount: reservedAttempt === null ? row.attemptCount : row.attemptCount - 1,
+    })
+    log.info('endpoint_removed')
+    return
+  }
 
   if (reservedAttempt === null) {
     await persist({

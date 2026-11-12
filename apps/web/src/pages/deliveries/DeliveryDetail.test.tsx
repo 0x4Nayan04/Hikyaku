@@ -31,6 +31,7 @@ const replayedDelivery: DeliveryDetailType = {
   endpoint_id: 'endpoint-1',
   endpoint_url: 'https://example.com/hook',
   endpoint_status: 'active',
+  endpoint_deleted_at: null,
   status: 'failed',
   replay_count: 1,
   attempt_count: 1,
@@ -169,6 +170,20 @@ describe('DeliveryDetail', () => {
     expect(container.textContent).not.toContain('3 attempts')
     expect(container.querySelector(`a[href="/events/${replayedDelivery.event_id}"]`)).not.toBeNull()
     expect(replayButton()).not.toBeNull()
+  })
+
+  it('marks a removed endpoint and offers neither replay nor reactivation', async () => {
+    vi.mocked(getDelivery).mockResolvedValue({
+      ...replayedDelivery,
+      endpoint_status: 'disabled',
+      endpoint_deleted_at: '2026-11-12T00:00:00Z',
+      last_error: 'endpoint_removed',
+    })
+    await renderDelivery(replayedDelivery.id)
+    expect(container.textContent).toContain('Endpoint removed')
+    expect(container.textContent).toContain('Delivery history is retained')
+    expect(replayButton()).toBeNull()
+    expect(container.querySelector('a[href="/endpoints?status=disabled"]')).toBeNull()
   })
 
   it('explains that replay is unavailable when the endpoint is disabled', async () => {

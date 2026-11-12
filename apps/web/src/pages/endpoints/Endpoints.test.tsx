@@ -6,7 +6,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { listEndpoints, patchEndpoint } from '@/api/client'
+import { listEndpoints, patchEndpoint, removeEndpoint } from '@/api/client'
 import type { Endpoint, Paginated } from '@/api/types'
 import Endpoints from '@/pages/endpoints/Endpoints'
 
@@ -16,6 +16,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     ...actual,
     listEndpoints: vi.fn(),
     patchEndpoint: vi.fn(),
+    removeEndpoint: vi.fn(),
   }
 })
 
@@ -138,3 +139,29 @@ it.each(['active', 'disabled', 'all', 'invalid'])(
     )
   },
 )
+
+it('removes the endpoint after confirmation and invalidates endpoint and dashboard caches', async () => {
+  vi.mocked(listEndpoints)
+    .mockResolvedValueOnce({ ...emptyPage, data: [endpoint] })
+    .mockResolvedValueOnce(emptyPage)
+  vi.mocked(removeEndpoint).mockResolvedValue()
+  await renderEndpoints('/endpoints')
+  const trigger = container.querySelector<HTMLButtonElement>('button[title="More actions"]')!
+  await act(async () =>
+    trigger.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })),
+  )
+  const item = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
+    (item) => item.textContent?.includes('Remove endpoint'),
+  )!
+  await act(async () => item.click())
+  expect(removeEndpoint).not.toHaveBeenCalled()
+  const confirm = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+    (b) => b.textContent === 'Remove permanently',
+  )!
+  await act(async () => confirm.click())
+  expect(removeEndpoint).toHaveBeenCalledWith(endpoint.id)
+  expect(pageCache.endpoints.generation).toBe(1)
+  expect(pageCache.dashboard.generation).toBe(1)
+  expect(container.textContent).toContain('No active endpoints')
+  expect(container.textContent).not.toContain(endpoint.url)
+})

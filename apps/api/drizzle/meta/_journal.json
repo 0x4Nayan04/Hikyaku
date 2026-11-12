@@ -169,6 +169,13 @@
       "when": 1792598400000,
       "tag": "0024_read_only_tenants",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794441600000,
+      "tag": "0025_endpoint_removal",
+      "breakpoints": true
     }
   ]
 }

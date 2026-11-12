@@ -12,6 +12,7 @@ export type DeliveryContext = {
   url: string
   secret: string
   endpointStatus: EndpointStatus
+  endpointRemoved: boolean
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -49,6 +50,8 @@ export function parseClaimResult(result: unknown): {
   }
   const eventCreatedAt = new Date(date)
   if (!Number.isFinite(eventCreatedAt.getTime())) throw new Error('invalid_delivery_claim_date')
+  if (typeof raw.endpoint_removed !== 'boolean')
+    throw new Error('invalid_delivery_claim_endpoint_removed')
   const endpointStatus = ENDPOINT_STATUSES.find((status) => status === raw.endpoint_status)
   if (!endpointStatus) throw new Error('invalid_delivery_claim_endpoint_status')
   return {
@@ -65,6 +68,7 @@ export function parseClaimResult(result: unknown): {
       url: string(raw.url),
       secret: string(raw.secret),
       endpointStatus,
+      endpointRemoved: raw.endpoint_removed,
     },
   }
 }

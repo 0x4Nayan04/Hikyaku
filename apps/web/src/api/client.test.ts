@@ -8,6 +8,7 @@ import {
   getAdminTenant,
   getMe,
   logout,
+  removeEndpoint,
 } from './client'
 
 afterEach(() => {
@@ -148,14 +149,12 @@ describe('response and header contracts', () => {
   it('does not trust non-string server error fields', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(JSON.stringify({ error: { code: 123, message: { text: 'unsafe' } } }), {
-            status: 400,
-            statusText: 'Bad request',
-          }),
-        ),
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: { code: 123, message: { text: 'unsafe' } } }), {
+          status: 400,
+          statusText: 'Bad request',
+        }),
+      ),
     )
     await expect(apiFetch('/test')).rejects.toMatchObject({
       code: 'unknown',
@@ -170,5 +169,14 @@ describe('response and header contracts', () => {
     await getAdminTenant('tenant-1', { signal })
     await getMe({ signal })
     expect(fetch.mock.calls.map((call) => call[1].signal)).toEqual([signal, signal])
+  })
+  it('removes endpoints with an authenticated DELETE and accepts the empty 204 response', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetch)
+    await expect(removeEndpoint('endpoint-1')).resolves.toBeUndefined()
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/v1/endpoints/endpoint-1'),
+      expect.objectContaining({ method: 'DELETE', credentials: 'include' }),
+    )
   })
 })

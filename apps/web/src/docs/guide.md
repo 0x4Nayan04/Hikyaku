@@ -268,7 +268,9 @@ An endpoint is a subscriber URL that receives signed webhook POSTs. Create one w
 
 Endpoint routes require the session cookie, not an API key. Sign in and create the endpoint in the [API-only path](#api-only-path). In production, cookie requests that change data must send an `Origin` header listed in `CORS_ORIGIN`.
 
-URL cannot change after create. Update status or description with `PATCH /v1/endpoints/:id`. Rotate the signing secret in place with `POST /v1/endpoints/:id/rotate` — the new secret is returned once; the endpoint id and URL stay the same. Rotation replaces the secret immediately (no overlap window); update every receiver before or right after rotating, and expect in-flight deliveries to keep using the secret that was active when they were reserved. To change a URL, create a new endpoint and disable the old one.
+URL cannot change after create. Update status or description with `PATCH /v1/endpoints/:id`. Rotate the signing secret in place with `POST /v1/endpoints/:id/rotate` — the new secret is returned once; the endpoint id and URL stay the same. Rotation replaces the secret immediately (no overlap window); update every receiver before or right after rotating, and expect in-flight deliveries to keep using the secret that was active when they were reserved. To change a URL, create a new endpoint and disable or remove the old one.
+
+Use **Remove endpoint** in the endpoint actions menu, or `DELETE /v1/endpoints/:id`, to remove a receiver permanently. The confirmation explains that delivery history is retained and an already claimed delivery may finish. Removed endpoints disappear from every endpoint list, cannot be restored, edited or rotated, and their deliveries cannot be replayed. The server retains the endpoint row, deliveries and attempt history. Queued deliveries and retries stop without sending HTTP when the worker processes them, with `endpoint_removed` as the final error. Removal returns `204` with no body, including repeated removal in the same workspace; an unknown endpoint or another workspace's endpoint returns `404`. Read-only workspaces cannot remove endpoints. Delivery detail exposes `endpoint_deleted_at` (timestamp or null) and shows a removed marker without an enable link.
 
 > **Save the secret now:** The server cannot show the signing secret again after create or rotate. Copy it into your secret manager immediately.
 
@@ -394,7 +396,8 @@ Auth: **public** — no credentials. **bootstrap** — `X-Admin-Secret`. **login
 | POST   | `/v1/api-keys/:id/revoke` | login | Revoke API key |
 | POST   | `/v1/api-keys/:id/rotate` | login | Rotate API key (new key shown once) |
 | POST   | `/v1/endpoints` | login | Create endpoint (secret shown once) |
-| GET    | `/v1/endpoints` | login | List endpoints |
+| GET    | `/v1/endpoints` | login | List endpoints, excluding removed receivers |
+| DELETE | `/v1/endpoints/:id` | login | Permanently remove receiver; retain delivery history |
 | PATCH  | `/v1/endpoints/:id` | login | Update status or description |
 | POST   | `/v1/endpoints/:id/rotate` | login | Rotate signing secret (shown once) |
 | POST   | `/v1/events` | key or login | Ingest event → 202 Accepted |
@@ -423,7 +426,7 @@ Errors:
 | Code | Status | When |
 | ---- | ------ | ---- |
 | `validation_error` / `invalid_json` | 400 | Bad body or query |
-| `invalid_state` | 400 | Replay not allowed (`in_progress`, succeeded, or disabled endpoint) |
+| `invalid_state` | 400 | Replay not allowed (`in_progress`, succeeded, or disabled or removed endpoint) |
 | `unauthorized` | 401 | Missing or wrong key or session |
 | `origin_not_allowed` | 403 | Cookie write in production without an allowed `Origin` |
 | `forbidden` | 403 | Bootstrap after the first account exists |
@@ -457,7 +460,7 @@ A response counts as success only when it finishes. A stream error or a connecti
 
 Delivery is at-least-once — dedupe with `X-Webhook-Id` (stable across retries; see [Outbound](#outbound)). Ingest→queue durability is in [Outbox](#outbox). The sweeper (`SWEEP_INTERVAL_MS`, application default 5 minutes; production Compose default 30 seconds) reclaims stale `in_progress` rows after the worker lease (delivery timeout + 30s) and re-enqueues due `pending` rows, without resetting attempt counts.
 
-`POST /v1/deliveries/:id/replay` starts a new run only for a `failed` delivery. That call returns `202`, increments `replay_count`, resets the current run’s attempt counter and `next_retry_at`, and keeps previous attempts. You can do the same with **Replay** on the delivery detail page. Attempts expose `run_number`, starting at 0; the delivery ID and X-Webhook-Id remain unchanged. Each replay run is enqueued with a queue deduplication id of `delivery_id:replay_count`, so a new run is not confused with an older job for the same delivery. Replaying a `pending` delivery also returns `202` and re-enqueues that same run without changing the attempt count, run number, or `next_retry_at`. Replaying `in_progress` returns `400 invalid_state`: the sweeper recovers that delivery after the lease expires, and resetting it could start a competing send. A succeeded delivery, or any delivery whose endpoint is disabled, returns `400 invalid_state`.
+`POST /v1/deliveries/:id/replay` starts a new run only for a `failed` delivery. That call returns `202`, increments `replay_count`, resets the current run’s attempt counter and `next_retry_at`, and keeps previous attempts. You can do the same with **Replay** on the delivery detail page. Attempts expose `run_number`, starting at 0; the delivery ID and X-Webhook-Id remain unchanged. Each replay run is enqueued with a queue deduplication id of `delivery_id:replay_count`, so a new run is not confused with an older job for the same delivery. Replaying a `pending` delivery also returns `202` and re-enqueues that same run without changing the attempt count, run number, or `next_retry_at`. Replaying `in_progress` returns `400 invalid_state`: the sweeper recovers that delivery after the lease expires, and resetting it could start a competing send. A succeeded delivery, or any delivery whose endpoint is disabled or removed, returns `400 invalid_state`.
 
 ## Privacy
 

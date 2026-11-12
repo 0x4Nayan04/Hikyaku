@@ -2,7 +2,7 @@ import type { EndpointStatus } from '@hikyaku/shared/constants'
 import { generateEndpointSecret } from '@hikyaku/shared/crypto'
 import { deliveries, endpoints } from '@hikyaku/shared/schema'
 import { checkWebhookUrl } from '@hikyaku/shared/webhookUrl'
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { Request, Response } from 'express'
 import { env } from '../../config.js'
 import { getDb } from '../../db/client.js'
@@ -83,6 +83,7 @@ export const listEndpoints = asyncHandler(async (req: Request, res: Response) =>
   const db = getDb()
   const where = and(
     eq(endpoints.tenantId, tenantId),
+    isNull(endpoints.deletedAt),
     status === undefined ? undefined : eq(endpoints.status, status),
   )
 
@@ -127,7 +128,13 @@ export const patchEndpoint = asyncHandler(async (req: Request, res: Response) =>
   const [row] = await db
     .update(endpoints)
     .set(updates)
-    .where(and(eq(endpoints.id, id), eq(endpoints.tenantId, getTenantId(req))))
+    .where(
+      and(
+        eq(endpoints.id, id),
+        eq(endpoints.tenantId, getTenantId(req)),
+        isNull(endpoints.deletedAt),
+      ),
+    )
     .returning(endpointColumns)
 
   if (!row) {
@@ -146,7 +153,13 @@ export const rotateEndpointSecret = asyncHandler(async (req: Request, res: Respo
   const [row] = await db
     .update(endpoints)
     .set({ secret })
-    .where(and(eq(endpoints.id, id), eq(endpoints.tenantId, getTenantId(req))))
+    .where(
+      and(
+        eq(endpoints.id, id),
+        eq(endpoints.tenantId, getTenantId(req)),
+        isNull(endpoints.deletedAt),
+      ),
+    )
     .returning(endpointColumns)
 
   if (!row) {
@@ -154,4 +167,16 @@ export const rotateEndpointSecret = asyncHandler(async (req: Request, res: Respo
   }
 
   res.json(toEndpointJson(row, secret))
+})
+
+export const removeEndpoint = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params
+  parseEndpointId(id)
+  const [row] = await getDb()
+    .update(endpoints)
+    .set({ status: 'disabled', deletedAt: sql`COALESCE(${endpoints.deletedAt}, NOW())` })
+    .where(and(eq(endpoints.id, id), eq(endpoints.tenantId, getTenantId(req))))
+    .returning({ id: endpoints.id })
+  if (!row) throw new AppError(404, 'not_found', 'Endpoint not found')
+  res.status(204).end()
 })

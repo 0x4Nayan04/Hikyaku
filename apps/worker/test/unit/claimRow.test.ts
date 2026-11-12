@@ -14,6 +14,7 @@ const row = {
   url: 'https://example.com',
   secret: 'secret',
   endpoint_status: 'active',
+  endpoint_removed: false,
 }
 
 describe('delivery claim boundary', () => {
@@ -32,6 +33,8 @@ describe('delivery claim boundary', () => {
     { rows: [{ ...row, replay_count: ' ' }] },
     { rows: [{ ...row, event_created_at: 'invalid' }] },
     { rows: [{ ...row, endpoint_status: 'unknown' }] },
+    { rows: [{ ...row, endpoint_removed: undefined }] },
+    { rows: [{ ...row, endpoint_removed: 'false' }] },
     { rows: [{ ...row, tenant_id: 1 }] },
   ])('rejects malformed database results %#', (result) => {
     expect(() => parseClaimResult(result)).toThrow('invalid_delivery_claim')

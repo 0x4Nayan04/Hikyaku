@@ -11,6 +11,7 @@ type DeliveryRow = {
   endpointId: string
   endpointUrl: string
   endpointStatus: EndpointStatus
+  endpointDeletedAt: Date | null
   status: DeliveryStatus
   replayCount: number
   attemptCount: number
@@ -62,6 +63,7 @@ export function toDeliveryDetailJson(row: DeliveryRow, attempts: AttemptRow[]): 
   return {
     ...toDeliveryListJson(row),
     endpoint_status: row.endpointStatus,
+    endpoint_deleted_at: row.endpointDeletedAt?.toISOString() ?? null,
     attempts: attempts.map((attempt) => toAttemptJson(attempt)),
   }
 }

@@ -25,14 +25,16 @@ const disabledWithDelivery: Endpoint = {
 let container: HTMLDivElement
 let root: Root
 
-async function renderList(endpoints: Endpoint[]) {
+async function renderList(endpoints: Endpoint[], readOnly = false) {
   await act(async () => {
     root.render(
       <MemoryRouter>
         <EndpointCatalogList
+          readOnly={readOnly}
           endpoints={endpoints}
           togglingId={null}
           onEdit={() => undefined}
+          onRemove={() => undefined}
           onRotate={() => undefined}
           onToggle={() => undefined}
         />
@@ -62,4 +64,13 @@ describe('EndpointCatalogList disabled state', () => {
     expect(container.textContent).toContain('Failed')
     expect(container.textContent).not.toContain('Not receiving')
   })
+})
+
+it('hides removal in a read-only workspace', async () => {
+  await renderList([disabledWithDelivery], true)
+  const trigger = container.querySelector<HTMLButtonElement>('button[title="More actions"]')!
+  await act(async () => {
+    trigger.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }))
+  })
+  expect(document.body.textContent).not.toContain('Remove endpoint')
 })
