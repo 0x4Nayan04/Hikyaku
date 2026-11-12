@@ -12,7 +12,6 @@ process.env.CORS_ORIGIN = process.env.WEB_URL
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: process.env.CI ? ['**/visual.spec.ts'] : [],
   globalTeardown: './e2e/teardown.ts',
   fullyParallel: false,
   workers: 1,

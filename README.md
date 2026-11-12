@@ -18,7 +18,7 @@ The demo configuration is **split**: web on Vercel, API + worker on Railway (`hi
 
 An optional [read-only console demo](deploy/README.md#read-only-console-demo) uses synthetic data and public credentials. Enable its login panel only after deploying enforcement and seeding the protected workspace.
 
-**API reference:** [OpenAPI 3.1 source](docs/openapi.yaml) · [Published YAML](https://hikyaku.nayanswarnkar.com/openapi.yaml) (available after deploying this version). Sending events accepts an ingest API key; managing a workspace requires a session cookie. Production cookie mutations also require an allowlisted `Origin`.
+**API reference:** [OpenAPI 3.1 source](docs/openapi.yaml) · [Published YAML](https://hikyaku.nayanswarnkar.com/openapi.yaml) (available after deploying this version). Sending events accepts an ingest API key or a signed-in workspace session. API-key ingest is stateless; session requests retain CSRF protection. Managing a workspace requires a session cookie. Production cookie mutations also require an allowlisted `Origin`.
 
 ## Architecture
 
@@ -143,6 +143,38 @@ The event is the message; a delivery is the attempt to send that message to one 
 ## Verification
 
 Run `pnpm lint`, `pnpm typecheck`, `pnpm test:unit` and `pnpm build`. Service-backed tests require explicit `TEST_DATABASE_URL` ending in `_test`, `TEST_REDIS_URL` with a database number greater than zero, and `TEST_RUN_ID`. Keep test resources separate from development and production; migrate only the isolated test database before running `pnpm test:integration`.
+
+For local service-backed tests, create dedicated PostgreSQL and Redis containers. The example ports must be free; these containers are separate from the development Compose services:
+
+```sh
+docker run -d --name hikyaku-test-postgres -e POSTGRES_USER=hikyaku_test -e POSTGRES_PASSWORD=hikyaku_test -e POSTGRES_DB=hikyaku_test -p 127.0.0.1:5544:5432 postgres:16
+docker run -d --name hikyaku-test-redis -p 127.0.0.1:6388:6379 redis:7
+docker exec hikyaku-test-postgres pg_isready -U hikyaku_test -d hikyaku_test
+docker exec hikyaku-test-redis redis-cli ping
+```
+
+Copy `.env.test.example` to a private file outside the checkout. If the destination already exists, inspect it privately and use it only if you control it. Restrict its permissions and check that its URLs point to these disposable services. In a dedicated shell, load that file, select a fresh run ID, and migrate the test database:
+
+```sh
+cp -n .env.test.example /tmp/hikyaku-local-tests.env
+chmod 600 /tmp/hikyaku-local-tests.env
+unset DATABASE_URL REDIS_URL
+set -a
+. /tmp/hikyaku-local-tests.env
+set +a
+export TEST_RUN_ID="local-$(date +%Y%m%d%H%M%S)"
+DATABASE_URL="$TEST_DATABASE_URL" pnpm db:migrate
+pnpm test:unit
+pnpm test:integration
+```
+
+For onboarding smoke, use a fresh migrated test database with no users and the same isolated Redis instance. The browser harness starts its own API, worker, and web servers on ports 3101 and 5181; keep those ports free. Install Chromium with `pnpm exec playwright install chromium`, then run:
+
+```sh
+VITE_DEMO_LOGIN=true pnpm test:smoke e2e/00-onboarding.spec.ts e2e/dashboard.spec.ts e2e/read-only-demo.spec.ts
+```
+
+Stop the dedicated containers with `docker stop hikyaku-test-postgres hikyaku-test-redis` when finished. Do not reset or truncate a development or production database for tests.
 
 ## More detail
 
