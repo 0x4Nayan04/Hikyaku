@@ -1,7 +1,7 @@
 # Deploy & ops — Hikyaku
 
-Local app development uses **Node.js 22** (`nvm use` / root `.nvmrc`, then `pnpm dev` + root `docker-compose.yml`).  
-This folder is for **production-style** hosting and longer reference notes moved out of the root README.
+For local app setup and verification commands, see the [repository README](../README.md#local-development). The [in-app guide](http://localhost:5173/docs) explains the console and event flow.
+This folder owns production hosting and operational procedures.
 
 ---
 
@@ -30,11 +30,11 @@ Add optional variables to `.env.production`, then apply with:
 docker compose --env-file .env.production -f compose.production.yml up -d
 ```
 
-| Service | Variables (default) |
-| --- | --- |
-| API and worker | `DB_POOL_MAX=10`, `LOG_LEVEL=info` |
-| API | `SESSION_COOKIE_MAX_AGE=604800000`, `INVITE_TTL_MS=604800000`, `INGEST_RATE_LIMIT_PER_MINUTE=120`, `AUTH_RATE_LIMIT_PER_MINUTE=20`, `TRUST_PROXY=1` |
-| Worker | `DELIVERY_TIMEOUT_MS=30000`, `MAX_DELIVERY_ATTEMPTS=5`, `RATE_LIMIT_PER_MINUTE=100`, `WORKER_CONCURRENCY=5`, `SWEEP_INTERVAL_MS=30000` |
+| Service        | Variables (default)                                                                                                                                 |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API and worker | `DB_POOL_MAX=10`, `LOG_LEVEL=info`                                                                                                                  |
+| API            | `SESSION_COOKIE_MAX_AGE=604800000`, `INVITE_TTL_MS=604800000`, `INGEST_RATE_LIMIT_PER_MINUTE=120`, `AUTH_RATE_LIMIT_PER_MINUTE=20`, `TRUST_PROXY=1` |
+| Worker         | `DELIVERY_TIMEOUT_MS=30000`, `MAX_DELIVERY_ATTEMPTS=5`, `RATE_LIMIT_PER_MINUTE=100`, `WORKER_CONCURRENCY=5`, `SWEEP_INTERVAL_MS=30000`              |
 
 `TRUST_PROXY=1` matches the bundled Caddy proxy. Keep it at 1 unless you change the proxy topology. Invalid numeric values stop the affected service at startup.
 
@@ -98,14 +98,16 @@ Split hosting is **optional**. Prefer Compose above unless you specifically want
 - Web on **Vercel**, API + worker on **Railway**
 - `vercel.json` proxies browser `/v1` to Railway so the session cookie stays on the Vercel origin
 - Caddy (Compose) and `vercel.json` set nosniff / frame deny / referrer / CSP on the web origin; the API sets the same class of headers itself (lock-down CSP)
+
 Cookie mutations fail with `403 origin_not_allowed` unless all four match:
 
-1. Vercel `API_UPSTREAM_URL` = public Railway API origin; leave `VITE_API_URL` unset  
-2. Shared `PROXY_IP_SECRET` (≥16 chars) on Vercel **and** Railway API  
-3. Railway `CORS_ORIGIN` + `WEB_APP_URL` = the Vercel https origin (no trailing slash)  
+1. Vercel `API_UPSTREAM_URL` = public Railway API origin; leave `VITE_API_URL` unset
+2. Shared `PROXY_IP_SECRET` (≥16 chars) on Vercel **and** Railway API
+3. Railway `CORS_ORIGIN` + `WEB_APP_URL` = the Vercel https origin (no trailing slash)
 4. Railway `TRUST_PROXY=1`
 
 Also set `ENABLE_EXPERIMENTAL_COREPACK=1` on Vercel.
+
 - Set `VITE_PUBLIC_SITE_URL` to the Vercel https origin (no trailing slash) so Open Graph image URLs are absolute
 - Set `VITE_PUBLIC_API_URL` to the Railway origin on the Vercel build for docs/curl samples
 - Pre-deploy: `node apps/api/dist/scripts/migrate.js`
@@ -143,6 +145,7 @@ This is optional for the résumé demo. It adds one non-admin workspace with syn
    ```
 
    Supply the normal API environment securely. The script refuses missing opt-in, conflicting IDs/emails, and an install without an administrator. Repeating it leaves an existing protected demo unchanged. It never prints operator credentials or signing secrets. The regular dev seed remains forbidden in production.
+
 4. Sign in at `/login` using `demo@hikyaku.example` / `hikyaku-demo-read-only`. Check `/v1/auth/me` returns `tenant.read_only: true`, bootstrap stays unavailable, reads work, and attempted writes return 403. In production, cookie mutations still require the normal allowlisted `Origin`.
 5. Only then set `VITE_DEMO_LOGIN=true` on the web build and redeploy. `/login` will show the public credentials and a button to fill them. Invite-only accounts keep their normal permissions.
 
@@ -150,7 +153,7 @@ The API reads the current tenant flag for mutations; it does not trust a cached 
 
 ### Local verification and rollback
 
-Use explicit isolated test connections as described below. The API integration suite includes `apps/api/test/integration/auth/read-only-demo.test.ts`. For the real browser flow, run:
+Use explicit isolated test connections as described in [Verification](../README.md#verification). The API integration suite includes `apps/api/test/integration/auth/read-only-demo.test.ts`. For the real browser flow, run:
 
 ```sh
 VITE_DEMO_LOGIN=true pnpm test:smoke e2e/00-onboarding.spec.ts e2e/dashboard.spec.ts e2e/read-only-demo.spec.ts
@@ -179,25 +182,25 @@ After deploying, check an actual `/assets/…` URL from the landing HTML for `Ca
 
 ### Environment variables
 
-| Variable | Purpose |
-| --- | --- |
-| `DATABASE_URL` | Postgres |
-| `DB_POOL_MAX` | Max PostgreSQL connections per process |
-| `REDIS_URL` | Redis / BullMQ |
-| `ADMIN_BOOTSTRAP_SECRET` | One-time super-admin bootstrap |
-| `SESSION_SECRET` | Session cookie signing (min 32 chars) |
-| `SESSION_COOKIE_MAX_AGE` | Session cookie lifetime (ms) |
-| `WEB_APP_URL` | Invite link base URL |
-| `INVITE_TTL_MS` | Invite link expiry (default 7 days) |
-| `CORS_ORIGIN` | Allowed browser origins |
-| `TRUST_PROXY` | Proxy hops for `X-Forwarded-*`. Local default `0`; production requires an explicit value |
-| `INGEST_RATE_LIMIT_PER_MINUTE` | Max `POST /v1/events` per tenant/minute |
-| `AUTH_RATE_LIMIT_PER_MINUTE` | Auth attempts per IP/minute |
-| `LOG_LEVEL` | Log verbosity |
-| `BUILD_REVISION` | Optional release id on `/v1/health` and `/v1/ready` |
-| `VITE_API_URL` | API base for the web app (build-time). Empty on Vercel so the browser uses same-origin `/v1` |
-| `VITE_PUBLIC_API_URL` | Public API origin for docs/curl samples |
-| `PROXY_IP_SECRET` | Shared secret for the Vercel `/v1` proxy. Omit on single-host Compose |
+| Variable                       | Purpose                                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                 | Postgres                                                                                     |
+| `DB_POOL_MAX`                  | Max PostgreSQL connections per process                                                       |
+| `REDIS_URL`                    | Redis / BullMQ                                                                               |
+| `ADMIN_BOOTSTRAP_SECRET`       | One-time super-admin bootstrap                                                               |
+| `SESSION_SECRET`               | Session cookie signing (min 32 chars)                                                        |
+| `SESSION_COOKIE_MAX_AGE`       | Session cookie lifetime (ms)                                                                 |
+| `WEB_APP_URL`                  | Invite link base URL                                                                         |
+| `INVITE_TTL_MS`                | Invite link expiry (default 7 days)                                                          |
+| `CORS_ORIGIN`                  | Allowed browser origins                                                                      |
+| `TRUST_PROXY`                  | Proxy hops for `X-Forwarded-*`. Local default `0`; production requires an explicit value     |
+| `INGEST_RATE_LIMIT_PER_MINUTE` | Max `POST /v1/events` per tenant/minute                                                      |
+| `AUTH_RATE_LIMIT_PER_MINUTE`   | Auth attempts per IP/minute                                                                  |
+| `LOG_LEVEL`                    | Log verbosity                                                                                |
+| `BUILD_REVISION`               | Optional release id on `/v1/health` and `/v1/ready`                                          |
+| `VITE_API_URL`                 | API base for the web app (build-time). Empty on Vercel so the browser uses same-origin `/v1` |
+| `VITE_PUBLIC_API_URL`          | Public API origin for docs/curl samples                                                      |
+| `PROXY_IP_SECRET`              | Shared secret for the Vercel `/v1` proxy. Omit on single-host Compose                        |
 
 See root `.env.example` for local worker tuning. `TRUST_PROXY=1` means one trusted reverse-proxy hop.
 
@@ -225,24 +228,8 @@ Full product docs after `pnpm dev`: http://localhost:5173/docs
 
 ### Useful scripts (repo root)
 
-| Command | Description |
-| --- | --- |
-| `pnpm dev` | API + worker + web |
-| `pnpm build` / `pnpm typecheck` / `pnpm lint` | Build and checks |
-| `pnpm test` | Unit + integration |
-| `pnpm test:smoke` | Playwright smoke |
-| `pnpm docker:up` / `pnpm docker:down` | Local Postgres + Redis |
-| `pnpm db:migrate` / `pnpm db:seed` | Migrate / local seed |
+See [local development](../README.md#local-development) and [verification](../README.md#verification) for local commands. Deployment commands remain in the hosting sections above.
 
 ### Safe tests
 
-Follow the root [verification setup](../README.md#verification) to provision isolated resources and export `~/.hikyaku-test.env`. The test runners do not load that file automatically. Use a Postgres database ending in `_test`, a dedicated Redis database number greater than zero, test-only secrets, and a unique `TEST_RUN_ID`. Unset application `DATABASE_URL` and `REDIS_URL` before running tests.
-
-```sh
-pnpm --filter @hikyaku/shared build
-DATABASE_URL="$TEST_DATABASE_URL" pnpm db:migrate
-pnpm test
-pnpm test:smoke
-```
-
-Browser tests start their own worker, API (3101), and web (5181); install Playwright Chromium before running them. They never truncate unrelated databases; cleanup removes only run-owned fixtures. The production Compose stack defaults to a 30-second sweep interval; the application default outside that stack is five minutes.
+Use a disposable PostgreSQL database ending in `_test`, a dedicated Redis instance with a database number greater than zero, and an explicit `TEST_RUN_ID`. Set `TEST_DATABASE_URL` and `TEST_REDIS_URL`, unset development connection variables, and apply migrations only to the test database before running tests. For onboarding smoke, use a fresh migrated test database with no users. The normal development Compose services are not test resources.
