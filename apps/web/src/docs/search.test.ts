@@ -39,6 +39,11 @@ describe('docs search', () => {
     expect(ids).toContain('retries')
   })
 
+  it('finds the contributor walkthrough by a source term', () => {
+    const ids = filterDocsSearch(index, 'ingestFanout').map((entry) => entry.id)
+    expect(ids).toContain('find-your-way-around-the-code')
+  })
+
   it('returns TOC-only rows when the query is empty', () => {
     const results = filterDocsSearch(index, '')
     expect(results.some((entry) => entry.id === 'introduction')).toBe(true)

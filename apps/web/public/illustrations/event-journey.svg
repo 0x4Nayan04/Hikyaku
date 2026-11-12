@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" role="img" aria-labelledby="title description">
+  <title id="title">A webhook's journey through Hikyaku</title>
+  <desc id="description">An event travels from the console or producer to the API, database, queue, worker, and receiver. The worker also recovers queued work and retries transient failures.</desc>
+  <rect width="1000" height="440" rx="18" fill="#f6f8fc"/>
+  <g fill="none" stroke="#203d68" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M37 48 Q110 42 184 48 L181 145 Q108 150 38 144 Z M39 51 Q111 46 181 50" stroke-width="2.5"/>
+    <path d="M238 48 Q313 43 386 48 L384 145 Q311 150 238 144 Z M241 51 Q311 46 382 50" stroke-width="2.5"/>
+    <path d="M441 48 Q515 43 589 48 L587 145 Q514 150 441 144 Z M444 51 Q513 46 585 50" stroke-width="2.5"/>
+    <path d="M644 48 Q718 43 791 48 L789 145 Q717 150 644 144 Z M647 51 Q716 46 787 50" stroke-width="2.5"/>
+    <path d="M847 48 Q908 43 963 48 L961 145 Q908 150 847 144 Z M850 51 Q908 46 959 50" stroke-width="2.5"/>
+    <path d="M185 96 L227 96 M218 88 L228 96 L218 104 M387 96 L430 96 M421 88 L431 96 L421 104 M590 96 L633 96 M624 88 L634 96 L624 104 M792 96 L835 96 M826 88 L836 96 L826 104" stroke-width="2.5"/>
+    <path d="M512 151 C510 215 506 221 507 238 M499 229 L507 239 L515 229" stroke-width="2.5"/>
+    <path d="M721 238 C721 220 717 211 716 154 M708 164 L716 153 L724 164" stroke-width="2.5"/>
+    <path d="M440 251 Q513 245 587 251 L585 342 Q513 348 440 342 Z M443 254 Q512 249 583 253" stroke-width="2.5"/>
+    <path d="M644 251 Q718 245 791 251 L789 342 Q717 348 644 342 Z M647 254 Q716 249 787 253" stroke-width="2.5"/>
+    <path d="M590 296 L633 296 M624 288 L634 296 L624 304" stroke-width="2.5"/>
+  </g>
+  <g fill="#203d68" font-family="'Segoe UI', Arial, sans-serif" text-anchor="middle">
+    <g font-size="20" font-weight="700"><text x="111" y="82">1. Send</text><text x="312" y="82">2. API</text><text x="515" y="82">3. Save</text><text x="718" y="82">4. Queue</text><text x="905" y="82">5. Worker</text><text x="513" y="285">Outbox</text><text x="718" y="285">Recovery</text></g>
+    <g font-size="14" fill="#526681"><text x="111" y="108">Console or</text><text x="111" y="128">producer</text><text x="312" y="108">Authenticate</text><text x="312" y="128">and validate</text><text x="515" y="108">Event + deliveries</text><text x="515" y="128">in PostgreSQL</text><text x="718" y="108">Jobs wait in</text><text x="718" y="128">Redis / BullMQ</text><text x="905" y="108">Signed POST</text><text x="905" y="128">to receiver</text><text x="513" y="310">Durable handoff</text><text x="513" y="330">record</text><text x="718" y="310">Sweeper finds</text><text x="718" y="330">unfinished work</text></g>
+    <text x="610" y="391" font-size="15" fill="#914b3f">The sweeper returns unfinished handoffs to the queue</text>
+  </g>
+</svg>

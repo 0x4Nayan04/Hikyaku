@@ -444,6 +444,20 @@
     font-weight: 600;
   }
 
+  .docs-prose img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+  }
+
+  @media (max-width: 600px) {
+    .docs-prose img[src='/illustrations/event-journey.svg'] {
+      content: url('/illustrations/event-journey-mobile.svg');
+    }
+  }
+
   .docs-prose a,
   .docs-list a,
   .docs-ordered-list a {

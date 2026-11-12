@@ -1,5 +1,8 @@
 export const DOCS_TOC = [
   { id: 'introduction', label: 'Introduction' },
+  { id: 'inside-hikyaku', label: 'Inside Hikyaku' },
+  { id: 'find-your-way-around-the-code', label: 'Find your way around the code' },
+  { id: 'troubleshooting-a-delivery', label: 'Troubleshooting a delivery' },
   { id: 'quick-start', label: 'Quick start' },
   { id: 'api-only-path', label: 'Terminal walkthrough' },
   { id: 'console-path', label: 'Website walkthrough' },

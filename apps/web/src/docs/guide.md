@@ -25,6 +25,53 @@ Each tenant is an isolated workspace. API keys, endpoints, events, and deliverie
 
 Workspace access is invite-only — a platform admin sends a one-time link. There is no self-serve signup. If enabled by the operator, [/login](/login) also offers a read-only demo with synthetic sample data; it cannot send webhooks or change settings.
 
+## Inside Hikyaku
+
+When you press **Send test event**, Hikyaku accepts the event first and delivers it in the background. Think of an **event** as the message and a **delivery** as the work of sending that message to one registered endpoint. A delivery can have multiple attempts, and one event can have a separate delivery for each active endpoint.
+
+![A webhook travels from a producer through the API, database, queue and worker to a receiver. An outbox and sweeper recover unfinished handoffs.](/illustrations/event-journey.svg)
+
+[Open the full-size diagram](/illustrations/event-journey.svg) for a closer view.
+
+1. **The console sends a request.** The test-event form checks that an active endpoint exists, validates the JSON object and sends `POST /v1/events` using your signed-in session. A producer can send the same request with an ingest API key.
+2. **The API checks the request.** Authentication identifies the workspace; validation checks the event type, idempotency key and payload. A client cannot choose another workspace by changing the request body.
+3. **PostgreSQL saves the work.** One transaction stores the event, a delivery for each active endpoint and the matching outbox entries. If there are no active endpoints, the event becomes `no_recipients`.
+4. **Redis holds delivery jobs.** After the transaction commits, the API publishes jobs to the queue. A `202 Accepted` means Hikyaku accepted the event; it does not mean that the receiver has responded yet.
+5. **The worker sends the webhook.** It claims a due delivery, signs the request and records the response and attempt. Transient failures can be retried; the receiver should verify the signature and deduplicate by `X-Webhook-Id`.
+6. **The console reads the result.** Event and delivery pages fetch stored status and attempt history. A pending event refreshes while it remains open; refresh stops when it reaches a terminal status.
+
+If queue publishing fails after the database commit, the API can return `503` even though the event was saved. The worker's sweeper can recover the outbox entries later. Retry an uncertain request with the **same idempotency key and body**; a different body with that key is rejected. See [Outbox](#outbox) and [Retries](#retries) for details.
+
+## Find your way around the code
+
+Start from an action a user can take. Follow the request into the API, then the worker and shared data model. Paths below are relative to the repository root.
+
+| If you want to change…                    | Start here                                | Then follow                                                                             |
+| ----------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------- |
+| Test-event form or accepted status        | `apps/web/src/pages/events/SendEvent.tsx` | `apps/web/src/pages/events/useEndpointAvailability.ts` and `useAcceptedEventPolling.ts` |
+| Event validation, ingest or fanout        | `apps/api/src/routes/events/`             | `apps/api/src/ingest/fanout.ts` and `apps/api/src/queue/publish.ts`                     |
+| Delivery, retries or crash recovery       | `apps/worker/src/processor.ts`            | `apps/worker/src/backoff.ts` and `apps/worker/src/sweeper.ts`                           |
+| Workspace permissions or sessions         | `apps/api/src/auth/`                      | `apps/api/src/routes/admin/` and `apps/web/src/providers/SessionProvider.tsx`           |
+| Shared tables, schemas or queue contracts | `packages/shared/src/`                    | The API and worker callers that use the changed export                                  |
+| Console page or its filters               | `apps/web/src/pages/`                     | Its API client calls and nearby page tests                                              |
+
+For a first contribution, follow the **Test event** button from the page to `sendEvent` in the web API client, `ingestEvent` in the API handler, and `ingestFanout` in the transaction. Then follow the queued delivery to the worker. Read the related tests before changing the behaviour: the event and delivery integration tests exercise authentication, fanout and replay, and the worker integration tests exercise delivery and recovery.
+
+The repository README explains local setup and verification commands. Run service-backed tests only against disposable PostgreSQL and Redis resources, separate from the running application.
+
+## Troubleshooting a delivery
+
+| What you see                            | Check next                                                                                                                                                                          |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No active endpoints, or `no_recipients` | Create or enable a receiver in **Endpoints** before sending. An event can exist without a delivery.                                                                                 |
+| Event accepted, delivery stays pending  | Open the delivery timeline and check the worker and Redis. A delivery may be queued, waiting for a retry or rate-limited; an accepted event alone is not proof of receiver success. |
+| `503 service_unavailable` after sending | Check Redis and the worker. The event may already be committed with outbox work awaiting recovery. Retry the same body and idempotency key rather than creating a new key blindly.  |
+| Receiver reports a signature failure    | Use that endpoint's current signing secret and the timestamp and raw request body when verifying `X-Webhook-Signature`. Secrets are shown only when created or rotated.             |
+| Endpoint is rejected in production      | Use a publicly resolvable HTTPS receiver. Loopback and private network destinations are blocked in production.                                                                      |
+| A succeeded delivery cannot be replayed | Replay is available for failed or pending deliveries; `succeeded` and active `in_progress` deliveries return `invalid_state`.                                                       |
+
+The **Deliveries** page shows status and attempt history; the API and worker logs help distinguish a receiver failure from a queue or process outage. For safe local tests, use a disposable PostgreSQL database ending in `_test` and a dedicated Redis instance with a database number greater than zero; configure the explicit test connection variables before running tests.
+
 ## Quick start
 
 Pick a path below. Both need the API and worker running — `pnpm dev` starts them together.

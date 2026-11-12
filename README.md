@@ -49,11 +49,44 @@ The API stores each event, its deliveries, and their outbox entries in one Postg
 
 ## Local development
 
-See the [in-app guide](http://localhost:5173/docs) for the console and terminal walkthroughs. Start local services with `pnpm dev` after configuring PostgreSQL and Redis.
+You need Node.js 22.22.2 or newer, pnpm 11.17.0 and Docker with Compose v2. Run these commands from the repository root:
+
+```bash
+corepack enable
+pnpm install --frozen-lockfile
+cp -n .env.example .env
+```
+
+Edit `.env` with local database and Redis settings and separate bootstrap and session secrets. Generate each secret with `openssl rand -hex 32`. Keep these values private and never commit them.
+
+Start PostgreSQL and Redis, wait until both are healthy, then apply the migrations to the intended **local development database** and start the app:
+
+```bash
+docker compose up -d postgres redis
+docker compose ps
+(
+  set -a
+  . ./.env
+  set +a
+  pnpm db:migrate
+)
+pnpm dev
+```
+
+The migration changes the database schema. Check `DATABASE_URL` in `.env` points to the local development database before running it, and source only an environment file you control. The development Compose file publishes PostgreSQL on port 5432 and Redis on 6379.
+
+Open the console at [localhost:5173](http://localhost:5173), the docs at [localhost:5173/docs](http://localhost:5173/docs), and the API at `http://localhost:3000`. For a deeper walkthrough, see the [in-app guide](http://localhost:5173/docs).
 
 ## Demo path (first run)
 
-Follow the [console walkthrough](http://localhost:5173/docs#console-path) after starting the local services.
+On a fresh local database:
+
+1. Open [localhost:5173/bootstrap](http://localhost:5173/bootstrap) and enter `ADMIN_BOOTSTRAP_SECRET` from your local `.env`.
+2. Create your account and first workspace, then sign in at `/login`.
+3. Register a receiver in **Endpoints**. For a quick check, use [webhook.site](https://webhook.site) or a local receiver you control.
+4. Open **Test event**, send the sample payload, and inspect the event and delivery timeline. The event being accepted is separate from the receiver successfully responding.
+
+See the [console walkthrough](http://localhost:5173/docs#console-path) for the first event. Bootstrap is for first-time setup; existing installations use their existing account or an invitation. The optional development seed writes accounts and credentials and can close the first-user bootstrap path.
 
 ![Deliveries console](apps/web/public/landing/console-deliveries.png)
 
@@ -95,6 +128,17 @@ packages/shared  Schema, env, crypto, shared types
 e2e/             Playwright smoke tests
 deploy/          Production Compose stack + ops notes
 ```
+
+### Follow your first event through the code
+
+![The event journey from console to receiver, with the outbox and recovery path](apps/web/public/illustrations/event-journey.svg)
+
+1. The [Test event page](apps/web/src/pages/events/SendEvent.tsx) validates the payload and calls the [web API client](apps/web/src/api/client.ts).
+2. The [events route](apps/api/src/routes/events/index.ts) authenticates the request. Its [handler](apps/api/src/routes/events/handlers.ts) validates it and calls [fanout](apps/api/src/ingest/fanout.ts), which saves the event, deliveries and outbox entries in one database transaction.
+3. The [publisher](apps/api/src/queue/publish.ts) adds delivery jobs to Redis. The [worker processor](apps/worker/src/processor.ts) signs the outgoing request and records its result.
+4. The [sweeper](apps/worker/src/sweeper.ts) recovers unfinished handoffs and stale work. The console reads the stored event and delivery status.
+
+The event is the message; a delivery is the attempt to send that message to one endpoint. If publishing fails after the database commit, the API can return `503` while the outbox retains work. Retry an uncertain request using the same idempotency key and body. Receivers must verify signatures and deduplicate with `X-Webhook-Id`.
 
 ## Verification
 

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 850" role="img" aria-labelledby="title description">
+  <title id="title">A webhook's journey through Hikyaku</title>
+  <desc id="description">An event travels from a console or producer through the API, database, queue and worker to a receiver. The outbox and sweeper recover unfinished handoffs.</desc>
+  <rect width="360" height="850" rx="18" fill="#f6f8fc"/>
+  <g fill="none" stroke="#203d68" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5">
+    <path d="M35 28 Q180 23 325 28 L323 105 Q180 110 36 105 Z M36 31 Q180 27 323 31"/>
+    <path d="M35 137 Q180 133 325 137 L323 214 Q180 219 36 214 Z"/>
+    <path d="M35 246 Q180 242 325 246 L323 323 Q180 328 36 323 Z"/>
+    <path d="M35 355 Q180 351 325 355 L323 432 Q180 437 36 432 Z"/>
+    <path d="M35 464 Q180 460 325 464 L323 541 Q180 546 36 541 Z"/>
+    <path d="M35 591 Q180 587 325 591 L323 668 Q180 673 36 668 Z"/>
+    <path d="M35 700 Q180 696 325 700 L323 777 Q180 782 36 777 Z"/>
+    <path d="M180 107 V132 M172 124 L180 133 L188 124 M180 216 V241 M172 233 L180 242 L188 233 M180 325 V350 M172 342 L180 351 L188 342 M180 434 V459 M172 451 L180 460 L188 451"/>
+    <path d="M35 285 C10 285 10 630 30 630 M22 622 L31 630 L22 638 M180 670 V695 M172 687 L180 696 L188 687 M325 739 C350 739 350 394 330 394 M338 386 L329 394 L338 402" stroke="#914b3f"/>
+  </g>
+  <g fill="#203d68" font-family="'Segoe UI', Arial, sans-serif" text-anchor="middle">
+    <g font-size="21" font-weight="700"><text x="180" y="59">1. Send</text><text x="180" y="168">2. API</text><text x="180" y="277">3. Save</text><text x="180" y="386">4. Queue</text><text x="180" y="495">5. Worker</text><text x="180" y="622">Outbox</text><text x="180" y="731">Recovery</text></g>
+    <g font-size="16" fill="#526681"><text x="180" y="85">Console or producer</text><text x="180" y="194">Authenticate and validate</text><text x="180" y="303">Event + deliveries in PostgreSQL</text><text x="180" y="412">Jobs wait in Redis / BullMQ</text><text x="180" y="521">Signed POST to receiver</text><text x="180" y="648">Durable handoff record</text><text x="180" y="757">Sweeper finds unfinished work</text></g>
+    <text x="180" y="815" font-size="14" fill="#914b3f">Recovery returns unfinished handoffs to the queue</text>
+  </g>
+</svg>
