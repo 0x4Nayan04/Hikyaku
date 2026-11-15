@@ -4,9 +4,29 @@ import { describe, expect, it } from 'vitest'
 import { compileDocsGuide } from '../../../vite-plugin-docs-guide'
 
 import { DOCS_TOC } from '@/docs/toc'
+import { DocsSidebar } from '@/components/docs/DocsSidebar'
 import { DocsPage } from '@/pages/docs/DocsPage'
 
 describe('DocsPage', () => {
+  it('groups desktop navigation while retaining every section anchor', () => {
+    const html = renderToStaticMarkup(
+      <DocsSidebar activeId="quick-start" onSectionNavigate={() => {}} />,
+    )
+
+    for (const label of [
+      'Getting started',
+      'Concepts and architecture',
+      'Reference',
+      'Operations',
+    ]) {
+      expect(html).toContain(label)
+    }
+    for (const item of DOCS_TOC) {
+      expect(html).toContain(`href="#${item.id}"`)
+    }
+    expect(html).toMatch(/href="#quick-start"[^>]*aria-current="location"/)
+  })
+
   it('renders every TOC target, and top-level section labels match h2 copy', () => {
     const html = renderToStaticMarkup(
       <MemoryRouter initialEntries={['/docs']}>
@@ -15,6 +35,14 @@ describe('DocsPage', () => {
         </Routes>
       </MemoryRouter>,
     )
+
+    const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1])
+    expect(new Set(ids).size).toBe(ids.length)
+    const positions = DOCS_TOC.map((item) => html.indexOf(`id="${item.id}"`))
+    expect(positions).toEqual([...positions].sort((a, b) => a - b))
+    for (const match of html.matchAll(/href="#([^"]+)"/g)) {
+      expect(ids).toContain(match[1])
+    }
 
     const h2InnerById = new Map(
       [...html.matchAll(/<h2\b[^>]*\bid="([^"]+)"[^>]*>([\s\S]*?)<\/h2>/g)].map((match) => [
@@ -82,7 +110,7 @@ describe('DocsPage', () => {
     }
   })
 
-  it('substitutes configured website origins and defaults locally', () => {
+  it('keeps website examples local regardless of deployment configuration', () => {
     const previous = process.env.VITE_PUBLIC_SITE_URL
     const plugin = compileDocsGuide()
     const configResolved = plugin.configResolved as (config: never) => void
@@ -93,7 +121,8 @@ describe('DocsPage', () => {
       process.env.VITE_PUBLIC_SITE_URL = 'https://console.example.test/some/path/'
       configResolved({ mode: 'test', envDir: process.cwd(), root: process.cwd() } as never)
       const hosted = load.call({}, `${guidePath}?html`)
-      expect(hosted).toContain('Origin: https://console.example.test')
+      expect(hosted).toContain('Origin: http://localhost:5173')
+      expect(hosted).not.toContain('https://console.example.test')
       expect(hosted).not.toContain('{{WEB_ORIGIN}}')
 
       delete process.env.VITE_PUBLIC_SITE_URL

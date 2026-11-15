@@ -1,9 +1,15 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 
 import { buildDocsSearchIndex, filterDocsSearch } from '@/docs/search'
 
 const SEARCH_INDEX = buildDocsSearchIndex()
+const GROUP_STARTS: Record<string, string> = {
+  introduction: 'Getting started',
+  'inside-hikyaku': 'Concepts and architecture',
+  'api-reference': 'Reference',
+  configuration: 'Operations',
+}
 
 export type DocsSidebarProps = {
   activeId: string
@@ -50,23 +56,28 @@ export function DocsSidebar({ activeId, onSectionNavigate }: DocsSidebarProps) {
             <DocsSearchEmpty query={query} onClear={() => setQuery('')} />
           ) : (
             results.map((item) => (
-              <li key={item.id}>
-                <a
-                  href={`#${item.id}`}
-                  className={
-                    activeId === item.id
-                      ? 'docs-sidebar-link docs-sidebar-link--active'
-                      : 'docs-sidebar-link'
-                  }
-                  aria-current={activeId === item.id ? 'location' : undefined}
-                  onClick={() => {
-                    onSectionNavigate(item.id)
-                    setQuery('')
-                  }}
-                >
-                  {item.label}
-                </a>
-              </li>
+              <Fragment key={item.id}>
+                {!query.trim() && GROUP_STARTS[item.id] ? (
+                  <li className="docs-sidebar-group">{GROUP_STARTS[item.id]}</li>
+                ) : null}
+                <li>
+                  <a
+                    href={`#${item.id}`}
+                    className={
+                      activeId === item.id
+                        ? 'docs-sidebar-link docs-sidebar-link--active'
+                        : 'docs-sidebar-link'
+                    }
+                    aria-current={activeId === item.id ? 'location' : undefined}
+                    onClick={() => {
+                      onSectionNavigate(item.id)
+                      setQuery('')
+                    }}
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              </Fragment>
             ))
           )}
         </ul>

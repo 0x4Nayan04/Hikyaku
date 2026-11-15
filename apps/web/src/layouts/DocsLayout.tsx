@@ -35,7 +35,7 @@ export function DocsLayout() {
   const [activeId, setActiveId] = useState(DOCS_TOC[0]?.id ?? '')
   const [mobileQuery, setMobileQuery] = useState('')
   const hash = location.hash.slice(1)
-  const currentSection = DOCS_TOC.find((item) => item.id === hash) ?? null
+  const currentSection = DOCS_TOC.find((item) => item.id === activeId) ?? null
   const mobileResults = useMemo(
     () => filterDocsSearch(MOBILE_SEARCH_INDEX, mobileQuery),
     [mobileQuery],
