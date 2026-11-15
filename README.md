@@ -80,7 +80,7 @@ Run these from the repository root.
 | `pnpm db:migrate`       | Apply database migrations                                      |
 | `pnpm test:smoke`       | Run Playwright smoke tests                                     |
 
-Integration tests require a disposable PostgreSQL database and Redis instance. See [testing instructions](deploy/README.md#safe-tests); never point them at production data.
+Integration and smoke tests require a disposable PostgreSQL database and Redis instance. See [safe test setup](deploy/README.md#safe-tests); never point them at production data.
 
 ## Configuration
 

@@ -1,6 +1,6 @@
 # Deploy & ops — Hikyaku
 
-For local app setup and verification commands, see the [repository README](../README.md#local-development). The [in-app guide](http://localhost:5173/docs) explains the console and event flow.
+For local app setup and verification commands, see the [repository README](../README.md#quickstart). The [in-app guide](http://localhost:5173/docs) explains the console and event flow.
 This folder owns production hosting and operational procedures.
 
 ---
@@ -117,7 +117,7 @@ Also set `ENABLE_EXPERIMENTAL_COREPACK=1` on Vercel.
 
 ### Public metadata deployment check
 
-Set `VITE_PUBLIC_SITE_URL=https://hikyaku.nayanswarnkar.com` on the Vercel build, then deploy the commit containing the metadata and `apps/web/public/og.png`. This is a build-time value; changing it requires a fresh build.
+Set `VITE_PUBLIC_SITE_URL` to your public web origin on the Vercel build. This is a build-time value; changing it requires a fresh build.
 
 After deployment, verify:
 
@@ -153,7 +153,7 @@ The API reads the current tenant flag for mutations; it does not trust a cached 
 
 ### Local verification and rollback
 
-Use explicit isolated test connections as described in [Verification](../README.md#verification). The API integration suite includes `apps/api/test/integration/auth/read-only-demo.test.ts`. For the real browser flow, run:
+Use explicit isolated test connections as described in [safe tests](#safe-tests). The API integration suite includes `apps/api/test/integration/auth/read-only-demo.test.ts`. For the real browser flow, run:
 
 ```sh
 VITE_DEMO_LOGIN=true pnpm test:smoke e2e/00-onboarding.spec.ts e2e/dashboard.spec.ts e2e/read-only-demo.spec.ts
@@ -228,7 +228,7 @@ Full product docs after `pnpm dev`: http://localhost:5173/docs
 
 ### Useful scripts (repo root)
 
-See [local development](../README.md#local-development) and [verification](../README.md#verification) for local commands. Deployment commands remain in the hosting sections above.
+See [quickstart](../README.md#quickstart) and [common commands](../README.md#common-commands) for local commands. Deployment commands remain in the hosting sections above.
 
 ### Safe tests
 
