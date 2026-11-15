@@ -1,35 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 740 900" role="img" aria-labelledby="title desc">
-<title id="title">Ingest and recovery</title><desc id="desc">Sequence from client through API, PostgreSQL, Redis queue, worker and receiver. The API commits the event, deliveries and outbox before publishing. If publishing fails, a 503 can follow a committed transaction; the worker sweeps the outbox and republishes. Delivery is signed and at least once.</desc>
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#2563a8"/></marker></defs>
-<style>text{font-family:system-ui,-apple-system,sans-serif;fill:#0f172a} .heading{font-size:22px;font-weight:700;fill:#1e3a5f} .node{fill:#fff;stroke:#94a3b8;stroke-width:1.5} .name{font-size:16px;font-weight:650;fill:#1e3a5f} .small{font-size:13px;fill:#475569} .label{font-size:13px;fill:#1e3a5f} .line{fill:none;stroke:#2563a8;stroke-width:1.7;marker-end:url(#arrow)} .rel{fill:none;stroke:#64748b;stroke-width:1.4} .life{stroke:#94a3b8;stroke-width:1.2;stroke-dasharray:5 5}</style>
-<rect width="740" height="900" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 740 870" role="img" aria-labelledby="title desc">
+<title id="title">Ingest and recovery</title>
+<desc id="desc">The client sends an event to the API, which saves the event, deliveries and outbox records in PostgreSQL before publishing jobs to Redis. If the queue accepts the jobs, the API removes the outbox records and returns 202. If publishing fails, the API returns 503 even though the transaction may already be committed. A worker sweeper can enqueue the remaining outbox records and remove them after enqueue. The worker sends signed HTTP requests and records outcomes. Delivery is at least once.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#2563a8"/></marker></defs>
+<style>text{font-family:system-ui,-apple-system,sans-serif;fill:#1e3a5f}.heading{font-size:22px;font-weight:700}.section{font-size:16px;font-weight:700}.name{font-size:15px;font-weight:650}.small{font-size:13px;fill:#475569}.node{fill:#fff;stroke:#94a3b8;stroke-width:1.5}.panel{fill:#f6f8fb;stroke:#d6dee8}.line{fill:none;stroke:#2563a8;stroke-width:1.7;marker-end:url(#arrow)}</style>
+<rect width="740" height="870" fill="white"/>
 <text x="28" y="38" class="heading">Ingest and recovery</text>
-<text class="name" x="55" y="77" text-anchor="middle">Client</text>
-<line class="life" x1="55" y1="91" x2="55" y2="874"/>
-<text class="name" x="165" y="77" text-anchor="middle">API</text>
-<line class="life" x1="165" y1="91" x2="165" y2="874"/>
-<text class="name" x="280" y="77" text-anchor="middle">PostgreSQL</text>
-<line class="life" x1="280" y1="91" x2="280" y2="874"/>
-<text class="name" x="395" y="77" text-anchor="middle">Redis / BullMQ</text>
-<line class="life" x1="395" y1="91" x2="395" y2="874"/>
-<text class="name" x="510" y="77" text-anchor="middle">Worker</text>
-<line class="life" x1="510" y1="91" x2="510" y2="874"/>
-<text class="name" x="665" y="77" text-anchor="middle">Receiver</text>
-<line class="life" x1="665" y1="91" x2="665" y2="874"/>
-<path d="M55 125H165" class="line"/><text class="label" x="110.0" y="117" text-anchor="middle">POST /v1/events</text>
-<text class="small" x="110" y="145" text-anchor="middle">key or session</text>
-<path d="M165 184H280" class="line"/><text class="label" x="222.5" y="176" text-anchor="middle">Transaction: event, deliveries, outbox</text>
-<rect x="202" y="205" width="302" height="47" rx="5" fill="#f8fafc" stroke="#cbd5e1"/><text class="small" x="353" y="225" text-anchor="middle">No active endpoints: no_recipients</text>
-<text class="small" x="353" y="243" text-anchor="middle">and zero deliveries</text>
-<path d="M165 289H395" class="line"/><text class="label" x="280.0" y="281" text-anchor="middle">Publish jobs after commit</text>
-<rect x="20" y="315" width="540" height="158" rx="6" fill="none" stroke="#94a3b8"/><text x="32" y="337" class="name">Queue accepts</text><path d="M165 375H280" class="line"/><text class="label" x="222.5" y="367" text-anchor="middle">Delete outbox rows</text>
-<path d="M165 433H55" class="line" stroke-dasharray="5 4"/><text class="label" x="110.0" y="425" text-anchor="middle">202 accepted</text>
-<rect x="20" y="491" width="540" height="244" rx="6" fill="none" stroke="#94a3b8"/><text x="32" y="513" class="name">Publish fails</text><path d="M165 550H55" class="line" stroke-dasharray="5 4"/><text class="label" x="110.0" y="542" text-anchor="middle">503; transaction may be committed</text>
-<path d="M510 592H280" class="line"/><text class="label" x="395.0" y="584" text-anchor="middle">Sweeper reads outbox</text>
-<path d="M510 638H395" class="line"/><text class="label" x="452.5" y="630" text-anchor="middle">Republish jobs</text>
-<path d="M510 684H280" class="line"/><text class="label" x="395.0" y="676" text-anchor="middle">Delete outbox after enqueue</text>
-<path d="M395 766H510" class="line"/><text class="label" x="452.5" y="758" text-anchor="middle">Delivery job</text>
-<path d="M510 810H665" class="line"/><text class="label" x="587.5" y="802" text-anchor="middle">Signed HTTP</text>
-<text class="small" x="588" y="828" text-anchor="middle">at least once</text>
-<path d="M510 862H280" class="line"/><text class="label" x="395.0" y="854" text-anchor="middle">Record outcome / attempt</text>
+<text x="28" y="64" class="small">From an event request to a signed delivery</text>
+
+<text x="28" y="108" class="section">1. Save the event</text>
+<rect x="28" y="126" width="170" height="70" rx="7" class="node"/>
+<text x="113" y="151" text-anchor="middle" class="name">Client</text><text x="113" y="173" text-anchor="middle" class="small">POST /v1/events</text>
+<rect x="285" y="126" width="170" height="70" rx="7" class="node"/>
+<text x="370" y="151" text-anchor="middle" class="name">API</text><text x="370" y="173" text-anchor="middle" class="small">Key or session</text>
+<rect x="542" y="126" width="170" height="70" rx="7" class="node"/>
+<text x="627" y="151" text-anchor="middle" class="name">PostgreSQL</text><text x="627" y="173" text-anchor="middle" class="small">Save transaction</text>
+<path d="M198 161H285" class="line"/><path d="M455 161H542" class="line"/>
+<text x="28" y="225" class="small">The transaction saves the event, its deliveries and outbox records together.</text>
+<text x="28" y="248" class="small">No active endpoints: the event is marked no_recipients, with zero deliveries.</text>
+
+<text x="28" y="298" class="section">2. Publish delivery jobs</text>
+<text x="28" y="322" class="small">After the transaction commits, the API sends jobs to Redis / BullMQ.</text>
+<rect x="28" y="344" width="330" height="153" rx="8" class="panel"/>
+<text x="48" y="373" class="section">Queue accepts</text>
+<text x="48" y="402" class="small">The API removes the outbox records</text>
+<text x="48" y="422" class="small">for the queued jobs and returns 202.</text>
+<text x="48" y="467" class="small">Jobs are ready for the worker.</text>
+<rect x="382" y="344" width="330" height="153" rx="8" class="panel"/>
+<text x="402" y="373" class="section">Publish fails</text>
+<text x="402" y="402" class="small">The API returns 503. The transaction</text>
+<text x="402" y="422" class="small">may already have been committed.</text>
+<text x="402" y="467" class="small">Outbox records remain for recovery.</text>
+
+<path d="M547 497V528" class="line"/>
+<rect x="382" y="529" width="330" height="111" rx="8" class="node"/>
+<text x="402" y="558" class="section">Recovery</text>
+<text x="402" y="584" class="small">The worker's sweeper reads the outbox,</text>
+<text x="402" y="604" class="small">enqueues jobs, then removes those records.</text>
+
+<text x="28" y="690" class="section">3. Deliver and record the result</text>
+<rect x="28" y="710" width="170" height="64" rx="7" class="node"/>
+<text x="113" y="737" text-anchor="middle" class="name">Redis / BullMQ</text><text x="113" y="758" text-anchor="middle" class="small">Delivery job</text>
+<rect x="285" y="710" width="170" height="64" rx="7" class="node"/>
+<text x="370" y="737" text-anchor="middle" class="name">Worker</text><text x="370" y="758" text-anchor="middle" class="small">Signed HTTP</text>
+<rect x="542" y="710" width="170" height="64" rx="7" class="node"/>
+<text x="627" y="747" text-anchor="middle" class="name">Receiver</text>
+<path d="M198 742H285" class="line"/><path d="M455 742H542" class="line"/>
+<text x="28" y="811" class="small">The worker records the attempt and outcome in PostgreSQL.</text>
+<text x="28" y="835" class="small">Delivery is at least once: a receiver may get the same event more than once.</text>
 </svg>
