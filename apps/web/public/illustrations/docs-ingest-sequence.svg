@@ -1,30 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 621" role="img" aria-labelledby="title desc">
-<title id="title">Ingest and recovery</title>
-<desc id="desc">Client to API: POST /v1/events: key or session; API to PostgreSQL: Transaction: event + deliveries + outbox; API to Redis / BullMQ: Publish jobs after commit; API to PostgreSQL: Delete outbox after queue accepts; Worker to PostgreSQL: Sweeper recovers outbox if needed; Worker to Redis / BullMQ: Consume or republish jobs; Worker to Receiver: Signed HTTP; at-least-once</desc>
-<rect width="1100" height="621" rx="18" fill="#f8fafc"/>
-<text x="32" y="48" font-family="sans-serif" font-size="28" font-weight="700" fill="#0f172a">Ingest and recovery</text>
-<rect x="32" y="75" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="157" y="102" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">Client</text>
-<rect x="815" y="75" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="940" y="102" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">API</text>
-<path d="M 295 97 H 802" stroke="#475569" stroke-width="2"/><path d="M 795 92 l 8 5 -8 5" fill="none" stroke="#475569" stroke-width="2"/><rect x="355" y="80" width="385" height="32" rx="5" fill="#f8fafc"/><text x="547" y="101" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#334155">POST /v1/events: key or session</text>
-<rect x="32" y="135" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="157" y="162" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">API</text>
-<rect x="815" y="135" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="940" y="162" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">PostgreSQL</text>
-<path d="M 295 157 H 802" stroke="#475569" stroke-width="2"/><path d="M 795 152 l 8 5 -8 5" fill="none" stroke="#475569" stroke-width="2"/><rect x="355" y="140" width="385" height="32" rx="5" fill="#f8fafc"/><text x="547" y="161" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#334155">Transaction: event + deliveries + outbox</text>
-<rect x="32" y="195" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="157" y="222" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">API</text>
-<rect x="815" y="195" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="940" y="222" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">Redis / BullMQ</text>
-<path d="M 295 217 H 802" stroke="#475569" stroke-width="2"/><path d="M 795 212 l 8 5 -8 5" fill="none" stroke="#475569" stroke-width="2"/><rect x="355" y="200" width="385" height="32" rx="5" fill="#f8fafc"/><text x="547" y="221" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#334155">Publish jobs after commit</text>
-<rect x="32" y="255" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="157" y="282" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">API</text>
-<rect x="815" y="255" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="940" y="282" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">PostgreSQL</text>
-<path d="M 295 277 H 802" stroke="#475569" stroke-width="2"/><path d="M 795 272 l 8 5 -8 5" fill="none" stroke="#475569" stroke-width="2"/><rect x="355" y="260" width="385" height="32" rx="5" fill="#f8fafc"/><text x="547" y="281" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#334155">Delete outbox after queue accepts</text>
-<rect x="32" y="315" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="157" y="342" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">Worker</text>
-<rect x="815" y="315" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="940" y="342" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">PostgreSQL</text>
-<path d="M 295 337 H 802" stroke="#475569" stroke-width="2"/><path d="M 795 332 l 8 5 -8 5" fill="none" stroke="#475569" stroke-width="2"/><rect x="355" y="320" width="385" height="32" rx="5" fill="#f8fafc"/><text x="547" y="341" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#334155">Sweeper recovers outbox if needed</text>
-<rect x="32" y="375" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="157" y="402" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">Worker</text>
-<rect x="815" y="375" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="940" y="402" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">Redis / BullMQ</text>
-<path d="M 295 397 H 802" stroke="#475569" stroke-width="2"/><path d="M 795 392 l 8 5 -8 5" fill="none" stroke="#475569" stroke-width="2"/><rect x="355" y="380" width="385" height="32" rx="5" fill="#f8fafc"/><text x="547" y="401" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#334155">Consume or republish jobs</text>
-<rect x="32" y="435" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="157" y="462" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">Worker</text>
-<rect x="815" y="435" width="250" height="43" rx="9" fill="#e0e7ff" stroke="#6366f1"/><text x="940" y="462" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#1e1b4b">Receiver</text>
-<path d="M 295 457 H 802" stroke="#475569" stroke-width="2"/><path d="M 795 452 l 8 5 -8 5" fill="none" stroke="#475569" stroke-width="2"/><rect x="355" y="440" width="385" height="32" rx="5" fill="#f8fafc"/><text x="547" y="461" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#334155">Signed HTTP; at-least-once</text>
-<text x="32" y="510" font-family="sans-serif" font-size="16" fill="#334155">No active endpoints: no_recipients, zero deliveries.</text>
-<text x="32" y="542" font-family="sans-serif" font-size="16" fill="#334155">After a publish failure, API can return 503 after commit.</text>
-<text x="32" y="574" font-family="sans-serif" font-size="16" fill="#334155">Sweeper removes outbox rows only after enqueue; worker records outcomes.</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 740 900" role="img" aria-labelledby="title desc">
+<title id="title">Ingest and recovery</title><desc id="desc">Sequence from client through API, PostgreSQL, Redis queue, worker and receiver. The API commits the event, deliveries and outbox before publishing. If publishing fails, a 503 can follow a committed transaction; the worker sweeps the outbox and republishes. Delivery is signed and at least once.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#2563a8"/></marker></defs>
+<style>text{font-family:system-ui,-apple-system,sans-serif;fill:#0f172a} .heading{font-size:22px;font-weight:700;fill:#1e3a5f} .node{fill:#fff;stroke:#94a3b8;stroke-width:1.5} .name{font-size:16px;font-weight:650;fill:#1e3a5f} .small{font-size:13px;fill:#475569} .label{font-size:13px;fill:#1e3a5f} .line{fill:none;stroke:#2563a8;stroke-width:1.7;marker-end:url(#arrow)} .rel{fill:none;stroke:#64748b;stroke-width:1.4} .life{stroke:#94a3b8;stroke-width:1.2;stroke-dasharray:5 5}</style>
+<rect width="740" height="900" fill="white"/>
+<text x="28" y="38" class="heading">Ingest and recovery</text>
+<text class="name" x="55" y="77" text-anchor="middle">Client</text>
+<line class="life" x1="55" y1="91" x2="55" y2="874"/>
+<text class="name" x="165" y="77" text-anchor="middle">API</text>
+<line class="life" x1="165" y1="91" x2="165" y2="874"/>
+<text class="name" x="280" y="77" text-anchor="middle">PostgreSQL</text>
+<line class="life" x1="280" y1="91" x2="280" y2="874"/>
+<text class="name" x="395" y="77" text-anchor="middle">Redis / BullMQ</text>
+<line class="life" x1="395" y1="91" x2="395" y2="874"/>
+<text class="name" x="510" y="77" text-anchor="middle">Worker</text>
+<line class="life" x1="510" y1="91" x2="510" y2="874"/>
+<text class="name" x="665" y="77" text-anchor="middle">Receiver</text>
+<line class="life" x1="665" y1="91" x2="665" y2="874"/>
+<path d="M55 125H165" class="line"/><text class="label" x="110.0" y="117" text-anchor="middle">POST /v1/events</text>
+<text class="small" x="110" y="145" text-anchor="middle">key or session</text>
+<path d="M165 184H280" class="line"/><text class="label" x="222.5" y="176" text-anchor="middle">Transaction: event, deliveries, outbox</text>
+<rect x="202" y="205" width="302" height="47" rx="5" fill="#f8fafc" stroke="#cbd5e1"/><text class="small" x="353" y="225" text-anchor="middle">No active endpoints: no_recipients</text>
+<text class="small" x="353" y="243" text-anchor="middle">and zero deliveries</text>
+<path d="M165 289H395" class="line"/><text class="label" x="280.0" y="281" text-anchor="middle">Publish jobs after commit</text>
+<rect x="20" y="315" width="540" height="158" rx="6" fill="none" stroke="#94a3b8"/><text x="32" y="337" class="name">Queue accepts</text><path d="M165 375H280" class="line"/><text class="label" x="222.5" y="367" text-anchor="middle">Delete outbox rows</text>
+<path d="M165 433H55" class="line" stroke-dasharray="5 4"/><text class="label" x="110.0" y="425" text-anchor="middle">202 accepted</text>
+<rect x="20" y="491" width="540" height="244" rx="6" fill="none" stroke="#94a3b8"/><text x="32" y="513" class="name">Publish fails</text><path d="M165 550H55" class="line" stroke-dasharray="5 4"/><text class="label" x="110.0" y="542" text-anchor="middle">503; transaction may be committed</text>
+<path d="M510 592H280" class="line"/><text class="label" x="395.0" y="584" text-anchor="middle">Sweeper reads outbox</text>
+<path d="M510 638H395" class="line"/><text class="label" x="452.5" y="630" text-anchor="middle">Republish jobs</text>
+<path d="M510 684H280" class="line"/><text class="label" x="395.0" y="676" text-anchor="middle">Delete outbox after enqueue</text>
+<path d="M395 766H510" class="line"/><text class="label" x="452.5" y="758" text-anchor="middle">Delivery job</text>
+<path d="M510 810H665" class="line"/><text class="label" x="587.5" y="802" text-anchor="middle">Signed HTTP</text>
+<text class="small" x="588" y="828" text-anchor="middle">at least once</text>
+<path d="M510 862H280" class="line"/><text class="label" x="395.0" y="854" text-anchor="middle">Record outcome / attempt</text>
 </svg>
