@@ -17,7 +17,7 @@ info:
     targeting such a workspace are also blocked.'
 servers:
   - url: http://localhost:3000
-    description: Local API (direct). Replace with your own deployment origin as needed.
+    description: Local API (direct). Examples use localhost; replace it with your own hosted API origin for a deployment.
 externalDocs:
   url: https://hikyaku.nayanswarnkar.com/docs
   description: Guides, curl walkthrough and webhook signature verification
@@ -305,8 +305,8 @@ paths:
         - Auth
       summary: Reset password using a one-time token
       description:
-        Consumes the link and revokes existing sessions. Does not sign in. Auth rate limits
-        apply.
+        Consumes the link and revokes existing sessions. Does not sign in. The login and password-reset
+        routes use the auth rate limiter, per IP and per normalized email when supplied.
       security: []
       responses:
         '204':

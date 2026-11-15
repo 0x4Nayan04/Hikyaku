@@ -1,0 +1,7 @@
+flowchart LR
+  C[Console] -->|Session requests| A[API]
+  A -->|Events, deliveries, outbox| D[(PostgreSQL)]
+  A -->|Publish jobs| Q[(Redis / BullMQ)]
+  W[Worker] -->|Recover and record| D
+  W -->|Consume and recover jobs| Q
+  W -->|Signed HTTP| R[Receiver]

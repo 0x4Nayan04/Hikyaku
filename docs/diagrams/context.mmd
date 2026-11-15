@@ -1,0 +1,4 @@
+flowchart LR
+  P[Producer] -->|Bearer key: ingest| H[Hikyaku API and worker]
+  U[Console user] -->|Session: manage or ingest| H
+  H -->|Signed HTTP; at-least-once| R[Receiver]
