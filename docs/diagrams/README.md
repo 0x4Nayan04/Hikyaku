@@ -55,7 +55,7 @@ sequenceDiagram
 
 ```mermaid
 erDiagram
-  tenants ||--o{ users : "optional tenant_id"
+  tenants o|--o{ users : "optional tenant_id"
   tenants ||--o{ api_keys : tenant_id
   tenants ||--o{ endpoints : tenant_id
   tenants ||--o{ events : tenant_id
@@ -65,9 +65,10 @@ erDiagram
   endpoints ||--o{ deliveries : "endpoint_id and tenant_id"
   deliveries ||--o| delivery_outbox : delivery_id
   deliveries ||--o{ delivery_attempts : delivery_id
-  tenants ||--o{ invites : "optional tenant_id"
-  users ||--o{ invites : "optional created_by_user_id"
-  sessions { string sid PK
+  tenants o|--o{ invites : "optional tenant_id"
+  users o|--o{ invites : "optional created_by_user_id"
+  sessions {
+    string sid PK
     json sess
     timestamp expire
   }
