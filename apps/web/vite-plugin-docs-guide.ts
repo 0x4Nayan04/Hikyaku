@@ -209,7 +209,6 @@ function parseId(id: string): { filename: string; query: string } {
 }
 
 export function compileDocsGuide(): Plugin {
-  let apiBase = 'http://localhost:3000'
   let webOrigin = 'http://localhost:5173'
 
   return {
@@ -218,9 +217,6 @@ export function compileDocsGuide(): Plugin {
     configResolved(config) {
       const env = loadEnv(config.mode, config.envDir ?? config.root, '')
       webOrigin = 'http://localhost:5173'
-      const publicUrl = firstNonEmpty(process.env.VITE_PUBLIC_API_URL, env.VITE_PUBLIC_API_URL)
-      const browserUrl = firstNonEmpty(process.env.VITE_API_URL, env.VITE_API_URL)
-      apiBase = publicUrl ?? browserUrl ?? apiBase
       const configuredSiteUrl = firstNonEmpty(
         process.env.VITE_PUBLIC_SITE_URL,
         env.VITE_PUBLIC_SITE_URL,
@@ -240,7 +236,7 @@ export function compileDocsGuide(): Plugin {
 
       const source = readFileSync(filename, 'utf8')
         .replaceAll('{{APP_NAME}}', APP_NAME)
-        .replaceAll('{{API_BASE}}', apiBase)
+        .replaceAll('{{API_BASE}}', 'http://localhost:3000')
         .replaceAll('{{WEB_ORIGIN}}', webOrigin)
 
       if (query === 'html') {

@@ -61,6 +61,27 @@ describe('DocsPage', () => {
     expect(html).toContain('class="docs-code-copy focus-ring" aria-label="Copy code"')
   })
 
+  it('keeps API examples local even when a public API URL is configured', () => {
+    const previous = process.env.VITE_PUBLIC_API_URL
+    const plugin = compileDocsGuide()
+    const configResolved = plugin.configResolved as (config: never) => void
+    const load = plugin.load as (this: unknown, id: string) => string | undefined
+    const guidePath = new URL('../../docs/guide.md', import.meta.url).pathname
+
+    try {
+      process.env.VITE_PUBLIC_API_URL = 'https://private-api.example.test'
+      configResolved({ mode: 'test', envDir: '/tmp/no-docs-env', root: process.cwd() } as never)
+      for (const query of ['html', 'search']) {
+        const output = load.call({}, `${guidePath}?${query}`)
+        expect(output).toContain('http://localhost:3000')
+        expect(output).not.toContain('https://private-api.example.test')
+      }
+    } finally {
+      if (previous === undefined) delete process.env.VITE_PUBLIC_API_URL
+      else process.env.VITE_PUBLIC_API_URL = previous
+    }
+  })
+
   it('substitutes configured website origins and defaults locally', () => {
     const previous = process.env.VITE_PUBLIC_SITE_URL
     const plugin = compileDocsGuide()

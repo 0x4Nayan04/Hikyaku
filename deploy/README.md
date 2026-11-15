@@ -109,7 +109,7 @@ Cookie mutations fail with `403 origin_not_allowed` unless all four match:
 Also set `ENABLE_EXPERIMENTAL_COREPACK=1` on Vercel.
 
 - Set `VITE_PUBLIC_SITE_URL` to the Vercel https origin (no trailing slash) so Open Graph image URLs are absolute
-- Set `VITE_PUBLIC_API_URL` to the Railway origin on the Vercel build for docs/curl samples
+- Documentation examples use the local API address. Replace it with your own API origin when testing a deployment.
 - Pre-deploy: `node apps/api/dist/scripts/migrate.js`
 - Build/start from **repo root** with `pnpm --filter @hikyaku/api...` / `@hikyaku/worker` — do not set root directory to `apps/api` or `apps/worker`
 - Worker: no public domain / healthcheck; API healthcheck → `/v1/ready`
@@ -199,7 +199,7 @@ After deploying, check an actual `/assets/…` URL from the landing HTML for `Ca
 | `LOG_LEVEL`                    | Log verbosity                                                                                |
 | `BUILD_REVISION`               | Optional release id on `/v1/health` and `/v1/ready`                                          |
 | `VITE_API_URL`                 | API base for the web app (build-time). Empty on Vercel so the browser uses same-origin `/v1` |
-| `VITE_PUBLIC_API_URL`          | Public API origin for docs/curl samples                                                      |
+| `VITE_PUBLIC_API_URL`          | Optional public API origin used by the console                                               |
 | `PROXY_IP_SECRET`              | Shared secret for the Vercel `/v1` proxy. Omit on single-host Compose                        |
 
 See root `.env.example` for local worker tuning. `TRUST_PROXY=1` means one trusted reverse-proxy hop.

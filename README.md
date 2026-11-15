@@ -14,7 +14,7 @@ Self-hosted, multi-tenant webhook delivery. Ingest an event once; the API fans i
 
 **Live demo:** [hikyaku.nayanswarnkar.com](https://hikyaku.nayanswarnkar.com) — public landing and docs. The operator console is invite-only (no self-serve signup). For a full console, follow [Local development](#local-development) below, or the [website](https://hikyaku.nayanswarnkar.com/docs#console-path) and [terminal](https://hikyaku.nayanswarnkar.com/docs#api-only-path) walkthroughs.
 
-The demo configuration is **split**: web on Vercel, API + worker on Railway (`hikyakuapi.nayanswarnkar.com`). The proxy keeps session cookies on the Vercel origin. This describes repository configuration, not a live deployment check. **Self-host** with one-host Docker Compose — that is the supported path for your own install.
+The project supports a split deployment as well as a self-hosted Docker Compose installation. See the [deployment guide](deploy/README.md).
 
 An optional [read-only console demo](deploy/README.md#read-only-console-demo) uses synthetic data and public credentials. Enable its login panel only after deploying enforcement and seeding the protected workspace.
 
