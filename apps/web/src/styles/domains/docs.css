@@ -261,6 +261,10 @@
     padding-inline: 0;
   }
 
+  .docs-mobile-nav-search .docs-sidebar-search__icon {
+    left: 0.4rem;
+  }
+
   .docs-mobile-nav-empty {
     margin: 0;
   }

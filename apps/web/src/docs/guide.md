@@ -4,9 +4,12 @@ Ingest events, HMAC-signed deliveries, retries, and the delivery console.
 
 ## Start here
 
-- **[API](#api-only-path)** — Sign in from a terminal, register a receiver, send an event, inspect or retry deliveries.
-- **[Console](#console-path)** — The same jobs in the website.
-- **[Signing](#signing)** — Verify `X-Webhook-Signature` (HMAC-SHA256) on the receiver.
+- [Quick start](#quick-start): send your first event from the console or terminal.
+- [Inside Hikyaku](#inside-hikyaku): follow an event through the API and worker.
+- [API reference](#api-reference): find routes and authentication.
+- [Configuration](#configuration), [deployment](#deployment) and [testing](#testing): operate your own installation.
+- [Signing](#signing): verify requests at your receiver.
+- [Troubleshooting](#troubleshooting-a-delivery): investigate delivery failures.
 
 [Download the OpenAPI reference](/openapi.yaml) — The OpenAPI 3.1 description of routes, request bodies, responses, and authentication. Management uses a session cookie; API keys authorize event ingest only. Production cookie mutations also require an allowlisted `Origin`.
 
@@ -59,6 +62,35 @@ For a first contribution, follow the **Test event** button from the page to `sen
 
 The repository README explains local setup and verification commands. Run service-backed tests only against disposable PostgreSQL and Redis resources, separate from the running application.
 
+## Configuration
+
+The API and worker read their configuration from environment variables. The repository's `.env.example` lists local settings; the deployment guide contains production settings.
+
+| Variable                       | Purpose                                      |
+| ------------------------------ | -------------------------------------------- |
+| `DATABASE_URL`                 | PostgreSQL connection for the API and worker |
+| `REDIS_URL`                    | Redis connection for queues and rate limits  |
+| `ADMIN_BOOTSTRAP_SECRET`       | Authorizes the first account bootstrap       |
+| `SESSION_SECRET`               | Signs session cookies                        |
+| `CORS_ORIGIN`                  | Comma-separated browser origin allowlist     |
+| `WEB_APP_URL`                  | Base URL for generated links                 |
+| `INGEST_RATE_LIMIT_PER_MINUTE` | Ingest rate limit                            |
+| `AUTH_RATE_LIMIT_PER_MINUTE`   | Authentication rate limit                    |
+| `WORKER_CONCURRENCY`           | Concurrent delivery jobs                     |
+| `MAX_DELIVERY_ATTEMPTS`        | Maximum delivery attempts                    |
+
+Keep secrets private and use separate resources for development, tests and production.
+
+## Deployment
+
+The repository includes a Docker Compose deployment with an API, worker, PostgreSQL, Redis and Caddy. The deployment guide covers configuration, HTTPS, backups and upgrades. For a split deployment, browser session requests must use an allowed origin.
+
+See the [deployment guide](https://github.com/0x4Nayan04/Hikyaku/blob/main/deploy/README.md) before exposing an installation to traffic.
+
+## Testing
+
+From the repository root, `pnpm lint`, `pnpm typecheck`, `pnpm test:unit` and `pnpm build` check the workspace. `pnpm test:integration` requires a dedicated test PostgreSQL database and Redis database; `pnpm test:smoke` runs Playwright tests. Follow the isolated setup in the [testing guide](https://github.com/0x4Nayan04/Hikyaku/blob/main/deploy/README.md#safe-tests). Never run service-backed tests against production data.
+
 ## Troubleshooting a delivery
 
 | What you see                            | Check next                                                                                                                                                                          |
@@ -82,12 +114,12 @@ Work from your terminal. Sign in once, save the login cookie, then use commands 
 
 Fill these in before you copy the commands:
 
-| Value | Configured example | What it is |
-| --- | --- | --- |
-| API address | `{{API_BASE}}` | Where `/v1` lives |
-| Email / password | your account | Tenant user login |
-| Receiver URL | `https://example.com/webhooks` | Where Hikyaku POSTs; [webhook.site](https://webhook.site) is fine for a first try |
-| Website origin | `{{WEB_ORIGIN}}` | The console origin. Cookie requests that **change data** must send `Origin` set to this value. On a hosted deployment, the API must allowlist this exact console origin in `CORS_ORIGIN`. Local `pnpm dev` defaults to `http://localhost:5173`; the production API enforces the allowlist. |
+| Value            | Configured example             | What it is                                                                                                                                                                                                                                                                                 |
+| ---------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| API address      | `{{API_BASE}}`                 | Where `/v1` lives                                                                                                                                                                                                                                                                          |
+| Email / password | your account                   | Tenant user login                                                                                                                                                                                                                                                                          |
+| Receiver URL     | `https://example.com/webhooks` | Where Hikyaku POSTs; [webhook.site](https://webhook.site) is fine for a first try                                                                                                                                                                                                          |
+| Website origin   | `{{WEB_ORIGIN}}`               | The console origin. Cookie requests that **change data** must send `Origin` set to this value. On a hosted deployment, the API must allowlist this exact console origin in `CORS_ORIGIN`. Local `pnpm dev` defaults to `http://localhost:5173`; the production API enforces the allowlist. |
 
 First install only: create the installer account with the [bootstrap](#authentication) command, then come back here to sign in.
 
@@ -375,45 +407,45 @@ All routes sit under `/v1`. The base URL is the app's API origin, set via `VITE_
 
 Auth: **public** — no credentials. **bootstrap** — `X-Admin-Secret`. **login** — tenant session cookie. **admin** — super-admin session. **key or login** — Bearer API key or tenant session.
 
-| Method | Route | Auth | Purpose |
-| ------ | ----- | ---- | ------- |
-| GET    | `/v1/health` | public | Liveness probe; optional `revision` when `BUILD_REVISION`, `GIT_SHA`, or `RAILWAY_GIT_COMMIT_SHA` is set |
-| GET    | `/v1/ready` | public | Postgres + Redis connectivity; same optional `revision` |
-| GET    | `/v1/auth/bootstrap-status` | public | Whether first-run bootstrap is still available |
-| POST   | `/v1/auth/bootstrap` | bootstrap | Installer and first workspace (`workspace_name` optional) |
-| POST   | `/v1/auth/workspace` | admin | Create an existing admin-only account’s workspace |
-| GET    | `/v1/auth/invites/validate` | public | Validate invite token |
-| POST   | `/v1/auth/accept-invite` | public | Accept invite and create account |
-| POST   | `/v1/auth/login` | public | Email/password login → session cookie |
-| POST   | `/v1/auth/logout` | login | End session |
-| GET    | `/v1/auth/me` | login | Current user + tenant |
-| POST   | `/v1/auth/change-password` | login | Change password |
-| GET    | `/v1/auth/password-reset/validate` | public | Validate a password reset link |
-| POST   | `/v1/auth/password-reset` | public | Set a new password from a reset link |
-| GET    | `/v1/stats` | login | Dashboard metrics |
-| GET    | `/v1/api-keys` | login | List API keys (prefix only) |
-| POST   | `/v1/api-keys` | login | Create API key (shown once) |
-| POST   | `/v1/api-keys/:id/revoke` | login | Revoke API key |
-| POST   | `/v1/api-keys/:id/rotate` | login | Rotate API key (new key shown once) |
-| POST   | `/v1/endpoints` | login | Create endpoint (secret shown once) |
-| GET    | `/v1/endpoints` | login | List endpoints, excluding removed receivers |
-| DELETE | `/v1/endpoints/:id` | login | Permanently remove receiver; retain delivery history |
-| PATCH  | `/v1/endpoints/:id` | login | Update status or description |
-| POST   | `/v1/endpoints/:id/rotate` | login | Rotate signing secret (shown once) |
-| POST   | `/v1/events` | key or login | Ingest event → 202 Accepted |
-| GET    | `/v1/events` | login | List events (paginated) |
-| GET    | `/v1/events/:id` | login | Event detail + delivery summary |
-| GET    | `/v1/deliveries` | login | List deliveries |
-| GET    | `/v1/deliveries/:id` | login | Delivery + attempt timeline |
-| POST   | `/v1/deliveries/:id/replay` | login | Replay a failed or pending delivery → 202; `in_progress` → 400 |
-| GET    | `/v1/admin/tenants` | admin | List tenants |
-| GET    | `/v1/admin/tenants/:id` | admin | Get tenant detail |
-| PATCH  | `/v1/admin/tenants/:id` | admin | Rename tenant |
-| DELETE | `/v1/admin/tenants/:id` | admin | Delete tenant |
-| GET    | `/v1/admin/tenants/:id/users` | admin | List users in a tenant |
-| DELETE | `/v1/admin/tenants/:id/users/:userId` | admin | Delete a user from a tenant |
-| POST   | `/v1/admin/tenants/:id/users/:userId/reset-password` | admin | Issue a one-time password reset link |
-| POST   | `/v1/admin/invites` | admin | Create tenant-owner or user invite |
+| Method | Route                                                | Auth         | Purpose                                                                                                  |
+| ------ | ---------------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/health`                                         | public       | Liveness probe; optional `revision` when `BUILD_REVISION`, `GIT_SHA`, or `RAILWAY_GIT_COMMIT_SHA` is set |
+| GET    | `/v1/ready`                                          | public       | Postgres + Redis connectivity; same optional `revision`                                                  |
+| GET    | `/v1/auth/bootstrap-status`                          | public       | Whether first-run bootstrap is still available                                                           |
+| POST   | `/v1/auth/bootstrap`                                 | bootstrap    | Installer and first workspace (`workspace_name` optional)                                                |
+| POST   | `/v1/auth/workspace`                                 | admin        | Create an existing admin-only account’s workspace                                                        |
+| GET    | `/v1/auth/invites/validate`                          | public       | Validate invite token                                                                                    |
+| POST   | `/v1/auth/accept-invite`                             | public       | Accept invite and create account                                                                         |
+| POST   | `/v1/auth/login`                                     | public       | Email/password login → session cookie                                                                    |
+| POST   | `/v1/auth/logout`                                    | login        | End session                                                                                              |
+| GET    | `/v1/auth/me`                                        | login        | Current user + tenant                                                                                    |
+| POST   | `/v1/auth/change-password`                           | login        | Change password                                                                                          |
+| GET    | `/v1/auth/password-reset/validate`                   | public       | Validate a password reset link                                                                           |
+| POST   | `/v1/auth/password-reset`                            | public       | Set a new password from a reset link                                                                     |
+| GET    | `/v1/stats`                                          | login        | Dashboard metrics                                                                                        |
+| GET    | `/v1/api-keys`                                       | login        | List API keys (prefix only)                                                                              |
+| POST   | `/v1/api-keys`                                       | login        | Create API key (shown once)                                                                              |
+| POST   | `/v1/api-keys/:id/revoke`                            | login        | Revoke API key                                                                                           |
+| POST   | `/v1/api-keys/:id/rotate`                            | login        | Rotate API key (new key shown once)                                                                      |
+| POST   | `/v1/endpoints`                                      | login        | Create endpoint (secret shown once)                                                                      |
+| GET    | `/v1/endpoints`                                      | login        | List endpoints, excluding removed receivers                                                              |
+| DELETE | `/v1/endpoints/:id`                                  | login        | Permanently remove receiver; retain delivery history                                                     |
+| PATCH  | `/v1/endpoints/:id`                                  | login        | Update status or description                                                                             |
+| POST   | `/v1/endpoints/:id/rotate`                           | login        | Rotate signing secret (shown once)                                                                       |
+| POST   | `/v1/events`                                         | key or login | Ingest event → 202 Accepted                                                                              |
+| GET    | `/v1/events`                                         | login        | List events (paginated)                                                                                  |
+| GET    | `/v1/events/:id`                                     | login        | Event detail + delivery summary                                                                          |
+| GET    | `/v1/deliveries`                                     | login        | List deliveries                                                                                          |
+| GET    | `/v1/deliveries/:id`                                 | login        | Delivery + attempt timeline                                                                              |
+| POST   | `/v1/deliveries/:id/replay`                          | login        | Replay a failed or pending delivery → 202; `in_progress` → 400                                           |
+| GET    | `/v1/admin/tenants`                                  | admin        | List tenants                                                                                             |
+| GET    | `/v1/admin/tenants/:id`                              | admin        | Get tenant detail                                                                                        |
+| PATCH  | `/v1/admin/tenants/:id`                              | admin        | Rename tenant                                                                                            |
+| DELETE | `/v1/admin/tenants/:id`                              | admin        | Delete tenant                                                                                            |
+| GET    | `/v1/admin/tenants/:id/users`                        | admin        | List users in a tenant                                                                                   |
+| DELETE | `/v1/admin/tenants/:id/users/:userId`                | admin        | Delete a user from a tenant                                                                              |
+| POST   | `/v1/admin/tenants/:id/users/:userId/reset-password` | admin        | Issue a one-time password reset link                                                                     |
+| POST   | `/v1/admin/invites`                                  | admin        | Create tenant-owner or user invite                                                                       |
 
 All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (defaults 50 and 0). Integer limits are clamped to 1–100 and offsets to at least 0; invalid or unsafe integers return `400 validation_error`. If a query parameter is repeated, the first value is used. `events` filter by `?status=pending|completed|partial_failure|failed|no_recipients`, `api-keys` by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` (a delivery status, or `open` for pending and in progress), `?updated_within=24h`, and `?event_id=`. Responses look like `{ data, has_more, limit, offset }`.
 
@@ -423,19 +455,19 @@ Errors:
 { "error": { "code": "not_found", "message": "Not found" } }
 ```
 
-| Code | Status | When |
-| ---- | ------ | ---- |
-| `validation_error` / `invalid_json` | 400 | Bad body or query |
-| `invalid_state` | 400 | Replay not allowed (`in_progress`, succeeded, or disabled or removed endpoint) |
-| `unauthorized` | 401 | Missing or wrong key or session |
-| `origin_not_allowed` | 403 | Cookie write in production without an allowed `Origin` |
-| `forbidden` | 403 | Bootstrap after the first account exists |
-| `not_found` | 404 | Unknown id or path |
-| `idempotency_mismatch` | 409 | Same ingest key, different body |
-| `payload_too_large` | 413 | Body over 256 KiB |
-| `rate_limited` | 429 | Ingest or login window exceeded |
-| `service_unavailable` | 503 | Redis down for rate limits or enqueue |
-| `internal_error` | 500 | Unexpected failure |
+| Code                                | Status | When                                                                           |
+| ----------------------------------- | ------ | ------------------------------------------------------------------------------ |
+| `validation_error` / `invalid_json` | 400    | Bad body or query                                                              |
+| `invalid_state`                     | 400    | Replay not allowed (`in_progress`, succeeded, or disabled or removed endpoint) |
+| `unauthorized`                      | 401    | Missing or wrong key or session                                                |
+| `origin_not_allowed`                | 403    | Cookie write in production without an allowed `Origin`                         |
+| `forbidden`                         | 403    | Bootstrap after the first account exists                                       |
+| `not_found`                         | 404    | Unknown id or path                                                             |
+| `idempotency_mismatch`              | 409    | Same ingest key, different body                                                |
+| `payload_too_large`                 | 413    | Body over 256 KiB                                                              |
+| `rate_limited`                      | 429    | Ingest or login window exceeded                                                |
+| `service_unavailable`               | 503    | Redis down for rate limits or enqueue                                          |
+| `internal_error`                    | 500    | Unexpected failure                                                             |
 
 The send key works on `POST /v1/events` only. Every other tenant route needs the login cookie. Admin routes need a super-admin session.
 
