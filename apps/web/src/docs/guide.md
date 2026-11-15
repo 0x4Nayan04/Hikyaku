@@ -72,7 +72,11 @@ curl -b cookies.txt -X POST "http://localhost:3000/v1/api-keys" \
   -H "Origin: http://localhost:5173"
 ```
 
-**3. Send and inspect** — send with the key, then list that event’s deliveries with the cookie. `202 Accepted` means ingest was accepted, not that every delivery succeeded. A pending delivery may be queued, waiting for a retry, or rate-limited; check the worker and its logs if it does not progress.
+**3. Send and inspect** — send with the key, then list that event’s deliveries with the cookie.
+
+- `202 Accepted` means ingest was accepted, not that every delivery succeeded.
+- A pending delivery may be queued, waiting for a retry, or rate-limited.
+- Check the worker and its logs if it does not progress.
 
 ```bash
 curl -X POST "http://localhost:3000/v1/events" \
@@ -104,7 +108,8 @@ curl -b cookies.txt -X POST "http://localhost:3000/v1/deliveries/DELIVERY_UUID/r
   -H "Origin: http://localhost:5173"
 ```
 
-`202` means the retry is accepted, not that the receiver has succeeded yet. `in_progress` and `succeeded` return `400 invalid_state`.
+- `202` means the retry is accepted, not that the receiver has succeeded yet.
+- `in_progress` and `succeeded` return `400 invalid_state`.
 
 > **Tip:** Use [webhook.site](https://webhook.site) or an ngrok tunnel to inspect outbound POSTs while you wire up a real handler. Production rejects private and loopback receiver URLs.
 
@@ -128,13 +133,30 @@ Fresh deploys create a super-admin and their workspace at [/bootstrap](/bootstra
 - **Deliveries** — filter by status, inspect attempt timelines, and replay failures.
 - **Settings** — API keys, tenant identity, and account password. Super-admins with a workspace also have API key and tenant tabs.
 
-Super-admins use **Admin** to invite tenant owners, list/rename/delete tenants, invite or remove tenant users, and issue one-time password reset links. They may use an assigned workspace (deliveries, API keys) as well; **Admin** stays separate, and those workspaces cannot be deleted.
+### Admin
 
-If the console cannot check your session because the API or network is unavailable, it shows an error with **Try again** instead of treating the outage as a logout. An expired or invalid session still returns you to sign-in.
+Super-admins use **Admin** to:
+
+- Invite tenant owners
+- List, rename, or delete tenants
+- Invite or remove tenant users
+- Issue one-time password reset links
+
+They may use an assigned workspace (deliveries, API keys) as well. **Admin** stays separate, and those workspaces cannot be deleted.
+
+### Session outages
+
+- If the console cannot check your session because the API or network is unavailable, it shows an error with **Try again** instead of treating the outage as a logout.
+- An expired or invalid session still returns you to sign-in.
 
 ## Inside Hikyaku
 
-When you press **Send test event**, Hikyaku accepts the event first and delivers it in the background. Think of an **event** as the message and a **delivery** as the work of sending that message to one registered endpoint. A delivery can have multiple attempts, and one event can have a separate delivery for each active endpoint.
+When you press **Send test event**, Hikyaku accepts the event first and delivers it in the background.
+
+- An **event** is the message.
+- A **delivery** is the work of sending that message to one registered endpoint.
+- A delivery can have multiple attempts.
+- One event can have a separate delivery for each active endpoint.
 
 ![A webhook travels from a producer through the API, database, queue and worker to a receiver. An outbox and sweeper recover unfinished handoffs.](/illustrations/event-journey.svg)
 
@@ -147,7 +169,7 @@ When you press **Send test event**, Hikyaku accepts the event first and delivers
 5. **The worker sends the webhook.** It claims a due delivery, signs the request and records the response and attempt. Transient failures can be retried; the receiver should verify the signature and deduplicate by `X-Webhook-Id`.
 6. **The console reads the result.** Event and delivery pages fetch stored status and attempt history. A pending event refreshes while it remains open; refresh stops when it reaches a terminal status.
 
-If queue publishing fails after the database commit, the API can return `503` even though the event was saved. The worker's sweeper can recover the outbox entries later. Retry an uncertain request with the **same idempotency key and body**; a different body with that key is rejected. See [Outbox](#outbox) and [Retries](#retries) for details.
+> If queue publishing fails after the database commit, the API can return `503` even though the event was saved. The worker's sweeper can recover the outbox entries later. Retry an uncertain request with the **same idempotency key and body**; a different body with that key is rejected. See [Outbox](#outbox) and [Retries](#retries) for details.
 
 The diagrams below show the system boundaries, components, ingest flow, and main database relationships. Their Mermaid source files are in `docs/diagrams/`; the static SVG illustrations are manually authored equivalents.
 
@@ -180,7 +202,12 @@ Start from an action a user can take. Follow the request into the API, then the 
 | Shared tables, schemas or queue contracts | `packages/shared/src/`                    | The API and worker callers that use the changed export                                  |
 | Console page or its filters               | `apps/web/src/pages/`                     | Its API client calls and nearby page tests                                              |
 
-For a first contribution, follow the **Test event** button from the page to `sendEvent` in the web API client, `ingestEvent` in the API handler, and `ingestFanout` in the transaction. Then follow the queued delivery to the worker. Read the related tests before changing the behaviour: the event and delivery integration tests exercise authentication, fanout and replay, and the worker integration tests exercise delivery and recovery.
+### First contribution path
+
+1. Follow the **Test event** button from the page to `sendEvent` in the web API client.
+2. Continue to `ingestEvent` in the API handler and `ingestFanout` in the transaction.
+3. Follow the queued delivery to the worker.
+4. Read the related tests before changing behaviour: event and delivery integration tests cover authentication, fanout and replay; worker integration tests cover delivery and recovery.
 
 The repository README explains local setup and verification commands. Run service-backed tests only against disposable PostgreSQL and Redis resources, separate from the running application.
 
@@ -198,15 +225,29 @@ Backends send events with an API key. The console **and** terminal management us
 Authorization: Bearer whk_your_api_key
 ```
 
-Keys belong to one tenant. The tenant is resolved from the key, never from the request body. The full secret is shown once on create or rotate; only a SHA-256 hash is stored.
+### Keys and passwords
 
-Passwords must be at least 12 characters and at most 128 UTF-8 bytes. Browser login and API keys are separate credentials that resolve to the same tenant for tenant users. Changing your password signs you out of all sessions. Login and password reset are rate limited per IP (and per email when present); if Redis is unavailable for that check, the API returns `503 service_unavailable`.
+- Keys belong to one tenant. The tenant is resolved from the key, never from the request body.
+- The full secret is shown once on create or rotate; only a SHA-256 hash is stored.
+- Passwords must be at least 12 characters and at most 128 UTF-8 bytes.
+- Browser login and API keys are separate credentials that resolve to the same tenant for tenant users.
+- Changing your password signs you out of all sessions.
+- Login and password reset are rate limited per IP (and per email when present). If Redis is unavailable for that check, the API returns `503 service_unavailable`.
 
-A super-admin issues a password reset with `POST /v1/admin/tenants/:id/users/:userId/reset-password`. The response is a one-time link to copy, the same way invites work. The user sets a new password at [/reset-password](/reset-password), and every session for that user is signed out. There is no emailed self-serve reset.
+### Password reset
+
+A super-admin issues a password reset with `POST /v1/admin/tenants/:id/users/:userId/reset-password`.
+
+- The response is a one-time link to copy, the same way invites work.
+- The user sets a new password at [/reset-password](/reset-password).
+- Every session for that user is signed out.
+- There is no emailed self-serve reset.
 
 **Sign in** from a terminal with the command in the [API-only path](#api-only-path). Cookie requests that change data must also send `Origin` (see that walkthrough).
 
-- **Bootstrap** — create the first super-admin once, and only while no accounts exist. After that the route returns `403 forbidden`. Then [sign in](#api-only-path).
+### Bootstrap
+
+Create the first super-admin once, and only while no accounts exist. After that the route returns `403 forbidden`. Then [sign in](#api-only-path).
 
 ```bash
 curl -X POST "http://localhost:3000/v1/auth/bootstrap" \
@@ -220,7 +261,11 @@ curl -X POST "http://localhost:3000/v1/auth/bootstrap" \
   }'
 ```
 
-- **Invite** — the super-admin creates a tenant-owner or tenant-user link via `POST /v1/admin/invites`; the recipient accepts at [/accept-invite](/accept-invite). Creating a new invite for the same email invalidates any unused, unexpired signup invite for that address so a lost link can be replaced without waiting for expiry.
+### Invite
+
+- The super-admin creates a tenant-owner or tenant-user link via `POST /v1/admin/invites`.
+- The recipient accepts at [/accept-invite](/accept-invite).
+- Creating a new invite for the same email invalidates any unused, unexpired signup invite for that address so a lost link can be replaced without waiting for expiry.
 
 ## Ingest
 
@@ -254,7 +299,17 @@ Post an event to `POST /v1/events`. The body must include three fields and stay 
 | `409`  | The idempotency key was already used with a different event body                                                                       |
 | `429`  | Too many requests — wait and retry (default 120/min per tenant; Bearer ingest also has a matching per-IP window before the key lookup) |
 
-An event is `pending` while any delivery is open; `completed` only when all deliveries succeeded; `partial_failure` when all are terminal with mixed results; `failed` when all failed; and `no_recipients` when it has zero deliveries. List events with `GET /v1/events`, or open a single event with `GET /v1/events/:id`.
+### Event status
+
+| Status            | When                                      |
+| ----------------- | ----------------------------------------- |
+| `pending`         | Any delivery is still open                |
+| `completed`       | All deliveries succeeded                  |
+| `partial_failure` | All terminal with mixed results           |
+| `failed`          | All failed                                |
+| `no_recipients`   | Zero deliveries                           |
+
+List events with `GET /v1/events`, or open a single event with `GET /v1/events/:id`.
 
 > **Idempotency:** Reusing the same `idempotency_key` with the same type and payload returns the existing event with `202` if enqueue succeeds. Reusing it with a different type or payload returns `409 idempotency_mismatch`. If active endpoints were added since the first request, the retry creates only the missing deliveries and can re-enqueue existing open deliveries.
 
@@ -266,9 +321,11 @@ An event is `pending` while any delivery is open; `completed` only when all deli
 
 Create a key from the [API-only path](#api-only-path) (`POST /v1/api-keys` with the login cookie) or in **Settings → API keys**. Save `api_key` immediately; the full secret is shown once.
 
-API key routes require the session cookie, not an existing send-key. An API key cannot create another key.
-
-List responses show a short `prefix` for identification, never the full secret. Revoke with `POST /v1/api-keys/:id/revoke`. Rotate with `POST /v1/api-keys/:id/rotate` — it issues a replacement and invalidates the old one.
+- API key routes require the session cookie, not an existing send-key.
+- An API key cannot create another key.
+- List responses show a short `prefix` for identification, never the full secret.
+- Revoke with `POST /v1/api-keys/:id/revoke`.
+- Rotate with `POST /v1/api-keys/:id/rotate` — it issues a replacement and invalidates the old one.
 
 ## Endpoints
 
@@ -276,9 +333,37 @@ An endpoint is a subscriber URL that receives signed webhook POSTs. Create one w
 
 Endpoint routes require the session cookie, not an API key. Sign in and create the endpoint in the [API-only path](#api-only-path). In production, cookie requests that change data must send an `Origin` header listed in `CORS_ORIGIN`.
 
-URL cannot change after create. Update status or description with `PATCH /v1/endpoints/:id`. Rotate the signing secret in place with `POST /v1/endpoints/:id/rotate` — the new secret is returned once; the endpoint id and URL stay the same. Rotation replaces the secret immediately (no overlap window); update every receiver before or right after rotating, and expect in-flight deliveries to keep using the secret that was active when they were reserved. To change a URL, create a new endpoint and disable or remove the old one.
+### Create and update
 
-Use **Remove endpoint** in the endpoint actions menu, or `DELETE /v1/endpoints/:id`, to remove a receiver permanently. The confirmation explains that delivery history is retained and an already claimed delivery may finish. Removed endpoints disappear from every endpoint list, cannot be restored, edited or rotated, and their deliveries cannot be replayed. The server retains the endpoint row, deliveries and attempt history. Queued deliveries and retries stop without sending HTTP when the worker processes them, with `endpoint_removed` as the final error. Removal returns `204` with no body, including repeated removal in the same workspace; an unknown endpoint or another workspace's endpoint returns `404`. Read-only workspaces cannot remove endpoints. Delivery detail exposes `endpoint_deleted_at` (timestamp or null) and shows a removed marker without an enable link.
+- URL cannot change after create.
+- Update status or description with `PATCH /v1/endpoints/:id`.
+- To change a URL, create a new endpoint and disable or remove the old one.
+
+### Signing secret rotation
+
+Rotate in place with `POST /v1/endpoints/:id/rotate`:
+
+- The new secret is returned once; the endpoint id and URL stay the same.
+- Rotation replaces the secret immediately (no overlap window).
+- Update every receiver before or right after rotating.
+- In-flight deliveries keep using the secret that was active when they were reserved.
+
+### Remove an endpoint
+
+Use **Remove endpoint** in the endpoint actions menu, or `DELETE /v1/endpoints/:id`.
+
+| What happens              | Detail                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------- |
+| Lists                     | Removed endpoints disappear from every endpoint list                            |
+| Restore / edit / rotate   | Not allowed                                                                     |
+| Replay                    | Their deliveries cannot be replayed                                             |
+| History                   | Server retains the endpoint row, deliveries, and attempt history                |
+| Queued work               | Stops without sending HTTP; final error `endpoint_removed`                      |
+| Response                  | `204` with no body, including repeated removal in the same workspace            |
+| Unknown / other workspace | `404`                                                                           |
+| Read-only workspaces      | Cannot remove endpoints                                                         |
+
+Delivery detail exposes `endpoint_deleted_at` (timestamp or null) and shows a removed marker without an enable link. The confirmation explains that delivery history is retained and an already claimed delivery may finish.
 
 > **Save the secret now:** The server cannot show the signing secret again after create or rotate. Copy it into your secret manager immediately.
 
@@ -307,12 +392,21 @@ User-Agent: Hikyaku/1.0
 
 `X-Webhook-Id` is the delivery UUID. It stays the same across retries for that event×endpoint pair — use it to dedupe under at-least-once delivery.
 
+### Delivery status
+
 - `pending` — queued, waiting to retry, or rate-limited
 - `in_progress` — a reserved attempt is running. Replay returns `400 invalid_state`; the sweeper recovers a stale row after the worker lease expires.
 - `succeeded` — subscriber returned 2xx
 - `failed` — retries exhausted or fail-fast 4xx
 
-List deliveries with `GET /v1/deliveries` (`?status=` a delivery status, or `open` for pending and in progress; `?updated_within=24h` for rows updated in the last 24 hours; `?event_id=`, `?limit`, `?offset`), or open one with `GET /v1/deliveries/:id` for the attempt timeline. Attempts may include a truncated response body (~1KB). The delivery list polls every 5 seconds while a loaded row is pending or in progress, and every 15 seconds otherwise; the detail view polls while that delivery is in flight. Polling pauses in hidden tabs.
+### Listing and polling
+
+- List: `GET /v1/deliveries` with `?status=` (a delivery status, or `open` for pending and in progress), `?updated_within=24h`, `?event_id=`, `?limit`, `?offset`.
+- Detail: `GET /v1/deliveries/:id` for the attempt timeline.
+- Attempts may include a truncated response body (~1KB).
+- List polls every 5 seconds while a loaded row is pending or in progress, and every 15 seconds otherwise.
+- Detail polls while that delivery is in flight.
+- Polling pauses in hidden tabs.
 
 ## Signing
 
@@ -375,11 +469,19 @@ def verify_webhook(raw_body: bytes, signature_header: str, timestamp: str, secre
 
 ## Outbox
 
-Fan-out writes each delivery and a matching outbox row in the same Postgres transaction as the ingest. The worker drains that outbox into BullMQ before sweeping stale leases, so a committed delivery is not lost if Redis is unavailable at ingest time. Queue jobs are still at-least-once over HTTP — subscribers should dedupe on `X-Webhook-Id`.
+Fan-out writes each delivery and a matching outbox row in the same Postgres transaction as the ingest.
+
+- The worker drains that outbox into BullMQ before sweeping stale leases.
+- A committed delivery is not lost if Redis is unavailable at ingest time.
+- Queue jobs are still at-least-once over HTTP — subscribers should dedupe on `X-Webhook-Id`.
 
 ## API reference
 
-All routes sit under `/v1`. The examples use `http://localhost:3000`; replace it with your own API origin for a hosted installation. The browser uses `VITE_API_URL` when set at build time. When it is unset, development defaults to `http://localhost:3000` and a production build uses the current origin.
+All routes sit under `/v1`. The examples use `http://localhost:3000`; replace it with your own API origin for a hosted installation.
+
+- The browser uses `VITE_API_URL` when set at build time.
+- When unset, development defaults to `http://localhost:3000`.
+- A production build uses the current origin.
 
 Auth: **public** — no credentials. **bootstrap** — `X-Admin-Secret`. **login** — tenant session cookie. **admin** — super-admin session. **key or login** — Bearer API key or tenant session.
 
@@ -423,9 +525,26 @@ Auth: **public** — no credentials. **bootstrap** — `X-Admin-Secret`. **login
 | POST   | `/v1/admin/tenants/:id/users/:userId/reset-password` | admin        | Issue a one-time password reset link                                                                     |
 | POST   | `/v1/admin/invites`                                  | admin        | Create tenant-owner or user invite                                                                       |
 
-All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept `?limit`/`?offset` (defaults 50 and 0). Integer limits are clamped to 1–100 and offsets to at least 0; invalid or unsafe integers return `400 validation_error`. If a query parameter is repeated, the first value is used. `events` filter by `?status=pending|completed|partial_failure|failed|no_recipients`, `api-keys` by `?status=active|revoked`, `endpoints` by `?status=active|disabled`, and `deliveries` by `?status=` (a delivery status, or `open` for pending and in progress), `?updated_within=24h`, and `?event_id=`. Responses look like `{ data, has_more, limit, offset }`.
+### List query parameters
 
-Errors:
+All list endpoints (`events`, `deliveries`, `api-keys`, `endpoints`) accept:
+
+| Parameter                    | Rules                                                         |
+| ---------------------------- | ------------------------------------------------------------- |
+| `limit` / `offset`           | Defaults 50 and 0. Limits clamped to 1–100; offsets ≥ 0       |
+| Invalid or unsafe integers   | `400 validation_error`                                        |
+| Repeated query parameter     | First value is used                                           |
+
+| Resource     | Filters                                                                                          |
+| ------------ | ------------------------------------------------------------------------------------------------ |
+| `events`     | `?status=pending\|completed\|partial_failure\|failed\|no_recipients`                             |
+| `api-keys`   | `?status=active\|revoked`                                                                        |
+| `endpoints`  | `?status=active\|disabled`                                                                       |
+| `deliveries` | `?status=` (a delivery status, or `open`), `?updated_within=24h`, `?event_id=`                   |
+
+Responses look like `{ data, has_more, limit, offset }`.
+
+### Errors
 
 ```json
 { "error": { "code": "not_found", "message": "Not found" } }
@@ -449,7 +568,10 @@ The send key works on `POST /v1/events` only. Every other tenant route needs the
 
 ## Retries
 
-Transient failures retry automatically. Permanent client errors fail fast. After a delivery is exhausted, replay it from the [API-only path](#api-only-path) or the console. `202` means the retry is accepted, not that the receiver has succeeded. An empty failed list means there is nothing to replay.
+Transient failures retry automatically. Permanent client errors fail fast. After a delivery is exhausted, replay it from the [API-only path](#api-only-path) or the console.
+
+- `202` means the retry is accepted, not that the receiver has succeeded.
+- An empty failed list means there is nothing to replay.
 
 | Setting           | Value                                                      |
 | ----------------- | ---------------------------------------------------------- |
@@ -460,15 +582,57 @@ Transient failures retry automatically. Permanent client errors fail fast. After
 | Fail-fast         | 4xx (except 408, 429)                                      |
 | Rate limit        | 100 outbound admissions / minute / tenant                  |
 
-> When a tenant hits the rate limit, the worker defers the delivery until the next UTC minute plus a small jitter (logged as `rate_limited`). That pause is not a failure, does not update the delivery row’s `last_error`, and does not count toward the five-attempt cap. The admission is taken before the attempt is reserved, so a lost claim spends a rate-limit slot without sending or consuming an attempt.
+Operator overrides: `MAX_DELIVERY_ATTEMPTS`, `DELIVERY_TIMEOUT_MS`, and `RATE_LIMIT_PER_MINUTE`.
 
-The table shows defaults; `MAX_DELIVERY_ATTEMPTS`, `DELIVERY_TIMEOUT_MS`, and `RATE_LIMIT_PER_MINUTE` can be configured by the operator. The worker reserves the attempt number in the database before the HTTP call. A reserved attempt counts toward the cap, including one interrupted by a crash. If the process dies after reservation and before the request is sent, that slot is still consumed and no HTTP call was made. Attempt history stores only committed outcomes, so an interrupted attempt can leave a gap in the timeline. A pending row whose `next_retry_at` is still in the future is not claimed; an early queue job finishes without sending until the retry time is due.
+> **Outbound rate limit:** When a tenant hits the cap, the worker defers until the next UTC minute plus a small jitter (logged as `rate_limited`).
+>
+> - That pause is not a failure.
+> - It does not update `last_error`.
+> - It does not count toward the five-attempt cap.
+> - Admission is taken before the attempt is reserved, so a lost claim spends a rate-limit slot without sending or consuming an attempt.
 
-A response counts as success only when it finishes. A stream error or a connection that closes before the body ends is a transport failure and follows the retry rules, even if some body bytes and a 2xx status already arrived. The receiver may already have processed the webhook, so the retry can deliver a duplicate. Response bodies stored on the attempt are still truncated to about 1 KB. Timeouts stay timeouts.
+### Attempt accounting
 
-Delivery is at-least-once — dedupe with `X-Webhook-Id` (stable across retries; see [Outbound](#outbound)). Ingest→queue durability is in [Outbox](#outbox). The sweeper (`SWEEP_INTERVAL_MS`, application default 5 minutes; production Compose default 30 seconds) reclaims stale `in_progress` rows after the worker lease (delivery timeout + 30s) and re-enqueues due `pending` rows, without resetting attempt counts.
+- The worker reserves the attempt number in the database **before** the HTTP call.
+- A reserved attempt counts toward the cap, including one interrupted by a crash.
+- If the process dies after reservation and before the request is sent, that slot is still consumed and no HTTP call was made.
+- Attempt history stores only committed outcomes, so an interrupted attempt can leave a gap in the timeline.
+- A pending row whose `next_retry_at` is still in the future is not claimed; an early queue job finishes without sending until the retry time is due.
 
-`POST /v1/deliveries/:id/replay` starts a new run only for a `failed` delivery. That call returns `202`, increments `replay_count`, resets the current run’s attempt counter and `next_retry_at`, and keeps previous attempts. You can do the same with **Replay** on the delivery detail page. Attempts expose `run_number`, starting at 0; the delivery ID and X-Webhook-Id remain unchanged. Each replay run is enqueued with a queue deduplication id of `delivery_id:replay_count`, so a new run is not confused with an older job for the same delivery. Replaying a `pending` delivery also returns `202` and re-enqueues that same run without changing the attempt count, run number, or `next_retry_at`. Replaying `in_progress` returns `400 invalid_state`: the sweeper recovers that delivery after the lease expires, and resetting it could start a competing send. A succeeded delivery, or any delivery whose endpoint is disabled or removed, returns `400 invalid_state`.
+### What counts as success
+
+- A response counts as success only when it **finishes**.
+- A stream error or a connection that closes before the body ends is a transport failure and follows the retry rules — even if some body bytes and a 2xx status already arrived.
+- The receiver may already have processed the webhook, so the retry can deliver a duplicate.
+- Response bodies stored on the attempt are truncated to about 1 KB.
+- Timeouts stay timeouts.
+
+> Delivery is at-least-once. Dedupe with `X-Webhook-Id` (stable across retries; see [Outbound](#outbound)). Ingest→queue durability is in [Outbox](#outbox).
+
+### Sweeper
+
+The sweeper (`SWEEP_INTERVAL_MS`, application default 5 minutes; production Compose default 30 seconds):
+
+- Reclaims stale `in_progress` rows after the worker lease (delivery timeout + 30s).
+- Re-enqueues due `pending` rows.
+- Does **not** reset attempt counts.
+
+### Manual replay
+
+`POST /v1/deliveries/:id/replay` (or **Replay** on the delivery detail page).
+
+| State                                      | Result                                                                                                      |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `failed`                                   | `202` — new run; increments `replay_count`; resets attempt counter and `next_retry_at`; keeps previous attempts |
+| `pending`                                  | `202` — re-enqueues the same run; attempt count, run number, and `next_retry_at` unchanged                  |
+| `in_progress`                              | `400 invalid_state` — sweeper recovers after the lease; resetting could start a competing send              |
+| succeeded, or endpoint disabled / removed  | `400 invalid_state`                                                                                         |
+
+Notes:
+
+- Attempts expose `run_number`, starting at 0.
+- Delivery ID and `X-Webhook-Id` stay unchanged across replays.
+- Each replay run is enqueued with queue deduplication id `delivery_id:replay_count`, so a new run is not confused with an older job for the same delivery.
 
 ## Configuration
 
@@ -497,7 +661,18 @@ See the [deployment guide](https://github.com/0x4Nayan04/Hikyaku/blob/main/deplo
 
 ## Testing
 
-From the repository root, `pnpm lint`, `pnpm typecheck`, `pnpm test:unit` and `pnpm build` check the workspace. `pnpm test:integration` requires a dedicated test PostgreSQL database and Redis database; `pnpm test:smoke` runs Playwright tests. Follow the isolated setup in the [testing guide](https://github.com/0x4Nayan04/Hikyaku/blob/main/deploy/README.md#safe-tests). Never run service-backed tests against production data.
+From the repository root:
+
+| Command                 | Purpose                                                          |
+| ----------------------- | ---------------------------------------------------------------- |
+| `pnpm lint`             | Lint                                                             |
+| `pnpm typecheck`        | Typecheck                                                        |
+| `pnpm test:unit`        | Unit tests                                                       |
+| `pnpm build`            | Build workspace packages                                         |
+| `pnpm test:integration` | Needs a dedicated test PostgreSQL database and Redis database    |
+| `pnpm test:smoke`       | Playwright smoke tests                                           |
+
+Follow the isolated setup in the [testing guide](https://github.com/0x4Nayan04/Hikyaku/blob/main/deploy/README.md#safe-tests). Never run service-backed tests against production data.
 
 ## Troubleshooting a delivery
 
@@ -510,15 +685,31 @@ From the repository root, `pnpm lint`, `pnpm typecheck`, `pnpm test:unit` and `p
 | Endpoint is rejected in production      | Use a publicly resolvable HTTPS receiver. Loopback and private network destinations are blocked in production.                                                                      |
 | A succeeded delivery cannot be replayed | Replay is available for failed or pending deliveries; `succeeded` and active `in_progress` deliveries return `invalid_state`.                                                       |
 
-The **Deliveries** page shows status and attempt history; the API and worker logs help distinguish a receiver failure from a queue or process outage. For safe local tests, use a disposable PostgreSQL database ending in `_test` and a dedicated Redis instance with a database number greater than zero; configure the explicit test connection variables before running tests.
+### Where to look next
+
+- **Deliveries** page — status and attempt history.
+- API and worker logs — distinguish a receiver failure from a queue or process outage.
+
+For safe local tests, use a disposable PostgreSQL database ending in `_test` and a dedicated Redis instance with a database number greater than zero; configure the explicit test connection variables before running tests.
 
 ## Privacy
 
-API keys are stored as SHA-256 hashes; the full secret is shown only on create or rotate. Endpoint signing secrets are kept server-side so the worker can sign outbound POSTs, and are shown once at creation or when rotated in place. Session cookies power the console. Delivery attempt logs may include a truncated response body (~1KB) for debugging. There is no application-level encryption at rest beyond what your database and filesystem provide.
+| Secret / data              | How it is handled                                                                                          |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| API keys                   | Stored as SHA-256 hashes; full secret shown only on create or rotate                                       |
+| Endpoint signing secrets   | Kept server-side so the worker can sign outbound POSTs; shown once at create or rotate                     |
+| Session cookies            | Power the console                                                                                          |
+| Delivery attempt logs      | May include a truncated response body (~1KB) for debugging                                                 |
+| Encryption at rest         | No application-level encryption beyond what your database and filesystem provide                           |
 
 > **Protect secrets:** Do not commit API keys or signing secrets to source control or paste them into tickets. Revoke or rotate compromised credentials promptly ([API-only path](#api-only-path), Settings, **Rotate signing secret**, or the API routes above) and update receivers after endpoint secret rotation.
 
-Temporary DNS lookup failures use the normal bounded delivery retries. Private and loopback addresses are blocked when `NODE_ENV=production` and allowed outside production for local testing. Supported protocols, URL safety checks, and hostname resolution still apply in every environment, and endpoint registration rejects unresolved hostnames.
+### URL safety
+
+- Temporary DNS lookup failures use the normal bounded delivery retries.
+- Private and loopback addresses are blocked when `NODE_ENV=production` and allowed outside production for local testing.
+- Supported protocols, URL safety checks, and hostname resolution still apply in every environment.
+- Endpoint registration rejects unresolved hostnames.
 
 ## Known limits
 
