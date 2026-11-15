@@ -22,6 +22,16 @@ declare module '*.md?search' {
   export default entries
 }
 
+declare module '*.md?pages' {
+  const pages: Record<string, string>
+  export default pages
+}
+
+declare module '*.md?page-search' {
+  const texts: Record<string, string>
+  export default texts
+}
+
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }

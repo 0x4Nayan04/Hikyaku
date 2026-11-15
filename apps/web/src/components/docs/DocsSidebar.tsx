@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Search } from 'lucide-react'
 
 import { buildDocsSearchIndex, filterDocsSearch } from '@/docs/search'
@@ -12,8 +13,7 @@ const GROUP_STARTS: Record<string, string> = {
 }
 
 export type DocsSidebarProps = {
-  activeId: string
-  onSectionNavigate: (id: string) => void
+  activeSlug: string
 }
 
 function DocsSearchEmpty({ query, onClear }: { query: string; onClear: () => void }) {
@@ -32,7 +32,7 @@ function DocsSearchEmpty({ query, onClear }: { query: string; onClear: () => voi
   )
 }
 
-export function DocsSidebar({ activeId, onSectionNavigate }: DocsSidebarProps) {
+export function DocsSidebar({ activeSlug }: DocsSidebarProps) {
   const [query, setQuery] = useState('')
   const results = useMemo(() => filterDocsSearch(SEARCH_INDEX, query), [query])
 
@@ -61,21 +61,18 @@ export function DocsSidebar({ activeId, onSectionNavigate }: DocsSidebarProps) {
                   <li className="docs-sidebar-group">{GROUP_STARTS[item.id]}</li>
                 ) : null}
                 <li>
-                  <a
-                    href={`#${item.id}`}
+                  <Link
+                    to={`/docs/${item.id}`}
                     className={
-                      activeId === item.id
+                      activeSlug === item.id
                         ? 'docs-sidebar-link docs-sidebar-link--active'
                         : 'docs-sidebar-link'
                     }
-                    aria-current={activeId === item.id ? 'location' : undefined}
-                    onClick={() => {
-                      onSectionNavigate(item.id)
-                      setQuery('')
-                    }}
+                    aria-current={activeSlug === item.id ? 'page' : undefined}
+                    onClick={() => setQuery('')}
                   >
                     {item.label}
-                  </a>
+                  </Link>
                 </li>
               </Fragment>
             ))

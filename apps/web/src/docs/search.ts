@@ -1,5 +1,5 @@
-import searchIndex from '@/docs/guide.md?search'
-import { DOCS_TOC } from '@/docs/toc'
+import pageTexts from '@/docs/guide.md?page-search'
+import { DOCS_PAGES } from '@/docs/toc'
 
 export type DocsSearchEntry = {
   id: string
@@ -8,26 +8,16 @@ export type DocsSearchEntry = {
 }
 
 export function buildDocsSearchIndex(): DocsSearchEntry[] {
-  const entries = [...searchIndex]
-  const seen = new Set(entries.map((entry) => entry.id))
-  for (const item of DOCS_TOC) {
-    if (seen.has(item.id)) continue
-    seen.add(item.id)
-    entries.push({ id: item.id, label: item.label, text: '' })
-  }
-  return entries
+  return DOCS_PAGES.map((page) => ({
+    id: page.slug,
+    label: page.title,
+    text: pageTexts[page.slug] ?? '',
+  }))
 }
 
 export function filterDocsSearch(entries: DocsSearchEntry[], query: string): DocsSearchEntry[] {
   const needle = query.trim().toLowerCase()
-  if (!needle) {
-    const byId = new Map(entries.map((entry) => [entry.id, entry]))
-    return DOCS_TOC.map((item) => ({
-      id: item.id,
-      label: item.label,
-      text: byId.get(item.id)?.text ?? '',
-    }))
-  }
+  if (!needle) return entries
   return entries.filter(
     (entry) =>
       entry.label.toLowerCase().includes(needle) ||

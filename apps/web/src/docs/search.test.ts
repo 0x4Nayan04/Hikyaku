@@ -1,20 +1,25 @@
 import { describe, expect, it } from 'vitest'
+
+import { DOCS_PAGES } from './toc'
 import { buildDocsSearchIndex, filterDocsSearch } from './search'
 
 describe('docs search', () => {
   const index = buildDocsSearchIndex()
 
-  it('indexes top-level TOC sections', () => {
+  it('indexes one entry per docs page', () => {
     expect(index.some((entry) => entry.id === 'signing')).toBe(true)
     expect(index.some((entry) => entry.id === 'api-reference')).toBe(true)
+    expect(index).toHaveLength(DOCS_PAGES.length)
   })
 
-  it('indexes nested headings for lookups', () => {
-    expect(index.some((entry) => /node\.js/i.test(entry.label))).toBe(true)
-    expect(index.some((entry) => /console path/i.test(entry.label))).toBe(true)
+  it('finds pages by nested heading text, not just page titles', () => {
+    const nodeIds = filterDocsSearch(index, 'node.js').map((entry) => entry.id)
+    expect(nodeIds).toContain('signing')
+    const consoleIds = filterDocsSearch(index, 'console path').map((entry) => entry.id)
+    expect(consoleIds).toContain('quick-start')
   })
 
-  it('filters by label, id, or section body', () => {
+  it('filters by label, id, or page body', () => {
     const results = filterDocsSearch(index, 'sign')
     expect(results.length).toBeGreaterThan(0)
     expect(
@@ -28,13 +33,12 @@ describe('docs search', () => {
   })
 
   it('matches replay in the Console guide and Retries bodies', () => {
-    const results = filterDocsSearch(index, 'replay')
-    const ids = results.map((entry) => entry.id)
+    const ids = filterDocsSearch(index, 'replay').map((entry) => entry.id)
     expect(ids).toContain('console-guide')
     expect(ids).toContain('retries')
   })
 
-  it('matches snake_case field names in section bodies', () => {
+  it('matches snake_case field names in page bodies', () => {
     const ids = filterDocsSearch(index, 'replay_count').map((entry) => entry.id)
     expect(ids).toContain('retries')
   })
@@ -44,17 +48,8 @@ describe('docs search', () => {
     expect(ids).toContain('find-your-way-around-the-code')
   })
 
-  it('returns TOC-only rows when the query is empty', () => {
+  it('returns every page in reading order when the query is empty', () => {
     const results = filterDocsSearch(index, '')
-    expect(results.some((entry) => entry.id === 'introduction')).toBe(true)
-    expect(results.some((entry) => entry.id === 'api-only-path')).toBe(true)
-    expect(results.some((entry) => entry.id === 'console-path')).toBe(true)
-    expect(results.every((entry) => entry.id !== 'node-js')).toBe(true)
-    expect(results.map((entry) => [entry.id, entry.label])).toEqual(
-      expect.arrayContaining([
-        ['api-only-path', 'Terminal walkthrough'],
-        ['console-path', 'Website walkthrough'],
-      ]),
-    )
+    expect(results.map((entry) => entry.id)).toEqual(DOCS_PAGES.map((page) => page.slug))
   })
 })

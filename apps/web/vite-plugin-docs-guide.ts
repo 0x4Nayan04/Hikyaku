@@ -10,6 +10,7 @@ import javascript from 'highlight.js/lib/languages/javascript'
 import json from 'highlight.js/lib/languages/json'
 import python from 'highlight.js/lib/languages/python'
 import { loadEnv, type Plugin } from 'vite'
+import { DOCS_PAGES } from './src/docs/toc'
 import { normalizeSiteUrl } from './src/lib/meta/public-site-meta'
 
 hljs.registerLanguage('bash', bash)
@@ -201,6 +202,142 @@ function renderGuideHtml(source: string): string {
   )
 }
 
+/**
+ * Split the rendered guide at h2 boundaries: everything before the first h2 is
+ * the preamble (site title + tagline); each h2 opens one section slice.
+ */
+function splitGuideHtml(html: string): { preamble: string; sections: Map<string, string> } {
+  const opens = [...html.matchAll(/<h2\b[^>]*>/g)]
+  const firstIndex = opens[0]?.index ?? html.length
+  const sections = new Map<string, string>()
+
+  for (let i = 0; i < opens.length; i += 1) {
+    const start = opens[i]?.index ?? html.length
+    const end = i + 1 < opens.length ? (opens[i + 1]?.index ?? html.length) : html.length
+    const id = /\bid="([^"]+)"/.exec(opens[i]?.[0] ?? '')?.[1] ?? ''
+    if (!id || sections.has(id)) continue
+    sections.set(id, html.slice(start, end))
+  }
+
+  return { preamble: html.slice(0, firstIndex), sections }
+}
+
+/** The section heading opens its own page, so it renders as the page h1. */
+function sectionHeadingAsPageTitle(slice: string): string {
+  return slice.replace(
+    /^<h2\b([^>]*)>([\s\S]*?)<\/h2>/,
+    (_match, attrs: string, inner: string) =>
+      `<h1${attrs.replace(/\bclass="docs-h2"/, 'class="docs-title"')}>${inner}</h1>`,
+  )
+}
+
+function validatePagePlan(sections: Map<string, string>): void {
+  const inPlan = new Set<string>()
+  for (const page of DOCS_PAGES) {
+    if (page.sections.length === 0) {
+      throw new Error(`Docs page "${page.slug}" lists no sections`)
+    }
+    for (const section of page.sections) {
+      if (inPlan.has(section)) {
+        throw new Error(`Docs section "${section}" is listed on more than one page`)
+      }
+      if (!sections.has(section)) {
+        throw new Error(`guide.md has no "## ${section}" heading listed on docs page "${page.slug}"`)
+      }
+      inPlan.add(section)
+    }
+  }
+  for (const id of sections.keys()) {
+    if (!inPlan.has(id)) {
+      throw new Error(`guide.md h2 "${id}" is missing from the DOCS_PAGES plan in src/docs/toc.ts`)
+    }
+  }
+}
+
+/**
+ * In-document `#anchor` links become links to the page that owns the anchor.
+ * h3 anchors keep their hash so they still land mid-page.
+ */
+function buildAnchorHrefs(sections: Map<string, string>): Map<string, string> {
+  const hrefs = new Map<string, string>()
+  const pageBySection = new Map<string, string>()
+  for (const page of DOCS_PAGES) {
+    for (const section of page.sections) {
+      pageBySection.set(section, page.slug)
+    }
+  }
+  for (const [sectionId, slice] of sections) {
+    const slug = pageBySection.get(sectionId)
+    if (!slug) continue
+    hrefs.set(sectionId, slug === sectionId ? `/docs/${slug}` : `/docs/${slug}#${sectionId}`)
+    for (const match of slice.matchAll(/<h3\b[^>]*\bid="([^"]+)"[^>]*>/g)) {
+      hrefs.set(match[1], `/docs/${slug}#${match[1]}`)
+    }
+  }
+  return hrefs
+}
+
+function rewriteHashLinks(html: string, hrefs: Map<string, string>): string {
+  return html.replace(/href="#([^"]*)"/g, (match, anchor: string) => {
+    const target = hrefs.get(anchor)
+    return target ? `href="${target}"` : match
+  })
+}
+
+function buildDocsPageHtml(source: string): Record<string, string> {
+  const pages: Record<string, string> = {}
+  const { preamble, sections } = splitGuideHtml(renderGuideHtml(source))
+  validatePagePlan(sections)
+  const hrefs = buildAnchorHrefs(sections)
+
+  DOCS_PAGES.forEach((page, index) => {
+    const slices = page.sections.map((section) => sections.get(section) ?? '')
+    const body = index === 0 ? slices.join('') : slices.map(sectionHeadingAsPageTitle).join('')
+    const html = index === 0 ? `${preamble}${body}` : body
+    pages[page.slug] = rewriteHashLinks(html, hrefs)
+  })
+  return pages
+}
+
+/** Per-page searchable text: the page's markdown slices, stripped to plain words. */
+function buildDocsPageSearchTexts(source: string): Record<string, string> {
+  const texts: Record<string, string> = {}
+  const sections = new Map<string, string>()
+  let preambleLines: string[] | null = null
+  let currentLines: string[] | null = null
+  let currentId = ''
+
+  const flush = () => {
+    if (currentId && currentLines) {
+      const joined = sections.get(currentId) ?? ''
+      sections.set(currentId, `${joined}\n${currentLines.join('\n')}`)
+    } else if (currentLines) {
+      preambleLines = currentLines
+    }
+  }
+
+  for (const line of source.split('\n')) {
+    const match = /^##\s+(.+)$/.exec(line)
+    if (!match) {
+      currentLines?.push(line)
+      continue
+    }
+    flush()
+    currentId = slugify(match[1])
+    currentLines = [line]
+  }
+  flush()
+
+  for (const page of DOCS_PAGES) {
+    const parts = page.sections.map((section) => sections.get(section) ?? '')
+    if (page === DOCS_PAGES[0] && preambleLines) {
+      parts.unshift(preambleLines.join('\n'))
+    }
+    texts[page.slug] = plainText(parts.join('\n'))
+  }
+  return texts
+}
+
 function parseId(id: string): { filename: string; query: string } {
   const clean = id.split('\0')[0] ?? id
   const qIndex = clean.indexOf('?')
@@ -232,7 +369,14 @@ export function compileDocsGuide(): Plugin {
     load(id) {
       const { filename, query } = parseId(id)
       if (!filename.endsWith('guide.md')) return
-      if (query !== 'html' && query !== 'search') return
+      if (
+        query !== 'html' &&
+        query !== 'search' &&
+        query !== 'pages' &&
+        query !== 'page-search'
+      ) {
+        return
+      }
 
       const source = readFileSync(filename, 'utf8')
         .replaceAll('{{APP_NAME}}', APP_NAME)
@@ -241,6 +385,12 @@ export function compileDocsGuide(): Plugin {
 
       if (query === 'html') {
         return `export default ${JSON.stringify(renderGuideHtml(source))}`
+      }
+      if (query === 'pages') {
+        return `export default ${JSON.stringify(buildDocsPageHtml(source))}`
+      }
+      if (query === 'page-search') {
+        return `export default ${JSON.stringify(buildDocsPageSearchTexts(source))}`
       }
       return `export default ${JSON.stringify(buildSearchIndex(source))}`
     },

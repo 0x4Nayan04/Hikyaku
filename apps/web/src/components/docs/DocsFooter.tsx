@@ -13,8 +13,8 @@ export function DocsFooter() {
       <nav className="docs-footer__nav" aria-label="Docs footer">
         <Link to="/">Home</Link>
         <Link to={PRODUCT_LINKS.docs}>Docs</Link>
-        <a href="#api-reference">API reference</a>
-        <a href="#privacy">Privacy</a>
+        <Link to="/docs/api-reference">API reference</Link>
+        <Link to="/docs/privacy">Privacy</Link>
         <Link to="/login">Sign in</Link>
       </nav>
     </footer>

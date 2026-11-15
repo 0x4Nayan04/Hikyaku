@@ -1,12 +1,21 @@
-import { DOCS_TOC } from '@/docs/toc'
+import { docsPageBySlug, docsPathForAnchor, type DocsPage } from '@/docs/toc'
 import { APP_NAME, PRODUCT_LINKS } from '@/lib/meta/app-meta'
+
+function docsPageForPathname(pathname: string, hash: string): DocsPage | null {
+  const slug = pathname.replace(/^\/docs\/?/, '').split('/')[0] ?? ''
+  const page = docsPageBySlug(slug)
+  if (page) return page
+  // Legacy hash links like /docs#signing still resolve to their page title.
+  const anchorPath = hash.startsWith('#') ? docsPathForAnchor(hash.slice(1)) : null
+  const anchorSlug = (anchorPath ?? '').split('#')[0].replace(/^\/docs\//, '')
+  return docsPageBySlug(anchorSlug)
+}
 
 /** Detail IDs collapse to a generic label. */
 export function titleForPath(pathname: string, hash = ''): string {
   if (pathname.startsWith('/docs')) {
-    const id = hash.replace(/^#/, '')
-    const section = DOCS_TOC.find((item) => item.id === id)
-    return section ? `${section.label} · ${APP_NAME} Docs` : `${APP_NAME} Docs`
+    const page = docsPageForPathname(pathname, hash)
+    return page ? `${page.title} · ${APP_NAME} Docs` : `${APP_NAME} Docs`
   }
   if (pathname === '/') return APP_NAME
   // Avoid "Why Hikyaku · Hikyaku" from the generic `Label · APP_NAME` pattern.

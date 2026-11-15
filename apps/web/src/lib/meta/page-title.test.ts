@@ -9,10 +9,15 @@ describe('titleForPath', () => {
     expect(titleForPath('/login')).toBe('Sign in · Hikyaku')
     expect(titleForPath('/reset-password')).toBe('Reset password · Hikyaku')
     expect(titleForPath('/docs')).toBe('Hikyaku Docs')
+    expect(titleForPath('/docs/introduction')).toBe('Introduction · Hikyaku Docs')
+    expect(titleForPath('/docs/quick-start')).toBe('Quick start · Hikyaku Docs')
+    expect(titleForPath('/docs/troubleshooting-a-delivery')).toBe(
+      'Troubleshooting a delivery · Hikyaku Docs',
+    )
+    // Legacy hash links still resolve to the page that owns the anchor.
     expect(titleForPath('/docs', '#signing')).toBe('Signing · Hikyaku Docs')
-    expect(titleForPath('/docs', '#api-only-path')).toBe('Terminal walkthrough · Hikyaku Docs')
+    expect(titleForPath('/docs', '#api-only-path')).toBe('Quick start · Hikyaku Docs')
     expect(titleForPath('/docs', '#known-limits')).toBe('Known limits · Hikyaku Docs')
-    expect(titleForPath('/docs', '#console-path')).toBe('Website walkthrough · Hikyaku Docs')
     expect(titleForPath('/docs/anything')).toBe('Hikyaku Docs')
     expect(titleForPath('/dashboard')).toBe('Dashboard · Hikyaku')
     expect(titleForPath('/events/send')).toBe('Test event · Hikyaku')

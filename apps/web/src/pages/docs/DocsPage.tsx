@@ -1,11 +1,15 @@
 import { useEffect, useRef } from 'react'
+import { Navigate, useParams } from 'react-router-dom'
 
-import guideHtml from '@/docs/guide.md?html'
+import pageHtmlMap from '@/docs/guide.md?pages'
+import { docsPageBySlug } from '@/docs/toc'
 import { copyToClipboard } from '@/lib/clipboard'
 import { COPY_FEEDBACK_MS } from '@/lib/ui-timing'
 
 export function DocsPage() {
+  const { slug = '' } = useParams()
   const articleRef = useRef<HTMLElement>(null)
+  const pageHtml = docsPageBySlug(slug) ? (pageHtmlMap[slug] ?? '') : ''
 
   useEffect(() => {
     const root = articleRef.current
@@ -33,11 +37,15 @@ export function DocsPage() {
     return () => root.removeEventListener('click', onClick)
   }, [])
 
+  if (!pageHtml) {
+    return <Navigate to="/docs/introduction" replace />
+  }
+
   return (
     <article
       ref={articleRef}
       className="docs-article"
-      dangerouslySetInnerHTML={{ __html: guideHtml }}
+      dangerouslySetInnerHTML={{ __html: pageHtml }}
     />
   )
 }
