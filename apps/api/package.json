@@ -11,6 +11,7 @@
     "migrate": "node dist/scripts/migrate.js",
     "test:unit": "vitest run --config vitest.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:query-plans": "node test/performance/list-query-plans.mjs",
     "db:seed": "tsx src/scripts/seed.ts",
     "typecheck": "tsc --build && tsc -p tsconfig.test.json"
   },
