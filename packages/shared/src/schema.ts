@@ -94,7 +94,8 @@ export const events = pgTable(
   (t) => [
     uniqueIndex('events_tenant_idempotency_key_idx').on(t.tenantId, t.idempotencyKey),
     uniqueIndex('events_tenant_id_id_uidx').on(t.tenantId, t.id),
-    index('events_tenant_id_created_at_idx').on(t.tenantId, t.createdAt),
+    index('events_tenant_id_created_at_idx').on(t.tenantId, t.createdAt, t.id),
+    index('events_tenant_id_status_created_at_idx').on(t.tenantId, t.status, t.createdAt, t.id),
   ],
 )
 
@@ -121,8 +122,8 @@ export const deliveries = pgTable(
   },
   (t) => [
     uniqueIndex('deliveries_event_id_endpoint_id_idx').on(t.eventId, t.endpointId),
-    index('deliveries_tenant_id_created_at_idx').on(t.tenantId, t.createdAt),
-    index('deliveries_tenant_id_status_created_at_idx').on(t.tenantId, t.status, t.createdAt),
+    index('deliveries_tenant_id_created_at_idx').on(t.tenantId, t.createdAt, t.id),
+    index('deliveries_tenant_id_status_created_at_idx').on(t.tenantId, t.status, t.createdAt, t.id),
     index('deliveries_tenant_id_status_updated_at_idx').on(t.tenantId, t.status, t.updatedAt),
     index('deliveries_tenant_id_endpoint_id_created_at_idx').on(
       t.tenantId,
